@@ -1,0 +1,478 @@
+import 'dart:typed_data';
+import '../../theme/app_theme.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class EditProfileScreen extends StatefulWidget {
+  final Map<String, dynamic> userProfile;
+
+  const EditProfileScreen({super.key, required this.userProfile});
+
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _usernameController;
+  late TextEditingController _displayNameController;
+  late TextEditingController _bioController;
+  late TextEditingController _emailController;
+  List<String> _selectedPlatforms = [];
+  List<String> _allPlatforms = ['pc', 'playstation', 'xbox', 'nintendo'];
+  
+  
+  bool _isLoading = false;
+  
+  // Local state for UI preview before saving
+  String? _avatarUrl;
+  String? _bannerUrl;
+  
+  // Local bytes if user selects a new image
+  Uint8List? _newAvatarBytes;
+  String? _newAvatarExt;
+  Uint8List? _newBannerBytes;
+  String? _newBannerExt;
+
+  @override
+  void initState() {
+    super.initState();
+    _usernameController = TextEditingController(text: widget.userProfile['username'] ?? '');
+    _displayNameController = TextEditingController(text: widget.userProfile['display_name'] ?? widget.userProfile['username'] ?? '');
+    _bioController = TextEditingController(text: widget.userProfile['bio'] ?? '');
+    _emailController = TextEditingController(text: Supabase.instance.client.auth.currentUser!.email ?? '');
+    _selectedPlatforms = List<String>.from(widget.userProfile['platforms'] ?? []);
+    
+    // Reordenar _allPlatforms para que los seleccionados aparezcan primero en su orden guardado
+    for (final p in _selectedPlatforms.reversed) {
+      if (_allPlatforms.contains(p)) {
+        _allPlatforms.remove(p);
+        _allPlatforms.insert(0, p);
+      }
+    }
+    
+    _avatarUrl = widget.userProfile['avatar_url'];
+    _bannerUrl = widget.userProfile['banner_url'];
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _displayNameController.dispose();
+    _bioController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage(bool isAvatar) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      final ext = image.name.split('.').last;
+      
+      setState(() {
+        if (isAvatar) {
+          _newAvatarBytes = bytes;
+          _newAvatarExt = ext;
+        } else {
+          _newBannerBytes = bytes;
+          _newBannerExt = ext;
+        }
+      });
+    }
+  }
+
+  Future<String?> _uploadImageToStorage(String bucket, Uint8List bytes, String ext) async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '$userId/$timestamp.$ext';
+      
+      await Supabase.instance.client.storage
+          .from(bucket)
+          .uploadBinary(
+            filePath, 
+            bytes, 
+            fileOptions: FileOptions(contentType: 'image/$ext', upsert: true)
+          );
+          
+      return Supabase.instance.client.storage.from(bucket).getPublicUrl(filePath);
+    } catch (e) {
+      print('[CORPUS DEBUG] Error uploading image to $bucket: $e');
+      return null;
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final newUsername = _usernameController.text.trim();
+      final newDisplayName = _displayNameController.text.trim();
+      final newBio = _bioController.text.trim();
+      final newEmail = _emailController.text.trim();
+      
+      // Upload images if changed
+      String? finalAvatarUrl = _avatarUrl;
+      if (_newAvatarBytes != null && _newAvatarExt != null) {
+        final uploadedUrl = await _uploadImageToStorage('avatars', _newAvatarBytes!, _newAvatarExt!);
+        if (uploadedUrl != null) finalAvatarUrl = uploadedUrl;
+      }
+      
+      String? finalBannerUrl = _bannerUrl;
+      if (_newBannerBytes != null && _newBannerExt != null) {
+        final uploadedUrl = await _uploadImageToStorage('banners', _newBannerBytes!, _newBannerExt!);
+        if (uploadedUrl != null) finalBannerUrl = uploadedUrl;
+      }
+      
+      // Check if username is already taken by someone else
+      if (newUsername != widget.userProfile['username']) {
+        final existingUser = await Supabase.instance.client
+            .from('users')
+            .select('id')
+            .eq('username', newUsername)
+            .maybeSingle();
+            
+        if (existingUser != null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Ese nombre de usuario ya está en uso.')),
+            );
+            setState(() => _isLoading = false);
+          }
+          return;
+        }
+      }
+      
+      // Actualizar Email en Auth si cambió
+      if (newEmail != Supabase.instance.client.auth.currentUser!.email) {
+        await Supabase.instance.client.auth.updateUser(UserAttributes(email: newEmail));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Revisa tu bandeja de entrada para confirmar el nuevo email.')),
+          );
+        }
+      }
+      
+      // Update DB
+      await Supabase.instance.client.from('users').update({
+        'username': newUsername,
+        'display_name': newDisplayName.isEmpty ? newUsername : newDisplayName,
+        'bio': newBio,
+        'platforms': _selectedPlatforms,
+        'avatar_url': finalAvatarUrl,
+        'banner_url': finalBannerUrl,
+      }).eq('id', userId);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Perfil guardado correctamente')),
+        );
+        Navigator.pop(context, true); // Retornar true para indicar que se actualizó
+      }
+      
+    } catch (e) {
+      print('[CORPUS DEBUG] Error saving profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar el perfil: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Editar Perfil'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    // BANNER & AVATAR EDIT
+                    Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.bottomCenter,
+                      children: [
+                        // BANNER
+                        GestureDetector(
+                          onTap: () => _pickImage(false),
+                          child: Container(
+                            height: 180,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              gradient: _bannerUrl == null && _newBannerBytes == null 
+                                ? LinearGradient(colors: [Colors.deepPurple.shade800, Colors.red.shade900])
+                                : null,
+                              image: _newBannerBytes != null 
+                                ? DecorationImage(image: MemoryImage(_newBannerBytes!), fit: BoxFit.cover)
+                                : _bannerUrl != null 
+                                    ? DecorationImage(image: NetworkImage(_bannerUrl!), fit: BoxFit.cover)
+                                    : null,
+                            ),
+                            child: Stack(
+                              children: [
+                                // Degradado oscuro para que resalte la cámara y se funda bien
+                                Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [Theme.of(context).scaffoldBackgroundColor.withOpacity(0.54), Colors.transparent],
+                                    ),
+                                  ),
+                                ),
+                                // Icono de la cámara elevado (alineado más arriba del centro)
+                                Align(
+                                  alignment: const Alignment(0, -0.4), // Elevado respecto al centro
+                                  child: CircleAvatar(
+                                    backgroundColor: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.54),
+                                    radius: 24,
+                                    child: Icon(Icons.camera_alt, size: 24),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        
+                        // AVATAR
+                        Positioned(
+                          bottom: -40,
+                          child: GestureDetector(
+                            onTap: () => _pickImage(true),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 4),
+                              ),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 50,
+                                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                                    backgroundImage: _newAvatarBytes != null 
+                                        ? MemoryImage(_newAvatarBytes!) as ImageProvider
+                                        : _avatarUrl != null 
+                                            ? NetworkImage(_avatarUrl!) 
+                                            : null,
+                                    onBackgroundImageError: (e, s) {
+                                      print('[CORPUS] Error cargando preview de avatar: $e');
+                                    },
+                                    child: _newAvatarBytes == null && _avatarUrl == null 
+                                        ? const Icon(Icons.person, size: 50, ) 
+                                        : null,
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.54), shape: BoxShape.circle),
+                                    child: const Icon(Icons.camera_alt, size: 24),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 60),
+                    
+                    // USERNAME FIELD
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Nombre a mostrar (Público)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _displayNameController,
+                            
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Theme.of(context).colorScheme.surface,
+                              prefixIcon: const Icon(Icons.person, color: Colors.grey),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          const Text('Nombre de usuario (Único)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _usernameController,
+                            
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Theme.of(context).colorScheme.surface,
+                              prefixIcon: const Icon(Icons.alternate_email, color: Colors.grey),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'El nombre de usuario no puede estar vacío';
+                              }
+                              if (value.trim().length < 3) {
+                                return 'El nombre de usuario es muy corto';
+                              }
+                              if (value.contains(' ')) {
+                                return 'No puede contener espacios';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          const Text('Correo Electrónico (Inicio de sesión)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _emailController,
+                            
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Theme.of(context).colorScheme.surface,
+                              prefixIcon: const Icon(Icons.email, color: Colors.grey),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty || !value.contains('@')) {
+                                return 'Introduce un correo válido';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          const Text('Biografía', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _bioController,
+                            
+                            maxLines: 3,
+                            maxLength: 150,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Theme.of(context).colorScheme.surface,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          const Text('Plataformas (Mantén pulsado para ordenar)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 60,
+                            child: ReorderableListView(
+                              scrollDirection: Axis.horizontal,
+                              buildDefaultDragHandles: true,
+                              onReorder: (oldIndex, newIndex) {
+                                setState(() {
+                                  if (oldIndex < newIndex) {
+                                    newIndex -= 1;
+                                  }
+                                  final String item = _allPlatforms.removeAt(oldIndex);
+                                  _allPlatforms.insert(newIndex, item);
+                                  
+                                  // Reordenar también la lista de seleccionados basándose en este nuevo orden general
+                                  _selectedPlatforms.sort((a, b) => 
+                                      _allPlatforms.indexOf(a).compareTo(_allPlatforms.indexOf(b)));
+                                });
+                              },
+                              children: _allPlatforms.map((p) {
+                                switch (p) {
+                                  case 'pc': return _buildPlatformBadge('pc', Colors.grey.shade300, icon: Icons.computer, key: const ValueKey('pc'));
+                                  case 'playstation': return _buildPlatformBadge('playstation', Colors.blue, imagePath: 'assets/images/playstation.png', key: const ValueKey('playstation'));
+                                  case 'xbox': return _buildPlatformBadge('xbox', Colors.green, imagePath: 'assets/images/xbox.png', key: const ValueKey('xbox'));
+                                  case 'nintendo': return _buildPlatformBadge('nintendo', Colors.red, imagePath: 'assets/images/nintendo.png', key: const ValueKey('nintendo'));
+                                  default: return Container(key: ValueKey(p));
+                                }
+                              }).toList(),
+                            ),
+                          ),
+
+                          
+                          const SizedBox(height: 40),
+                          
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _saveProfile,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('Guardar Cambios', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildPlatformBadge(String platform, Color activeColor, {IconData? icon, String? imagePath, Key? key}) {
+    final isSelected = _selectedPlatforms.contains(platform);
+    return GestureDetector(
+      key: key,
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            _selectedPlatforms.remove(platform);
+          } else {
+            _selectedPlatforms.add(platform);
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor.withOpacity(0.2) : Theme.of(context).colorScheme.surface,
+          border: Border.all(color: isSelected ? activeColor : Colors.transparent, width: 2),
+          shape: BoxShape.circle,
+        ),
+        child: imagePath != null
+            ? Image.asset(imagePath, width: 30, height: 30, color: isSelected ? activeColor : Colors.grey)
+            : Icon(icon, color: isSelected ? activeColor : Colors.grey, size: 30),
+      ),
+    );
+  }
+}

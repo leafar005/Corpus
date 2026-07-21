@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -40,14 +41,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(error.message),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ));
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Ocurrió un error inesperado'),
-          backgroundColor: Colors.redAccent,
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Ocurrió un error inesperado'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ));
       }
     } finally {
