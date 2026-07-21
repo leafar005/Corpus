@@ -89,8 +89,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           // 4. Estado de éxito (dibujamos la cuadrícula real)
           return GridView.builder(
             padding: const EdgeInsets.all(8.0),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3, // 3 columnas
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 150, // Anchura máxima ideal de cada carátula
               childAspectRatio: 0.7, 
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
@@ -101,6 +101,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               // gameData contiene los datos que cruzamos de la tabla 'games'
               final gameData = userGame['games']; 
               final title = gameData['title'] ?? 'Desconocido';
+              final coverUrl = gameData['cover_url'] ?? '';
               
               return Card(
                 clipBehavior: Clip.antiAlias,
@@ -109,10 +110,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Container(
-                      color: Colors.deepPurple.shade900,
-                      child: const Center(child: Icon(Icons.image, size: 40, color: Colors.white54)),
-                    ),
+                    coverUrl.isNotEmpty
+                        ? Image.network(coverUrl, fit: BoxFit.cover)
+                        : Container(
+                            color: Colors.deepPurple.shade900,
+                            child: const Center(child: Icon(Icons.videogame_asset, size: 40, color: Colors.white54)),
+                          ),
                     Positioned(
                       bottom: 0,
                       left: 0,
