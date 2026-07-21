@@ -40,7 +40,8 @@ class IGDBService {
       },
       // Buscamos el texto. Pedimos (fields): nombre, id de portada, fecha. 
       // Exigimos (where) que tenga portada para que quede bonito. Límite: 20 resultados.
-      body: 'search "$query"; fields name, cover.image_id, first_release_date; where cover != null; limit 20;',
+      // Ampliado en Fase 3: pedimos también sinopsis (summary), géneros, plataformas e info de desarrolladores
+      body: 'search "$query"; fields name, cover.image_id, first_release_date, summary, genres.name, platforms.name, involved_companies.developer, involved_companies.company.name; where cover != null; limit 20;',
     );
 
     if (response.statusCode == 200) {
