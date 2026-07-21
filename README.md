@@ -64,7 +64,7 @@ It combines a personal game journal with a closed social layer for your group, e
 
 | Phase | Name | Goal |
 |-------|------|------|
-| 0 | Foundation | Supabase project, full DB schema, Flutter app boots and authenticates |
+| 0 | Foundation | Supabase project, core DB schema (users, games), Flutter app boots and authenticates |
 | 1 | Core library | Full game CRUD, status management, local cache — usable offline |
 | 2 | Real metadata | IGDB search + covers + genres, HLTB times on add |
 | 3 | Reviews | Scores, category breakdown, comments, photo upload |
