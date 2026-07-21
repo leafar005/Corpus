@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'env.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/library/library_screen.dart';
 
 void main() async {
   // 1. Asegura que los motores de Flutter están listos
@@ -30,7 +31,9 @@ class CorpusApp extends StatelessWidget {
         colorSchemeSeed: Colors.deepPurple,
         useMaterial3: true,
       ),
-      home: const AuthGate(),
+      home: const SelectionArea(
+        child: AuthGate(),
+      ),
     );
   }
 }
@@ -54,25 +57,7 @@ class AuthGate extends StatelessWidget {
         
         if (session != null) {
           // Si hay sesión, dejamos pasar al usuario a la app principal.
-          // Por ahora es solo un texto, pero aquí pondremos tu Biblioteca.
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Corpus - Mi Biblioteca'),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  onPressed: () => Supabase.instance.client.auth.signOut(),
-                )
-              ],
-            ),
-            body: const Center(
-              child: Text(
-                '¡Has iniciado sesión con éxito!\nPronto pondremos tus juegos aquí.', 
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          );
+          return const LibraryScreen();
         }
         
         // Si no hay sesión, al Login de cabeza
