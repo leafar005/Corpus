@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'env.dart';
@@ -31,9 +32,11 @@ class CorpusApp extends StatelessWidget {
         colorSchemeSeed: Colors.deepPurple,
         useMaterial3: true,
       ),
-      home: const SelectionArea(
-        child: AuthGate(),
-      ),
+      // Hacemos que SelectionArea solo funcione en Web, porque en Android
+      // choca con las listas y lanza un error ('!_selectionStartsInScrollable')
+      home: kIsWeb 
+          ? const SelectionArea(child: AuthGate())
+          : const AuthGate(),
     );
   }
 }
