@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'search_screen.dart';
+import 'game_details_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -102,46 +103,77 @@ class _LibraryScreenState extends State<LibraryScreen> {
               final gameData = userGame['games']; 
               final title = gameData['title'] ?? 'Desconocido';
               final coverUrl = gameData['cover_url'] ?? '';
+              final rating = (userGame['rating'] ?? 0).toDouble();
               
-              return Card(
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                elevation: 4,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    coverUrl.isNotEmpty
-                        ? Image.network(coverUrl, fit: BoxFit.cover)
-                        : Container(
-                            color: Colors.deepPurple.shade900,
-                            child: const Center(child: Icon(Icons.videogame_asset, size: 40, color: Colors.white54)),
+              return InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GameDetailsScreen(gameData: gameData),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Card(
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      coverUrl.isNotEmpty
+                          ? Image.network(coverUrl, fit: BoxFit.cover)
+                          : Container(
+                              color: Colors.deepPurple.shade900,
+                              child: const Center(child: Icon(Icons.videogame_asset, size: 40, color: Colors.white54)),
+                            ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(8.0),
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [Colors.black87, Colors.transparent],
+                            ),
                           ),
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [Colors.black87, Colors.transparent],
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                  ],
+                      // Icono visual: Nota si tiene
+                      if (rating > 0)
+                        Positioned(
+                          top: 6, right: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2))
+                              ],
+                            ),
+                            child: Text(
+                              rating.toStringAsFixed(1),
+                              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               );
             },

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/igdb_service.dart';
+import 'game_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -17,6 +18,36 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isLoading = false;
   List<dynamic> _results = [];
   String _errorMessage = '';
+  
+  // Caché de los juegos del usuario (game_id -> nota)
+  Map<int, double> _userGamesCache = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserGamesCache();
+  }
+
+  Future<void> _fetchUserGamesCache() async {
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    try {
+      final response = await Supabase.instance.client
+          .from('user_games')
+          .select('game_id, rating')
+          .eq('user_id', userId);
+      
+      if (mounted) {
+        setState(() {
+          _userGamesCache.clear();
+          for (var row in response) {
+            _userGamesCache[row['game_id'] as int] = (row['rating'] ?? 0).toDouble();
+          }
+        });
+      }
+    } catch (e) {
+      // Si falla, simplemente no mostraremos las notas encima de las carátulas
+    }
+  }
 
   @override
   void dispose() {
@@ -28,8 +59,8 @@ class _SearchScreenState extends State<SearchScreen> {
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     
-    // Esperamos 500ms después de que dejes de teclear para no saturar a Twitch con peticiones
-    _debounce = Timer(const Duration(milliseconds: 500), () {
+    // Lo bajamos a 300ms para que reaccione más rápido a las pulsaciones
+    _debounce = Timer(const Duration(milliseconds: 300), () {
       if (query.trim().isNotEmpty) {
         _performSearch(query);
       } else {
@@ -61,53 +92,65 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
-  Future<void> _addGameToLibrary(dynamic gameData) async {
-    // 1. Extraemos los datos útiles que nos dio IGDB
-    final igdbId = gameData['id'];
-    final title = gameData['name'];
-    final coverImageId = gameData['cover'] != null ? gameData['cover']['image_id'] : null;
-    final coverUrl = IGDBService.getCoverUrl(coverImageId);
+  Future<void> _openGameDetails(dynamic gameData) async {
+    // Traducción en tiempo real: Convertimos los datos "sucios" de IGDB al formato limpio de Supabase
     
-    // Convertimos la fecha (Unix timestamp numérico) a texto ISO 8601
+    // Convertimos la fecha
     String? releaseDate;
     if (gameData['first_release_date'] != null) {
       final date = DateTime.fromMillisecondsSinceEpoch(gameData['first_release_date'] * 1000);
       releaseDate = date.toIso8601String();
     }
 
-    final userId = Supabase.instance.client.auth.currentUser!.id;
-
-    try {
-      // 2. Guardamos la "Ficha del Juego" en la tabla pública 'games'.
-      // Upsert: Si alguien en el mundo ya había guardado el "Zelda", simplemente lo actualiza sin dar error.
-      await Supabase.instance.client.from('games').upsert({
-        'igdb_id': igdbId,
-        'title': title,
-        'cover_url': coverUrl,
-        'release_date': releaseDate,
-      });
-
-      // 3. Creamos el vínculo de "Rafa posee este juego" en 'user_games'
-      await Supabase.instance.client.from('user_games').upsert({
-        'user_id': userId,
-        'game_id': igdbId,
-        'status': 'playing', // Por defecto lo ponemos en "Jugando"
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('¡$title añadido a tu biblioteca!'), backgroundColor: Colors.green),
-        );
-        // Cerramos la ventana de búsqueda para que el usuario vuelva a su biblioteca
-        Navigator.pop(context); 
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al guardar: $error'), backgroundColor: Colors.red),
-        );
+    // Extraemos géneros
+    List<String> genres = [];
+    if (gameData['genres'] != null) {
+      for (var genre in gameData['genres']) {
+        if (genre['name'] != null) genres.add(genre['name']);
       }
     }
+
+    // Extraemos plataformas
+    List<String> platforms = [];
+    if (gameData['platforms'] != null) {
+      for (var platform in gameData['platforms']) {
+        if (platform['name'] != null) platforms.add(platform['name']);
+      }
+    }
+
+    // Extraemos desarrollador
+    String? developer;
+    if (gameData['involved_companies'] != null) {
+      for (var company in gameData['involved_companies']) {
+        if (company['developer'] == true && company['company'] != null) {
+          developer = company['company']['name'];
+          break;
+        }
+      }
+    }
+
+    // Creamos el diccionario con el mismo molde que usamos en Supabase
+    final cleanData = {
+      'igdb_id': gameData['id'],
+      'title': gameData['name'],
+      'cover_url': IGDBService.getCoverUrl(gameData['cover']?['image_id']),
+      'release_date': releaseDate,
+      'summary': gameData['summary'],
+      'genres': genres,
+      'platforms': platforms,
+      'developer': developer,
+    };
+
+    // Viajamos a la Ficha del Juego
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GameDetailsScreen(gameData: cleanData),
+      ),
+    );
+
+    // Cuando el usuario vuelva de la ficha, actualizamos la caché por si ha añadido o puntuado el juego
+    _fetchUserGamesCache();
   }
 
   @override
@@ -161,7 +204,7 @@ class _SearchScreenState extends State<SearchScreen> {
         final coverUrl = IGDBService.getCoverUrl(coverImageId);
 
         return InkWell(
-          onTap: () => _addGameToLibrary(game), // <-- Guardar juego
+          onTap: () => _openGameDetails(game), // <-- Abrir ficha traducida
           borderRadius: BorderRadius.circular(8),
           child: Card(
             clipBehavior: Clip.antiAlias,
@@ -197,11 +240,27 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ),
                 ),
-                // Icono visual de "+" arriba a la derecha
-                const Positioned(
-                  top: 4, right: 4,
-                  child: Icon(Icons.add_circle, color: Colors.deepPurpleAccent),
-                ),
+                // Icono visual: Nota si lo tienes, o un tic si lo tienes pero sin nota
+                if (_userGamesCache.containsKey(game['id']))
+                  Positioned(
+                    top: 6, right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2))
+                        ],
+                      ),
+                      child: Text(
+                        _userGamesCache[game['id']]! > 0 
+                            ? _userGamesCache[game['id']]!.toStringAsFixed(1) 
+                            : '✓',
+                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
