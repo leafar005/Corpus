@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/main_screen.dart';
 import 'env.dart';
 import 'screens/auth/login_screen.dart';
-import 'screens/library/library_screen.dart';
+import 'theme/app_theme.dart';
+
+import 'globals.dart';
 
 void main() async {
   // 1. Asegura que los motores de Flutter están listos
@@ -24,19 +27,21 @@ class CorpusApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Corpus',
-      // ¡Configuramos un tema oscuro y elegante con toques morados!
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        colorSchemeSeed: Colors.deepPurple,
-        useMaterial3: true,
-      ),
-      // Hacemos que SelectionArea solo funcione en Web, porque en Android
-      // choca con las listas y lanza un error ('!_selectionStartsInScrollable')
-      home: kIsWeb 
-          ? const SelectionArea(child: AuthGate())
-          : const AuthGate(),
+    return ListenableBuilder(
+      listenable: themeNotifier,
+      builder: (context, child) {
+        return MaterialApp(
+          title: 'Corpus',
+          // Aplicamos nuestros temas y el modo seleccionado
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeNotifier.currentMode,
+          
+          home: kIsWeb 
+              ? const SelectionArea(child: AuthGate())
+              : const AuthGate(),
+        );
+      },
     );
   }
 }
@@ -60,7 +65,7 @@ class AuthGate extends StatelessWidget {
         
         if (session != null) {
           // Si hay sesión, dejamos pasar al usuario a la app principal.
-          return const LibraryScreen();
+          return const MainScreen();
         }
         
         // Si no hay sesión, al Login de cabeza

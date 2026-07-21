@@ -31,3 +31,5 @@ doc/api/
 # Variables de entorno secretas
 lib/env.dart
 
+# Scripts temporales
+scratch/

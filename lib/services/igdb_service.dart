@@ -24,13 +24,11 @@ class IGDBService {
     }
   }
 
-  // 2. Buscar juegos en el catálogo gigante de IGDB
-  static Future<List<dynamic>> searchGames(String query) async {
+  static Future<List<dynamic>> searchGames(String query, {int offset = 0}) async {
     if (query.trim().isEmpty) return [];
     
     await _authenticate();
 
-    // Le pedimos datos a IGDB usando su lenguaje llamado APICALYPSE
     final response = await http.post(
       Uri.parse('https://api.igdb.com/v4/games'),
       headers: {
@@ -38,10 +36,9 @@ class IGDBService {
         'Authorization': 'Bearer $_accessToken',
         'Accept': 'application/json',
       },
-      // Buscamos el texto. Pedimos (fields): nombre, id de portada, fecha. 
-      // Exigimos (where) que tenga portada para que quede bonito. Límite: 20 resultados.
-      // Ampliado en Fase 3: pedimos también sinopsis (summary), géneros, plataformas e info de desarrolladores
-      body: 'search "$query"; fields name, cover.image_id, first_release_date, summary, genres.name, platforms.name, involved_companies.developer, involved_companies.company.name; where cover != null; limit 20;',
+      // Usamos coincidencia parcial (substring) y ordenamos por popularidad
+      // Esto soluciona el problema de que "zel" no encontraba cosas y asegura que los resultados sean siempre los más populares
+      body: 'fields name, cover.image_id, first_release_date, summary, category, genres.name, platforms.name, involved_companies.developer, involved_companies.company.name; where name ~ *"$query"* & cover != null; sort total_rating_count desc; limit 20; offset $offset;',
     );
 
     if (response.statusCode == 200) {
@@ -51,7 +48,50 @@ class IGDBService {
     }
   }
 
-  // 3. Traductor: Convertir la ID de la imagen en un enlace URL real de internet
+  // 3. Obtener los juegos más esperados o populares (Tendencias)
+  static Future<List<dynamic>> getPopularGames({int offset = 0}) async {
+    await _authenticate();
+    
+    final response = await http.post(
+      Uri.parse('https://api.igdb.com/v4/games'),
+      headers: {
+        'Client-ID': Env.igdbClientId,
+        'Authorization': 'Bearer $_accessToken',
+        'Accept': 'application/json',
+      },
+      // Option B: Novedades Recientes (últimos lanzamientos populares)
+      body: 'fields name, cover.image_id, first_release_date, summary, category, genres.name, platforms.name, involved_companies.developer, involved_companies.company.name; where cover != null & total_rating_count > 10; sort first_release_date desc; limit 20; offset $offset;',
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Error al obtener juegos populares: ${response.body}');
+    }
+  }
+
+  // 4. Obtener un juego concreto por su ID de IGDB (para enriquecer datos que faltan)
+  static Future<Map<String, dynamic>?> getGameById(int igdbId) async {
+    await _authenticate();
+
+    final response = await http.post(
+      Uri.parse('https://api.igdb.com/v4/games'),
+      headers: {
+        'Client-ID': Env.igdbClientId,
+        'Authorization': 'Bearer $_accessToken',
+        'Accept': 'application/json',
+      },
+      body: 'fields name, cover.image_id, first_release_date, summary, category, genres.name, platforms.name, involved_companies.developer, involved_companies.company.name; where id = $igdbId;',
+    );
+
+    if (response.statusCode == 200) {
+      final list = jsonDecode(response.body) as List;
+      return list.isNotEmpty ? list[0] as Map<String, dynamic> : null;
+    }
+    return null;
+  }
+
+  // 5. Traductor: Convertir la ID de la imagen en un enlace URL real de internet
   static String getCoverUrl(String? imageId) {
     if (imageId == null) return '';
     // 't_cover_big' es un tamaño oficial de IGDB para móviles (alta resolución)
