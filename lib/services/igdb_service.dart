@@ -176,4 +176,37 @@ class IGDBService {
     if (videoId == null) return '';
     return 'https://www.youtube.com/watch?v=$videoId';
   }
+
+  // 10. Obtener tiempo de juego (HowLongToBeat)
+  static Future<Map<String, dynamic>?> getTimeToBeat(int gameId) async {
+    try {
+      await _authenticate();
+      final String url = kIsWeb 
+          ? 'https://corsproxy.io/?https://api.igdb.com/v4/game_time_to_beats'
+          : 'https://api.igdb.com/v4/game_time_to_beats';
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Client-ID': Env.igdbClientId,
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+        },
+        body: 'fields *; where game_id = $gameId; limit 1;',
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        if (data.isNotEmpty) {
+          return data[0];
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching time to beat: $e');
+      }
+      return null;
+    }
+  }
 }

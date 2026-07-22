@@ -38,8 +38,6 @@ class _GameCardState extends State<GameCard> {
     
     // Título unificado
     final String title = widget.game['name'] ?? widget.game['title'] ?? 'Desconocido';
-    final String lowerTitle = title.toLowerCase();
-
     // Id de IGDB unificado
     final igdbId = widget.game['igdb_id'] ?? widget.game['id'];
 
