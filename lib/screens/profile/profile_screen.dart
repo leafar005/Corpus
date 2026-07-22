@@ -99,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     } catch (e) {
-      print('[CORPUS] Hall of fame no disponible todavía: $e');
+      debugPrint('[CORPUS] Hall of fame no disponible todavía: $e');
     }
 
     final List<dynamic> gamesList = gamesResp;
@@ -251,11 +251,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 4),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8)],
                 ),
                 child: CircleAvatar(
                   radius: isDesktop ? 60 : 45,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
                   child: avatarUrl == null ? Icon(Icons.person, size: isDesktop ? 60 : 40) : null,
                 ),
@@ -298,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       margin: EdgeInsets.only(top: 40, left: isDesktop ? 40 : 16, right: isDesktop ? 40 : 16),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1), width: 1)),
+        border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1)),
       ),
       child: Row(
         children: [
@@ -473,7 +473,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -601,7 +601,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(color: Colors.amber, width: 3),
-                                    boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.4), blurRadius: 10, spreadRadius: 1)],
+                                    boxShadow: [BoxShadow(color: Colors.amber.withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 1)],
                                   ),
                                 ),
                               ),
@@ -619,7 +619,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.surfaceVariant,
+                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(7),
                                     ),
                                     child: game != null && game['cover_url'] != null
@@ -635,7 +635,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       : Center(
                                           child: Icon(
                                             Icons.add, 
-                                            color: isNumberOne ? Colors.amber.withOpacity(0.8) : Colors.grey
+                                            color: isNumberOne ? Colors.amber.withValues(alpha: 0.8) : Colors.grey
                                           ),
                                         ),
                                   ),
@@ -774,7 +774,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(8),
       ),
       child: imagePath != null 
@@ -989,9 +989,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).colorScheme.surfaceVariant),
+          border: Border.all(color: Theme.of(context).colorScheme.surfaceContainerHighest),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

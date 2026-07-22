@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StorageUtils {
@@ -12,7 +13,7 @@ class StorageUtils {
       try {
         await Supabase.instance.client.storage.from('user_uploads').remove(paths);
       } catch (e) {
-        print('Error deleting images from storage: $e');
+        debugPrint('Error deleting images from storage: $e');
       }
     }
   }

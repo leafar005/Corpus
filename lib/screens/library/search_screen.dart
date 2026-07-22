@@ -22,7 +22,7 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _hasMoreSearchResults = true;
   int _searchOffset = 0;
 
-  List<dynamic> _popularGames = [];
+  final List<dynamic> _popularGames = [];
   String _popularGamesError = '';
   bool _isLoadingPopular = false;
   bool _hasMorePopularGames = true;
@@ -218,7 +218,7 @@ class _SearchScreenState extends State<SearchScreen> {
           decoration: InputDecoration(
             hintText: 'Buscar juegos...',
             border: InputBorder.none,
-            hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+            hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.5)),
           ),
           style: const TextStyle(fontSize: 18),
           onChanged: _onSearchChanged,

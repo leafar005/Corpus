@@ -54,7 +54,6 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.accent,
         surface: surfaceColor,
-        background: bgColor,
         error: AppColors.danger,
         onSurfaceVariant: Colors.grey, // Usado para textSecondary
       ),
@@ -120,7 +119,6 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.accent,
         surface: surfaceColor,
-        background: bgColor,
         error: AppColors.danger,
         onSurfaceVariant: Colors.grey.shade700, // Usado para textSecondary
       ),

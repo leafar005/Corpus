@@ -50,7 +50,7 @@ class IGDBService {
     String whereConditions = 'cover != null';
     
     if (query.trim().isNotEmpty) {
-      whereConditions += ' & ' + words.map((w) => 'name ~ *"$w"*').join(' & ');
+      whereConditions += ' & ${words.map((w) => 'name ~ *"$w"*').join(' & ')}';
     }
     
     if (genres != null && genres.isNotEmpty) {

@@ -42,9 +42,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
           .order('created_at', ascending: false)
           .limit(50);
       
-      print('[CORPUS DEBUG] _fetchActivity response count: ${response.length}');
+      debugPrint('[CORPUS DEBUG] _fetchActivity response count: ${response.length}');
       if (response.isNotEmpty) {
-        print('[CORPUS DEBUG] _fetchActivity first item: ${response[0]}');
+        debugPrint('[CORPUS DEBUG] _fetchActivity first item: ${response[0]}');
       }
           
       if (mounted) {
@@ -54,7 +54,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
         });
       }
     } catch (e) {
-      print('[CORPUS DEBUG] ERROR en _fetchActivity: $e');
+      debugPrint('[CORPUS DEBUG] ERROR en _fetchActivity: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -187,7 +187,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
                   child: avatarUrl == null ? const Icon(Icons.person, size: 24, ) : null,
                 ),
