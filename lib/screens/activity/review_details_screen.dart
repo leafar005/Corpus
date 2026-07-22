@@ -2,23 +2,20 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../library/game_details_screen.dart';
 
 class ReviewDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
   final Map<String, dynamic>? userData;
-  final double rating;
-  final String comment;
-  final String status;
-  final String? updatedAt;
+  final Map<String, dynamic> reviewData;
+  final bool focusComment;
 
   const ReviewDetailsScreen({
     super.key,
     required this.gameData,
     required this.userData,
-    required this.rating,
-    required this.comment,
-    required this.status,
-    required this.updatedAt,
+    required this.reviewData,
+    this.focusComment = false,
   });
 
   @override
@@ -31,48 +28,52 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   bool _hasLiked = false;
   List<Map<String, dynamic>> _comments = [];
   final TextEditingController _commentController = TextEditingController();
+  final FocusNode _commentFocusNode = FocusNode();
   bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
     _fetchInteractions();
+    if (widget.focusComment) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _commentFocusNode.requestFocus();
+      });
+    }
   }
 
   @override
   void dispose() {
     _commentController.dispose();
+    _commentFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _fetchInteractions() async {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
-    final reviewUserId = widget.userData?['id'];
-    final reviewGameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+    final reviewId = widget.reviewData['id'];
 
-    if (reviewUserId == null || reviewGameId == null) {
+    if (reviewId == null) {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
 
     try {
-      // 1. Fetch likes
+      // Fetch likes
       final likesResponse = await Supabase.instance.client
           .from('review_likes')
           .select('user_id')
-          .eq('review_user_id', reviewUserId)
-          .eq('review_game_id', reviewGameId);
+          .eq('review_id', reviewId);
       
       final likes = likesResponse as List;
       _likesCount = likes.length;
       _hasLiked = likes.any((like) => like['user_id'] == currentUserId);
 
-      // 2. Fetch comments
+      // Fetch comments
       final commentsResponse = await Supabase.instance.client
           .from('review_comments')
           .select('*, users(*)')
-          .eq('review_user_id', reviewUserId)
-          .eq('review_game_id', reviewGameId)
+          .eq('review_id', reviewId)
           .order('created_at', ascending: true);
       
       _comments = List<Map<String, dynamic>>.from(commentsResponse);
@@ -87,10 +88,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
   Future<void> _toggleLike() async {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
-    final reviewUserId = widget.userData?['id'];
-    final reviewGameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-
-    if (reviewUserId == null || reviewGameId == null) return;
+    final reviewId = widget.reviewData['id'];
+    if (reviewId == null) return;
 
     // Optimistic UI update
     setState(() {
@@ -102,16 +101,16 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       if (_hasLiked) {
         await Supabase.instance.client.from('review_likes').insert({
           'user_id': currentUserId,
-          'review_user_id': reviewUserId,
-          'review_game_id': reviewGameId,
+          'review_id': reviewId,
+          'review_user_id': widget.reviewData['user_id'],
+          'review_game_id': widget.reviewData['game_id'],
         });
       } else {
         await Supabase.instance.client
             .from('review_likes')
             .delete()
             .eq('user_id', currentUserId)
-            .eq('review_user_id', reviewUserId)
-            .eq('review_game_id', reviewGameId);
+            .eq('review_id', reviewId);
       }
     } catch (e) {
       // Revert on error
@@ -130,18 +129,17 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     if (content.isEmpty) return;
 
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
-    final reviewUserId = widget.userData?['id'];
-    final reviewGameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-
-    if (reviewUserId == null || reviewGameId == null) return;
+    final reviewId = widget.reviewData['id'];
+    if (reviewId == null) return;
 
     setState(() => _isSubmitting = true);
 
     try {
       await Supabase.instance.client.from('review_comments').insert({
         'user_id': currentUserId,
-        'review_user_id': reviewUserId,
-        'review_game_id': reviewGameId,
+        'review_id': reviewId,
+        'review_user_id': widget.reviewData['user_id'],
+        'review_game_id': widget.reviewData['game_id'],
         'content': content,
       });
 
@@ -208,6 +206,23 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     }
   }
 
+  String _getMonthAbbr(int month) {
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return months[month - 1];
+  }
+
+  String _formatDateRange(String? from, String? until) {
+    if (from == null) return '';
+    try {
+      final f = DateTime.parse(from);
+      final fs = '${f.day} ${_getMonthAbbr(f.month)}';
+      if (until == null) return '$fs ${f.year}';
+      final u = DateTime.parse(until);
+      final us = '${u.day} ${_getMonthAbbr(u.month)} ${u.year}';
+      return f.year == u.year ? '$fs - $us' : '$fs ${f.year} - $us';
+    } catch (_) { return ''; }
+  }
+
   String _getStatusText(String status) {
     switch(status) {
       case 'beaten': return 'Terminado';
@@ -219,17 +234,105 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     }
   }
 
+  IconData _getStatusIcon(String status) {
+    switch(status) {
+      case 'beaten': return Icons.emoji_events;
+      case 'playing': return Icons.sports_esports;
+      case 'wishlist': return Icons.bookmark;
+      case 'abandoned': return Icons.cancel;
+      case 'on_hold': return Icons.pause_circle;
+      default: return Icons.flag;
+    }
+  }
+
+  String _getCompletionTypeText(String type) {
+    switch(type) {
+      case 'story': return 'Historia';
+      case 'story_extras': return 'Historia + Extras';
+      case '100_percent': return '100%';
+      default: return type;
+    }
+  }
+
+  IconData _getCompletionTypeIcon(String type) {
+    switch(type) {
+      case 'story': return Icons.auto_stories;
+      case 'story_extras': return Icons.extension;
+      case '100_percent': return Icons.stars;
+      default: return Icons.flag;
+    }
+  }
+
+  Widget _buildInfoBadge(String label, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubRatingBadge(String label, double rating, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade400),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          const SizedBox(width: 4),
+          Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = widget.gameData['title'] ?? 'Desconocido';
     final coverUrl = widget.gameData['cover_url'] ?? '';
     final username = widget.userData?['username'] ?? 'Jugador';
     final avatarUrl = widget.userData?['avatar_url'];
-    final dateStr = widget.updatedAt != null ? _formatDate(widget.updatedAt!) : '';
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
 
+    // Extract all fields from reviewData
+    final rating = (widget.reviewData['rating'] ?? 0).toDouble();
+    final comment = widget.reviewData['comment'] ?? '';
+    final status = widget.reviewData['status'] ?? 'unknown';
+    final createdAt = widget.reviewData['created_at'];
+    final completionType = widget.reviewData['completion_type'] ?? 'story';
+    final isReplay = widget.reviewData['is_replay'] ?? false;
+    final replayNumber = widget.reviewData['replay_number'];
+    final platform = widget.reviewData['platform'];
+    final playTimeHours = (widget.reviewData['play_time_hours'] ?? 0).toDouble();
+    final playedFrom = widget.reviewData['played_from'];
+    final playedUntil = widget.reviewData['played_until'];
+    final progressPercent = widget.reviewData['progress_percent'];
+
+    final ratingGameplay = (widget.reviewData['rating_gameplay'] ?? 0).toDouble();
+    final ratingNarrative = (widget.reviewData['rating_narrative'] ?? 0).toDouble();
+    final ratingSoundtrack = (widget.reviewData['rating_soundtrack'] ?? 0).toDouble();
+    final ratingVisuals = (widget.reviewData['rating_visuals'] ?? 0).toDouble();
+
+    final dateStr = createdAt != null ? _formatDate(createdAt) : '';
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Stash dark style
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: false,
@@ -246,8 +349,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
-            child: Padding(
+        : Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,6 +377,21 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+
+                  // Badges: completion type, replay, platform
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (completionType != 'none')
+                        _buildInfoBadge(_getCompletionTypeText(completionType), _getCompletionTypeIcon(completionType), Theme.of(context).colorScheme.primary),
+                      if (isReplay)
+                        _buildInfoBadge('Rejugada${replayNumber != null ? ' #$replayNumber' : ''}', Icons.replay, Colors.orangeAccent),
+                      if (platform != null)
+                        _buildInfoBadge(platform, Icons.devices, Colors.blueGrey),
+                    ],
+                  ),
                   const SizedBox(height: 24),
                   
                   // Game Mini-Card and Rating
@@ -278,15 +399,28 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Cover Image
-                      Container(
-                        width: 100,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Theme.of(context).primaryColorDark,
-                          image: coverUrl.isNotEmpty ? DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover) : null,
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => GameDetailsScreen(gameData: widget.gameData),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: 100,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              color: Theme.of(context).primaryColorDark,
+                              image: coverUrl.isNotEmpty ? DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover) : null,
+                            ),
+                            child: coverUrl.isEmpty ? const Center(child: Icon(Icons.videogame_asset, color: Colors.white54)) : null,
+                          ),
                         ),
-                        child: coverUrl.isEmpty ? const Center(child: Icon(Icons.videogame_asset, color: Colors.white54)) : null,
                       ),
                       const SizedBox(width: 16),
                       
@@ -295,21 +429,35 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (widget.rating > 0) ...[
+                            if (rating > 0) ...[
                               Row(
                                 children: [
                                   Icon(Icons.star, color: Theme.of(context).colorScheme.secondary, size: 24),
                                   const SizedBox(width: 8),
-                                  Text(widget.rating.toStringAsFixed(1), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                  Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                                 ],
                               ),
                               const SizedBox(height: 8),
                             ],
+                            if (ratingGameplay > 0 || ratingNarrative > 0 || ratingSoundtrack > 0 || ratingVisuals > 0) ...[
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  if (ratingGameplay > 0) _buildSubRatingBadge('Gameplay', ratingGameplay, Icons.sports_esports),
+                                  if (ratingNarrative > 0) _buildSubRatingBadge('Narrativa', ratingNarrative, Icons.auto_stories),
+                                  if (ratingSoundtrack > 0) _buildSubRatingBadge('Banda Sonora', ratingSoundtrack, Icons.music_note),
+                                  if (ratingVisuals > 0) _buildSubRatingBadge('Visuales', ratingVisuals, Icons.brush),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                             Row(
                               children: [
-                                Icon(Icons.flag, size: 18, color: Colors.grey.shade400),
+                                Icon(_getStatusIcon(status), size: 18, color: Colors.grey.shade400),
                                 const SizedBox(width: 6),
-                                Text(_getStatusText(widget.status), style: TextStyle(fontSize: 16, color: Colors.grey.shade400)),
+                                Text(_getStatusText(status), style: TextStyle(fontSize: 16, color: Colors.grey.shade400)),
                               ],
                             ),
                           ],
@@ -320,11 +468,51 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                   const SizedBox(height: 32),
                   
                   // Review Content
-                  if (widget.comment.isNotEmpty)
+                  if (comment.isNotEmpty)
                     Text(
-                      widget.comment,
+                      comment,
                       style: const TextStyle(fontSize: 16, height: 1.5, ),
                     ),
+                  
+                  // Extra info
+                  if (playTimeHours > 0 || playedFrom != null || progressPercent != null) ...[
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          if (playTimeHours > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(children: [
+                                const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                                const SizedBox(width: 8),
+                                Text('${playTimeHours.toStringAsFixed(1)} horas', style: const TextStyle(color: Colors.grey)),
+                              ]),
+                            ),
+                          if (playedFrom != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(children: [
+                                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                                const SizedBox(width: 8),
+                                Text(_formatDateRange(playedFrom, playedUntil), style: const TextStyle(color: Colors.grey)),
+                              ]),
+                            ),
+                          if (progressPercent != null)
+                            Row(children: [
+                              const Icon(Icons.pie_chart, size: 16, color: Colors.grey),
+                              const SizedBox(width: 8),
+                              Text('$progressPercent% completado', style: const TextStyle(color: Colors.grey)),
+                            ]),
+                        ],
+                      ),
+                    ),
+                  ],
                   
                   const SizedBox(height: 32),
                   
@@ -439,48 +627,63 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                     ),
                     const SizedBox(height: 24),
                   ],
-                  
-                  // Comentario input
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _commentController,
-                            textCapitalization: TextCapitalization.sentences,
-                            maxLength: 500,
-                            decoration: const InputDecoration(
-                              hintText: 'Añadir un comentario...',
-                              hintStyle: TextStyle(color: Colors.grey),
-                              border: InputBorder.none,
-                              counterText: '', // Ocultar el contador nativo para mantener diseño limpio
-                            ),
-                            maxLines: null,
-                          ),
-                        ),
-                        if (_isSubmitting)
-                          const Padding(
-                            padding: EdgeInsets.all(12.0),
-                            child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                          )
-                        else
-                          IconButton(
-                            icon: Icon(Icons.send, color: Theme.of(context).colorScheme.primary),
-                            onPressed: _submitComment,
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                 ],
               ),
             ),
           ),
-    );
-  }
+        ),
+        // Comentario input at the bottom
+        if (!_isLoading)
+          Container(
+            padding: EdgeInsets.only(
+              left: 16, 
+              right: 16, 
+              top: 8, 
+              bottom: MediaQuery.of(context).padding.bottom + 8
+            ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              border: Border(top: BorderSide(color: Colors.white10)),
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      focusNode: _commentFocusNode,
+                      controller: _commentController,
+                      textCapitalization: TextCapitalization.sentences,
+                      maxLength: 500,
+                      decoration: const InputDecoration(
+                        hintText: 'Añadir un comentario...',
+                        hintStyle: TextStyle(color: Colors.grey),
+                        border: InputBorder.none,
+                        counterText: '',
+                      ),
+                      maxLines: null,
+                    ),
+                  ),
+                  if (_isSubmitting)
+                    const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  else
+                    IconButton(
+                      icon: Icon(Icons.send, color: Theme.of(context).colorScheme.primary),
+                      onPressed: _submitComment,
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
 }
