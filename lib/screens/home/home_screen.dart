@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
-import '../library/game_details_screen.dart';
 import 'package:corpus/widgets/game_card.dart';
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -13,9 +10,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Map<String, dynamic>> _playingGames = [];
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
@@ -82,10 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context, index) {
               final userGame = playingGames[index];
               final gameData = userGame['games']; 
-              final title = gameData['title'] ?? 'Desconocido';
-              final coverUrl = gameData['cover_url'] ?? '';
               final rating = (userGame['rating'] ?? 0).toDouble();
-              
               return GameCard(
                 game: gameData,
                 isInLibrary: true,

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
 import '../../widgets/filter_bottom_sheet.dart';
-import 'game_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
