@@ -3,6 +3,7 @@ import '../../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'search_screen.dart';
 import 'game_details_screen.dart';
+import 'package:corpus/widgets/game_card.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -102,79 +103,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
               final userGame = myGames[index];
               // gameData contiene los datos que cruzamos de la tabla 'games'
               final gameData = userGame['games']; 
-              final title = gameData['title'] ?? 'Desconocido';
-              final coverUrl = gameData['cover_url'] ?? '';
               final rating = (userGame['rating'] ?? 0).toDouble();
-              
-              return InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => GameDetailsScreen(gameData: gameData),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 4,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      coverUrl.isNotEmpty
-                          ? Image.network(coverUrl, fit: BoxFit.cover)
-                          : Container(
-                              color: Theme.of(context).primaryColorDark,
-                              child: const Center(child: Icon(Icons.videogame_asset, size: 40, color: Colors.white54)),
-                            ),
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(8.0),
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [Theme.of(context).scaffoldBackgroundColor.withOpacity(0.87), Colors.transparent],
-                            ),
-                          ),
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                      // Icono visual: Nota si tiene
-                      if (rating > 0)
-                        Positioned(
-                          top: 6, right: 6,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.54), blurRadius: 4, offset: Offset(0, 2))
-                              ],
-                            ),
-                            child: Text(
-                              rating.toStringAsFixed(1),
-                              style: TextStyle(color: Theme.of(context).colorScheme.surface, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+
+              return GameCard(
+                game: gameData,
+                isInLibrary: true,
+                userRating: rating,
+                onReturn: () => setState(() {}),
               );
             },
           );
