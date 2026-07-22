@@ -22,7 +22,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _bioController;
   late TextEditingController _emailController;
   List<String> _selectedPlatforms = [];
-  List<String> _allPlatforms = ['pc', 'playstation', 'xbox', 'nintendo'];
+  List<String> _allPlatforms = ['pc', 'linux', 'playstation', 'xbox', 'switch', 'wii', 'mac', 'android'];
   late List<Map<String, dynamic>?> _localHallOfFame;
   
   bool _isLoading = false;
@@ -448,9 +448,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               children: _allPlatforms.map((p) {
                                 switch (p) {
                                   case 'pc': return _buildPlatformBadge('pc', Colors.grey.shade300, icon: Icons.computer, key: const ValueKey('pc'));
+                                  case 'linux': return _buildPlatformBadge('linux', Colors.orangeAccent.shade700, imagePath: 'assets/images/linux.png', key: const ValueKey('linux'));
                                   case 'playstation': return _buildPlatformBadge('playstation', Colors.blue, imagePath: 'assets/images/playstation.png', key: const ValueKey('playstation'));
                                   case 'xbox': return _buildPlatformBadge('xbox', Colors.green, imagePath: 'assets/images/xbox.png', key: const ValueKey('xbox'));
-                                  case 'nintendo': return _buildPlatformBadge('nintendo', Colors.red, imagePath: 'assets/images/nintendo.png', key: const ValueKey('nintendo'));
+                                  case 'switch': return _buildPlatformBadge('switch', Colors.red, imagePath: 'assets/images/switch.png', key: const ValueKey('switch'));
+                                  case 'wii': return _buildPlatformBadge('wii', Colors.grey.shade400, imagePath: 'assets/images/wii.png', key: const ValueKey('wii'));
+                                  case 'mac': return _buildPlatformBadge('mac', Colors.grey.shade800, imagePath: 'assets/images/mac.png', key: const ValueKey('mac'));
+                                  case 'android': return _buildPlatformBadge('android', const Color(0xFF3DDC84), imagePath: 'assets/images/android.png', key: const ValueKey('android'));
                                   default: return Container(key: ValueKey(p));
                                 }
                               }).toList(),

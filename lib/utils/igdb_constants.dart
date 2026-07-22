@@ -1,0 +1,198 @@
+import 'package:flutter/material.dart';
+
+class IgdbConstants {
+  // ============================================================
+  // CATEGORÍAS DE JUEGO (IGDB)
+  // ============================================================
+  // Fuente: https://api-docs.igdb.com/#game-enums
+  //
+  // Centraliza: resolución de categoría, nombre, color y
+  // heurísticas por keywords en el título. NINGÚN otro archivo
+  // debería hardcodear categorías ni hacer detección por título.
+  // ============================================================
+
+  /// Datos de cada categoría: nombre en español + color + keywords de detección
+  static const Map<int, Map<String, dynamic>> _categoryData = {
+    0:  {'name': 'Juego Principal', 'colorValue': 0xFF2196F3}, // Colors.blue
+    1:  {'name': 'DLC',             'colorValue': 0xFFE040FB}, // Colors.purpleAccent
+    2:  {'name': 'Expansión',       'colorValue': 0xFFE040FB},
+    3:  {'name': 'Bundle',          'colorValue': 0xFFFFAB40}, // Colors.orangeAccent
+    4:  {'name': 'Expansión Standalone', 'colorValue': 0xFFE040FB},
+    5:  {'name': 'Mod',             'colorValue': 0xFF9E9E9E},
+    6:  {'name': 'Episodio',        'colorValue': 0xFF9E9E9E},
+    7:  {'name': 'Temporada',       'colorValue': 0xFF9E9E9E},
+    8:  {'name': 'Remake',          'colorValue': 0xFFCDDC39}, // Se sobreescribe con Theme.secondary en UI
+    9:  {'name': 'Remaster',        'colorValue': 0xFF64FFDA}, // Colors.tealAccent
+    10: {'name': 'Edición Expandida', 'colorValue': 0xFFFF4081}, // Colors.pinkAccent
+    11: {'name': 'Port',            'colorValue': 0xFFB2FF59}, // Colors.lightGreenAccent
+    12: {'name': 'Fork',            'colorValue': 0xFF9E9E9E},
+    13: {'name': 'Pack',            'colorValue': 0xFFFFAB40},
+    14: {'name': 'Actualización',   'colorValue': 0xFF18FFFF}, // Colors.cyanAccent
+  };
+
+  /// Keywords que indican que un juego es Remake (category 8)
+  /// aunque IGDB lo haya marcado como main_game (0).
+  static const List<String> _remakeKeywords = [
+    'remake', 'resynced', 'reforged', 'kiwami', 'twin snakes', 'reloaded', 'part i',
+  ];
+
+  /// Keywords que indican que un juego es Remaster (category 9).
+  static const List<String> _remasterKeywords = [
+    'remaster', 'definitive edition', "director's cut", 'redux', 'resurrected', 'anniversary edition',
+  ];
+  /// Regex adicional para detectar "HD" como palabra completa.
+  static final RegExp _hdRegex = RegExp(r'\bhd\b');
+
+  /// Keywords que indican DLC/addon (category 1).
+  static const List<String> _dlcKeywords = [
+    'dlc', 'expansion pass',
+  ];
+
+  /// Keywords que indican Edición Expandida (category 10).
+  static const List<String> _expandedKeywords = [
+    'ultimate edition', 'game of the year', 'goty', 'royal', 'golden', 
+    'complete edition', 'deluxe edition',
+  ];
+
+  // ============================================================
+  // API PÚBLICA
+  // ============================================================
+
+  /// Resuelve la categoría real de un juego, compensando los casos
+  /// en los que IGDB devuelve `0` (main_game) para remakes, remasters, etc.
+  ///
+  /// [igdbCategory] — valor numérico de `category` de IGDB (puede ser null).
+  /// [title] — nombre del juego (para heurísticas por keywords).
+  /// [hasParentGame] — si el juego tiene `parent_game` en IGDB.
+  ///
+  /// Devuelve el `int` de categoría resuelto, o null si es un juego base normal.
+  static int? resolveCategory(int? igdbCategory, String title, {bool hasParentGame = false}) {
+    // Si IGDB ya devolvió una categoría no-base, confiar en ella.
+    if (igdbCategory != null && igdbCategory != 0) {
+      return igdbCategory;
+    }
+
+    // IGDB devolvió null o 0. Usar heurísticas para intentar resolver.
+    final lower = title.toLowerCase();
+
+    if (_remakeKeywords.any((k) => lower.contains(k))) return 8;
+    if (_remasterKeywords.any((k) => lower.contains(k)) || _hdRegex.hasMatch(lower)) return 9;
+    if (_expandedKeywords.any((k) => lower.contains(k))) return 10;
+    if (_dlcKeywords.any((k) => lower.contains(k))) return 1;
+
+    // Si tiene parent_game pero no matcheó ningún keyword, asumimos DLC.
+    if (hasParentGame) return 1;
+
+    // Es un juego base normal → devolver null (no mostrar badge).
+    return null;
+  }
+
+  /// Nombre legible en español para una categoría resuelta.
+  static String getCategoryName(int id) {
+    return _categoryData[id]?['name'] ?? 'Desconocido';
+  }
+
+  /// Color asociado a una categoría.
+  /// [themeSecondary] — color secundario del tema, usado para Remake.
+  static Color getCategoryColor(int id, {Color? themeSecondary}) {
+    if (id == 8 && themeSecondary != null) return themeSecondary;
+    final colorValue = _categoryData[id]?['colorValue'] as int?;
+    return colorValue != null ? Color(colorValue) : Colors.grey;
+  }
+
+  /// Devuelve true si esta categoría NO debería mostrar badge (es juego base).
+  static bool isMainGame(int? category) {
+    return category == null || category == 0;
+  }
+
+  /// Lista de categorías para filtros UI.
+  static List<Map<String, dynamic>> get categories =>
+      _categoryData.entries.map((e) => {'id': e.key, 'name': e.value['name']}).toList();
+
+  // ============================================================
+  // OTROS DATOS ESTÁTICOS DE IGDB (sin cambios)
+  // ============================================================
+
+  static const List<Map<String, dynamic>> genres = [
+    {"id": 2, "name": "Point-and-click"},
+    {"id": 4, "name": "Fighting"},
+    {"id": 5, "name": "Shooter"},
+    {"id": 7, "name": "Music"},
+    {"id": 8, "name": "Platform"},
+    {"id": 9, "name": "Puzzle"},
+    {"id": 10, "name": "Racing"},
+    {"id": 11, "name": "Real Time Strategy (RTS)"},
+    {"id": 12, "name": "Role-playing (RPG)"},
+    {"id": 13, "name": "Simulator"},
+    {"id": 14, "name": "Sport"},
+    {"id": 15, "name": "Strategy"},
+    {"id": 16, "name": "Turn-based strategy (TBS)"},
+    {"id": 24, "name": "Tactical"},
+    {"id": 25, "name": "Hack and slash/Beat 'em up"},
+    {"id": 26, "name": "Quiz/Trivia"},
+    {"id": 30, "name": "Pinball"},
+    {"id": 31, "name": "Adventure"},
+    {"id": 32, "name": "Indie"},
+    {"id": 33, "name": "Arcade"},
+    {"id": 34, "name": "Visual Novel"},
+    {"id": 35, "name": "Card & Board Game"},
+    {"id": 36, "name": "MOBA"}
+  ];
+
+  static const List<Map<String, dynamic>> themes = [
+    {"id": 31, "name": "Drama"},
+    {"id": 32, "name": "Non-fiction"},
+    {"id": 33, "name": "Sandbox"},
+    {"id": 34, "name": "Educational"},
+    {"id": 35, "name": "Kids"},
+    {"id": 38, "name": "Open world"},
+    {"id": 39, "name": "Warfare"},
+    {"id": 40, "name": "Party"},
+    {"id": 41, "name": "4X (explore, expand, exploit, and exterminate)"},
+    {"id": 42, "name": "Erotic"},
+    {"id": 43, "name": "Mystery"},
+    {"id": 1, "name": "Action"},
+    {"id": 17, "name": "Fantasy"},
+    {"id": 18, "name": "Science fiction"},
+    {"id": 19, "name": "Horror"},
+    {"id": 20, "name": "Thriller"},
+    {"id": 21, "name": "Survival"},
+    {"id": 22, "name": "Historical"},
+    {"id": 23, "name": "Stealth"},
+    {"id": 27, "name": "Comedy"},
+    {"id": 28, "name": "Business"},
+    {"id": 44, "name": "Romance"}
+  ];
+
+  static const List<Map<String, dynamic>> gameModes = [
+    {"id": 1, "name": "Single player"},
+    {"id": 2, "name": "Multiplayer"},
+    {"id": 3, "name": "Co-operative"},
+    {"id": 4, "name": "Split screen"},
+    {"id": 5, "name": "Massively Multiplayer Online (MMO)"},
+    {"id": 6, "name": "Battle Royale"}
+  ];
+
+  static const List<Map<String, dynamic>> playerPerspectives = [
+    {"id": 1, "name": "First person"},
+    {"id": 2, "name": "Third person"},
+    {"id": 3, "name": "Bird view / Isometric"},
+    {"id": 4, "name": "Side view"},
+    {"id": 5, "name": "Text"},
+    {"id": 6, "name": "Auditory"},
+    {"id": 7, "name": "Virtual Reality"}
+  ];
+
+  static const List<Map<String, dynamic>> popularPlatforms = [
+    {"id": 6, "name": "PC (Windows)"},
+    {"id": 14, "name": "Mac"},
+    {"id": 3, "name": "Linux"},
+    {"id": 48, "name": "PlayStation 4"},
+    {"id": 167, "name": "PlayStation 5"},
+    {"id": 49, "name": "Xbox One"},
+    {"id": 169, "name": "Xbox Series X|S"},
+    {"id": 130, "name": "Nintendo Switch"},
+    {"id": 34, "name": "Android"},
+    {"id": 39, "name": "iOS"}
+  ];
+}

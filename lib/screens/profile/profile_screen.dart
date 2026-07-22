@@ -9,6 +9,7 @@ import 'profile_games_list_screen.dart';
 import '../activity/review_details_screen.dart';
 import '../settings_screen.dart';
 import 'package:corpus/widgets/game_card.dart';
+import 'package:corpus/widgets/filter_bottom_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -27,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _userReviews = [];
   int _selectedTab = 0;
   List<Map<String, dynamic>?> _hallOfFame = List.filled(5, null);
+  GameFilters _filters = GameFilters();
 
   @override
   void initState() {
@@ -764,9 +766,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Color color;
     switch (platform) {
       case 'pc': icon = Icons.computer; color = Colors.grey.shade300; break;
+      case 'linux': imagePath = 'assets/images/linux.png'; color = Colors.orangeAccent.shade700; break;
       case 'playstation': imagePath = 'assets/images/playstation.png'; color = Colors.blue; break;
       case 'xbox': imagePath = 'assets/images/xbox.png'; color = Colors.green; break;
-      case 'nintendo': imagePath = 'assets/images/nintendo.png'; color = Colors.red; break;
+      case 'switch': imagePath = 'assets/images/switch.png'; color = Colors.red; break;
+      case 'wii': imagePath = 'assets/images/wii.png'; color = Colors.grey.shade400; break;
+      case 'mac': imagePath = 'assets/images/mac.png'; color = Colors.grey.shade800; break;
+      case 'android': imagePath = 'assets/images/android.png'; color = const Color(0xFF3DDC84); break;
+      case 'nintendo': imagePath = 'assets/images/switch.png'; color = Colors.red; break; // Fallback para datos antiguos
       default: icon = Icons.device_unknown; color = Colors.grey; break;
     }
     return Container(
@@ -809,15 +816,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildAllGamesTab() {
+  void _openFilters() async {
+    final result = await showModalBottomSheet<GameFilters>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => FilterBottomSheet(initialFilters: _filters),
+    );
+
+    if (result != null) {
+      setState(() {
+        _filters = result;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _getFilteredGames() {
     final allGamesList = [..._allGames, ..._playingGames, ..._wishlistGames];
+    
+    var filtered = allGamesList.where((game) {
+      final gameData = game['games'] ?? game;
+
+      bool matchesGenres = true;
+      if (_filters.genres.isNotEmpty) {
+        final gameGenres = (gameData['genres'] as List?)?.map((e) => e is int ? e : (e['id'] ?? -1)).toList() ?? [];
+        matchesGenres = _filters.genres.any((id) => gameGenres.contains(id));
+      }
+
+      bool matchesThemes = true;
+      if (_filters.themes.isNotEmpty) {
+        final gameThemes = (gameData['themes'] as List?)?.map((e) => e is int ? e : (e['id'] ?? -1)).toList() ?? [];
+        matchesThemes = _filters.themes.any((id) => gameThemes.contains(id));
+      }
+
+      bool matchesGameModes = true;
+      if (_filters.gameModes.isNotEmpty) {
+        final gameModesList = (gameData['game_modes'] as List?)?.map((e) => e is int ? e : (e['id'] ?? -1)).toList() ?? [];
+        matchesGameModes = _filters.gameModes.any((id) => gameModesList.contains(id));
+      }
+
+      bool matchesPerspectives = true;
+      if (_filters.playerPerspectives.isNotEmpty) {
+        final gamePerspectives = (gameData['player_perspectives'] as List?)?.map((e) => e is int ? e : (e['id'] ?? -1)).toList() ?? [];
+        matchesPerspectives = _filters.playerPerspectives.any((id) => gamePerspectives.contains(id));
+      }
+
+      bool matchesPlatforms = true;
+
+      bool matchesCategories = true;
+      if (_filters.categories.isNotEmpty) {
+        matchesCategories = _filters.categories.contains(gameData['category']);
+      }
+
+      return matchesGenres && matchesThemes && matchesGameModes && matchesPerspectives && matchesPlatforms && matchesCategories;
+    }).toList();
+
+    filtered.sort((a, b) {
+      final gameA = a['games'] ?? a;
+      final gameB = b['games'] ?? b;
+
+      int comparison = 0;
+      if (_filters.sortBy == 'name') {
+        comparison = (gameA['title'] ?? '').toString().compareTo((gameB['title'] ?? '').toString());
+      } else if (_filters.sortBy == 'first_release_date') {
+        final dateA = gameA['release_date'] ?? '9999-12-31';
+        final dateB = gameB['release_date'] ?? '9999-12-31';
+        comparison = dateA.compareTo(dateB);
+      } else if (_filters.sortBy == 'rating') {
+        final ratingA = (a['rating'] ?? 0).toDouble();
+        final ratingB = (b['rating'] ?? 0).toDouble();
+        comparison = ratingA.compareTo(ratingB);
+      } else {
+        final ratingA = (a['rating'] ?? 0).toDouble();
+        final ratingB = (b['rating'] ?? 0).toDouble();
+        comparison = ratingA.compareTo(ratingB);
+      }
+
+      return _filters.sortAscending ? comparison : -comparison;
+    });
+
+    return filtered;
+  }
+
+  Widget _buildAllGamesTab() {
+    final filteredGames = _getFilteredGames();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (allGamesList.isNotEmpty) _buildGrid(allGamesList) else const Center(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: TextButton.icon(
+            icon: const Icon(Icons.tune, size: 20),
+            label: Text('Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}'),
+            style: TextButton.styleFrom(
+              foregroundColor: _filters.hasFilters ? Theme.of(context).colorScheme.primary : Colors.grey[400],
+            ),
+            onPressed: _openFilters,
+          ),
+        ),
+        if (filteredGames.isNotEmpty) _buildGrid(filteredGames) else const Center(
           child: Padding(
             padding: EdgeInsets.all(32.0),
-            child: Text('Aún no tienes juegos en tu biblioteca.', style: TextStyle(color: Colors.grey)),
+            child: Text('Aún no tienes juegos en tu biblioteca o ninguno coincide con los filtros.', style: TextStyle(color: Colors.grey)),
           )
         ),
       ],

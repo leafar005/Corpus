@@ -25,8 +25,20 @@ class IGDBService {
     }
   }
 
-  static Future<List<dynamic>> searchGames(String query, {int offset = 0, int limit =35}) async {
-    if (query.trim().isEmpty) return [];
+  static Future<List<dynamic>> searchGames(
+    String query, {
+    int offset = 0,
+    int limit = 35,
+    String? sortBy,
+    bool sortAscending = true,
+    List<int>? genres,
+    List<int>? themes,
+    List<int>? gameModes,
+    List<int>? playerPerspectives,
+    List<int>? platforms,
+    List<int>? categories,
+  }) async {
+    if (query.trim().isEmpty && genres == null && themes == null && gameModes == null && playerPerspectives == null && platforms == null && categories == null) return [];
     
     await _authenticate();
 
@@ -35,7 +47,36 @@ class IGDBService {
         : 'https://api.igdb.com/v4/games';
 
     final words = query.trim().split(RegExp(r'\s+'));
-    final whereConditions = words.map((w) => 'name ~ *"$w"*').join(' & ');
+    String whereConditions = 'cover != null';
+    
+    if (query.trim().isNotEmpty) {
+      whereConditions += ' & ' + words.map((w) => 'name ~ *"$w"*').join(' & ');
+    }
+    
+    if (genres != null && genres.isNotEmpty) {
+      whereConditions += ' & genres = (${genres.join(',')})';
+    }
+    if (themes != null && themes.isNotEmpty) {
+      whereConditions += ' & themes = (${themes.join(',')})';
+    }
+    if (gameModes != null && gameModes.isNotEmpty) {
+      whereConditions += ' & game_modes = (${gameModes.join(',')})';
+    }
+    if (playerPerspectives != null && playerPerspectives.isNotEmpty) {
+      whereConditions += ' & player_perspectives = (${playerPerspectives.join(',')})';
+    }
+    if (platforms != null && platforms.isNotEmpty) {
+      whereConditions += ' & platforms = (${platforms.join(',')})';
+    }
+    if (categories != null && categories.isNotEmpty) {
+      whereConditions += ' & category = (${categories.join(',')})';
+    }
+
+    String sortClause = 'sort total_rating_count desc';
+    if (sortBy != null) {
+      final direction = sortAscending ? 'asc' : 'desc';
+      sortClause = 'sort $sortBy $direction';
+    }
 
     final response = await http.post(
       Uri.parse(url),
@@ -44,8 +85,7 @@ class IGDBService {
         'Authorization': 'Bearer $_accessToken',
         'Accept': 'application/json',
       },
-      // Dividimos la búsqueda por palabras para encontrar coincidencias parciales sin importar el orden o los guiones (ej. "half life" encuentra "Half-Life")
-      body: 'fields name, cover.image_id, first_release_date, summary, category, parent_game, genres.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id; where $whereConditions & cover != null; sort total_rating_count desc; limit $limit; offset $offset;',
+      body: 'fields name, cover.image_id, first_release_date, summary, category, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id; where $whereConditions; $sortClause; limit $limit; offset $offset;',
     );
 
     if (response.statusCode == 200) {
@@ -71,7 +111,7 @@ class IGDBService {
         'Accept': 'application/json',
       },
       // Option B: Novedades Recientes (últimos lanzamientos populares)
-      body: 'fields name, cover.image_id, first_release_date, summary, category, parent_game, genres.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id; where cover != null & total_rating_count > 10; sort first_release_date desc; limit $limit; offset $offset;',
+      body: 'fields name, cover.image_id, first_release_date, summary, category, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id; where cover != null & total_rating_count > 10; sort first_release_date desc; limit $limit; offset $offset;',
     );
 
     if (response.statusCode == 200) {
@@ -96,7 +136,7 @@ class IGDBService {
         'Authorization': 'Bearer $_accessToken',
         'Accept': 'application/json',
       },
-      body: 'fields name, cover.image_id, first_release_date, summary, category, parent_game, genres.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id; where id = $igdbId;',
+      body: 'fields name, cover.image_id, first_release_date, summary, category, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id; where id = $igdbId;',
     );
 
     if (response.statusCode == 200) {

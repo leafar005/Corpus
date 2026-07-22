@@ -3,8 +3,9 @@ import '../../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import '../../services/igdb_service.dart';
+import '../../widgets/game_card.dart';
+import '../../widgets/filter_bottom_sheet.dart';
 import 'game_details_screen.dart';
-import 'package:corpus/widgets/game_card.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -28,6 +29,8 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isLoadingPopular = false;
   bool _hasMorePopularGames = true;
   int _popularOffset = 0;
+
+  GameFilters _filters = GameFilters();
   
   // Caché de los juegos del usuario (game_id -> nota)
   Map<int, double> _userGamesCache = {};
@@ -40,7 +43,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-        if (_searchController.text.trim().isEmpty) {
+        if (_searchController.text.trim().isEmpty && !_filters.hasFilters) {
           _fetchPopularGames(isInitial: false);
         } else {
           _performSearch(isInitial: false);
@@ -124,7 +127,7 @@ class _SearchScreenState extends State<SearchScreen> {
     
     // Esperamos 500ms después de que el usuario deje de escribir
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (query.trim().isEmpty) {
+      if (query.trim().isEmpty && !_filters.hasFilters) {
         setState(() {
           _results = [];
           _isLoading = false;
@@ -133,6 +136,22 @@ class _SearchScreenState extends State<SearchScreen> {
         _performSearch(isInitial: true);
       }
     });
+  }
+
+  void _openFilters() async {
+    final result = await showModalBottomSheet<GameFilters>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => FilterBottomSheet(initialFilters: _filters),
+    );
+
+    if (result != null) {
+      setState(() {
+        _filters = result;
+      });
+      _performSearch(isInitial: true);
+    }
   }
 
   int _searchVersion = 0;
@@ -151,7 +170,18 @@ class _SearchScreenState extends State<SearchScreen> {
 
     try {
       final query = _searchController.text.trim();
-      final games = await IGDBService.searchGames(query, offset: _searchOffset);
+      final games = await IGDBService.searchGames(
+        query,
+        offset: _searchOffset,
+        sortBy: _filters.sortBy,
+        sortAscending: _filters.sortAscending,
+        genres: _filters.genres.isNotEmpty ? _filters.genres : null,
+        themes: _filters.themes.isNotEmpty ? _filters.themes : null,
+        gameModes: _filters.gameModes.isNotEmpty ? _filters.gameModes : null,
+        playerPerspectives: _filters.playerPerspectives.isNotEmpty ? _filters.playerPerspectives : null,
+        platforms: _filters.platforms.isNotEmpty ? _filters.platforms : null,
+        categories: _filters.categories.isNotEmpty ? _filters.categories : null,
+      );
       
       if (mounted && version == _searchVersion) {
         setState(() {
@@ -206,12 +236,28 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
         ],
       ),
-      body: _buildBody(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: TextButton.icon(
+              icon: const Icon(Icons.tune, size: 20),
+              label: Text('Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}'),
+              style: TextButton.styleFrom(
+                foregroundColor: _filters.hasFilters ? Theme.of(context).colorScheme.primary : Colors.grey[400],
+              ),
+              onPressed: _openFilters,
+            ),
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 
   Widget _buildBody() {
-    if (_searchController.text.trim().isEmpty) {
+    if (_searchController.text.trim().isEmpty && !_filters.hasFilters) {
       if (_popularGamesError.isNotEmpty) {
         return Center(
           child: Text('Error cargando tendencias:\n$_popularGamesError', textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
