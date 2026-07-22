@@ -1,0 +1,130 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class HallOfFameSelectorScreen extends StatefulWidget {
+  final int pinOrder;
+
+  const HallOfFameSelectorScreen({super.key, required this.pinOrder});
+
+  @override
+  State<HallOfFameSelectorScreen> createState() => _HallOfFameSelectorScreenState();
+}
+
+class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _beatenGames = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBeatenGames();
+  }
+
+  Future<void> _fetchBeatenGames() async {
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final response = await Supabase.instance.client
+        .from('user_games')
+        .select('*, games(*)')
+        .eq('user_id', userId)
+        .eq('status', 'beaten')
+        .order('updated_at', ascending: false);
+
+    final gamesList = <Map<String, dynamic>>[];
+    for (var row in response) {
+      if (row['games'] != null) {
+        gamesList.add(row['games']);
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _beatenGames = gamesList;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _selectGame(int gameId) async {
+    setState(() => _isLoading = true);
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    
+    try {
+      await Supabase.instance.client.from('hall_of_fame').upsert({
+        'user_id': userId,
+        'game_id': gameId,
+        'pin_order': widget.pinOrder,
+      }, onConflict: 'user_id, pin_order');
+      
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _removeGame() async {
+    setState(() => _isLoading = true);
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    
+    try {
+      await Supabase.instance.client.from('hall_of_fame').delete()
+        .eq('user_id', userId)
+        .eq('pin_order', widget.pinOrder);
+      
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text('Pin #${widget.pinOrder}', style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            tooltip: 'Vaciar hueco',
+            onPressed: _removeGame,
+          )
+        ],
+      ),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : _beatenGames.isEmpty 
+          ? const Center(child: Text('No tienes juegos completados para destacar.'))
+          : GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 140,
+                childAspectRatio: 0.7,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: _beatenGames.length,
+              itemBuilder: (context, index) {
+                final game = _beatenGames[index];
+                final coverUrl = game['cover_url']?.replaceAll('t_cover_big', 't_1080p') ?? '';
+                
+                return GestureDetector(
+                  onTap: () => _selectGame(game['igdb_id'] ?? game['id']),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: coverUrl.isNotEmpty
+                      ? Image.network(coverUrl, fit: BoxFit.cover)
+                      : Container(color: Theme.of(context).primaryColorDark),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
