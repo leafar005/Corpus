@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/screens/library/game_details_screen.dart';
+import 'package:corpus/utils/igdb_constants.dart';
 
 class GameCard extends StatefulWidget {
   final Map<String, dynamic> game;
@@ -121,59 +122,18 @@ class _GameCardState extends State<GameCard> {
                 bottom: 6, left: 6,
                 child: Builder(
                   builder: (context) {
-                    int? catId = widget.game['category'];
                     final bool hasParent = widget.game['parent_game'] != null;
-                    
-                    bool isRemakeKeyword() {
-                      final kws = ['remake', 'resynced', 'reforged', 'kiwami', 'twin snakes', 'reloaded'];
-                      return kws.any((k) => lowerTitle.contains(k));
-                    }
-                    bool isRemasterKeyword() {
-                      final kws = ['remaster', 'definitive edition', "director's cut", 'redux', 'resurrected', 'anniversary edition'];
-                      if (kws.any((k) => lowerTitle.contains(k))) return true;
-                      if (RegExp(r'\bhd\b').hasMatch(lowerTitle)) return true;
-                      return false;
-                    }
-                    bool isDlcKeyword() {
-                      final kws = ['dlc', 'expansion pass', 'phantom liberty', 'shadow of the erdtree', 'blood and wine', 'hearts of stone', 'the old hunters', 'the frozen wilds', 'left behind', 'the following'];
-                      return kws.any((k) => lowerTitle.contains(k));
-                    }
-                    bool isExpandedKeyword() {
-                      final kws = ['ultimate edition', 'game of the year', 'goty', 'royal', 'golden', 'complete edition'];
-                      return kws.any((k) => lowerTitle.contains(k));
-                    }
-                    
-                    if (isRemakeKeyword()) {
-                      catId = 8;
-                    } else if (isRemasterKeyword()) {
-                      catId = 9;
-                    } else if (isExpandedKeyword()) {
-                      catId = 10;
-                    } else if (isDlcKeyword()) {
-                      catId = 1;
-                    }
+                    final int? resolved = IgdbConstants.resolveCategory(
+                      widget.game['category'] as int?,
+                      title,
+                      hasParentGame: hasParent,
+                    );
 
-                    if (catId == null && !hasParent) return const SizedBox.shrink(); // Aún no cargó de Supabase o no tiene info
+                    // No badge for main games
+                    if (IgdbConstants.isMainGame(resolved)) return const SizedBox.shrink();
 
-                    String text = 'Juego Principal';
-                    Color color = Colors.blue;
-                    
-                    switch (catId ?? 0) {
-                      case 0: text = hasParent ? 'DLC' : 'Juego Principal'; color = hasParent ? Colors.purpleAccent : Colors.blue; break;
-                      case 1: text = 'DLC'; color = Colors.purpleAccent; break;
-                      case 2: text = 'Expansión'; color = Colors.purpleAccent; break;
-                      case 3: text = 'Bundle'; color = Colors.orangeAccent; break;
-                      case 4: text = 'Exp Standalone'; color = Colors.purpleAccent; break;
-                      case 8: text = 'Remake'; color = Theme.of(context).colorScheme.secondary; break;
-                      case 9: text = 'Remaster'; color = Colors.tealAccent; break;
-                      case 10: text = 'Ed. Expandida'; color = Colors.pinkAccent; break;
-                      case 11: text = 'Port'; color = Colors.lightGreenAccent; break;
-                      case 12: text = 'Fork'; color = Colors.grey; break;
-                      case 13: text = 'Pack'; color = Colors.orangeAccent; break;
-                      case 14: text = 'Actualización'; color = Colors.cyanAccent; break;
-                    }
-                    
-                    if (text == 'Juego Principal') return const SizedBox.shrink();
+                    final String text = IgdbConstants.getCategoryName(resolved!);
+                    final Color color = IgdbConstants.getCategoryColor(resolved, themeSecondary: Theme.of(context).colorScheme.secondary);
 
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),

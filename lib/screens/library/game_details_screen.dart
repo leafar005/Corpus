@@ -7,6 +7,7 @@ import 'dart:math';
 import 'package:url_launcher/url_launcher.dart';
 import '../../globals.dart';
 import '../../services/igdb_service.dart';
+import '../../utils/igdb_constants.dart';
 import '../activity/review_details_screen.dart';
 
 class GameDetailsScreen extends StatefulWidget {
@@ -165,6 +166,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               'videos': game['videos'] != null 
                   ? (game['videos'] as List).map((v) => v['video_id']).toList() 
                   : [],
+            if (widget.gameData['themes'] == null)
+              'themes': game['themes'] != null ? (game['themes'] as List).map((t) => t['name']).toList() : [],
+            if (widget.gameData['game_modes'] == null)
+              'game_modes': game['game_modes'] != null ? (game['game_modes'] as List).map((m) => m['name']).toList() : [],
+            if (widget.gameData['player_perspectives'] == null)
+              'player_perspectives': game['player_perspectives'] != null ? (game['player_perspectives'] as List).map((p) => p['name']).toList() : [],
           };
         });
         
@@ -611,9 +618,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         'title': widget.gameData['title'],
         'cover_url': widget.gameData['cover_url'],
         'release_date': widget.gameData['release_date']?.toString().split('T')[0],
-        'genres': widget.gameData['genres'],
-        'category': widget.gameData['category'],
-        'parent_game': widget.gameData['parent_game'],
+        'genres': widget.gameData['genres'] ?? _enrichedData['genres'],
+        'category': widget.gameData['category'] ?? _enrichedData['category'],
+        'parent_game': widget.gameData['parent_game'] ?? _enrichedData['parent_game'],
+        'themes': widget.gameData['themes'] ?? _enrichedData['themes'],
+        'game_modes': widget.gameData['game_modes'] ?? _enrichedData['game_modes'],
+        'player_perspectives': widget.gameData['player_perspectives'] ?? _enrichedData['player_perspectives'],
+        'platforms': widget.gameData['platforms'] ?? _enrichedData['platforms'],
       }, onConflict: 'igdb_id', ignoreDuplicates: true);
     } catch (e) {
       print('[CORPUS DEBUG] Game catalog upsert error: $e');
@@ -977,19 +988,28 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     if (lower.contains('pc') || lower.contains('windows')) {
       return {'color': Colors.blue.shade700, 'icon': 'assets/images/windows.png', 'textColor': Colors.white};
     }
+    if (lower.contains('linux')) {
+      return {'color': Colors.orangeAccent.shade700, 'icon': 'assets/images/linux.png', 'textColor': Colors.white};
+    }
     if (lower.contains('playstation') || lower == 'psn' || lower == 'ps2' || lower == 'ps3' || lower == 'ps4' || lower == 'ps5' || lower.contains('vita')) {
       return {'color': const Color(0xFF003791), 'icon': 'assets/images/playstation.png', 'textColor': Colors.white};
     }
     if (lower.contains('xbox')) {
       return {'color': const Color(0xFF107C10), 'icon': 'assets/images/xbox.png', 'textColor': Colors.white};
     }
-    if (lower.contains('nintendo') || lower.contains('switch') || lower.contains('wii') || lower.contains('ds') || lower.contains('game boy') || lower.contains('snes') || lower.contains('nes') || lower.contains('64') || lower.contains('gamecube')) {
-      return {'color': const Color(0xFFE60012), 'icon': 'assets/images/nintendo.png', 'textColor': Colors.white};
+    if (lower.contains('wii')) {
+      return {'color': Colors.grey.shade400, 'icon': 'assets/images/wii.png', 'textColor': Colors.black87};
+    }
+    if (lower.contains('switch') || lower.contains('nintendo')) {
+      return {'color': const Color(0xFFE60012), 'icon': 'assets/images/switch.png', 'textColor': Colors.white};
     }
     if (lower.contains('mac') || lower.contains('ios') || lower.contains('apple')) {
       return {'color': Colors.grey.shade800, 'icon': 'assets/images/mac.png', 'textColor': Colors.white};
     }
-    if (lower.contains('google') || lower.contains('stadia') || lower.contains('android')) {
+    if (lower.contains('android')) {
+      return {'color': const Color(0xFF3DDC84), 'icon': 'assets/images/android.png', 'textColor': Colors.black87};
+    }
+    if (lower.contains('google') || lower.contains('stadia')) {
       return {'color': Colors.deepOrange, 'icon': 'assets/images/google.png', 'textColor': Colors.white};
     }
     return {'color': Colors.blueGrey.withOpacity(0.3), 'icon': null, 'textColor': Colors.white};
@@ -1004,28 +1024,20 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     // Datos con fallback a _enrichedData (para cuando venimos de la biblioteca)
     final summary = widget.gameData['summary'] ?? _enrichedData['summary'];
     final developer = widget.gameData['developer'] ?? _enrichedData['developer'];
-    int category = widget.gameData['category'] ?? _enrichedData['category'] ?? 0;
+    final hasParentGame = widget.gameData['parent_game'] != null || _enrichedData['parent_game'] != null;
     
-    // Hack visual: Si IGDB no lo clasifica bien pero el título lo dice claramente
-    final lowerTitle = title.toLowerCase();
-    bool isRemakeKeyword() {
-      final kws = ['remake', 'resynced', 'reforged', 'kiwami', 'twin snakes', 'reloaded'];
-      return kws.any((k) => lowerTitle.contains(k));
-    }
-    bool isRemasterKeyword() {
-      final kws = ['remaster', 'definitive edition', "director's cut", 'redux', 'resurrected', 'anniversary edition'];
-      if (kws.any((k) => lowerTitle.contains(k))) return true;
-      if (RegExp(r'\bhd\b').hasMatch(lowerTitle)) return true;
-      return false;
-    }
-
-    if (isRemakeKeyword()) {
-      category = 8;
-    } else if (isRemasterKeyword()) {
-      category = 9;
-    } else if (lowerTitle.contains('dlc') || lowerTitle.contains('expansion pass')) {
-      category = 1;
-    }
+    // Resolver categoría usando IgdbConstants (centralizado)
+    final int? resolvedCategory = IgdbConstants.resolveCategory(
+      (widget.gameData['category'] ?? _enrichedData['category']) as int?,
+      title,
+      hasParentGame: hasParentGame,
+    );
+    final String? categoryLabel = resolvedCategory != null && !IgdbConstants.isMainGame(resolvedCategory)
+        ? IgdbConstants.getCategoryName(resolvedCategory)
+        : null;
+    final Color catColor = resolvedCategory != null
+        ? IgdbConstants.getCategoryColor(resolvedCategory, themeSecondary: Theme.of(context).colorScheme.secondary)
+        : Colors.grey;
 
     final List<dynamic> genresList = (widget.gameData['genres'] as List?)?.isNotEmpty == true 
         ? widget.gameData['genres'] 
@@ -1042,27 +1054,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         releaseDate = '${date.day} de ${months[date.month - 1]} de ${date.year}';
       } catch (_) {}
-    }
-
-    // Etiqueta de categoría (Remake, Remaster, DLC, etc.)
-    String? categoryLabel;
-    final hasParentGame = widget.gameData['parent_game'] != null || _enrichedData['parent_game'] != null;
-
-    if (category != null) {
-      switch (category) {
-        case 0: categoryLabel = hasParentGame ? 'Port' : 'Juego Principal'; break;
-        case 1: categoryLabel = 'DLC'; break;
-        case 2: categoryLabel = 'Expansión'; break;
-        case 3: categoryLabel = 'Bundle'; break;
-        case 4: categoryLabel = 'Expansión Standalone'; break;
-        case 8: categoryLabel = 'Remake'; break;
-        case 9: categoryLabel = 'Remaster'; break;
-        case 10: categoryLabel = 'Edición Expandida'; break;
-        case 11: categoryLabel = 'Port'; break;
-        case 12: categoryLabel = 'Fork'; break;
-        case 13: categoryLabel = 'Pack'; break;
-        case 14: categoryLabel = 'Actualización'; break;
-      }
     }
 
     final Widget coverArtWidget = Container(
@@ -1083,25 +1074,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             : Container(color: Theme.of(context).primaryColorDark, height: 350),
       ),
     );
-
-    Color getCategoryColor(String? catLabel) {
-      switch (catLabel) {
-        case 'Juego Principal': return Colors.blue;
-        case 'Remake': return Theme.of(context).colorScheme.secondary;
-        case 'Remaster': return Colors.tealAccent;
-        case 'DLC': 
-        case 'Expansión':
-        case 'Expansión Standalone': return Colors.purpleAccent;
-        case 'Bundle': 
-        case 'Pack': return Colors.orangeAccent;
-        case 'Port': return Colors.lightGreenAccent;
-        case 'Edición Expandida': return Colors.pinkAccent;
-        case 'Actualización': return Colors.cyanAccent;
-        default: return Colors.grey;
-      }
-    }
-    
-    final catColor = getCategoryColor(categoryLabel);
 
     final Widget headerInfoWidget = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
