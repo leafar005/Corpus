@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
 import '../library/game_details_screen.dart';
-import 'edit_profile_screen.dart';
-import 'hall_of_fame_selector_screen.dart';
 import 'profile_games_list_screen.dart';
 import '../activity/review_details_screen.dart';
 import '../settings_screen.dart';
@@ -21,7 +18,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _userProfile;
-  int _totalGamesCount = 0;
   List<Map<String, dynamic>> _wishlistGames = [];
   List<Map<String, dynamic>> _playingGames = [];
   List<Map<String, dynamic>> _allGames = [];
@@ -135,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) {
       setState(() {
         _userProfile = userResp;
-        _totalGamesCount = gamesList.length; 
+
         _wishlistGames = wishlist;
         _playingGames = playing;
         _allGames = beaten; 
@@ -420,7 +416,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSidebarInfo({bool isMobile = false}) {
     final bio = _userProfile?['bio'];
     final platforms = List<String>.from(_userProfile?['platforms'] ?? []);
-    final isMe = _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
