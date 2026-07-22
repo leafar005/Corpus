@@ -54,11 +54,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Icon(Icons.videogame_asset, size: 80, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 24),
@@ -76,6 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 16),
               TextField(
@@ -86,6 +89,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 obscureText: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _signIn(),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -111,6 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
