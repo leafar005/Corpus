@@ -3,11 +3,13 @@ import '../../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'hall_of_fame_selector_screen.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userProfile;
+  final List<Map<String, dynamic>?> hallOfFame;
 
-  const EditProfileScreen({super.key, required this.userProfile});
+  const EditProfileScreen({super.key, required this.userProfile, required this.hallOfFame});
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -21,7 +23,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _emailController;
   List<String> _selectedPlatforms = [];
   List<String> _allPlatforms = ['pc', 'playstation', 'xbox', 'nintendo'];
-  
+  late List<Map<String, dynamic>?> _localHallOfFame;
   
   bool _isLoading = false;
   
@@ -43,6 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _bioController = TextEditingController(text: widget.userProfile['bio'] ?? '');
     _emailController = TextEditingController(text: Supabase.instance.client.auth.currentUser!.email ?? '');
     _selectedPlatforms = List<String>.from(widget.userProfile['platforms'] ?? []);
+    _localHallOfFame = List.from(widget.hallOfFame);
     
     // Reordenar _allPlatforms para que los seleccionados aparezcan primero en su orden guardado
     for (final p in _selectedPlatforms.reversed) {
@@ -63,6 +66,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _bioController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshHallOfFame() async {
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final hallOfFameList = List<Map<String, dynamic>?>.filled(5, null);
+    try {
+      final hallOfFameResp = await Supabase.instance.client
+          .from('hall_of_fame')
+          .select('*, games(*)')
+          .eq('user_id', userId)
+          .order('pin_order', ascending: true);
+
+      for (var row in hallOfFameResp) {
+        final order = row['pin_order'] as int;
+        if (order >= 1 && order <= 5 && row['games'] != null) {
+          hallOfFameList[order - 1] = row['games'];
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _localHallOfFame = hallOfFameList;
+        });
+      }
+    } catch (e) {
+      print('[CORPUS] Error refrescando Hall of fame: $e');
+    }
   }
 
   Future<void> _pickImage(bool isAvatar) async {
@@ -200,7 +229,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: SingleChildScrollView(
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -295,6 +327,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     
                     const SizedBox(height: 60),
+                    
+                    _buildHallOfFameEditor(),
+                    const SizedBox(height: 40),
                     
                     // USERNAME FIELD
                     Padding(
@@ -445,6 +480,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
             ),
+            ),
+            ),
     );
   }
 
@@ -472,6 +509,95 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: imagePath != null
             ? Image.asset(imagePath, width: 30, height: 30, color: isSelected ? activeColor : Colors.grey)
             : Icon(icon, color: isSelected ? activeColor : Colors.grey, size: 30),
+      ),
+    );
+  }
+
+  Widget _buildHallOfFameEditor() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Hall of Fame (Toca para editar)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+          const SizedBox(height: 12),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(5, (index) {
+                  final game = _localHallOfFame[index];
+                  final isNumberOne = index == 2;
+                  
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: AspectRatio(
+                        aspectRatio: 0.72,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            if (isNumberOne)
+                              Positioned(
+                                top: -4, bottom: -4, left: -4, right: -4,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.amber, width: 3),
+                                    boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.4), blurRadius: 10, spreadRadius: 1)],
+                                  ),
+                                ),
+                              ),
+                            Positioned.fill(
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => HallOfFameSelectorScreen(pinOrder: index + 1),
+                                      ),
+                                    ).then((updated) {
+                                      if (updated == true) _refreshHallOfFame();
+                                    });
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(7),
+                                    ),
+                                    child: game != null && game['cover_url'] != null
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(7),
+                                          child: Image.network(
+                                            game['cover_url'].replaceAll('t_cover_big', 't_1080p'),
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                          ),
+                                        )
+                                      : Center(
+                                          child: Icon(
+                                            Icons.add, 
+                                            color: isNumberOne ? Colors.amber.withOpacity(0.8) : Colors.grey
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

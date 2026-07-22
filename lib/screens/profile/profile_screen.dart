@@ -4,9 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
 import '../library/game_details_screen.dart';
 import 'edit_profile_screen.dart';
+import 'hall_of_fame_selector_screen.dart';
 import 'profile_games_list_screen.dart';
 import '../activity/review_details_screen.dart';
 import '../settings_screen.dart';
+import 'package:corpus/widgets/game_card.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -24,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _allGames = [];
   List<Map<String, dynamic>> _userReviews = [];
   int _selectedTab = 0;
+  List<Map<String, dynamic>?> _hallOfFame = List.filled(5, null);
 
   @override
   void initState() {
@@ -72,16 +75,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // 2. Fetch all user games with details and social metrics
     final gamesResp = await Supabase.instance.client
         .from('user_games')
-        .select('*, games(*), users!user_games_user_id_fkey(*), review_likes(user_id), review_comments(id)')
+        .select('*, games(*)')
         .eq('user_id', userId)
         .order('updated_at', ascending: false);
+
+    // Fetch reviews from reviews table
+    final reviewsResp = await Supabase.instance.client
+        .from('reviews')
+        .select('*, games(*), review_likes(user_id), review_comments(id)')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
         
+    final hallOfFameList = List<Map<String, dynamic>?>.filled(5, null);
+    try {
+      final hallOfFameResp = await Supabase.instance.client
+          .from('hall_of_fame')
+          .select('*, games(*)')
+          .eq('user_id', userId)
+          .order('pin_order', ascending: true);
+
+      for (var row in hallOfFameResp) {
+        final order = row['pin_order'] as int;
+        if (order >= 1 && order <= 5 && row['games'] != null) {
+          hallOfFameList[order - 1] = row['games'];
+        }
+      }
+    } catch (e) {
+      print('[CORPUS] Hall of fame no disponible todavía: $e');
+    }
+
     final List<dynamic> gamesList = gamesResp;
     
     final wishlist = <Map<String, dynamic>>[];
     final playing = <Map<String, dynamic>>[];
     final beaten = <Map<String, dynamic>>[];
-    final reviews = <Map<String, dynamic>>[];
+
     
     for (var row in gamesList) {
       final gameData = row['games'];
@@ -99,11 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         beaten.add(gameData);
       }
 
-      // Si tiene un comentario escrito, es una review textual
-      final comment = row['comment'] as String?;
-      if (comment != null && comment.trim().isNotEmpty) {
-        reviews.add(row as Map<String, dynamic>);
-      }
+
     }
     
     if (mounted) {
@@ -113,7 +137,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _wishlistGames = wishlist;
         _playingGames = playing;
         _allGames = beaten; 
-        _userReviews = reviews;
+        _userReviews = List<Map<String, dynamic>>.from(reviewsResp);
+        _hallOfFame = hallOfFameList;
         _isLoading = false;
       });
     }
@@ -127,218 +152,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    final username = _userProfile?['username'] ?? 'Jugador';
-    final displayName = _userProfile?['display_name'] ?? username;
-    final bio = _userProfile?['bio'];
-    final platforms = List<String>.from(_userProfile?['platforms'] ?? []);
-    final avatarUrl = _userProfile?['avatar_url'];
-    final bannerUrl = _userProfile?['banner_url'];
+    final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Estilo Stash oscuro
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // HEADER
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Banner
-                Container(
-                  height: 180,
-                  width: double.infinity,
-                  decoration: bannerUrl == null ? BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.deepPurple.shade800, Colors.red.shade900],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ) : null,
-                  child: bannerUrl != null ? Image.network(
-                    bannerUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      print('[CORPUS] Fallo al cargar el banner: $bannerUrl');
-                      return Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.deepPurple.shade800, Colors.red.shade900],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                      );
-                    },
-                  ) : null,
-                ),
-                
-                // Degradado inferior para fundir con el fondo
-                Positioned(
-                  bottom: 0, left: 0, right: 0,
-                  child: Container(
-                    height: 80,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter, 
-                        end: Alignment.topCenter,
-                        colors: [Theme.of(context).scaffoldBackgroundColor, Colors.transparent],
-                      )
-                    )
-                  )
-                ),
-
-                // Menú superior (Ajustes)
-                Positioned(
-                  top: 40, right: 16,
-                  child: IconButton(
-                    icon: const Icon(Icons.settings, ),
-                    onPressed: () {
-                      if (_userProfile != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SettingsScreen(userProfile: _userProfile!),
-                          ),
-                        ).then((_) {
-                          _fetchProfileData(); // Por si editan el perfil desde ajustes
-                        });
-                      }
-                    },
-                  ),
-                ),
-
-                // Username arriba a la izquierda
-                Positioned(
-                  top: 48, left: 16,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.keyboard_arrow_down, ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '@$username', 
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, shadows: [Shadow(color: Theme.of(context).scaffoldBackgroundColor, blurRadius: 4)]),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Foto de perfil
-                Positioned(
-                  bottom: -30, left: 16,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 3),
-                    ),
-                    child: CircleAvatar(
-                      radius: 42,
-                      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-                      backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                      onBackgroundImageError: (e, s) {
-                        print('[CORPUS] Fallo al cargar el avatar: $avatarUrl');
-                      },
-                      child: avatarUrl == null 
-                          ? const Icon(Icons.person, size: 40, ) 
-                          : null,
-                    ),
-                  ),
-                ),
-
-                // Estadísticas
-                Positioned(
-                  bottom: 16, left: 110, right: 16,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildStatColumn('$_totalGamesCount', 'Juegos'),
-                      _buildStatColumn('0', 'Seguidos'),
-                      _buildStatColumn('0', 'Seguidores'),
-                    ],
-                  )
-                )
-              ]
-            ),
-            
-            const SizedBox(height: 40),
-            
-            // Info de Usuario
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    displayName, 
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  if (bio != null && bio.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      bio,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
-                  if (platforms.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      children: platforms.map((p) => _buildPlatformIcon(p)).toList(),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Botón Editar Perfil
-            if (_userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EditProfileScreen(userProfile: _userProfile!),
-                        ),
-                      ).then((updated) {
-                        if (updated == true) {
-                          _fetchProfileData();
-                        }
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.surface,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('Editar Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
-                  )
-                ),
-              ),
-            if (_userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id)
-              const SizedBox(height: 24),
-            
-            // Píldoras
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  _buildTab('Juegos', 0),
-                  const SizedBox(width: 8),
-                  _buildTab('Reseñas', 1),
-                ],
-              ),
-            ),
+            _buildHeader(isDesktop),
+            _buildNavBar(isDesktop),
             const SizedBox(height: 24),
-            
-            if (_selectedTab == 0) _buildGamesTab(),
-            if (_selectedTab == 1) _buildReviewsTab(),
-            
+            if (isDesktop) _buildDesktopLayout() else _buildMobileLayout(),
             const SizedBox(height: 40),
           ],
         ),
@@ -346,37 +171,502 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatColumn(String value, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+  Widget _buildHeader(bool isDesktop) {
+    final username = _userProfile?['username'] ?? 'Jugador';
+    final displayName = _userProfile?['display_name'] ?? username;
+    final avatarUrl = _userProfile?['avatar_url'];
+    final bannerUrl = _userProfile?['banner_url'];
+    final isMe = _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
+
+    final bannerHeight = isDesktop ? 240.0 : 180.0;
+
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, shadows: [Shadow(color: Theme.of(context).scaffoldBackgroundColor, blurRadius: 4)])),
-        Text(label, style: TextStyle(fontSize: 12, shadows: [Shadow(color: Theme.of(context).scaffoldBackgroundColor, blurRadius: 4)])),
+        // Banner
+        Container(
+          height: bannerHeight,
+          width: double.infinity,
+          decoration: bannerUrl == null ? BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.deepPurple.shade800, Colors.red.shade900],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ) : null,
+          child: bannerUrl != null ? Image.network(
+            bannerUrl.replaceAll('t_cover_big', 't_1080p'), // Mejor resolución
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.deepPurple.shade800, Colors.red.shade900],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              );
+            },
+          ) : null,
+        ),
+        
+        // Degradado inferior
+        Positioned(
+          bottom: 0, left: 0, right: 0,
+          child: Container(
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter, 
+                end: Alignment.topCenter,
+                colors: [Theme.of(context).scaffoldBackgroundColor, Colors.transparent],
+              )
+            )
+          )
+        ),
+
+        // Settings Button
+        if (isMe)
+          Positioned(
+            top: 40, right: 16,
+            child: IconButton(
+              icon: const Icon(Icons.settings, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SettingsScreen(userProfile: _userProfile!, hallOfFame: _hallOfFame)),
+                ).then((_) => _fetchProfileData());
+              },
+            ),
+          ),
+          
+        // Avatar y Nombres (Alineados a la izquierda y sobresaliendo un poco abajo)
+        Positioned(
+          bottom: -40, 
+          left: isDesktop ? 40 : 16,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 4),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)],
+                ),
+                child: CircleAvatar(
+                  radius: isDesktop ? 60 : 45,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                  backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                  child: avatarUrl == null ? Icon(Icons.person, size: isDesktop ? 60 : 40) : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 40), // Para que quede sobre el banner
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: TextStyle(
+                        fontSize: isDesktop ? 32 : 24, 
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: const [Shadow(color: Colors.black87, blurRadius: 8)],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '@$username',
+                      style: TextStyle(
+                        fontSize: isDesktop ? 18 : 14,
+                        color: Colors.white70,
+                        shadows: const [Shadow(color: Colors.black87, blurRadius: 6)],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildTab(String text, int index) {
+  Widget _buildNavBar(bool isDesktop) {
+    return Container(
+      margin: EdgeInsets.only(top: 40, left: isDesktop ? 40 : 16, right: isDesktop ? 40 : 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1), width: 1)),
+      ),
+      child: Row(
+        children: [
+          _buildNavTab('Perfil', 0),
+          _buildNavTab('Juegos', 1),
+          _buildNavTab('Reseñas', 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavTab(String title, int index) {
     final isSelected = _selectedTab == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedTab = index;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).colorScheme.secondary : Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isSelected ? Theme.of(context).scaffoldBackgroundColor : Colors.white,
-            fontWeight: FontWeight.bold,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTab = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                width: 3,
+              ),
+            ),
+          ),
+          child: SelectionContainer.disabled(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.white : Colors.grey[400],
+              ),
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Columna Izquierda (Sidebar)
+          SizedBox(
+            width: 300,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSidebarInfo(),
+              ],
+            ),
+          ),
+          const SizedBox(width: 40),
+          // Columna Derecha (Contenido Principal)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_selectedTab == 0) ...[
+                  _buildHallOfFame(),
+                  const SizedBox(height: 32),
+                  _buildGiantStatsRow(),
+                  const SizedBox(height: 32),
+                  // Si no hay contenido principal en 'Perfil', podríamos poner los juegos recientes
+                  _buildGamesTab(),
+                ] else if (_selectedTab == 1) ...[
+                  _buildAllGamesTab(),
+                ] else if (_selectedTab == 2) ...[
+                  _buildReviewsTab(),
+                ]
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_selectedTab == 0) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildSidebarInfo(isMobile: true),
+          ),
+          const SizedBox(height: 24),
+          _buildHallOfFame(),
+          const SizedBox(height: 32),
+          _buildGiantStatsRow(isMobile: true),
+          const SizedBox(height: 32),
+          _buildGamesTab(),
+          const SizedBox(height: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildRatingsHistogram(),
+          ),
+          const SizedBox(height: 32),
+        ] else if (_selectedTab == 1) ...[
+          _buildAllGamesTab(),
+        ] else if (_selectedTab == 2) ...[
+          _buildReviewsTab(),
+        ]
+      ],
+    );
+  }
+
+  Widget _buildSidebarInfo({bool isMobile = false}) {
+    final bio = _userProfile?['bio'];
+    final platforms = List<String>.from(_userProfile?['platforms'] ?? []);
+    final isMe = _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (bio != null && bio.isNotEmpty) ...[
+          const Text('Bio', style: TextStyle(fontSize: 18, color: Colors.grey)),
+          const SizedBox(height: 8),
+          Text(bio, style: const TextStyle(fontSize: 14, height: 1.5)),
+          const SizedBox(height: 24),
+        ],
+        if (!isMobile) _buildRatingsHistogram(),
+        if (platforms.isNotEmpty) ...[
+          const Text('Plataformas', style: TextStyle(fontSize: 18, color: Colors.grey)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: platforms.map((p) => _buildPlatformIcon(p)).toList(),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildRatingsHistogram() {
+    final ratings = _userReviews
+        .map((r) => (r['rating'] ?? 0).toDouble())
+        .where((r) => r > 0)
+        .toList();
+
+    if (ratings.isEmpty) return const SizedBox.shrink();
+
+    final List<int> buckets = List.filled(10, 0);
+    double sum = 0;
+    for (var r in ratings) {
+      sum += r;
+      int bucketIndex = (r.round() - 1).clamp(0, 9);
+      buckets[bucketIndex]++;
+    }
+
+    final maxCount = buckets.reduce((a, b) => a > b ? a : b);
+    if (maxCount == 0) return const SizedBox.shrink();
+
+    final avgRating = sum / ratings.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text('Calificaciones', style: TextStyle(fontSize: 18, color: Colors.grey)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '${ratings.length} | ${avgRating.toStringAsFixed(1)} ★ Media',
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 80,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(10, (index) {
+              final count = buckets[index];
+              final heightRatio = maxCount > 0 ? count / maxCount : 0.0;
+              final barHeight = 80 * heightRatio;
+              
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                  child: Tooltip(
+                    message: 'Nota ${index + 1}: $count juegos',
+                    child: Container(
+                      height: barHeight > 0 ? (barHeight < 4 ? 4 : barHeight) : 0,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: const [
+            Text('1★', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            Text('10★', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          ],
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildGiantStatsRow({bool isMobile = false}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildGiantStat(_allGames.length.toString().padLeft(3, '0'), 'Completados', () {
+            if (_allGames.isNotEmpty) {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileGamesListScreen(title: 'Completados', games: _allGames))).then((_) => _fetchProfileData());
+            }
+          }),
+          _buildGiantStat(_playingGames.length.toString().padLeft(3, '0'), 'Jugando', () {
+            if (_playingGames.isNotEmpty) {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileGamesListScreen(title: 'Jugando', games: _playingGames))).then((_) => _fetchProfileData());
+            }
+          }),
+          _buildGiantStat(_wishlistGames.length.toString().padLeft(3, '0'), 'En Wishlist', () {
+            if (_wishlistGames.isNotEmpty) {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileGamesListScreen(title: 'Quiero', games: _wishlistGames))).then((_) => _fetchProfileData());
+            }
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGiantStat(String number, String label, VoidCallback onTap) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: SelectionContainer.disabled(
+          child: Column(
+            children: [
+              Text(number, style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              const SizedBox(height: 4),
+              Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHallOfFame() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text('Hall of Fame', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 18), 
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(5, (index) {
+                  final game = _hallOfFame[index];
+                  final isNumberOne = index == 2; 
+                  
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: AspectRatio(
+                        aspectRatio: 0.72,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            if (isNumberOne)
+                              Positioned(
+                                top: -4, bottom: -4, left: -4, right: -4,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.amber, width: 3),
+                                    boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.4), blurRadius: 10, spreadRadius: 1)],
+                                  ),
+                                ),
+                              ),
+                            Positioned.fill(
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    if (game != null) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => GameDetailsScreen(gameData: game)),
+                                      ).then((_) => _fetchProfileData());
+                                    }
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(7),
+                                    ),
+                                    child: game != null && game['cover_url'] != null
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(7),
+                                          child: Image.network(
+                                            game['cover_url'].replaceAll('t_cover_big', 't_1080p'),
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                          ),
+                                        )
+                                      : Center(
+                                          child: Icon(
+                                            Icons.add, 
+                                            color: isNumberOne ? Colors.amber.withOpacity(0.8) : Colors.grey
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (isNumberOne)
+                              const Positioned(
+                                top: -14, 
+                                left: 0,
+                                right: 0,
+                                child: Icon(
+                                  Icons.star, 
+                                  color: Colors.amber, 
+                                  size: 26, 
+                                  shadows: [Shadow(color: Colors.black87, blurRadius: 4)]
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -394,16 +684,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text('$count', style: const TextStyle(color: Colors.grey)),
             ],
           ),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfileGamesListScreen(title: title, games: games),
-                ),
-              ).then((_) => _fetchProfileData());
-            },
-            child: Text('Ver todo', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold)),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfileGamesListScreen(title: title, games: games),
+                  ),
+                ).then((_) => _fetchProfileData());
+              },
+              child: SelectionContainer.disabled(
+                child: Text('Ver todo', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+            ),
           ),
         ],
       ),
@@ -454,62 +749,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildGameCard(Map<String, dynamic> game) {
-    final coverUrl = game['cover_url'] ?? '';
-    final title = game['title'] ?? 'Desconocido';
     final userRating = (game['user_rating'] ?? 0).toDouble();
-    
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => GameDetailsScreen(gameData: game),
-          ),
-        ).then((_) {
-          _fetchProfileData();
-        });
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 4,
-        margin: EdgeInsets.zero,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            coverUrl.isNotEmpty
-                ? Image.network(coverUrl, fit: BoxFit.cover)
-                : Container(
-                    color: Theme.of(context).primaryColorDark,
-                    child: const Center(child: Icon(Icons.videogame_asset, size: 30, color: Colors.white54)),
-                  ),
-            if (coverUrl.isEmpty)
-               Positioned(
-                 bottom: 4, left: 4, right: 4,
-                 child: Text(title, style: const TextStyle(fontSize: 10, ), maxLines: 2, overflow: TextOverflow.ellipsis),
-               ),
-            if (userRating > 0)
-              Positioned(
-                top: 6, right: 6,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.54), blurRadius: 4, offset: Offset(0, 2))
-                    ],
-                  ),
-                  child: Text(
-                    userRating.toStringAsFixed(1),
-                    style: TextStyle(color: Theme.of(context).colorScheme.surface, fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+    return GameCard(
+      game: game,
+      isInLibrary: true,
+      userRating: userRating,
+      onReturn: _fetchProfileData,
     );
   }
 
@@ -524,18 +769,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case 'nintendo': imagePath = 'assets/images/nintendo.png'; color = Colors.red; break;
       default: icon = Icons.device_unknown; color = Colors.grey; break;
     }
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: imagePath != null 
-            ? Image.asset(imagePath, width: 16, height: 16, color: color)
-            : Icon(icon, color: color, size: 16),
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
       ),
+      child: imagePath != null 
+          ? Image.asset(imagePath, width: 24, height: 24, color: color)
+          : Icon(icon, color: color, size: 24),
     );
   }
   Widget _buildGamesTab() {
@@ -563,6 +805,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )
           )
         ],
+      ],
+    );
+  }
+
+  Widget _buildAllGamesTab() {
+    final allGamesList = [..._allGames, ..._playingGames, ..._wishlistGames];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (allGamesList.isNotEmpty) _buildGrid(allGamesList) else const Center(
+          child: Padding(
+            padding: EdgeInsets.all(32.0),
+            child: Text('Aún no tienes juegos en tu biblioteca.', style: TextStyle(color: Colors.grey)),
+          )
+        ),
       ],
     );
   }
@@ -613,7 +870,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final rating = (activity['rating'] ?? 0).toDouble();
     final comment = activity['comment'] ?? '';
     final status = activity['status'] ?? 'unknown';
-    final dateStr = activity['updated_at'] != null ? _formatDate(activity['updated_at']) : '';
+    final dateStr = activity['created_at'] != null ? _formatDate(activity['created_at']) : '';
 
     final likes = (activity['review_likes'] as List?) ?? [];
     final comments = (activity['review_comments'] as List?) ?? [];
@@ -628,10 +885,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             builder: (context) => ReviewDetailsScreen(
               gameData: gameData,
               userData: userData,
-              rating: rating,
-              comment: comment,
-              status: status,
-              updatedAt: activity['updated_at'],
+              reviewData: activity,
             ),
           ),
         ).then((_) => _fetchProfileData());
