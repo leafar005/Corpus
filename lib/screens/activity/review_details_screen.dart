@@ -82,7 +82,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       
       _comments = List<Map<String, dynamic>>.from(commentsResponse);
     } catch (e) {
-      print('[CORPUS DEBUG] Error fetching interactions: $e');
+      debugPrint('[CORPUS DEBUG] Error fetching interactions: $e');
     }
 
     if (mounted) {
@@ -124,7 +124,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
           _likesCount += _hasLiked ? 1 : -1;
         });
       }
-      print('[CORPUS DEBUG] Error toggling like: $e');
+      debugPrint('[CORPUS DEBUG] Error toggling like: $e');
     }
   }
 
@@ -161,14 +161,14 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         'review_user_id': widget.reviewData['user_id'],
         'review_game_id': widget.reviewData['game_id'],
         'content': content.isNotEmpty ? content : null,
-        if (imageUrl != null) 'image_url': imageUrl,
+        'image_url': ?imageUrl,
       });
 
       _commentController.clear();
       setState(() => _commentImage = null);
       await _fetchInteractions(); // Refresh to get the new comment with user data
     } catch (e) {
-      print('[CORPUS DEBUG] Error submitting comment: $e');
+      debugPrint('[CORPUS DEBUG] Error submitting comment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al enviar comentario: $e')),
@@ -352,9 +352,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -371,7 +371,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -449,7 +449,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
                         child: avatarUrl == null ? const Icon(Icons.person, ) : null,
                       ),
@@ -595,7 +595,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -658,8 +658,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          side: BorderSide(color: _hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceVariant),
-                          backgroundColor: _hasLiked ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : null,
+                          side: BorderSide(color: _hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest),
+                          backgroundColor: _hasLiked ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1) : null,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         ),
                       ),
@@ -672,7 +672,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                         label: Text(_comments.length.toString()),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          side: BorderSide(color: Theme.of(context).colorScheme.surfaceVariant),
+                          side: BorderSide(color: Theme.of(context).colorScheme.surfaceContainerHighest),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         ),
                       ),
@@ -699,7 +699,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                               backgroundImage: user?['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null,
                               child: user?['avatar_url'] == null ? const Icon(Icons.person, size: 16, ) : null,
                             ),

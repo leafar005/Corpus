@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -21,7 +21,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _bioController;
   late TextEditingController _emailController;
   List<String> _selectedPlatforms = [];
-  List<String> _allPlatforms = ['pc', 'linux', 'playstation', 'xbox', 'switch', 'wii', 'mac', 'android'];
+  final List<String> _allPlatforms = ['pc', 'linux', 'playstation', 'xbox', 'switch', 'wii', 'mac', 'android'];
   late List<Map<String, dynamic>?> _localHallOfFame;
   
   bool _isLoading = false;
@@ -89,7 +89,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
       }
     } catch (e) {
-      print('[CORPUS] Error refrescando Hall of fame: $e');
+      debugPrint('[CORPUS] Error refrescando Hall of fame: $e');
     }
   }
 
@@ -129,7 +129,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           
       return Supabase.instance.client.storage.from(bucket).getPublicUrl(filePath);
     } catch (e) {
-      print('[CORPUS DEBUG] Error uploading image to $bucket: $e');
+      debugPrint('[CORPUS DEBUG] Error uploading image to $bucket: $e');
       return null;
     }
   }
@@ -206,7 +206,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
       
     } catch (e) {
-      print('[CORPUS DEBUG] Error saving profile: $e');
+      debugPrint('[CORPUS DEBUG] Error saving profile: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al guardar el perfil: $e')),
@@ -266,7 +266,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     gradient: LinearGradient(
                                       begin: Alignment.bottomCenter,
                                       end: Alignment.topCenter,
-                                      colors: [Theme.of(context).scaffoldBackgroundColor.withOpacity(0.54), Colors.transparent],
+                                      colors: [Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.54), Colors.transparent],
                                     ),
                                   ),
                                 ),
@@ -274,7 +274,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 Align(
                                   alignment: const Alignment(0, -0.4), // Elevado respecto al centro
                                   child: CircleAvatar(
-                                    backgroundColor: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.54),
+                                    backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.54),
                                     radius: 24,
                                     child: Icon(Icons.camera_alt, size: 24),
                                   ),
@@ -299,14 +299,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 children: [
                                   CircleAvatar(
                                     radius: 50,
-                                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                     backgroundImage: _newAvatarBytes != null 
                                         ? MemoryImage(_newAvatarBytes!) as ImageProvider
                                         : _avatarUrl != null 
                                             ? NetworkImage(_avatarUrl!) 
                                             : null,
                                     onBackgroundImageError: (e, s) {
-                                      print('[CORPUS] Error cargando preview de avatar: $e');
+                                      debugPrint('[CORPUS] Error cargando preview de avatar: $e');
                                     },
                                     child: _newAvatarBytes == null && _avatarUrl == null 
                                         ? const Icon(Icons.person, size: 50, ) 
@@ -314,7 +314,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   ),
                                   Container(
                                     padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.54), shape: BoxShape.circle),
+                                    decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.54), shape: BoxShape.circle),
                                     child: const Icon(Icons.camera_alt, size: 24),
                                   ),
                                 ],
@@ -431,7 +431,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             child: ReorderableListView(
                               scrollDirection: Axis.horizontal,
                               buildDefaultDragHandles: true,
-                              onReorder: (oldIndex, newIndex) {
+                              onReorderItem: (oldIndex, newIndex) {
                                 setState(() {
                                   if (oldIndex < newIndex) {
                                     newIndex -= 1;
@@ -505,7 +505,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? activeColor.withOpacity(0.2) : Theme.of(context).colorScheme.surface,
+          color: isSelected ? activeColor.withValues(alpha: 0.2) : Theme.of(context).colorScheme.surface,
           border: Border.all(color: isSelected ? activeColor : Colors.transparent, width: 2),
           shape: BoxShape.circle,
         ),
@@ -548,7 +548,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(color: Colors.amber, width: 3),
-                                    boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.4), blurRadius: 10, spreadRadius: 1)],
+                                    boxShadow: [BoxShadow(color: Colors.amber.withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 1)],
                                   ),
                                 ),
                               ),
@@ -568,7 +568,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.surfaceVariant,
+                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(7),
                                     ),
                                     child: game != null && game['cover_url'] != null
@@ -584,7 +584,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       : Center(
                                           child: Icon(
                                             Icons.add, 
-                                            color: isNumberOne ? Colors.amber.withOpacity(0.8) : Colors.grey
+                                            color: isNumberOne ? Colors.amber.withValues(alpha: 0.8) : Colors.grey
                                           ),
                                         ),
                                   ),

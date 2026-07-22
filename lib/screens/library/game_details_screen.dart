@@ -193,7 +193,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         }
       }
     } catch (e) {
-      print('[CORPUS DEBUG] Error enriching game data: $e');
+      debugPrint('[CORPUS DEBUG] Error enriching game data: $e');
     } finally {
       if (mounted) setState(() => _isEnriching = false);
     }
@@ -202,8 +202,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   Future<void> _fetchUserData() async {
     final userId = Supabase.instance.client.auth.currentUser!.id;
     final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-    print('[CORPUS DEBUG] _fetchUserData -> userId: $userId, igdbId: $igdbId');
-    print('[CORPUS DEBUG] gameData keys: ${widget.gameData.keys.toList()}');
+    debugPrint('[CORPUS DEBUG] _fetchUserData -> userId: $userId, igdbId: $igdbId');
+    debugPrint('[CORPUS DEBUG] gameData keys: ${widget.gameData.keys.toList()}');
 
     try {
       final response = await Supabase.instance.client
@@ -213,7 +213,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           .eq('game_id', igdbId)
           .maybeSingle();
 
-      print('[CORPUS DEBUG] _fetchUserData response: $response');
+      debugPrint('[CORPUS DEBUG] _fetchUserData response: $response');
 
       if (response != null && mounted) {
         setState(() {
@@ -233,7 +233,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           }
         });
       } else {
-        print('[CORPUS DEBUG] _fetchUserData -> No user_game found for this game');
+        debugPrint('[CORPUS DEBUG] _fetchUserData -> No user_game found for this game');
         // Fetch current user data anyway just for the avatar in case they add a review
         final userResp = await Supabase.instance.client.from('users').select().eq('id', userId).maybeSingle();
         if (mounted) {
@@ -243,7 +243,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         }
       }
     } catch (e) {
-      print('[CORPUS DEBUG] ERROR en _fetchUserData: $e');
+      debugPrint('[CORPUS DEBUG] ERROR en _fetchUserData: $e');
     } finally {
       if (mounted) setState(() => _isLoadingUserData = false);
     }
@@ -267,7 +267,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         });
       }
     } catch (e) {
-      print('[CORPUS DEBUG] Error fetching reviews: $e');
+      debugPrint('[CORPUS DEBUG] Error fetching reviews: $e');
 
     }
   }
@@ -339,9 +339,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -403,7 +403,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 selected: sel,
                 onSelected: (_) => setModalState(() => onSelect(value)),
                 selectedColor: color,
-                backgroundColor: Theme.of(modalContext).colorScheme.surfaceVariant,
+                backgroundColor: Theme.of(modalContext).colorScheme.surfaceContainerHighest,
                 labelStyle: TextStyle(color: tc, fontWeight: sel ? FontWeight.bold : FontWeight.normal),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 side: BorderSide(color: sel ? color : Colors.grey.shade700),
@@ -499,7 +499,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         Switch(
                           value: reviewIsReplay,
                           onChanged: (val) => setModalState(() => reviewIsReplay = val),
-                          activeColor: Theme.of(modalContext).colorScheme.primary,
+                          activeThumbColor: Theme.of(modalContext).colorScheme.primary,
                         ),
                       ]),
                       if (reviewIsReplay)
@@ -583,9 +583,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                               const Text('Plataforma', style: TextStyle(color: Colors.grey, fontSize: 13)),
                               const SizedBox(height: 8),
                               DropdownButtonFormField<String>(
-                                value: reviewPlatform,
+                                initialValue: reviewPlatform,
                                 decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-                                dropdownColor: Theme.of(modalContext).colorScheme.surfaceVariant,
+                                dropdownColor: Theme.of(modalContext).colorScheme.surfaceContainerHighest,
                                 items: platforms.map((p) => DropdownMenuItem(value: p.toString(), child: Text(p.toString(), style: const TextStyle(fontSize: 14)))).toList(),
                                 onChanged: (val) => setModalState(() => reviewPlatform = val),
                                 hint: const Text('Seleccionar plataforma'),
@@ -712,7 +712,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         'platforms': widget.gameData['platforms'] ?? _enrichedData['platforms'],
       }, onConflict: 'igdb_id', ignoreDuplicates: true);
     } catch (e) {
-      print('[CORPUS DEBUG] Game catalog upsert error: $e');
+      debugPrint('[CORPUS DEBUG] Game catalog upsert error: $e');
     }
 
     try {
@@ -757,7 +757,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 
             finalImageUrls.add(publicUrl);
           } catch (e) {
-            print('[CORPUS DEBUG] Error uploading image: $e');
+            debugPrint('[CORPUS DEBUG] Error uploading image: $e');
           }
         }
       }
@@ -790,7 +790,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         await Future.wait([_fetchUserData(), _fetchReviews()]);
       }
     } catch (e) {
-      print('[CORPUS DEBUG] Error saving review: $e');
+      debugPrint('[CORPUS DEBUG] Error saving review: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al guardar reseña: $e')));
         Navigator.pop(context);
@@ -1023,7 +1023,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
             child: PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onSelected: (value) {
                 if (value == 'edit') {
@@ -1077,9 +1077,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1129,9 +1129,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             margin: const EdgeInsets.only(top: 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Theme.of(context).colorScheme.surfaceVariant),
+              border: Border.all(color: Theme.of(context).colorScheme.surfaceContainerHighest),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1258,7 +1258,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     if (lower.contains('google') || lower.contains('stadia')) {
       return {'color': Colors.deepOrange, 'icon': 'assets/images/google.png', 'textColor': Colors.white};
     }
-    return {'color': Colors.blueGrey.withOpacity(0.3), 'icon': null, 'textColor': Colors.white};
+    return {'color': Colors.blueGrey.withValues(alpha: 0.3), 'icon': null, 'textColor': Colors.white};
   }
 
   Widget _buildTimeToBeatCard(String title, int? seconds, Color color, IconData icon) {
@@ -1271,8 +1271,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          border: Border.all(color: color.withOpacity(0.3)),
+          color: color.withValues(alpha: 0.1),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -1282,7 +1282,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             Text(
               title, 
               textAlign: TextAlign.center,
-              style: TextStyle(color: color.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w600),
+              style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
@@ -1354,7 +1354,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -1410,9 +1410,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: catColor.withOpacity(0.2),
+                      color: catColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: catColor.withOpacity(0.5)),
+                      border: Border.all(color: catColor.withValues(alpha: 0.5)),
                     ),
                     child: Text(
                       categoryLabel,
@@ -1444,7 +1444,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final videosList = (widget.gameData['videos'] ?? _enrichedData['videos'] ?? []) as List;
     final bool hasMedia = screenshotsList.isNotEmpty || artworksList.isNotEmpty || videosList.isNotEmpty;
 
-    Widget _buildInfoTab() {
+    Widget buildInfoTab() {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1455,7 +1455,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             spacing: 8, runSpacing: 8,
             children: genresList.map((g) => Chip(
               label: Text(g.toString()),
-              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
               side: BorderSide.none,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             )).toList(),
@@ -1496,7 +1496,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
 
 
-    Widget _buildMediaTab() {
+    Widget buildMediaTab() {
       List<Map<String, dynamic>> availableTabs = [];
       if (screenshotsList.isNotEmpty) availableTabs.add({'id': 0, 'label': 'Capturas', 'icon': Icons.screenshot_monitor});
       if (videosList.isNotEmpty) availableTabs.add({'id': 1, 'label': 'Tráilers', 'icon': Icons.video_library});
@@ -1527,7 +1527,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                       onSelected: (bool selected) {
                         if (selected) setState(() => _selectedMediaTabIndex = tab['id']);
                       },
-                      selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                      selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                     ),
                   );
@@ -1586,7 +1586,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                       ),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Center(
@@ -1625,7 +1625,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       );
     }
 
-    Widget _buildTabButton(int index, String title) {
+    Widget buildTabButton(int index, String title) {
       final isSelected = _selectedMainTabIndex == index;
       return MouseRegion(
         cursor: SystemMouseCursors.click,
@@ -1664,12 +1664,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             padding: const EdgeInsets.only(bottom: 24),
             child: Row(
               children: [
-                _buildTabButton(0, 'Información'),
-                _buildTabButton(1, 'Media'),
+                buildTabButton(0, 'Información'),
+                buildTabButton(1, 'Media'),
               ],
             ),
           ),
-        _selectedMainTabIndex == 0 ? _buildInfoTab() : _buildMediaTab(),
+        _selectedMainTabIndex == 0 ? buildInfoTab() : buildMediaTab(),
       ],
     );
 
@@ -1714,7 +1714,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                           
                         BackdropFilter(
                           filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                          child: Container(color: Colors.black.withOpacity(0.2)),
+                          child: Container(color: Colors.black.withValues(alpha: 0.2)),
                         ),
                         DecoratedBox(
                           decoration: BoxDecoration(

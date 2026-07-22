@@ -161,7 +161,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     const Text('Ordenar por', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _filters.sortBy,
+                      initialValue: _filters.sortBy,
                       decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12)),
                       items: const [
                         DropdownMenuItem(value: 'total_rating_count', child: Text('Popularidad')),

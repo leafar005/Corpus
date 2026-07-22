@@ -10,12 +10,12 @@ class GameCard extends StatefulWidget {
   final VoidCallback onReturn;
 
   const GameCard({
-    Key? key,
+    super.key,
     required this.game,
     this.isInLibrary = false,
     this.userRating = 0.0,
     required this.onReturn,
-  }) : super(key: key);
+  });
 
   @override
   State<GameCard> createState() => _GameCardState();
@@ -103,7 +103,7 @@ class _GameCardState extends State<GameCard> {
               if (_isHovered)
                 Positioned.fill(
                   child: Container(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: 0.7),
                     padding: const EdgeInsets.all(8.0),
                     alignment: Alignment.center,
                     child: Text(
@@ -138,7 +138,7 @@ class _GameCardState extends State<GameCard> {
                       decoration: BoxDecoration(
                         color: Colors.black87,
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: color.withOpacity(0.5)),
+                        border: Border.all(color: color.withValues(alpha: 0.5)),
                         boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2))],
                       ),
                       child: Text(
@@ -159,7 +159,7 @@ class _GameCardState extends State<GameCard> {
                       color: Theme.of(context).colorScheme.onSurface,
                       shape: BoxShape.circle,
                       boxShadow: [
-                        BoxShadow(color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.54), blurRadius: 4, offset: const Offset(0, 2))
+                        BoxShadow(color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.54), blurRadius: 4, offset: const Offset(0, 2))
                       ],
                     ),
                     child: Text(
