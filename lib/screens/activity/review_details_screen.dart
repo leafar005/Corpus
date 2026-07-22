@@ -3,6 +3,11 @@ import '../../theme/app_theme.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../library/game_details_screen.dart';
+import 'dart:io';
+import 'dart:math';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../utils/storage_utils.dart';
 
 class ReviewDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -30,6 +35,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
   bool _isSubmitting = false;
+  XFile? _commentImage;
 
   @override
   void initState() {
@@ -126,7 +132,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
   Future<void> _submitComment() async {
     final content = _commentController.text.trim();
-    if (content.isEmpty) return;
+    if (content.isEmpty && _commentImage == null) return;
 
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
     final reviewId = widget.reviewData['id'];
@@ -135,15 +141,33 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      String? imageUrl;
+      if (_commentImage != null) {
+        final bytes = await _commentImage!.readAsBytes();
+        final ext = _commentImage!.name.split('.').last;
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}.$ext';
+        final path = '$currentUserId/$fileName';
+        
+        await Supabase.instance.client.storage
+            .from('user_uploads')
+            .uploadBinary(path, bytes);
+            
+        imageUrl = Supabase.instance.client.storage
+            .from('user_uploads')
+            .getPublicUrl(path);
+      }
+
       await Supabase.instance.client.from('review_comments').insert({
         'user_id': currentUserId,
         'review_id': reviewId,
         'review_user_id': widget.reviewData['user_id'],
         'review_game_id': widget.reviewData['game_id'],
-        'content': content,
+        'content': content.isNotEmpty ? content : null,
+        if (imageUrl != null) 'image_url': imageUrl,
       });
 
       _commentController.clear();
+      setState(() => _commentImage = null);
       await _fetchInteractions(); // Refresh to get the new comment with user data
     } catch (e) {
       print('[CORPUS DEBUG] Error submitting comment: $e');
@@ -181,6 +205,13 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     if (confirm != true) return;
 
     try {
+      final comment = _comments.firstWhere((c) => c['id'] == commentId, orElse: () => <String, dynamic>{});
+      final imageUrl = comment['image_url'] as String?;
+      
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        await StorageUtils.deleteImagesFromUrls([imageUrl]);
+      }
+
       await Supabase.instance.client
           .from('review_comments')
           .delete()
@@ -190,9 +221,65 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         setState(() {
           _comments.removeWhere((c) => c['id'] == commentId);
         });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Comentario eliminado')));
       }
     } catch (e) {
-      print('[CORPUS DEBUG] Error deleting comment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar comentario: $e')));
+      }
+    }
+  }
+
+  Future<void> _deleteReview(String reviewId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar reseña'),
+        content: const Text('¿Seguro que quieres eliminar esta reseña?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final List<String> urlsToDelete = [];
+      final reviewImageUrls = widget.reviewData['image_urls'] as List<dynamic>?;
+      if (reviewImageUrls != null) {
+        urlsToDelete.addAll(reviewImageUrls.map((e) => e.toString()));
+      }
+
+      final commentsResponse = await Supabase.instance.client
+          .from('review_comments')
+          .select('image_url')
+          .eq('review_id', reviewId);
+          
+      for (var c in commentsResponse) {
+        if (c['image_url'] != null) {
+          urlsToDelete.add(c['image_url']);
+        }
+      }
+
+      if (urlsToDelete.isNotEmpty) {
+        await StorageUtils.deleteImagesFromUrls(urlsToDelete);
+      }
+
+      await Supabase.instance.client.from('reviews').delete().eq('id', reviewId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reseña eliminada')));
+        Navigator.pop(context); // Go back to the previous screen
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar reseña: $e')));
+      }
     }
   }
 
@@ -319,6 +406,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     final isReplay = widget.reviewData['is_replay'] ?? false;
     final replayNumber = widget.reviewData['replay_number'];
     final platform = widget.reviewData['platform'];
+    final List<dynamic> imageUrls = widget.reviewData['image_urls'] ?? [];
     final playTimeHours = (widget.reviewData['play_time_hours'] ?? 0).toDouble();
     final playedFrom = widget.reviewData['played_from'];
     final playedUntil = widget.reviewData['played_until'];
@@ -375,6 +463,12 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                           Text('@$username', style: const TextStyle(fontSize: 14, color: Colors.grey)),
                         ],
                       ),
+                      const Spacer(),
+                      if (widget.reviewData['user_id'] == Supabase.instance.client.auth.currentUser?.id)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                          onPressed: () => _deleteReview(widget.reviewData['id']),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -473,6 +567,29 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                       comment,
                       style: const TextStyle(fontSize: 16, height: 1.5, ),
                     ),
+                  
+                  if (imageUrls.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 140,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: imageUrls.length,
+                        itemBuilder: (context, idx) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: GestureDetector(
+                              onTap: () => _showImageFullScreen(imageUrls[idx]),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(imageUrls[idx], height: 140, fit: BoxFit.fitHeight),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                   
                   // Extra info
                   if (playTimeHours > 0 || playedFrom != null || progressPercent != null) ...[
@@ -607,10 +724,23 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    comment['content'],
-                                    style: const TextStyle(fontSize: 14, height: 1.4),
-                                  ),
+                                  const SizedBox(height: 4),
+                                  if (comment['content'] != null && comment['content'].toString().isNotEmpty)
+                                    Text(
+                                      comment['content'],
+                                      style: const TextStyle(fontSize: 14, height: 1.4),
+                                    ),
+                                  if (comment['image_url'] != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: GestureDetector(
+                                        onTap: () => _showImageFullScreen(comment['image_url']),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                            child: Image.network(comment['image_url'], height: 150, fit: BoxFit.fitHeight),
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -645,15 +775,57 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
               color: Theme.of(context).scaffoldBackgroundColor,
               border: Border(top: BorderSide(color: Colors.white10)),
             ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  Expanded(
+            child: Column(
+              children: [
+                if (_commentImage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0, left: 16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: kIsWeb
+                                ? Image.network(_commentImage!.path, height: 80, width: 80, fit: BoxFit.cover)
+                                : Image.file(File(_commentImage!.path), height: 80, width: 80, fit: BoxFit.cover),
+                          ),
+                          Positioned(
+                            top: -8, right: -8,
+                            child: GestureDetector(
+                              onTap: () => setState(() => _commentImage = null),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                child: const Icon(Icons.close, color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.add_photo_alternate, color: Colors.grey),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () async {
+                          final picker = ImagePicker();
+                          final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 1080);
+                          if (file != null) setState(() => _commentImage = file);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
                     child: TextField(
                       focusNode: _commentFocusNode,
                       controller: _commentController,
@@ -681,9 +853,41 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                 ],
               ),
             ),
-          ),
+          ],
+        ),
+      ),
       ],
     ),
   );
 }
+
+  void _showImageFullScreen(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.of(context).pop(),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              InteractiveViewer(
+                child: Image.network(imageUrl, fit: BoxFit.contain),
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

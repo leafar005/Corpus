@@ -5,9 +5,13 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:math';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../globals.dart';
 import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
+import '../../utils/storage_utils.dart';
 import '../activity/review_details_screen.dart';
 
 class GameDetailsScreen extends StatefulWidget {
@@ -42,6 +46,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   // Datos enriquecidos desde IGDB (para cuando venimos de la biblioteca y faltan summary/developer)
   Map<String, dynamic> _enrichedData = {};
 
+  // Tiempo de juego estimado (HowLongToBeat)
+  Map<String, dynamic>? _timeToBeat;
+
   final TextEditingController _commentController = TextEditingController();
   final TextEditingController _ratingController = TextEditingController();
 
@@ -56,6 +63,19 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     _selectRandomScreenshot(widget.gameData['screenshots']);
     _enrichGameData();
     _fetchReviews();
+    _fetchTimeToBeat();
+  }
+
+  Future<void> _fetchTimeToBeat() async {
+    final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+    if (igdbId == null) return;
+    
+    final ttb = await IGDBService.getTimeToBeat(igdbId is int ? igdbId : int.parse(igdbId.toString()));
+    if (mounted && ttb != null) {
+      setState(() {
+        _timeToBeat = ttb;
+      });
+    }
   }
 
   @override
@@ -88,10 +108,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             fit: StackFit.expand,
             children: [
               InteractiveViewer(
-                child: GestureDetector(
-                  onTap: () {}, // Evita que se cierre al tocar la imagen
-                  child: Image.network(imageUrl, fit: BoxFit.contain),
-                ),
+                child: Image.network(imageUrl, fit: BoxFit.contain),
               ),
               Positioned(
                 top: 16,
@@ -362,6 +379,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     
     final reviewCommentController = TextEditingController(text: hasReview ? (r!['comment'] ?? '') : _commentController.text);
     final String? reviewId = hasReview ? r!['id'] : null;
+    
+    List<XFile> newImages = [];
+    List<String> existingImages = hasReview ? List<String>.from(r!['image_urls'] ?? []) : [];
 
     final List<dynamic> platforms = (widget.gameData['platforms'] as List?)?.isNotEmpty == true
         ? widget.gameData['platforms']
@@ -392,6 +412,30 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 side: BorderSide(color: sel ? color : Colors.grey.shade700),
                 showCheckmark: false,
+              );
+            }
+
+            Widget buildRemovableImage({required Widget imageWidget, required VoidCallback onRemove}) {
+              return Stack(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(right: 8, top: 8),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+                    clipBehavior: Clip.hardEdge,
+                    child: imageWidget,
+                  ),
+                  Positioned(
+                    top: 0, right: 0,
+                    child: GestureDetector(
+                      onTap: onRemove,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                        child: const Icon(Icons.close, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
               );
             }
 
@@ -490,6 +534,48 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         textCapitalization: TextCapitalization.sentences,
                         decoration: const InputDecoration(hintText: '¿Qué te pareció el juego?', border: OutlineInputBorder()),
                       ),
+                      const SizedBox(height: 12),
+                      
+                      if (existingImages.isNotEmpty || newImages.isNotEmpty) ...[
+                        SizedBox(
+                          height: 90,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              ...existingImages.map((url) => buildRemovableImage(
+                                  imageWidget: Image.network(url, fit: BoxFit.cover, width: 80, height: 80),
+                                  onRemove: () => setModalState(() => existingImages.remove(url)),
+                              )),
+                              ...newImages.map((file) => buildRemovableImage(
+                                  imageWidget: kIsWeb
+                                      ? Image.network(file.path, fit: BoxFit.cover, width: 80, height: 80)
+                                      : Image.file(File(file.path), fit: BoxFit.cover, width: 80, height: 80),
+                                  onRemove: () => setModalState(() => newImages.remove(file)),
+                              )),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (existingImages.length + newImages.length < 3)
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.add_photo_alternate, size: 18),
+                          label: const Text('Adjuntar imagen (máx 3)'),
+                          onPressed: () async {
+                            final picker = ImagePicker();
+                            final pickedFiles = await picker.pickMultiImage(
+                              imageQuality: 70,
+                              maxWidth: 1080,
+                            );
+                            if (pickedFiles.isNotEmpty) {
+                              setModalState(() {
+                                final remaining = 3 - existingImages.length - newImages.length;
+                                newImages.addAll(pickedFiles.take(remaining));
+                              });
+                            }
+                          },
+                        ),
+                      const SizedBox(height: 12),
 
                       Theme(
                         data: Theme.of(modalContext).copyWith(dividerColor: Colors.transparent),
@@ -575,6 +661,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                             platform: reviewPlatform, playTimeHours: double.tryParse(playTimeText),
                             playedFrom: reviewPlayedFrom, playedUntil: reviewPlayedUntil,
                             progressPercent: reviewProgressPercent > 0 ? reviewProgressPercent : null,
+                            newImages: newImages, existingImages: existingImages,
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -607,6 +694,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     required String? platform, required double? playTimeHours,
     required DateTime? playedFrom, required DateTime? playedUntil,
     required int? progressPercent,
+    required List<XFile> newImages,
+    required List<String> existingImages,
   }) async {
     setState(() => _isSaving = true);
     final userId = Supabase.instance.client.auth.currentUser!.id;
@@ -650,6 +739,34 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         'played_until': playedUntil?.toIso8601String().split('T')[0],
         'progress_percent': progressPercent,
       };
+
+      // Handle images upload
+      List<String> finalImageUrls = List<String>.from(existingImages);
+      
+      if (newImages.isNotEmpty) {
+        for (final file in newImages) {
+          try {
+            final bytes = await file.readAsBytes();
+            final ext = file.name.split('.').last;
+            final fileName = '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}.$ext';
+            final path = '$userId/$fileName';
+            
+            await Supabase.instance.client.storage
+                .from('user_uploads')
+                .uploadBinary(path, bytes);
+                
+            final publicUrl = Supabase.instance.client.storage
+                .from('user_uploads')
+                .getPublicUrl(path);
+                
+            finalImageUrls.add(publicUrl);
+          } catch (e) {
+            print('[CORPUS DEBUG] Error uploading image: $e');
+          }
+        }
+      }
+      
+      reviewData['image_urls'] = finalImageUrls;
 
       if (reviewId != null) {
         await Supabase.instance.client.from('reviews').update(reviewData).eq('id', reviewId);
@@ -761,8 +878,47 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           .eq('user_id', userId)
           .eq('game_id', igdbId);
 
+      final reviewsResponse = await Supabase.instance.client
+          .from('reviews')
+          .select('id, image_urls')
+          .eq('user_id', userId)
+          .eq('game_id', igdbId);
+          
+      List<String> reviewIds = [];
+      List<String> allImageUrls = [];
+      
+      for (var r in reviewsResponse) {
+        reviewIds.add(r['id']);
+        if (r['image_urls'] != null) {
+          final rUrls = r['image_urls'] as List<dynamic>;
+          allImageUrls.addAll(rUrls.map((e) => e.toString()));
+        }
+      }
+      
+      if (reviewIds.isNotEmpty) {
+        final commentsResponse = await Supabase.instance.client
+            .from('review_comments')
+            .select('image_url')
+            .inFilter('review_id', reviewIds);
+            
+        for (var c in commentsResponse) {
+          if (c['image_url'] != null) allImageUrls.add(c['image_url']);
+        }
+      }
+      
+      if (allImageUrls.isNotEmpty) {
+        await StorageUtils.deleteImagesFromUrls(allImageUrls);
+      }
+
+      await Supabase.instance.client
+          .from('reviews')
+          .delete()
+          .eq('user_id', userId)
+          .eq('game_id', igdbId);
+
       if (mounted) {
         setState(() {
+          _reviews.clear();
           _inLibrary = false;
           _status = 'wishlist';
           _rating = 0;
@@ -784,6 +940,63 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al eliminar: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> _deleteReview(String reviewId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar reseña'),
+        content: const Text('¿Seguro que quieres eliminar esta reseña?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final review = _reviews.firstWhere((r) => r['id'] == reviewId, orElse: () => <String, dynamic>{});
+      final List<String> urlsToDelete = [];
+      final reviewImageUrls = review['image_urls'] as List<dynamic>?;
+      if (reviewImageUrls != null) {
+        urlsToDelete.addAll(reviewImageUrls.map((e) => e.toString()));
+      }
+
+      final commentsResponse = await Supabase.instance.client
+          .from('review_comments')
+          .select('image_url')
+          .eq('review_id', reviewId);
+          
+      for (var c in commentsResponse) {
+        if (c['image_url'] != null) {
+          urlsToDelete.add(c['image_url']);
+        }
+      }
+
+      if (urlsToDelete.isNotEmpty) {
+        await StorageUtils.deleteImagesFromUrls(urlsToDelete);
+      }
+
+      await Supabase.instance.client.from('reviews').delete().eq('id', reviewId);
+      
+      if (mounted) {
+        setState(() {
+          _reviews.removeWhere((r) => r['id'] == reviewId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reseña eliminada')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar reseña: $e')));
       }
     }
   }
@@ -903,6 +1116,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         final rNarrative = (review['rating_narrative'] ?? 0).toDouble();
         final rSoundtrack = (review['rating_soundtrack'] ?? 0).toDouble();
         final rVisuals = (review['rating_visuals'] ?? 0).toDouble();
+        final List<dynamic> imageUrls = review['image_urls'] ?? [];
         final dateStr = createdAt != null ? _formatDate(createdAt) : '';
 
         return GestureDetector(
@@ -926,14 +1140,28 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                  if (completionType == 'none')
-                    const Text('Quiero', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold))
-                  else
-                    _buildInfoBadge(_getCompletionTypeText(completionType), _getCompletionTypeIcon(completionType), Theme.of(context).colorScheme.primary),
-                  if (isReplay) _buildInfoBadge('Rejugada${replayNumber != null ? ' #$replayNumber' : ''}', Icons.replay, Colors.orangeAccent),
-                  if (rPlatform != null) _buildInfoBadge(rPlatform, Icons.devices, Colors.blueGrey),
-                ]),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                        if (completionType == 'none')
+                          const Text('Quiero', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold))
+                        else
+                          _buildInfoBadge(_getCompletionTypeText(completionType), _getCompletionTypeIcon(completionType), Theme.of(context).colorScheme.primary),
+                        if (isReplay) _buildInfoBadge('Rejugada${replayNumber != null ? ' #$replayNumber' : ''}', Icons.replay, Colors.orangeAccent),
+                        if (rPlatform != null) _buildInfoBadge(rPlatform, Icons.devices, Colors.blueGrey),
+                      ]),
+                    ),
+                    if (review['id'] != null)
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20, color: Colors.grey),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _deleteReview(review['id']),
+                      ),
+                  ],
+                ),
                 const Divider(height: 24),
                 if (rating > 0) ...[
                   Row(children: [
@@ -953,6 +1181,28 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   const SizedBox(height: 12),
                 ],
                 if (comment.isNotEmpty) Text(comment, style: const TextStyle(fontSize: 15, height: 1.4), maxLines: 4, overflow: TextOverflow.ellipsis),
+                if (imageUrls.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: imageUrls.length,
+                      itemBuilder: (context, idx) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () => _showImageFullScreen(imageUrls[idx]),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(imageUrls[idx], height: 100, fit: BoxFit.fitHeight),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
                 if (playTime > 0 || playedFrom != null || progress != null) ...[
                   const SizedBox(height: 12),
                   Wrap(spacing: 12, runSpacing: 4, children: [
@@ -1013,6 +1263,53 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       return {'color': Colors.deepOrange, 'icon': 'assets/images/google.png', 'textColor': Colors.white};
     }
     return {'color': Colors.blueGrey.withOpacity(0.3), 'icon': null, 'textColor': Colors.white};
+  }
+
+  Widget _buildTimeToBeatCard(String title, int? seconds, Color color, IconData icon) {
+    String timeText = '--';
+    if (seconds != null && seconds > 0) {
+      timeText = '${(seconds / 3600).toStringAsFixed(1).replaceAll('.0', '')} h';
+    }
+    
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              title, 
+              textAlign: TextAlign.center,
+              style: TextStyle(color: color.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              timeText,
+              style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeToBeatRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTimeToBeatCard('Principal', _timeToBeat?['hastily'], Colors.blueAccent, Icons.speed),
+        const SizedBox(width: 8),
+        _buildTimeToBeatCard('Extras', _timeToBeat?['normally'], Colors.purpleAccent, Icons.explore),
+        const SizedBox(width: 8),
+        _buildTimeToBeatCard('Completista', _timeToBeat?['completely'], Colors.amber, Icons.emoji_events),
+      ],
+    );
   }
 
   @override
@@ -1194,9 +1491,14 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           const SizedBox(height: 12),
           Text(summary, style: const TextStyle(fontSize: 16, height: 1.6)),
         ],
+        const SizedBox(height: 32),
+        const Text('Tiempo Estimado (HLTB)', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        _buildTimeToBeatRow(),
         ],
       );
     }
+
 
     Widget _buildMediaTab() {
       List<Map<String, dynamic>> availableTabs = [];

@@ -161,6 +161,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final comments = (activity['review_comments'] as List?) ?? [];
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     final hasLiked = likes.any((l) => l['user_id'] == currentUserId);
+    final List<dynamic> imageUrls = activity['image_urls'] ?? [];
 
     return GestureDetector(
       onTap: () {
@@ -277,6 +278,29 @@ class _ActivityScreenState extends State<ActivityScreen> {
               ),
             ],
             
+            if (imageUrls.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: imageUrls.length,
+                  itemBuilder: (context, idx) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => _showImageFullScreen(imageUrls[idx]),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(imageUrls[idx], height: 120, fit: BoxFit.fitHeight),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+            
             const SizedBox(height: 16),
             Row(
               children: [
@@ -358,6 +382,36 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 return _buildActivityCard(_activities[index], index);
               },
             ),
+    );
+  }
+
+  void _showImageFullScreen(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.of(context).pop(),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              InteractiveViewer(
+                child: Image.network(imageUrl, fit: BoxFit.contain),
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
