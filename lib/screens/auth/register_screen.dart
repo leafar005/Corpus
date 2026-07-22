@@ -69,11 +69,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Crear cuenta')),
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextField(
                 controller: _usernameController,
@@ -82,6 +84,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: const Icon(Icons.person),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
+                textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 16),
               TextField(
@@ -92,6 +95,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 16),
               TextField(
@@ -102,6 +106,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 obscureText: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _signUp(),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -117,6 +123,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

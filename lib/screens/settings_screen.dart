@@ -7,8 +7,9 @@ import '../globals.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Map<String, dynamic> userProfile;
+  final List<Map<String, dynamic>?> hallOfFame;
 
-  const SettingsScreen({super.key, required this.userProfile});
+  const SettingsScreen({super.key, required this.userProfile, required this.hallOfFame});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,7 @@ class SettingsScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EditProfileScreen(userProfile: userProfile),
+                  builder: (context) => EditProfileScreen(userProfile: userProfile, hallOfFame: hallOfFame),
                 ),
               );
             },
