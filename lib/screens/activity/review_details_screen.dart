@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../library/game_details_screen.dart';
 import 'dart:io';

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
@@ -40,7 +39,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   double _ratingNarrative = 0;
   double _ratingSoundtrack = 0;
   double _ratingVisuals = 0;
-  String? _updatedAt;
   Map<String, dynamic>? _userData;
   
   // Datos enriquecidos desde IGDB (para cuando venimos de la biblioteca y faltan summary/developer)
@@ -54,8 +52,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   // Reviews from the reviews table
   List<Map<String, dynamic>> _reviews = [];
-  bool _isLoadingReviews = false;
-
   @override
   void initState() {
     super.initState();
@@ -229,7 +225,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           _ratingSoundtrack = (response['rating_soundtrack'] ?? 0).toDouble();
           _ratingVisuals = (response['rating_visuals'] ?? 0).toDouble();
           _commentController.text = response['comment'] ?? '';
-          _updatedAt = response['updated_at'];
+
           _userData = response['users'];
           
           if (_rating > 0) {
@@ -256,7 +252,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   Future<void> _fetchReviews() async {
     final userId = Supabase.instance.client.auth.currentUser!.id;
     final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-    setState(() => _isLoadingReviews = true);
+
     try {
       final response = await Supabase.instance.client
           .from('reviews')
@@ -267,12 +263,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (mounted) {
         setState(() {
           _reviews = List<Map<String, dynamic>>.from(response);
-          _isLoadingReviews = false;
+
         });
       }
     } catch (e) {
       print('[CORPUS DEBUG] Error fetching reviews: $e');
-      if (mounted) setState(() => _isLoadingReviews = false);
+
     }
   }
 
@@ -928,7 +924,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           _ratingVisuals = 0;
           _commentController.clear();
           _ratingController.clear();
-          _updatedAt = null;
+
         });
         libraryUpdateNotifier.value++;
         ScaffoldMessenger.of(context).showSnackBar(

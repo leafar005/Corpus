@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
 import 'review_details_screen.dart';
-import '../library/game_details_screen.dart';
-import '../../widgets/game_card.dart';
-
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key});
 

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'search_screen.dart';
-import 'game_details_screen.dart';
 import 'package:corpus/widgets/game_card.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -59,7 +57,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               child: Text(
                 'Oops, no hemos podido cargar tu biblioteca.\nRevisa tu conexión a internet.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).colorScheme.error.shade100, fontSize: 16),
+                style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 16),
               ),
             );
           }
