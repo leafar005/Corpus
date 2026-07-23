@@ -68,9 +68,9 @@ class InfoScreen extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                  backgroundImage: NetworkImage('https://github.com/leafar005.png'), // Usamos la foto de perfil de Github
-                  child: Icon(Icons.person, ),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  child: const Icon(Icons.person),
                 ),
                 title: const Text('leafar005', style: TextStyle(fontWeight: FontWeight.bold, )),
                 subtitle: const Text('Creador y Desarrollador', style: TextStyle(color: Colors.grey)),
