@@ -12,6 +12,7 @@ import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
 import '../../utils/storage_utils.dart';
 import '../activity/review_details_screen.dart';
+import 'search_screen.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -126,9 +127,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final hasSummary = widget.gameData['summary'] != null;
     final hasDeveloper = widget.gameData['developer'] != null && widget.gameData['developer'] != 'Desconocido';
     final hasCategory = widget.gameData['category'] != null;
+    final hasScreenshots = (widget.gameData['screenshots'] as List?)?.isNotEmpty == true;
 
     // Si ya tenemos todo, no hace falta llamar a IGDB
-    if (hasSummary && hasDeveloper && hasCategory && widget.gameData['screenshots'] != null) {
+    if (hasSummary && hasDeveloper && hasCategory && hasScreenshots) {
       if (mounted) setState(() => _isEnriching = false);
       return;
     }
@@ -179,12 +181,18 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               'videos': game['videos'] != null 
                   ? (game['videos'] as List).map((v) => v['video_id']).toList() 
                   : [],
-            if (widget.gameData['themes'] == null)
+            if (widget.gameData['themes'] == null || (widget.gameData['themes'] as List).isEmpty)
               'themes': game['themes'] != null ? (game['themes'] as List).map((t) => t['name']).toList() : [],
-            if (widget.gameData['game_modes'] == null)
+            if (widget.gameData['game_modes'] == null || (widget.gameData['game_modes'] as List).isEmpty)
               'game_modes': game['game_modes'] != null ? (game['game_modes'] as List).map((m) => m['name']).toList() : [],
-            if (widget.gameData['player_perspectives'] == null)
+            if (widget.gameData['player_perspectives'] == null || (widget.gameData['player_perspectives'] as List).isEmpty)
               'player_perspectives': game['player_perspectives'] != null ? (game['player_perspectives'] as List).map((p) => p['name']).toList() : [],
+            if (widget.gameData['collection'] == null && game['collection'] != null)
+              'collection': game['collection']['name'],
+            if (widget.gameData['franchises'] == null || (widget.gameData['franchises'] as List).isEmpty)
+              'franchises': game['franchises'] != null ? (game['franchises'] as List).map((f) => f['name']).toList() : [],
+            if (widget.gameData['game_engines'] == null || (widget.gameData['game_engines'] as List).isEmpty)
+              'game_engines': game['game_engines'] != null ? (game['game_engines'] as List).map((e) => e['name']).toList() : [],
           };
         });
         
@@ -704,7 +712,17 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         'cover_url': widget.gameData['cover_url'],
         'release_date': widget.gameData['release_date']?.toString().split('T')[0],
         'genres': widget.gameData['genres'] ?? _enrichedData['genres'],
-        'category': widget.gameData['category'] ?? _enrichedData['category'],
+        // Fix #1: Guarda la categoría ya resuelta (no la cruda de IGDB) para que
+        // sea permanente y no requiera re-calcularse desde la biblioteca.
+        // Calcula inline con el mismo cast seguro que el build().
+        'category': () {
+          final dynamic rawCat = widget.gameData['category'] ?? widget.gameData['game_type'] ?? _enrichedData['category'] ?? _enrichedData['game_type'];
+          final int? catId = (rawCat is num) ? rawCat.toInt() : int.tryParse(rawCat?.toString() ?? '');
+          final String title = widget.gameData['title'] ?? 'Desconocido';
+          final bool hasParent = widget.gameData['parent_game'] != null || _enrichedData['parent_game'] != null;
+          return IgdbConstants.resolveCategory(catId, title, hasParentGame: hasParent,
+            summary: widget.gameData['summary']?.toString() ?? _enrichedData['summary']?.toString()) ?? 0;
+        }(),
         'parent_game': widget.gameData['parent_game'] ?? _enrichedData['parent_game'],
         'themes': widget.gameData['themes'] ?? _enrichedData['themes'],
         'game_modes': widget.gameData['game_modes'] ?? _enrichedData['game_modes'],
@@ -1316,14 +1334,21 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     
     // Datos con fallback a _enrichedData (para cuando venimos de la biblioteca)
     final summary = widget.gameData['summary'] ?? _enrichedData['summary'];
-    final developer = widget.gameData['developer'] ?? _enrichedData['developer'];
+    final developer = (widget.gameData['developer'] != null && widget.gameData['developer'] != 'Desconocido' && widget.gameData['developer'] != 'Desarrollador desconocido')
+        ? widget.gameData['developer']
+        : _enrichedData['developer'];
     final hasParentGame = widget.gameData['parent_game'] != null || _enrichedData['parent_game'] != null;
     
     // Resolver categoría usando IgdbConstants (centralizado)
+    // Fix #3: Lectura segura del tipo numérico (puede llegar como int, double o num desde JSON/Supabase)
+    final dynamic rawCat = widget.gameData['category'] ?? widget.gameData['game_type'] ?? _enrichedData['category'] ?? _enrichedData['game_type'];
+    final int? categoryId = (rawCat is num) ? rawCat.toInt() : int.tryParse(rawCat?.toString() ?? '');
+
     final int? resolvedCategory = IgdbConstants.resolveCategory(
-      (widget.gameData['category'] ?? _enrichedData['category']) as int?,
+      categoryId,
       title,
       hasParentGame: hasParentGame,
+      summary: widget.gameData['summary']?.toString() ?? _enrichedData['summary']?.toString(),
     );
     final String? categoryLabel = resolvedCategory != null && !IgdbConstants.isMainGame(resolvedCategory)
         ? IgdbConstants.getCategoryName(resolvedCategory)
@@ -1338,6 +1363,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final List<dynamic> platformsList = (widget.gameData['platforms'] as List?)?.isNotEmpty == true 
         ? widget.gameData['platforms'] 
         : (_enrichedData['platforms'] as List? ?? []);
+    final String? collection = widget.gameData['collection']?.toString() ?? _enrichedData['collection']?.toString();
+    final List<dynamic> franchisesList = (widget.gameData['franchises'] as List?)?.isNotEmpty == true 
+        ? widget.gameData['franchises'] 
+        : (_enrichedData['franchises'] as List? ?? []);
+    final List<dynamic> gameEnginesList = (widget.gameData['game_engines'] as List?)?.isNotEmpty == true 
+        ? widget.gameData['game_engines'] 
+        : (_enrichedData['game_engines'] as List? ?? []);
 
     // Formatear fecha de lanzamiento
     String? releaseDate;
@@ -1439,15 +1471,66 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             ],
           );
 
-    final screenshotsList = (widget.gameData['screenshots'] ?? _enrichedData['screenshots'] ?? []) as List;
-    final artworksList = (widget.gameData['artworks'] ?? _enrichedData['artworks'] ?? []) as List;
-    final videosList = (widget.gameData['videos'] ?? _enrichedData['videos'] ?? []) as List;
+    final List screenshotsList = (widget.gameData['screenshots'] as List?)?.isNotEmpty == true 
+        ? widget.gameData['screenshots'] 
+        : (_enrichedData['screenshots'] as List? ?? []);
+    final List artworksList = (widget.gameData['artworks'] as List?)?.isNotEmpty == true 
+        ? widget.gameData['artworks'] 
+        : (_enrichedData['artworks'] as List? ?? []);
+    final List videosList = (widget.gameData['videos'] as List?)?.isNotEmpty == true 
+        ? widget.gameData['videos'] 
+        : (_enrichedData['videos'] as List? ?? []);
     final bool hasMedia = screenshotsList.isNotEmpty || artworksList.isNotEmpty || videosList.isNotEmpty;
 
     Widget buildInfoTab() {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+        if (collection != null || franchisesList.isNotEmpty) ...[
+          const Text('Franquicia / Colección', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: [
+              if (collection != null)
+                ActionChip(
+                  label: Text(collection, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.2),
+                  side: BorderSide(color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.5)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: collection)));
+                  },
+                ),
+              ...franchisesList.where((f) => f != collection).map((f) => ActionChip(
+                label: Text(f.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.2),
+                side: BorderSide(color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: f.toString())));
+                },
+              )),
+            ],
+          ),
+          const SizedBox(height: 32),
+        ],
+
+        if (gameEnginesList.isNotEmpty) ...[
+          const Text('Motor Gráfico', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: gameEnginesList.map((e) => Chip(
+              label: Text(e.toString()),
+              backgroundColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.1),
+              side: BorderSide(color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            )).toList(),
+          ),
+          const SizedBox(height: 32),
+        ],
+
         if (genresList.isNotEmpty) ...[
           const Text('Géneros', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),

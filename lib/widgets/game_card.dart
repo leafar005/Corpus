@@ -46,25 +46,61 @@ class _GameCardState extends State<GameCard> {
       onExit: (_) => setState(() => _isHovered = false),
       child: InkWell(
         onTap: () {
-          final cleanData = {
-            'igdb_id': igdbId,
-            'title': title,
-            'cover_url': coverUrl,
-            'release_date': widget.game['first_release_date'] != null 
-                ? DateTime.fromMillisecondsSinceEpoch(widget.game['first_release_date'] * 1000).toIso8601String() 
-                : widget.game['release_date'],
-            'summary': widget.game['summary'],
-            'category': widget.game['category'],
-            'parent_game': widget.game['parent_game'],
-            'genres': widget.game['genres'] != null && widget.game['genres'] is List 
-                ? (widget.game['genres'] as List).map((g) => g is Map ? g['name'] : g).toList() 
-                : [],
-            'screenshots': widget.game['screenshots'] != null ? (widget.game['screenshots'] as List).map((s) => s['image_id']).toList() : [],
-            'artworks': widget.game['artworks'] != null ? (widget.game['artworks'] as List).map((a) => a['image_id']).toList() : [],
-            'videos': widget.game['videos'] != null ? (widget.game['videos'] as List).map((v) => v['video_id']).toList() : [],
-            'platforms': widget.game['platforms'] != null ? (widget.game['platforms'] as List).map((p) => p is Map ? p['name'] : p).toList() : [],
-            'developer': 'Desconocido',
-          };
+          final cleanData = Map<String, dynamic>.from(widget.game);
+          cleanData['igdb_id'] = igdbId;
+          cleanData['title'] = title;
+          cleanData['cover_url'] = coverUrl;
+          cleanData['release_date'] = widget.game['first_release_date'] != null 
+              ? DateTime.fromMillisecondsSinceEpoch(widget.game['first_release_date'] * 1000).toIso8601String() 
+              : widget.game['release_date'];
+          
+          if (widget.game['genres'] != null && widget.game['genres'] is List) {
+            cleanData['genres'] = (widget.game['genres'] as List).map((g) => g is Map ? g['name'] : g).toList();
+          } else if (widget.game['genres'] == null) {
+            cleanData['genres'] = [];
+          }
+
+          if (widget.game['screenshots'] != null && widget.game['screenshots'] is List) {
+            cleanData['screenshots'] = (widget.game['screenshots'] as List).map((s) => s is Map ? s['image_id'] : s).toList();
+          } else if (widget.game['screenshots'] == null) {
+            cleanData['screenshots'] = [];
+          }
+
+          if (widget.game['artworks'] != null && widget.game['artworks'] is List) {
+            cleanData['artworks'] = (widget.game['artworks'] as List).map((a) => a is Map ? a['image_id'] : a).toList();
+          } else if (widget.game['artworks'] == null) {
+            cleanData['artworks'] = [];
+          }
+
+          if (widget.game['videos'] != null && widget.game['videos'] is List) {
+            cleanData['videos'] = (widget.game['videos'] as List).map((v) => v is Map ? v['video_id'] : v).toList();
+          } else if (widget.game['videos'] == null) {
+            cleanData['videos'] = [];
+          }
+
+          if (widget.game['platforms'] != null && widget.game['platforms'] is List) {
+            cleanData['platforms'] = (widget.game['platforms'] as List).map((p) => p is Map ? p['name'] : p).toList();
+          } else if (widget.game['platforms'] == null) {
+            cleanData['platforms'] = [];
+          }
+
+          if (widget.game['collection'] != null) {
+            cleanData['collection'] = widget.game['collection'] is Map ? widget.game['collection']['name'] : widget.game['collection'];
+          }
+          
+          if (widget.game['franchises'] != null && widget.game['franchises'] is List) {
+            cleanData['franchises'] = (widget.game['franchises'] as List).map((f) => f is Map ? f['name'] : f).toList();
+          } else if (widget.game['franchises'] == null) {
+            cleanData['franchises'] = [];
+          }
+
+          if (widget.game['game_engines'] != null && widget.game['game_engines'] is List) {
+            cleanData['game_engines'] = (widget.game['game_engines'] as List).map((e) => e is Map ? e['name'] : e).toList();
+          } else if (widget.game['game_engines'] == null) {
+            cleanData['game_engines'] = [];
+          }
+
+          cleanData['developer'] = 'Desconocido';
           
           if (widget.game['involved_companies'] != null && (widget.game['involved_companies'] as List).isNotEmpty) {
             final companies = widget.game['involved_companies'] as List;
@@ -120,11 +156,14 @@ class _GameCardState extends State<GameCard> {
                 bottom: 6, left: 6,
                 child: Builder(
                   builder: (context) {
-                    final bool hasParent = widget.game['parent_game'] != null;
+                    // Fix #3: Cast seguro — JSON/Supabase puede devolver num, double o int
+                    final dynamic rawCat = widget.game['category'] ?? widget.game['game_type'];
+                    final int? categoryId = (rawCat is num) ? rawCat.toInt() : int.tryParse(rawCat?.toString() ?? '');
                     final int? resolved = IgdbConstants.resolveCategory(
-                      widget.game['category'] as int?,
+                      categoryId,
                       title,
-                      hasParentGame: hasParent,
+                      hasParentGame: widget.game['parent_game'] != null,
+                      summary: widget.game['summary']?.toString(),
                     );
 
                     // No badge for main games
