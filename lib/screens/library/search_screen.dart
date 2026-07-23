@@ -6,7 +6,8 @@ import '../../widgets/game_card.dart';
 import '../../widgets/filter_bottom_sheet.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final String? initialQuery;
+  const SearchScreen({super.key, this.initialQuery});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -37,7 +38,12 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _fetchUserGamesCache();
-    _fetchPopularGames(isInitial: true);
+    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+      _searchController.text = widget.initialQuery!;
+      _performSearch(isInitial: true);
+    } else {
+      _fetchPopularGames(isInitial: true);
+    }
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {

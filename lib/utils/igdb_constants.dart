@@ -64,21 +64,26 @@ class IgdbConstants {
   /// [igdbCategory] — valor numérico de `category` de IGDB (puede ser null).
   /// [title] — nombre del juego (para heurísticas por keywords).
   /// [hasParentGame] — si el juego tiene `parent_game` en IGDB.
+  /// [summary] — sinopsis del juego (útil para detectar mods si IGDB falla).
   ///
   /// Devuelve el `int` de categoría resuelto, o null si es un juego base normal.
-  static int? resolveCategory(int? igdbCategory, String title, {bool hasParentGame = false}) {
+  static int? resolveCategory(int? igdbCategory, String title, {bool hasParentGame = false, String? summary}) {
     // Si IGDB ya devolvió una categoría no-base, confiar en ella.
     if (igdbCategory != null && igdbCategory != 0) {
       return igdbCategory;
     }
 
     // IGDB devolvió null o 0. Usar heurísticas para intentar resolver.
-    final lower = title.toLowerCase();
+    final lowerTitle = title.toLowerCase();
+    final lowerSummary = summary?.toLowerCase() ?? '';
 
-    if (_remakeKeywords.any((k) => lower.contains(k))) return 8;
-    if (_remasterKeywords.any((k) => lower.contains(k)) || _hdRegex.hasMatch(lower)) return 9;
-    if (_expandedKeywords.any((k) => lower.contains(k))) return 10;
-    if (_dlcKeywords.any((k) => lower.contains(k))) return 1;
+    if (_remakeKeywords.any((k) => lowerTitle.contains(k))) return 8;
+    if (_remasterKeywords.any((k) => lowerTitle.contains(k)) || _hdRegex.hasMatch(lowerTitle)) return 9;
+    if (_expandedKeywords.any((k) => lowerTitle.contains(k))) return 10;
+    if (_dlcKeywords.any((k) => lowerTitle.contains(k))) return 1;
+
+    // Si IGDB lo catalogó mal pero el título o resumen menciona que es un mod como palabra suelta
+    if (RegExp(r'\bmod\b').hasMatch(lowerTitle) || RegExp(r'\bmod\b').hasMatch(lowerSummary)) return 5;
 
     // Si tiene parent_game pero no matcheó ningún keyword, asumimos DLC.
     if (hasParentGame) return 1;
