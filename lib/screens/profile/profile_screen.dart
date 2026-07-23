@@ -228,7 +228,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Settings Button
         if (isMe)
           Positioned(
-            top: 40, right: 16,
+            top: isDesktop ? 16 : 40, right: 16,
             child: IconButton(
               icon: const Icon(Icons.settings, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
               onPressed: () {
@@ -611,10 +611,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: GestureDetector(
                                   onTap: () {
                                     if (game != null) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => GameDetailsScreen(gameData: game)),
-                                      ).then((_) => _fetchProfileData());
+                                      final isDesktop = MediaQuery.of(context).size.width > 800;
+                                      if (isDesktop) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (context) => GameDetailsScreen(gameData: game)),
+                                        ).then((_) => _fetchProfileData());
+                                      } else {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          useSafeArea: false,
+                                          enableDrag: true,
+                                          builder: (context) => DraggableScrollableSheet(
+                                            initialChildSize: 1.0,
+                                            minChildSize: 0.5,
+                                            maxChildSize: 1.0,
+                                            expand: false,
+                                            snap: true,
+                                            builder: (context, scrollController) {
+                                              return GameDetailsScreen(
+                                                gameData: game,
+                                                scrollController: scrollController,
+                                              );
+                                            },
+                                          ),
+                                        ).then((_) => _fetchProfileData());
+                                      }
                                     }
                                   },
                                   child: Container(

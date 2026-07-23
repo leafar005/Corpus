@@ -495,12 +495,35 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                         cursor: SystemMouseCursors.click,
                         child: GestureDetector(
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => GameDetailsScreen(gameData: widget.gameData),
-                              ),
-                            );
+                            final isDesktop = MediaQuery.of(context).size.width > 800;
+                            if (isDesktop) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => GameDetailsScreen(gameData: widget.gameData),
+                                ),
+                              );
+                            } else {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                useSafeArea: false,
+                                enableDrag: true,
+                                builder: (context) => DraggableScrollableSheet(
+                                  initialChildSize: 1.0,
+                                  minChildSize: 0.5,
+                                  maxChildSize: 1.0,
+                                  expand: false,
+                                  snap: true,
+                                  builder: (context, scrollController) {
+                                    return GameDetailsScreen(
+                                      gameData: widget.gameData,
+                                      scrollController: scrollController,
+                                    );
+                                  },
+                                ),
+                              );
+                            }
                           },
                           child: Container(
                             width: 100,

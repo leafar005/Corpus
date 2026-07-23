@@ -13,11 +13,13 @@ import '../../utils/igdb_constants.dart';
 import '../../utils/storage_utils.dart';
 import '../activity/review_details_screen.dart';
 import 'search_screen.dart';
+import 'franchise_games_screen.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
+  final ScrollController? scrollController;
 
-  const GameDetailsScreen({super.key, required this.gameData});
+  const GameDetailsScreen({super.key, required this.gameData, this.scrollController});
 
   @override
   State<GameDetailsScreen> createState() => _GameDetailsScreenState();
@@ -48,19 +50,26 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   // Tiempo de juego estimado (HowLongToBeat)
   Map<String, dynamic>? _timeToBeat;
 
+  // Juegos relacionados (DLCs, remakes, ports, etc.)
+  List<dynamic> _relatedGames = [];
+  bool _isLoadingRelated = true;
+
   final TextEditingController _commentController = TextEditingController();
   final TextEditingController _ratingController = TextEditingController();
 
   // Reviews from the reviews table
   List<Map<String, dynamic>> _reviews = [];
+  Timer? _carouselTimer;
+  
   @override
   void initState() {
     super.initState();
     _fetchUserData();
-    _selectRandomScreenshot(widget.gameData['screenshots']);
+    _startCarousel(widget.gameData['screenshots']);
     _enrichGameData();
     _fetchReviews();
     _fetchTimeToBeat();
+    _fetchRelatedGames();
   }
 
   Future<void> _fetchTimeToBeat() async {
@@ -75,20 +84,68 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
+  Future<void> _fetchRelatedGames() async {
+    final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+    if (igdbId == null) {
+      if (mounted) setState(() => _isLoadingRelated = false);
+      return;
+    }
+    try {
+      final results = await IGDBService.getRelatedGames(
+        igdbId is int ? igdbId : int.parse(igdbId.toString()),
+      );
+      if (mounted) {
+        setState(() {
+          _relatedGames = results;
+          _isLoadingRelated = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingRelated = false);
+    }
+  }
+
   @override
   void dispose() {
+    _carouselTimer?.cancel();
     _commentController.dispose();
     _ratingController.dispose();
     super.dispose();
   }
+  
   /// Muestra una screenshot aleatoria cada vez que se entra a la ventana del juego
   void _selectRandomScreenshot(dynamic screenshotsData) {
     if (screenshotsData != null && screenshotsData is List && screenshotsData.isNotEmpty) {
-      final randomId = screenshotsData[Random().nextInt(screenshotsData.length)];
-      final url = IGDBService.getScreenshotUrl(randomId.toString());
-      setState(() {
-        _selectedScreenshotUrl = url;
-      });
+      final randomItem = screenshotsData[Random().nextInt(screenshotsData.length)];
+      String imageId = '';
+      if (randomItem is Map) {
+        imageId = randomItem['image_id']?.toString() ?? '';
+      } else {
+        imageId = randomItem.toString();
+      }
+      
+      if (imageId.isNotEmpty) {
+        final url = IGDBService.getScreenshotUrl(imageId);
+        if (mounted) {
+          setState(() {
+            _selectedScreenshotUrl = url;
+          });
+        }
+      }
+    }
+  }
+
+  void _startCarousel(dynamic screenshotsData, {bool forceInitialSwap = true}) {
+    if (screenshotsData != null && screenshotsData is List && screenshotsData.isNotEmpty) {
+      if (forceInitialSwap) {
+        _selectRandomScreenshot(screenshotsData);
+      }
+      if (screenshotsData.length > 1) {
+        _carouselTimer?.cancel();
+        _carouselTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+          _selectRandomScreenshot(screenshotsData);
+        });
+      }
     }
   }
 
@@ -124,13 +181,18 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   /// Enriquece los datos del juego llamando a IGDB si faltan campos importantes
   Future<void> _enrichGameData() async {
-    final hasSummary = widget.gameData['summary'] != null;
-    final hasDeveloper = widget.gameData['developer'] != null && widget.gameData['developer'] != 'Desconocido';
+    final hasSummary = widget.gameData['summary'] != null && widget.gameData['summary'].toString() != 'null' && widget.gameData['summary'].toString().isNotEmpty;
+    final hasDeveloper = widget.gameData['developer'] != null && widget.gameData['developer'] != 'Desconocido' && widget.gameData['developer'] != 'Desarrollador desconocido';
     final hasCategory = widget.gameData['category'] != null;
     final hasScreenshots = (widget.gameData['screenshots'] as List?)?.isNotEmpty == true;
 
-    // Si ya tenemos todo, no hace falta llamar a IGDB
-    if (hasSummary && hasDeveloper && hasCategory && hasScreenshots) {
+    // Validación estricta para no ignorar campos vacíos provenientes de Supabase
+    final hasGameEngines = (widget.gameData['game_engines'] as List?)?.where((e) => e != null && e.toString() != 'null' && e.toString().isNotEmpty).isNotEmpty == true;
+    final hasCollection = widget.gameData['collection'] != null && widget.gameData['collection'].toString() != 'null' && widget.gameData['collection'].toString().isNotEmpty;
+    final hasFranchises = (widget.gameData['franchises'] as List?)?.where((f) => f != null && f.toString() != 'null' && f.toString().isNotEmpty).isNotEmpty == true;
+
+    // Solo omitir la llamada si tenemos TODOS los datos (primarios + secundarios)
+    if (hasSummary && hasDeveloper && hasCategory && hasScreenshots && hasGameEngines && hasCollection && hasFranchises) {
       if (mounted) setState(() => _isEnriching = false);
       return;
     }
@@ -144,6 +206,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     try {
       final game = await IGDBService.getGameById(igdbId is int ? igdbId : int.parse(igdbId.toString()));
       if (game != null && mounted) {
+        // Extraer desarrollador
         String? developer;
         if (game['involved_companies'] != null && (game['involved_companies'] as List).isNotEmpty) {
           final companies = game['involved_companies'] as List;
@@ -155,49 +218,57 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           }
         }
 
+        // Siempre poblar _enrichedData con TODOS los campos de IGDB.
+        // El código de display usa widget.gameData primero y _enrichedData como fallback,
+        // así que esto no sobreescribe datos correctos que ya vengan del buscador.
         setState(() {
           _enrichedData = {
-            if (!hasSummary && game['summary'] != null) 'summary': game['summary'],
-            if (!hasDeveloper && developer != null) 'developer': developer,
-            if (!hasCategory && game['category'] != null) 'category': game['category'],
+            if (game['summary'] != null) 'summary': game['summary'],
+            if (developer != null) 'developer': developer,
+            if (game['category'] != null) 'category': game['category'],
+            if (game['game_type'] != null) 'game_type': game['game_type'],
             if (game['parent_game'] != null) 'parent_game': game['parent_game'],
-            if (widget.gameData['platforms'] == null || (widget.gameData['platforms'] as List).isEmpty)
-              'platforms': game['platforms'] != null 
-                  ? (game['platforms'] as List).map((p) => p['name']).toList() 
-                  : [],
-            if (widget.gameData['genres'] == null || (widget.gameData['genres'] as List).isEmpty)
-              'genres': game['genres'] != null 
-                  ? (game['genres'] as List).map((g) => g['name']).toList() 
-                  : [],
-            if (widget.gameData['screenshots'] == null || (widget.gameData['screenshots'] as List).isEmpty)
-              'screenshots': game['screenshots'] != null 
-                  ? (game['screenshots'] as List).map((s) => s['image_id']).toList() 
-                  : [],
-            if (widget.gameData['artworks'] == null || (widget.gameData['artworks'] as List).isEmpty)
-              'artworks': game['artworks'] != null 
-                  ? (game['artworks'] as List).map((a) => a['image_id']).toList() 
-                  : [],
-            if (widget.gameData['videos'] == null || (widget.gameData['videos'] as List).isEmpty)
-              'videos': game['videos'] != null 
-                  ? (game['videos'] as List).map((v) => v['video_id']).toList() 
-                  : [],
-            if (widget.gameData['themes'] == null || (widget.gameData['themes'] as List).isEmpty)
-              'themes': game['themes'] != null ? (game['themes'] as List).map((t) => t['name']).toList() : [],
-            if (widget.gameData['game_modes'] == null || (widget.gameData['game_modes'] as List).isEmpty)
-              'game_modes': game['game_modes'] != null ? (game['game_modes'] as List).map((m) => m['name']).toList() : [],
-            if (widget.gameData['player_perspectives'] == null || (widget.gameData['player_perspectives'] as List).isEmpty)
-              'player_perspectives': game['player_perspectives'] != null ? (game['player_perspectives'] as List).map((p) => p['name']).toList() : [],
-            if (widget.gameData['collection'] == null && game['collection'] != null)
-              'collection': game['collection']['name'],
-            if (widget.gameData['franchises'] == null || (widget.gameData['franchises'] as List).isEmpty)
-              'franchises': game['franchises'] != null ? (game['franchises'] as List).map((f) => f['name']).toList() : [],
-            if (widget.gameData['game_engines'] == null || (widget.gameData['game_engines'] as List).isEmpty)
-              'game_engines': game['game_engines'] != null ? (game['game_engines'] as List).map((e) => e['name']).toList() : [],
+            'platforms': game['platforms'] != null
+                ? (game['platforms'] as List).map((p) => p['name']).toList()
+                : [],
+            'genres': game['genres'] != null
+                ? (game['genres'] as List).map((g) => g['name']).toList()
+                : [],
+            'screenshots': game['screenshots'] != null
+                ? (game['screenshots'] as List).map((s) => s['image_id']).toList()
+                : [],
+            'artworks': game['artworks'] != null
+                ? (game['artworks'] as List).map((a) => a['image_id']).toList()
+                : [],
+            'videos': game['videos'] != null
+                ? (game['videos'] as List).map((v) => v['video_id']).toList()
+                : [],
+            'themes': game['themes'] != null
+                ? (game['themes'] as List).map((t) => t['name']).toList()
+                : [],
+            'game_modes': game['game_modes'] != null
+                ? (game['game_modes'] as List).map((m) => m['name']).toList()
+                : [],
+            'player_perspectives': game['player_perspectives'] != null
+                ? (game['player_perspectives'] as List).map((p) => p['name']).toList()
+                : [],
+            if (game['collection'] != null) 'collection': {'id': game['collection']['id'], 'name': game['collection']['name']},
+            'franchises': game['franchises'] != null
+                ? (game['franchises'] as List).map((f) => {'id': f['id'], 'name': f['name']}).toList()
+                : [],
+            'game_engines': game['game_engines'] != null
+                ? (game['game_engines'] as List).map((e) => e['name']).toList()
+                : [],
           };
         });
-        
-        if (_selectedScreenshotUrl == null && _enrichedData['screenshots'] != null) {
-          _selectRandomScreenshot(_enrichedData['screenshots']);
+
+        final List enrichedScreenshots = _enrichedData['screenshots'] ?? [];
+        if (enrichedScreenshots.isNotEmpty) {
+          if (_selectedScreenshotUrl == null || _carouselTimer == null) {
+            _startCarousel(enrichedScreenshots, forceInitialSwap: true);
+          } else if (enrichedScreenshots.length > 1) {
+            _startCarousel(enrichedScreenshots, forceInitialSwap: false); // Restart with enriched data
+          }
         }
       }
     } catch (e) {
@@ -728,7 +799,28 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         'game_modes': widget.gameData['game_modes'] ?? _enrichedData['game_modes'],
         'player_perspectives': widget.gameData['player_perspectives'] ?? _enrichedData['player_perspectives'],
         'platforms': widget.gameData['platforms'] ?? _enrichedData['platforms'],
-      }, onConflict: 'igdb_id', ignoreDuplicates: true);
+        // Campos extra — requieren columnas nuevas en Supabase (add_games_columns.sql)
+        'summary': widget.gameData['summary'] ?? _enrichedData['summary'],
+        'developer': () {
+          final dev = widget.gameData['developer'];
+          if (dev != null && dev != 'Desconocido' && dev != 'Desarrollador desconocido') return dev;
+          return _enrichedData['developer'];
+        }(),
+        'collection': () {
+          final col = widget.gameData['collection'] ?? _enrichedData['collection'];
+          if (col is Map && col['id'] != null) return col; // Si ya es {id, name}, lo guardamos
+          if (col is String && col != 'null' && col.isNotEmpty) return {'name': col}; // Respaldo para datos viejos
+          return null;
+        }(),
+        'franchises': () {
+          final frs = widget.gameData['franchises'] ?? _enrichedData['franchises'];
+          if (frs is List && frs.isNotEmpty) {
+            return frs.map((f) => f is Map ? {'id': f['id'], 'name': f['name']} : {'name': f.toString()}).toList();
+          }
+          return [];
+        }(),
+        'game_engines': widget.gameData['game_engines'] ?? _enrichedData['game_engines'],
+      }, onConflict: 'igdb_id', ignoreDuplicates: false);
     } catch (e) {
       debugPrint('[CORPUS DEBUG] Game catalog upsert error: $e');
     }
@@ -1024,25 +1116,32 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     return Row(
       children: [
         Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () => _showReviewModal(existingReview: _reviews.isNotEmpty ? _reviews.first : null),
-            icon: Icon(icon, color: textColor),
-            label: Text(text, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: color,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          child: SizedBox(
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () => _showReviewModal(existingReview: _reviews.isNotEmpty ? _reviews.first : null),
+              icon: Icon(icon, color: textColor),
+              label: Text(text, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
             ),
           ),
         ),
         if (_inLibrary) ...[
           const SizedBox(width: 8),
-          Container(
-            decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
-            child: PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          SizedBox(
+            width: 50,
+            height: 50,
+            child: Container(
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
+              child: PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.more_vert),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onSelected: (value) {
                 if (value == 'edit') {
                   _showReviewModal(existingReview: _reviews.isNotEmpty ? _reviews.first : null);
@@ -1085,6 +1184,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 ),
               ],
             ),
+          ),
           ),
         ],
       ],
@@ -1247,37 +1347,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     );
   }
 
-  Map<String, dynamic> _getPlatformStyle(String platform) {
-    final lower = platform.toLowerCase();
-    if (lower.contains('pc') || lower.contains('windows')) {
-      return {'color': Colors.blue.shade700, 'icon': 'assets/images/windows.png', 'textColor': Colors.white};
-    }
-    if (lower.contains('linux')) {
-      return {'color': Colors.orangeAccent.shade700, 'icon': 'assets/images/linux.png', 'textColor': Colors.white};
-    }
-    if (lower.contains('playstation') || lower == 'psn' || lower == 'ps2' || lower == 'ps3' || lower == 'ps4' || lower == 'ps5' || lower.contains('vita')) {
-      return {'color': const Color(0xFF003791), 'icon': 'assets/images/playstation.png', 'textColor': Colors.white};
-    }
-    if (lower.contains('xbox')) {
-      return {'color': const Color(0xFF107C10), 'icon': 'assets/images/xbox.png', 'textColor': Colors.white};
-    }
-    if (lower.contains('wii')) {
-      return {'color': Colors.grey.shade400, 'icon': 'assets/images/wii.png', 'textColor': Colors.black87};
-    }
-    if (lower.contains('switch') || lower.contains('nintendo')) {
-      return {'color': const Color(0xFFE60012), 'icon': 'assets/images/switch.png', 'textColor': Colors.white};
-    }
-    if (lower.contains('mac') || lower.contains('ios') || lower.contains('apple')) {
-      return {'color': Colors.grey.shade800, 'icon': 'assets/images/mac.png', 'textColor': Colors.white};
-    }
-    if (lower.contains('android')) {
-      return {'color': const Color(0xFF3DDC84), 'icon': 'assets/images/android.png', 'textColor': Colors.black87};
-    }
-    if (lower.contains('google') || lower.contains('stadia')) {
-      return {'color': Colors.deepOrange, 'icon': 'assets/images/google.png', 'textColor': Colors.white};
-    }
-    return {'color': Colors.blueGrey.withValues(alpha: 0.3), 'icon': null, 'textColor': Colors.white};
-  }
+
 
   Widget _buildTimeToBeatCard(String title, int? seconds, Color color, IconData icon) {
     String timeText = '--';
@@ -1363,13 +1433,39 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final List<dynamic> platformsList = (widget.gameData['platforms'] as List?)?.isNotEmpty == true 
         ? widget.gameData['platforms'] 
         : (_enrichedData['platforms'] as List? ?? []);
-    final String? collection = widget.gameData['collection']?.toString() ?? _enrichedData['collection']?.toString();
-    final List<dynamic> franchisesList = (widget.gameData['franchises'] as List?)?.isNotEmpty == true 
-        ? widget.gameData['franchises'] 
-        : (_enrichedData['franchises'] as List? ?? []);
-    final List<dynamic> gameEnginesList = (widget.gameData['game_engines'] as List?)?.isNotEmpty == true 
-        ? widget.gameData['game_engines'] 
-        : (_enrichedData['game_engines'] as List? ?? []);
+    final List<dynamic> themesList = (widget.gameData['themes'] as List?)?.isNotEmpty == true 
+        ? widget.gameData['themes'] 
+        : (_enrichedData['themes'] as List? ?? []);
+    // --- LECTURA INTELIGENTE DE COLECCIÓN Y FRANQUICIAS ---
+    int? collectionId;
+    String? collectionName;
+    final dynamic enrichedCol = _enrichedData['collection'];
+    final dynamic fallbackCol = widget.gameData['collection'];
+    final dynamic rawCol = (enrichedCol != null && enrichedCol is Map) ? enrichedCol : fallbackCol;
+
+    if (rawCol is Map) {
+      collectionId = (rawCol['id'] is num) ? (rawCol['id'] as num).toInt() : int.tryParse(rawCol['id']?.toString() ?? '');
+      collectionName = rawCol['name']?.toString();
+    } else if (rawCol != null && rawCol.toString() != 'null' && rawCol.toString().isNotEmpty) {
+      collectionName = rawCol.toString();
+    }
+
+    final List<Map<String, dynamic>> franchisesData = [];
+    final List<dynamic> rawFranchises = (_enrichedData['franchises'] as List?)?.isNotEmpty == true 
+        ? (_enrichedData['franchises'] as List) 
+        : ((widget.gameData['franchises'] as List?) ?? []);
+        
+    for (final f in rawFranchises) {
+      if (f is Map && f['name'] != null) {
+        final int? fId = (f['id'] is num) ? (f['id'] as num).toInt() : int.tryParse(f['id']?.toString() ?? '');
+        franchisesData.add({'id': fId, 'name': f['name']});
+      } else if (f != null && f.toString() != 'null' && f.toString().isNotEmpty) {
+        franchisesData.add({'name': f.toString()});
+      }
+    }
+
+    final List<dynamic> rawEngines = (widget.gameData['game_engines'] as List?)?.where((e) => e != null && e.toString() != 'null' && e.toString().isNotEmpty).toList() ?? [];
+    final List<dynamic> gameEnginesList = rawEngines.isNotEmpty ? rawEngines : (_enrichedData['game_engines'] as List? ?? []);
 
     // Formatear fecha de lanzamiento
     String? releaseDate;
@@ -1486,29 +1582,45 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-        if (collection != null || franchisesList.isNotEmpty) ...[
+        if (collectionName != null || franchisesData.isNotEmpty) ...[
           const Text('Franquicia / Colección', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8, runSpacing: 8,
             children: [
-              if (collection != null)
+              if (collectionName != null)
                 ActionChip(
-                  label: Text(collection, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.2),
-                  side: BorderSide(color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.5)),
+                  label: Text(collectionName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                  side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: collection)));
+                    if (collectionId != null) {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => FranchiseGamesScreen(
+                        title: collectionName!,
+                        collectionId: collectionId!,
+                        isFranchise: false,
+                      )));
+                    } else {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: collectionName)));
+                    }
                   },
                 ),
-              ...franchisesList.where((f) => f != collection).map((f) => ActionChip(
-                label: Text(f.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+              ...franchisesData.where((f) => f['name'] != collectionName).map((f) => ActionChip(
+                label: Text(f['name'].toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
                 backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.2),
                 side: BorderSide(color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: f.toString())));
+                  if (f['id'] != null) {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => FranchiseGamesScreen(
+                      title: f['name'].toString(),
+                      collectionId: f['id'] as int,
+                      isFranchise: true,
+                    )));
+                  } else {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: f['name'].toString())));
+                  }
                 },
               )),
             ],
@@ -1516,32 +1628,39 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           const SizedBox(height: 32),
         ],
 
-        if (gameEnginesList.isNotEmpty) ...[
-          const Text('Motor Gráfico', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+          if (genresList.isNotEmpty) ...[
+          const SizedBox(height: 32),
+          const Text('Géneros', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8, runSpacing: 8,
-            children: gameEnginesList.map((e) => Chip(
-              label: Text(e.toString()),
-              backgroundColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.1),
-              side: BorderSide(color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            )).toList(),
+            children: genresList.map((g) {
+              final gName = g is Map ? g['name'].toString() : g.toString();
+              return Chip(
+                label: Text(IgdbConstants.formatGenreWithEmoji(gName), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              );
+            }).toList(),
           ),
-          const SizedBox(height: 32),
         ],
 
-        if (genresList.isNotEmpty) ...[
-          const Text('Géneros', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+        if (themesList.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const Text('Temáticas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8, runSpacing: 8,
-            children: genresList.map((g) => Chip(
-              label: Text(g.toString()),
-              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-              side: BorderSide.none,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            )).toList(),
+            children: themesList.map((t) {
+              final tName = t is Map ? t['name'].toString() : t.toString();
+              return Chip(
+                label: Text(IgdbConstants.formatThemeWithEmoji(tName), style: const TextStyle(fontSize: 13)),
+                backgroundColor: Colors.transparent,
+                side: BorderSide(color: Colors.grey.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              );
+            }).toList(),
           ),
           const SizedBox(height: 32),
         ],
@@ -1552,7 +1671,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           Wrap(
             spacing: 8, runSpacing: 8,
             children: platformsList.map((p) {
-              final style = _getPlatformStyle(p.toString());
+              final style = IgdbConstants.getPlatformStyle(p.toString());
               return Chip(
                 avatar: style['icon'] != null ? Image.asset(style['icon'], height: 20, fit: BoxFit.contain) : null,
                 label: Text(p.toString(), style: TextStyle(color: style['textColor'], fontWeight: FontWeight.bold)),
@@ -1574,6 +1693,22 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         const Text('Tiempo Estimado (HLTB)', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         _buildTimeToBeatRow(),
+        
+        if (gameEnginesList.isNotEmpty) ...[
+          const SizedBox(height: 32),
+          Row(
+            children: [
+              const Icon(Icons.settings, color: Colors.grey, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Motor Gráfico: ${gameEnginesList.join(', ')}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+        ],
         ],
       );
     }
@@ -1739,37 +1874,211 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       );
     }
 
+    // Mostrar siempre la pestaña Relacionado (el contenido aparece cuando carga)
+    // ignore: prefer_const_declarations
+    final bool hasRelated = true;
+
+    // Group related games by game_type
+    Widget buildRelatedTab() {
+      // Mientras carga, mostrar un indicador giratorio en vez de dejar la pantalla vacía
+      if (_isLoadingRelated) {
+        return const Padding(
+          padding: EdgeInsets.all(32),
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+      
+      if (_relatedGames.isEmpty) {
+        return const Padding(
+          padding: EdgeInsets.all(32),
+          child: Center(child: Text('No hay contenido relacionado.', style: TextStyle(color: Colors.grey))),
+        );
+      }
+
+      // Map game_type int to display label (IGDB v4 enum)
+      String gameTypeLabel(int? t) {
+        switch (t) {
+          case 1: return 'DLCs';
+          case 2: return 'Expansiones';
+          case 3: return 'Bundles';
+          case 4: return 'Expansiones Standalone';
+          case 5: return 'Mods';
+          case 6: return 'Episodios';
+          case 7: return 'Temporadas';
+          case 8: return 'Remakes';
+          case 9: return 'Remasters';
+          case 10: return 'Ediciones Expandidas';
+          case 11: return 'Ports';
+          case 12: return 'Forks';
+          case 13: return 'Packs';
+          case 14: return 'Actualizaciones';
+          default: return 'Relacionados';
+        }
+      }
+
+      // Orden visual prioritario (Remakes y Remasters primero, mods al final)
+      const typeOrder = [8, 9, 4, 2, 1, 10, 11, 14, 3, 13, 6, 7, 12, 5, 0];
+      final Map<int?, List<dynamic>> grouped = {};
+
+      for (final g in _relatedGames) {
+        final key = (g['game_type'] is num) ? (g['game_type'] as num).toInt() : g['game_type'] as int?;
+        grouped.putIfAbsent(key, () => []).add(g);
+      }
+
+      // Sort groups
+      final sortedKeys = grouped.keys.toList()
+        ..sort((a, b) {
+          final ai = typeOrder.indexOf(a ?? -1);
+          final bi = typeOrder.indexOf(b ?? -1);
+          return (ai < 0 ? 999 : ai).compareTo(bi < 0 ? 999 : bi);
+        });
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final type in sortedKeys) ...[
+            Text(
+              '${gameTypeLabel(type)} (${grouped[type]!.length})',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            // Grid horizontal de cards
+            GridView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 160,
+                childAspectRatio: 0.58,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: grouped[type]!.length,
+              itemBuilder: (context, i) {
+                final g = grouped[type]![i];
+                final coverMap = g['cover'] as Map?;
+                final coverId = coverMap?['image_id'] as String?;
+                final coverUrl = IGDBService.getCoverUrl(coverId);
+                final genres = (g['genres'] as List?)?.map((e) => e['name'].toString()).join(', ') ?? '';
+                int? releaseYear;
+                if (g['first_release_date'] != null) {
+                  releaseYear = DateTime.fromMillisecondsSinceEpoch((g['first_release_date'] as int) * 1000).year;
+                }
+                return InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () {
+                    final cleanData = Map<String, dynamic>.from(g as Map);
+                    cleanData['igdb_id'] = g['id'];
+                    cleanData['title'] = g['name'];
+                    cleanData['cover_url'] = coverUrl;
+                    if (g['genres'] != null && g['genres'] is List) {
+                      cleanData['genres'] = (g['genres'] as List).map((gen) => gen is Map ? gen['name'] : gen).toList();
+                    }
+                    final isDesktop = MediaQuery.of(context).size.width > 800;
+                    if (isDesktop) {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => GameDetailsScreen(gameData: cleanData)));
+                    } else {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        useSafeArea: false,
+                        enableDrag: true,
+                        builder: (_) => DraggableScrollableSheet(
+                          initialChildSize: 1.0,
+                          minChildSize: 0.5,
+                          maxChildSize: 1.0,
+                          expand: false,
+                          snap: true,
+                          builder: (context, scrollController) {
+                            return GameDetailsScreen(
+                              gameData: cleanData,
+                              scrollController: scrollController,
+                            );
+                          },
+                        ),
+                      );
+                    }
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Carátula grande
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: coverUrl.isNotEmpty
+                              ? Image.network(coverUrl, fit: BoxFit.cover, width: double.infinity)
+                              : Container(
+                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  child: const Center(child: Icon(Icons.videogame_asset, color: Colors.grey, size: 36)),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      // Título + año (altura fija para alinear las carátulas)
+                      SizedBox(
+                        height: 34,
+                        child: Text(
+                          releaseYear != null ? '${g['name']} ($releaseYear)' : g['name'].toString(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+          ],
+        ],
+      );
+    }
+
+    // Asignar índices dinámicamente para evitar huecos si Media no existe
+    int tabIdx = 0;
+    final int infoTabIdx = tabIdx++;
+    final int mediaTabIdx = hasMedia ? tabIdx++ : -1;
+    final int relatedTabIdx = hasRelated ? tabIdx++ : -1;
+
     final Widget tabsAndContentWidget = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (hasMedia)
+        if (hasMedia || hasRelated)
           Padding(
             padding: const EdgeInsets.only(bottom: 24),
             child: Row(
               children: [
-                buildTabButton(0, 'Información'),
-                buildTabButton(1, 'Media'),
+                buildTabButton(infoTabIdx, 'Información'),
+                if (hasMedia) buildTabButton(mediaTabIdx, 'Media'),
+                if (hasRelated) buildTabButton(relatedTabIdx, 'Relacionado'),
               ],
             ),
           ),
-        _selectedMainTabIndex == 0 ? buildInfoTab() : buildMediaTab(),
+        if (_selectedMainTabIndex == infoTabIdx) buildInfoTab()
+        else if (hasMedia && _selectedMainTabIndex == mediaTabIdx) buildMediaTab()
+        else buildRelatedTab(),
       ],
     );
 
-    Widget buildFadeInImage(String url) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        alignment: Alignment.topCenter,
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded) return child;
-          return AnimatedOpacity(
-            opacity: frame == null ? 0 : 1,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOut,
-            child: child,
-          );
-        },
+    Widget buildFadeInImage(String url, {Key? key}) {
+      return SizedBox.expand(
+        key: key,
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded) return child;
+            return AnimatedOpacity(
+              opacity: frame == null ? 0 : 1,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOut,
+              child: child,
+            );
+          },
+        ),
       );
     }
 
@@ -1777,6 +2086,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
+        controller: widget.scrollController,
         slivers: [
           SliverAppBar(
             expandedHeight: 250,
@@ -1788,17 +2098,19 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   ? Stack(
                       fit: StackFit.expand,
                       children: [
-                        if (_selectedScreenshotUrl != null)
-                          buildFadeInImage(_selectedScreenshotUrl!)
-                        else if (!_isEnriching)
-                          buildFadeInImage(highResCoverUrl)
-                        else
-                          Container(color: Theme.of(context).primaryColorDark),
-                          
-                        BackdropFilter(
-                          filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                          child: Container(color: Colors.black.withValues(alpha: 0.2)),
+                        AnimatedSwitcher(
+                          duration: const Duration(seconds: 1),
+                          transitionBuilder: (Widget child, Animation<double> animation) {
+                            return FadeTransition(opacity: animation, child: child);
+                          },
+                          child: _selectedScreenshotUrl != null
+                              ? buildFadeInImage(_selectedScreenshotUrl!, key: ValueKey(_selectedScreenshotUrl))
+                              : (!_isEnriching 
+                                  ? buildFadeInImage(highResCoverUrl, key: ValueKey(highResCoverUrl)) 
+                                  : Container(key: const ValueKey('empty'), color: Theme.of(context).primaryColorDark)),
                         ),
+                          
+                        Container(color: Colors.black.withValues(alpha: 0.3)),
                         DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(

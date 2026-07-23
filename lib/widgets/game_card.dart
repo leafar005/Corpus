@@ -36,7 +36,6 @@ class _GameCardState extends State<GameCard> {
       coverUrl = IGDBService.getCoverUrl(coverImageId);
     }
     
-    // Título unificado
     final String title = widget.game['name'] ?? widget.game['title'] ?? 'Desconocido';
     // Id de IGDB unificado
     final igdbId = widget.game['igdb_id'] ?? widget.game['id'];
@@ -112,14 +111,35 @@ class _GameCardState extends State<GameCard> {
             }
           }
 
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => GameDetailsScreen(gameData: cleanData),
-            ),
-          ).then((_) {
-            widget.onReturn();
-          });
+          final isDesktop = MediaQuery.of(context).size.width > 800;
+          if (isDesktop) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => GameDetailsScreen(gameData: cleanData)),
+            ).then((_) => widget.onReturn());
+          } else {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: false,
+              enableDrag: true,
+              builder: (context) => DraggableScrollableSheet(
+                initialChildSize: 1.0,
+                minChildSize: 0.5,
+                maxChildSize: 1.0,
+                expand: false,
+                snap: true,
+                builder: (context, scrollController) {
+                  return GameDetailsScreen(
+                    gameData: cleanData,
+                    scrollController: scrollController,
+                  );
+                },
+              ),
+            ).then((_) {
+              widget.onReturn();
+            });
+          }
         },
         borderRadius: BorderRadius.circular(8),
         child: Card(
