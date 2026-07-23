@@ -218,16 +218,34 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: 'Buscar juegos...',
-            border: InputBorder.none,
-            hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.5)),
+        title: SizedBox(
+          height: 40,
+          child: TextField(
+            controller: _searchController,
+            autofocus: true,
+            textAlignVertical: TextAlignVertical.center,
+            decoration: InputDecoration(
+              hintText: 'Buscar juegos...',
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: BorderSide.none,
+              ),
+              hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.5)),
+            ),
+            style: const TextStyle(fontSize: 16),
+            onChanged: _onSearchChanged,
           ),
-          style: const TextStyle(fontSize: 18),
-          onChanged: _onSearchChanged,
         ),
         actions: [
           if (_searchController.text.isNotEmpty)

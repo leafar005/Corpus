@@ -200,4 +200,96 @@ class IgdbConstants {
     {"id": 34, "name": "Android"},
     {"id": 39, "name": "iOS"}
   ];
+
+  // ============================================================
+  // FORMATTERS
+  // ============================================================
+
+  static const Map<String, String> _genreEmojis = {
+    'Action': '💥 Action',
+    'Adventure': '🗺️ Adventure',
+    'Role-playing (RPG)': '🛡️ Role-playing (RPG)',
+    'Shooter': '🎯 Shooter',
+    'Strategy': '♟️ Strategy',
+    'Puzzle': '🧩 Puzzle',
+    'Racing': '🏎️ Racing',
+    'Simulator': '🕹️ Simulator',
+    'Sport': '⚽ Sport',
+    'Fighting': '🥊 Fighting',
+    'Platform': '🍄 Platform',
+    'Indie': '🎨 Indie',
+    'Music': '🎵 Music',
+    'Arcade': '👾 Arcade',
+    'Visual Novel': '📖 Visual Novel',
+    'Point-and-click': '🖱️ Point-and-click',
+    'Tactical': '🧠 Tactical',
+    'Card & Board Game': '🃏 Card & Board Game',
+    "Hack and slash/Beat 'em up": '⚔️ Hack and slash/Beat \'em up',
+    'Pinball': '🎰 Pinball',
+    'Quiz/Trivia': '❓ Quiz/Trivia',
+    'Real Time Strategy (RTS)': '⏱️ Real Time Strategy (RTS)',
+    'Turn-based strategy (TBS)': '⏳ Turn-based strategy (TBS)',
+    'MOBA': '🏟️ MOBA',
+  };
+
+  static const Map<String, String> _themeEmojis = {
+    'Action': '💥 Action',
+    'Fantasy': '🧙‍♂️ Fantasy',
+    'Science fiction': '🚀 Science fiction',
+    'Horror': '👻 Horror',
+    'Survival': '🏕️ Survival',
+    'Thriller': '😱 Thriller',
+    'Comedy': '😂 Comedy',
+    'Kids': '🧒 Kids',
+    'Romance': '💖 Romance',
+    'Drama': '🎭 Drama',
+    'Historical': '🏛️ Historical',
+    'Non-fiction': '📚 Non-fiction',
+    'Sandbox': '🏖️ Sandbox',
+    'Educational': '🎓 Educational',
+    'Mystery': '🕵️ Mystery',
+    'Party': '🎉 Party',
+    'Open world': '🌍 Open world',
+    'Stealth': '🥷 Stealth',
+  };
+
+  static String formatGenreWithEmoji(String genre) {
+    return _genreEmojis[genre] ?? genre;
+  }
+
+  static String formatThemeWithEmoji(String theme) {
+    return _themeEmojis[theme] ?? theme;
+  }
+
+  static Map<String, dynamic> getPlatformStyle(String platform) {
+    final lower = platform.toLowerCase();
+    if (lower.contains('pc') || lower.contains('windows')) {
+      return {'color': Colors.blue.shade700, 'icon': 'assets/images/windows.png', 'textColor': Colors.white};
+    }
+    if (lower.contains('linux')) {
+      return {'color': Colors.orangeAccent.shade700, 'icon': 'assets/images/linux.png', 'textColor': Colors.white};
+    }
+    if (lower.contains('playstation') || lower == 'psn' || lower == 'ps2' || lower == 'ps3' || lower == 'ps4' || lower == 'ps5' || lower.contains('vita')) {
+      return {'color': const Color(0xFF003791), 'icon': 'assets/images/playstation.png', 'textColor': Colors.white};
+    }
+    if (lower.contains('xbox')) {
+      return {'color': const Color(0xFF107C10), 'icon': 'assets/images/xbox.png', 'textColor': Colors.white};
+    }
+    if (lower.contains('wii')) {
+      return {'color': Colors.grey.shade400, 'icon': 'assets/images/wii.png', 'textColor': Colors.black87};
+    }
+    if (lower.contains('switch') || lower.contains('nintendo')) {
+      return {'color': const Color(0xFFE60012), 'icon': 'assets/images/switch.png', 'textColor': Colors.white};
+    }
+    if (lower.contains('mac') || lower.contains('ios') || lower.contains('apple')) {
+      return {'color': Colors.grey.shade800, 'icon': 'assets/images/mac.png', 'textColor': Colors.white};
+    }
+    if (lower.contains('android')) {
+      return {'color': const Color(0xFF3DDC84), 'icon': 'assets/images/android.png', 'textColor': Colors.black87};
+    }
+    if (lower.contains('google') || lower.contains('stadia')) {
+      return {'color': Colors.deepOrange, 'icon': 'assets/images/google.png', 'textColor': Colors.white};
+    }
+    return {'color': Colors.blueGrey.withValues(alpha: 0.3), 'icon': null, 'textColor': Colors.white};
+  }
 }
