@@ -8,6 +8,7 @@ class GameCard extends StatefulWidget {
   final bool isInLibrary;
   final double userRating;
   final VoidCallback onReturn;
+  final bool isGrayscale;
 
   const GameCard({
     super.key,
@@ -15,6 +16,7 @@ class GameCard extends StatefulWidget {
     this.isInLibrary = false,
     this.userRating = 0.0,
     required this.onReturn,
+    this.isGrayscale = false,
   });
 
   @override
@@ -150,7 +152,17 @@ class _GameCardState extends State<GameCard> {
             fit: StackFit.expand,
             children: [
               coverUrl.isNotEmpty
-                  ? Image.network(coverUrl, fit: BoxFit.cover)
+                  ? (widget.isGrayscale 
+                      ? ColorFiltered(
+                          colorFilter: const ColorFilter.matrix(<double>[
+                            0.2126, 0.7152, 0.0722, 0, 0,
+                            0.2126, 0.7152, 0.0722, 0, 0,
+                            0.2126, 0.7152, 0.0722, 0, 0,
+                            0,      0,      0,      1, 0,
+                          ]),
+                          child: Image.network(coverUrl, fit: BoxFit.cover),
+                        )
+                      : Image.network(coverUrl, fit: BoxFit.cover))
                   : Container(
                       color: Theme.of(context).primaryColorDark,
                       child: Center(child: Icon(Icons.videogame_asset, size: 40, color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.54))),
