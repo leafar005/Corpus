@@ -33,8 +33,8 @@ class CorpusApp extends StatelessWidget {
         return MaterialApp(
           title: 'Corpus',
           // Aplicamos nuestros temas y el modo seleccionado
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
+          theme: AppTheme.getLightTheme(themeNotifier.seedColor),
+          darkTheme: AppTheme.getDarkTheme(themeNotifier.seedColor),
           themeMode: themeNotifier.currentMode,
           home: kIsWeb 
               ? const SelectionArea(child: AuthGate())

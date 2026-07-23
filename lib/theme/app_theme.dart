@@ -4,8 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Notificador global para cambiar el tema en tiempo real
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _currentMode = ThemeMode.system;
+  Color _seedColor = Colors.deepPurpleAccent;
 
   ThemeMode get currentMode => _currentMode;
+  Color get seedColor => _seedColor;
 
   ThemeNotifier() {
     _loadTheme();
@@ -18,6 +20,11 @@ class ThemeNotifier extends ChangeNotifier {
       (e) => e.toString().split('.').last == modeStr,
       orElse: () => ThemeMode.system,
     );
+    
+    final colorVal = prefs.getInt('theme_color');
+    if (colorVal != null) {
+      _seedColor = Color(colorVal);
+    }
     notifyListeners();
   }
 
@@ -26,6 +33,13 @@ class ThemeNotifier extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('theme_mode', mode.toString().split('.').last);
+  }
+
+  Future<void> setColor(Color color) async {
+    _seedColor = color;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('theme_color', color.toARGB32());
   }
 }
 
@@ -42,20 +56,33 @@ class AppColors {
 class AppTheme {
   
   // TEMA OSCURO
-  static ThemeData get darkTheme {
+  static ThemeData getDarkTheme(Color seedColor) {
     const bgColor = Colors.black;
     final surfaceColor = Colors.grey.shade900;
+    
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: Brightness.dark,
+    ).copyWith(
+      primary: seedColor,
+      secondary: AppColors.accent,
+      surface: surfaceColor,
+      error: AppColors.danger,
+      onSurfaceVariant: Colors.grey, // Usado para textSecondary
+    );
 
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: bgColor,
-      primaryColor: AppColors.primary,
-      colorScheme: ColorScheme.dark(
-        primary: AppColors.primary,
-        secondary: AppColors.accent,
-        surface: surfaceColor,
-        error: AppColors.danger,
-        onSurfaceVariant: Colors.grey, // Usado para textSecondary
+      primaryColor: colorScheme.primary,
+      colorScheme: colorScheme,
+      chipTheme: ChipThemeData(
+        backgroundColor: surfaceColor,
+        selectedColor: colorScheme.primary,
+        checkmarkColor: colorScheme.onPrimary,
+        pressElevation: 0,
+        secondarySelectedColor: colorScheme.primary,
+        surfaceTintColor: colorScheme.primary,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: bgColor,
@@ -76,8 +103,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(vertical: 16),
           textStyle: const TextStyle(fontWeight: FontWeight.bold),
@@ -99,7 +126,7 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: bgColor,
-        selectedItemColor: AppColors.primary,
+        selectedItemColor: colorScheme.primary,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
       ),
@@ -107,28 +134,41 @@ class AppTheme {
   }
 
   // TEMA CLARO
-  static ThemeData get lightTheme {
+  static ThemeData getLightTheme(Color seedColor) {
     const bgColor = Color(0xFFF5F5F5);
     const surfaceColor = Colors.white;
+
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: Brightness.light,
+    ).copyWith(
+      primary: seedColor,
+      secondary: AppColors.accent,
+      surface: surfaceColor,
+      error: AppColors.danger,
+      onSurfaceVariant: Colors.grey.shade700, // Usado para textSecondary
+    );
 
     return ThemeData(
       brightness: Brightness.light,
       scaffoldBackgroundColor: bgColor,
-      primaryColor: AppColors.primary,
-      colorScheme: ColorScheme.light(
-        primary: AppColors.primary,
-        secondary: AppColors.accent,
-        surface: surfaceColor,
-        error: AppColors.danger,
-        onSurfaceVariant: Colors.grey.shade700, // Usado para textSecondary
+      primaryColor: colorScheme.primary,
+      colorScheme: colorScheme,
+      chipTheme: ChipThemeData(
+        backgroundColor: surfaceColor,
+        selectedColor: colorScheme.primary,
+        checkmarkColor: colorScheme.onPrimary,
+        pressElevation: 0,
+        secondarySelectedColor: colorScheme.primary,
+        surfaceTintColor: colorScheme.primary,
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.primary, // AppBar morada en modo claro queda muy bien
+      appBarTheme: AppBarTheme(
+        backgroundColor: bgColor, // Usamos bgColor en lugar de primary para modo claro
         elevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: colorScheme.onSurface),
         titleTextStyle: TextStyle(
-          color: Colors.white,
+          color: colorScheme.onSurface,
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
@@ -142,8 +182,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(vertical: 16),
           textStyle: const TextStyle(fontWeight: FontWeight.bold),
@@ -162,7 +202,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
         hintStyle: TextStyle(color: Colors.grey.shade500),
         prefixIconColor: Colors.grey.shade600,
@@ -173,8 +213,8 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surfaceColor,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey.shade500,
+        selectedItemColor: colorScheme.primary,
+        unselectedItemColor: Colors.grey.shade600, // Oscurecemos un poco los iconos no seleccionados
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
