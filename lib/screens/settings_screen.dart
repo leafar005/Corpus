@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'profile/edit_profile_screen.dart';
 import 'info_screen.dart';
-import '../globals.dart';
+import 'appearance_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Map<String, dynamic> userProfile;
@@ -41,9 +40,12 @@ class SettingsScreen extends StatelessWidget {
               context: context,
               icon: Icons.palette,
               title: 'Apariencia',
-              subtitle: 'Tema oscuro, claro o sistema',
+              subtitle: 'Modo, color principal',
               onTap: () {
-                _showThemePicker(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AppearanceScreen()),
+                );
               },
             ),
           _buildSettingsTile(
@@ -72,7 +74,7 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
           
-          Divider(color: Colors.white24, height: 32),
+          const Divider(color: Colors.white24, height: 32),
           
           ListTile(
             leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
@@ -107,53 +109,6 @@ class SettingsScreen extends StatelessWidget {
       subtitle: Text(subtitle, style: const TextStyle()),
       trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
-    );
-  }
-
-  void _showThemePicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Apariencia', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.brightness_auto),
-                title: const Text('Sistema'),
-                trailing: themeNotifier.currentMode == ThemeMode.system ? const Icon(Icons.check, color: AppColors.primary) : null,
-                onTap: () {
-                  themeNotifier.setTheme(ThemeMode.system);
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.light_mode),
-                title: const Text('Claro'),
-                trailing: themeNotifier.currentMode == ThemeMode.light ? const Icon(Icons.check, color: AppColors.primary) : null,
-                onTap: () {
-                  themeNotifier.setTheme(ThemeMode.light);
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.dark_mode),
-                title: const Text('Oscuro'),
-                trailing: themeNotifier.currentMode == ThemeMode.dark ? const Icon(Icons.check, color: AppColors.primary) : null,
-                onTap: () {
-                  themeNotifier.setTheme(ThemeMode.dark);
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
