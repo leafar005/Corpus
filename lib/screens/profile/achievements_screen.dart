@@ -153,9 +153,13 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         } else if (aId == 'lone_wolf') {
           target = 50;
         } else if (aId.endsWith('_all')) {
-          if (aId.startsWith('fromsoftware') || aId.startsWith('zelda')) target = 7;
-          else if (aId.startsWith('mario')) target = 15;
-          else if (aId.startsWith('dark_souls')) target = 3;
+          if (aId.startsWith('fromsoftware') || aId.startsWith('zelda')) {
+            target = 7;
+          } else if (aId.startsWith('mario')) {
+            target = 15;
+          } else if (aId.startsWith('dark_souls')) {
+            target = 3;
+          }
         }
 
         if (!grouped.containsKey(groupId)) {
@@ -371,7 +375,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(
           context,
-        ).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       ),
       child: Column(
         children: [
@@ -476,7 +480,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
-                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       ),
                       onChanged: (value) {
                         setState(() {
@@ -520,14 +524,14 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                             : Theme.of(context)
                                   .colorScheme
                                   .surfaceContainerHighest
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
                             color: isUnlocked
                                 ? _getRarityColor(
                                     achievement['rarity'] as String,
-                                  ).withOpacity(0.5)
+                                  ).withValues(alpha: 0.5)
                                 : Colors.transparent,
                             width: 1,
                           ),
@@ -606,8 +610,8 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                       backgroundColor: isUnlocked
                                           ? _getRarityColor(
                                               achievement['rarity'] as String,
-                                            ).withOpacity(0.2)
-                                          : Colors.grey.withOpacity(0.2),
+                                            ).withValues(alpha: 0.2)
+                                          : Colors.grey.withValues(alpha: 0.2),
                                       radius: 28,
                                       child: Icon(
                                         _getIconData(
@@ -640,7 +644,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                         : Theme.of(context)
                                               .colorScheme
                                               .onSurface
-                                              .withOpacity(0.5),
+                                              .withValues(alpha: 0.5),
                                   ),
                                 ),
                                 const SizedBox(height: 6),
@@ -660,7 +664,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                           : Theme.of(context)
                                                 .colorScheme
                                                 .onSurfaceVariant
-                                                .withOpacity(0.5),
+                                                .withValues(alpha: 0.5),
                                     ),
                                   ),
                                 ),
@@ -674,7 +678,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                     color: isUnlocked
                                         ? _getRarityColor(
                                             achievement['rarity'] as String,
-                                          ).withOpacity(0.1)
+                                          ).withValues(alpha: 0.1)
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(

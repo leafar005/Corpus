@@ -5,6 +5,8 @@ import '../library/game_details_screen.dart';
 import 'profile_games_list_screen.dart';
 import '../activity/review_details_screen.dart';
 import '../settings_screen.dart';
+import 'achievements_screen.dart';
+import '../../utils/level_calculator.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/widgets/filter_bottom_sheet.dart';
 
@@ -47,7 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchProfileData() async {
     final userId = Supabase.instance.client.auth.currentUser!.id;
-    
+
     // 1. Fetch user profile, create if missing
     var userResp = await Supabase.instance.client
         .from('users')
@@ -56,14 +58,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .maybeSingle();
 
     if (userResp == null) {
-      final email = Supabase.instance.client.auth.currentUser!.email ?? 'jugador';
+      final email =
+          Supabase.instance.client.auth.currentUser!.email ?? 'jugador';
       final defaultUsername = email.split('@')[0];
-      
+
       try {
-        userResp = await Supabase.instance.client.from('users').insert({
-          'id': userId,
-          'username': defaultUsername,
-        }).select().single();
+        userResp = await Supabase.instance.client
+            .from('users')
+            .insert({'id': userId, 'username': defaultUsername})
+            .select()
+            .single();
       } catch (e) {
         // En caso de colisión de username o error
         userResp = {'username': defaultUsername};
@@ -83,7 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .select('*, games(*), review_likes(user_id), review_comments(id)')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
-        
+
     final hallOfFameList = List<Map<String, dynamic>?>.filled(5, null);
     try {
       final hallOfFameResp = await Supabase.instance.client
@@ -103,16 +107,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     final List<dynamic> gamesList = gamesResp;
-    
+
     final wishlist = <Map<String, dynamic>>[];
     final playing = <Map<String, dynamic>>[];
     final beaten = <Map<String, dynamic>>[];
 
-    
     for (var row in gamesList) {
       final gameData = row['games'];
       if (gameData == null) continue;
-      
+
       final rating = (row['rating'] ?? 0).toDouble();
       // Incluimos la nota dentro del gameData para mostrarla en la UI
       gameData['user_rating'] = rating;
@@ -124,17 +127,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else if (row['status'] == 'beaten' && rating > 0) {
         beaten.add(gameData);
       }
-
-
     }
-    
+
     if (mounted) {
       setState(() {
         _userProfile = userResp;
 
         _wishlistGames = wishlist;
         _playingGames = playing;
-        _allGames = beaten; 
+        _allGames = beaten;
         _userReviews = List<Map<String, dynamic>>.from(reviewsResp);
         _hallOfFame = hallOfFameList;
         _isLoading = false;
@@ -145,9 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
@@ -159,6 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(isDesktop),
+            _buildLevelProgressBar(isDesktop),
             _buildNavBar(isDesktop),
             const SizedBox(height: 24),
             if (isDesktop) _buildDesktopLayout() else _buildMobileLayout(),
@@ -174,7 +174,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final displayName = _userProfile?['display_name'] ?? username;
     final avatarUrl = _userProfile?['avatar_url'];
     final bannerUrl = _userProfile?['banner_url'];
-    final isMe = _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
+    final isMe =
+        _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
 
     final bannerHeight = isDesktop ? 240.0 : 180.0;
 
@@ -185,64 +186,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Container(
           height: bannerHeight,
           width: double.infinity,
-          decoration: bannerUrl == null ? BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.deepPurple.shade800, Colors.red.shade900],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ) : null,
-          child: bannerUrl != null ? Image.network(
-            bannerUrl.replaceAll('t_cover_big', 't_1080p'), // Mejor resolución
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                decoration: BoxDecoration(
+          decoration: bannerUrl == null
+              ? BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Colors.deepPurple.shade800, Colors.red.shade900],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                ),
-              );
-            },
-          ) : null,
+                )
+              : null,
+          child: bannerUrl != null
+              ? Image.network(
+                  bannerUrl.replaceAll(
+                    't_cover_big',
+                    't_1080p',
+                  ), // Mejor resolución
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.deepPurple.shade800,
+                            Colors.red.shade900,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : null,
         ),
-        
+
         // Degradado inferior
         Positioned(
-          bottom: 0, left: 0, right: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
           child: Container(
             height: 80,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.bottomCenter, 
+                begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
-                colors: [Theme.of(context).scaffoldBackgroundColor, Colors.transparent],
-              )
-            )
-          )
+                colors: [
+                  Theme.of(context).scaffoldBackgroundColor,
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
         ),
 
         // Settings Button
         if (isMe)
           Positioned(
-            top: isDesktop ? 16 : 40, right: 16,
+            top: isDesktop ? 16 : 40,
+            right: 16,
             child: IconButton(
-              icon: const Icon(Icons.settings, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
+              icon: const Icon(
+                Icons.settings,
+                color: Colors.white,
+                shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+              ),
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => SettingsScreen(userProfile: _userProfile!, hallOfFame: _hallOfFame)),
+                  MaterialPageRoute(
+                    builder: (context) => SettingsScreen(
+                      userProfile: _userProfile!,
+                      hallOfFame: _hallOfFame,
+                    ),
+                  ),
                 ).then((_) => _fetchProfileData());
               },
             ),
           ),
-          
+
         // Avatar y Nombres (Alineados a la izquierda y sobresaliendo un poco abajo)
         Positioned(
-          bottom: -40, 
+          bottom: -40,
           left: isDesktop ? 40 : 16,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -250,26 +276,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 4),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8)],
+                  border: Border.all(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    width: 4,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
                 child: CircleAvatar(
                   radius: isDesktop ? 60 : 45,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                  child: avatarUrl == null ? Icon(Icons.person, size: isDesktop ? 60 : 40) : null,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
+                  backgroundImage: avatarUrl != null
+                      ? NetworkImage(avatarUrl)
+                      : null,
+                  child: avatarUrl == null
+                      ? Icon(Icons.person, size: isDesktop ? 60 : 40)
+                      : null,
                 ),
               ),
               const SizedBox(width: 16),
               Padding(
-                padding: const EdgeInsets.only(bottom: 40), // Para que quede sobre el banner
+                padding: const EdgeInsets.only(
+                  bottom: 40,
+                ), // Para que quede sobre el banner
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       displayName,
                       style: TextStyle(
-                        fontSize: isDesktop ? 32 : 24, 
+                        fontSize: isDesktop ? 32 : 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                         shadows: const [
@@ -304,11 +346,88 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildLevelProgressBar(bool isDesktop) {
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 60, // Clear the avatar's overflow
+        left: isDesktop ? 40 : 16,
+        right: isDesktop ? 40 : 16,
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () {
+          final userId =
+              _userProfile?['id'] ??
+              Supabase.instance.client.auth.currentUser!.id;
+          final xp = (_userProfile?['xp'] as num?)?.toInt() ?? 0;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  AchievementsScreen(userId: userId, initialXp: xp),
+            ),
+          ).then((_) => _fetchProfileData());
+        },
+        child: SizedBox(
+          width: isDesktop ? 400 : double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Nivel ${LevelCalculator.getLevel((_userProfile?['xp'] as num?)?.toInt() ?? 0)}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  Text(
+                    LevelCalculator.getProgressString((_userProfile?['xp'] as num?)?.toInt() ?? 0),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: LevelCalculator.getProgressFraction(
+                    (_userProfile?['xp'] as num?)?.toInt() ?? 0,
+                  ),
+                  minHeight: 10,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildNavBar(bool isDesktop) {
     return Container(
-      margin: EdgeInsets.only(top: 40, left: isDesktop ? 40 : 16, right: isDesktop ? 40 : 16),
+      margin: EdgeInsets.only(
+        top: 24,
+        left: isDesktop ? 40 : 16,
+        right: isDesktop ? 40 : 16,
+      ),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1)),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withValues(alpha: 0.1),
+            width: 1,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -331,7 +450,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.transparent,
                 width: 3,
               ),
             ),
@@ -342,7 +463,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -362,9 +485,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 300,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSidebarInfo(),
-              ],
+              children: [_buildSidebarInfo()],
             ),
           ),
           const SizedBox(width: 40),
@@ -384,7 +505,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildAllGamesTab(),
                 ] else if (_selectedTab == 2) ...[
                   _buildReviewsTab(),
-                ]
+                ],
               ],
             ),
           ),
@@ -418,7 +539,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildAllGamesTab(),
         ] else if (_selectedTab == 2) ...[
           _buildReviewsTab(),
-        ]
+        ],
       ],
     );
   }
@@ -431,14 +552,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (bio != null && bio.isNotEmpty) ...[
-          Text('Bio', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          Text(
+            'Bio',
+            style: TextStyle(
+              fontSize: 18,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(bio, style: const TextStyle(fontSize: 14, height: 1.5)),
           const SizedBox(height: 24),
         ],
         if (!isMobile) _buildRatingsHistogram(),
         if (platforms.isNotEmpty) ...[
-          Text('Plataformas', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          Text(
+            'Plataformas',
+            style: TextStyle(
+              fontSize: 18,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -478,7 +611,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text('Calificaciones', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              'Calificaciones',
+              style: TextStyle(
+                fontSize: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -488,7 +627,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Text(
                 '${ratings.length} | ${avgRating.toStringAsFixed(1)} ★ Media',
-                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
               ),
             ),
           ],
@@ -503,17 +647,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final count = buckets[index];
               final heightRatio = maxCount > 0 ? count / maxCount : 0.0;
               final barHeight = 80 * heightRatio;
-              
+
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2.0),
                   child: Tooltip(
                     message: 'Nota ${index + 1}: $count juegos',
                     child: Container(
-                      height: barHeight > 0 ? (barHeight < 4 ? 4 : barHeight) : 0,
+                      height: barHeight > 0
+                          ? (barHeight < 4 ? 4 : barHeight)
+                          : 0,
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primary,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
                       ),
                     ),
                   ),
@@ -526,8 +674,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('1★', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
-            Text('10★', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
+            Text(
+              '1★',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+            Text(
+              '10★',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -541,21 +701,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildGiantStat(_allGames.length.toString().padLeft(3, '0'), 'Completados', () {
-            if (_allGames.isNotEmpty) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileGamesListScreen(title: 'Completados', games: _allGames))).then((_) => _fetchProfileData());
-            }
-          }),
-          _buildGiantStat(_playingGames.length.toString().padLeft(3, '0'), 'Jugando', () {
-            if (_playingGames.isNotEmpty) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileGamesListScreen(title: 'Jugando', games: _playingGames))).then((_) => _fetchProfileData());
-            }
-          }),
-          _buildGiantStat(_wishlistGames.length.toString().padLeft(3, '0'), 'En Wishlist', () {
-            if (_wishlistGames.isNotEmpty) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileGamesListScreen(title: 'Quiero', games: _wishlistGames))).then((_) => _fetchProfileData());
-            }
-          }),
+          _buildGiantStat(
+            _allGames.length.toString().padLeft(3, '0'),
+            'Completados',
+            () {
+              if (_allGames.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfileGamesListScreen(
+                      title: 'Completados',
+                      games: _allGames,
+                    ),
+                  ),
+                ).then((_) => _fetchProfileData());
+              }
+            },
+          ),
+          _buildGiantStat(
+            _playingGames.length.toString().padLeft(3, '0'),
+            'Jugando',
+            () {
+              if (_playingGames.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfileGamesListScreen(
+                      title: 'Jugando',
+                      games: _playingGames,
+                    ),
+                  ),
+                ).then((_) => _fetchProfileData());
+              }
+            },
+          ),
+          _buildGiantStat(
+            _wishlistGames.length.toString().padLeft(3, '0'),
+            'En Wishlist',
+            () {
+              if (_wishlistGames.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProfileGamesListScreen(
+                      title: 'Quiero',
+                      games: _wishlistGames,
+                    ),
+                  ),
+                ).then((_) => _fetchProfileData());
+              }
+            },
+          ),
         ],
       ),
     );
@@ -569,9 +765,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: SelectionContainer.disabled(
           child: Column(
             children: [
-              Text(number, style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              Text(
+                number,
+                style: const TextStyle(
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(label, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
         ),
@@ -585,8 +794,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text('Hall of Fame', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 18), 
+          const Text(
+            'Hall of Fame',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 18),
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 800),
@@ -594,8 +806,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(5, (index) {
                   final game = _hallOfFame[index];
-                  final isNumberOne = index == 2; 
-                  
+                  final isNumberOne = index == 2;
+
                   return Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -606,12 +818,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             if (isNumberOne)
                               Positioned(
-                                top: -4, bottom: -4, left: -4, right: -4,
+                                top: -4,
+                                bottom: -4,
+                                left: -4,
+                                right: -4,
                                 child: Container(
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Colors.amber, width: 3),
-                                    boxShadow: [BoxShadow(color: Colors.amber.withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 1)],
+                                    border: Border.all(
+                                      color: Colors.amber,
+                                      width: 3,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -621,11 +838,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: GestureDetector(
                                   onTap: () {
                                     if (game != null) {
-                                      final isDesktop = MediaQuery.of(context).size.width > 800;
+                                      final isDesktop =
+                                          MediaQuery.of(context).size.width >
+                                          800;
                                       if (isDesktop) {
                                         Navigator.push(
                                           context,
-                                          MaterialPageRoute(builder: (context) => GameDetailsScreen(gameData: game)),
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                GameDetailsScreen(
+                                                  gameData: game,
+                                                ),
+                                          ),
                                         ).then((_) => _fetchProfileData());
                                       } else {
                                         showModalBottomSheet(
@@ -633,58 +857,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           isScrollControlled: true,
                                           useSafeArea: false,
                                           enableDrag: true,
-                                          builder: (context) => DraggableScrollableSheet(
-                                            initialChildSize: 1.0,
-                                            minChildSize: 0.5,
-                                            maxChildSize: 1.0,
-                                            expand: false,
-                                            snap: true,
-                                            builder: (context, scrollController) {
-                                              return GameDetailsScreen(
-                                                gameData: game,
-                                                scrollController: scrollController,
-                                              );
-                                            },
-                                          ),
+                                          builder: (context) =>
+                                              DraggableScrollableSheet(
+                                                initialChildSize: 1.0,
+                                                minChildSize: 0.5,
+                                                maxChildSize: 1.0,
+                                                expand: false,
+                                                snap: true,
+                                                builder:
+                                                    (
+                                                      context,
+                                                      scrollController,
+                                                    ) {
+                                                      return GameDetailsScreen(
+                                                        gameData: game,
+                                                        scrollController:
+                                                            scrollController,
+                                                      );
+                                                    },
+                                              ),
                                         ).then((_) => _fetchProfileData());
                                       }
                                     }
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(7),
                                     ),
-                                    child: game != null && game['cover_url'] != null
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(7),
-                                          child: Image.network(
-                                            game['cover_url'].replaceAll('t_cover_big', 't_1080p'),
-                                            fit: BoxFit.cover,
-                                            width: double.infinity,
-                                            height: double.infinity,
+                                    child:
+                                        game != null &&
+                                            game['cover_url'] != null
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              7,
+                                            ),
+                                            child: Image.network(
+                                              game['cover_url'].replaceAll(
+                                                't_cover_big',
+                                                't_1080p',
+                                              ),
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: double.infinity,
+                                            ),
+                                          )
+                                        : Center(
+                                            child: Icon(
+                                              Icons.add,
+                                              color: isNumberOne
+                                                  ? Colors.amber.withValues(
+                                                      alpha: 0.8,
+                                                    )
+                                                  : Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                            ),
                                           ),
-                                        )
-                                      : Center(
-                                          child: Icon(
-                                            Icons.add, 
-                                            color: isNumberOne ? Colors.amber.withValues(alpha: 0.8) : Theme.of(context).colorScheme.onSurfaceVariant
-                                          ),
-                                        ),
                                   ),
                                 ),
                               ),
                             ),
                             if (isNumberOne)
                               Positioned(
-                                top: -14, 
+                                top: -14,
                                 left: 0,
                                 right: 0,
                                 child: Icon(
-                                  Icons.star, 
-                                  color: Colors.amber, 
-                                  size: 26, 
-                                  shadows: [Shadow(color: Theme.of(context).colorScheme.onSurface, blurRadius: 4)]
+                                  Icons.star,
+                                  color: Colors.amber,
+                                  size: 26,
                                 ),
                               ),
                           ],
@@ -701,7 +945,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title, int count, List<Map<String, dynamic>> games) {
+  Widget _buildSectionTitle(
+    String title,
+    int count,
+    List<Map<String, dynamic>> games,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
@@ -709,9 +957,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Row(
             children: [
-              Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(width: 8),
-              Text('$count', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              Text(
+                '$count',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
           MouseRegion(
@@ -721,12 +980,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ProfileGamesListScreen(title: title, games: games),
+                    builder: (context) =>
+                        ProfileGamesListScreen(title: title, games: games),
                   ),
                 ).then((_) => _fetchProfileData());
               },
               child: SelectionContainer.disabled(
-                child: Text('Ver todo', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Ver todo',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ),
@@ -746,10 +1013,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final game = games[index];
           return Padding(
             padding: const EdgeInsets.only(right: 12.0),
-            child: SizedBox(
-              width: 110,
-              child: _buildGameCard(game),
-            ),
+            child: SizedBox(width: 110, child: _buildGameCard(game)),
           );
         },
       ),
@@ -761,7 +1025,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: GridView.builder(
         padding: EdgeInsets.zero,
-        physics: const NeverScrollableScrollPhysics(), // Scroll lo maneja la página
+        physics:
+            const NeverScrollableScrollPhysics(), // Scroll lo maneja la página
         shrinkWrap: true, // Para que el Grid se adapte al contenido
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 120,
@@ -793,16 +1058,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     IconData? icon;
     Color color;
     switch (platform) {
-      case 'pc': icon = Icons.computer; color = Theme.of(context).colorScheme.onSurfaceVariant; break;
-      case 'linux': imagePath = 'assets/images/linux.png'; color = Colors.orangeAccent.shade700; break;
-      case 'playstation': imagePath = 'assets/images/playstation.png'; color = Colors.blue; break;
-      case 'xbox': imagePath = 'assets/images/xbox.png'; color = Colors.green; break;
-      case 'switch': imagePath = 'assets/images/switch.png'; color = Colors.red; break;
-      case 'wii': imagePath = 'assets/images/wii.png'; color = Theme.of(context).colorScheme.onSurfaceVariant; break;
-      case 'mac': imagePath = 'assets/images/mac.png'; color = Theme.of(context).colorScheme.onSurfaceVariant; break;
-      case 'android': imagePath = 'assets/images/android.png'; color = const Color(0xFF3DDC84); break;
-      case 'nintendo': imagePath = 'assets/images/switch.png'; color = Colors.red; break; // Fallback para datos antiguos
-      default: icon = Icons.device_unknown; color = Theme.of(context).colorScheme.onSurfaceVariant; break;
+      case 'pc':
+        icon = Icons.computer;
+        color = Theme.of(context).colorScheme.onSurfaceVariant;
+        break;
+      case 'linux':
+        imagePath = 'assets/images/linux.png';
+        color = Colors.orangeAccent.shade700;
+        break;
+      case 'playstation':
+        imagePath = 'assets/images/playstation.png';
+        color = Colors.blue;
+        break;
+      case 'xbox':
+        imagePath = 'assets/images/xbox.png';
+        color = Colors.green;
+        break;
+      case 'switch':
+        imagePath = 'assets/images/switch.png';
+        color = Colors.red;
+        break;
+      case 'wii':
+        imagePath = 'assets/images/wii.png';
+        color = Theme.of(context).colorScheme.onSurfaceVariant;
+        break;
+      case 'mac':
+        imagePath = 'assets/images/mac.png';
+        color = Theme.of(context).colorScheme.onSurfaceVariant;
+        break;
+      case 'android':
+        imagePath = 'assets/images/android.png';
+        color = const Color(0xFF3DDC84);
+        break;
+      case 'nintendo':
+        imagePath = 'assets/images/switch.png';
+        color = Colors.red;
+        break; // Fallback para datos antiguos
+      default:
+        icon = Icons.device_unknown;
+        color = Theme.of(context).colorScheme.onSurfaceVariant;
+        break;
     }
     return Container(
       padding: const EdgeInsets.all(8),
@@ -810,11 +1105,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: imagePath != null 
+      child: imagePath != null
           ? Image.asset(imagePath, width: 24, height: 24, color: color)
           : Icon(icon, color: color, size: 24),
     );
   }
+
   Widget _buildGamesTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -836,9 +1132,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Center(
             child: Padding(
               padding: EdgeInsets.all(32.0),
-              child: Text('Aún no tienes juegos completados con nota.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            )
-          )
+              child: Text(
+                'Aún no tienes juegos completados con nota.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
         ],
       ],
     );
@@ -861,32 +1162,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   List<Map<String, dynamic>> _getFilteredGames() {
     final allGamesList = [..._allGames, ..._playingGames, ..._wishlistGames];
-    
+
     var filtered = allGamesList.where((game) {
       final gameData = game['games'] ?? game;
 
       bool matchesGenres = true;
       if (_filters.genres.isNotEmpty) {
-        final gameGenres = (gameData['genres'] as List?)?.map((e) => e is int ? e : (e['id'] ?? -1)).toList() ?? [];
+        final gameGenres =
+            (gameData['genres'] as List?)
+                ?.map((e) => e is int ? e : (e['id'] ?? -1))
+                .toList() ??
+            [];
         matchesGenres = _filters.genres.any((id) => gameGenres.contains(id));
       }
 
       bool matchesThemes = true;
       if (_filters.themes.isNotEmpty) {
-        final gameThemes = (gameData['themes'] as List?)?.map((e) => e is int ? e : (e['id'] ?? -1)).toList() ?? [];
+        final gameThemes =
+            (gameData['themes'] as List?)
+                ?.map((e) => e is int ? e : (e['id'] ?? -1))
+                .toList() ??
+            [];
         matchesThemes = _filters.themes.any((id) => gameThemes.contains(id));
       }
 
       bool matchesGameModes = true;
       if (_filters.gameModes.isNotEmpty) {
-        final gameModesList = (gameData['game_modes'] as List?)?.map((e) => e is int ? e : (e['id'] ?? -1)).toList() ?? [];
-        matchesGameModes = _filters.gameModes.any((id) => gameModesList.contains(id));
+        final gameModesList =
+            (gameData['game_modes'] as List?)
+                ?.map((e) => e is int ? e : (e['id'] ?? -1))
+                .toList() ??
+            [];
+        matchesGameModes = _filters.gameModes.any(
+          (id) => gameModesList.contains(id),
+        );
       }
 
       bool matchesPerspectives = true;
       if (_filters.playerPerspectives.isNotEmpty) {
-        final gamePerspectives = (gameData['player_perspectives'] as List?)?.map((e) => e is int ? e : (e['id'] ?? -1)).toList() ?? [];
-        matchesPerspectives = _filters.playerPerspectives.any((id) => gamePerspectives.contains(id));
+        final gamePerspectives =
+            (gameData['player_perspectives'] as List?)
+                ?.map((e) => e is int ? e : (e['id'] ?? -1))
+                .toList() ??
+            [];
+        matchesPerspectives = _filters.playerPerspectives.any(
+          (id) => gamePerspectives.contains(id),
+        );
       }
 
       bool matchesPlatforms = true;
@@ -896,7 +1217,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         matchesCategories = _filters.categories.contains(gameData['category']);
       }
 
-      return matchesGenres && matchesThemes && matchesGameModes && matchesPerspectives && matchesPlatforms && matchesCategories;
+      return matchesGenres &&
+          matchesThemes &&
+          matchesGameModes &&
+          matchesPerspectives &&
+          matchesPlatforms &&
+          matchesCategories;
     }).toList();
 
     filtered.sort((a, b) {
@@ -905,7 +1231,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       int comparison = 0;
       if (_filters.sortBy == 'name') {
-        comparison = (gameA['title'] ?? '').toString().compareTo((gameB['title'] ?? '').toString());
+        comparison = (gameA['title'] ?? '').toString().compareTo(
+          (gameB['title'] ?? '').toString(),
+        );
       } else if (_filters.sortBy == 'first_release_date') {
         final dateA = gameA['release_date'] ?? '9999-12-31';
         final dateB = gameB['release_date'] ?? '9999-12-31';
@@ -935,19 +1263,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: TextButton.icon(
             icon: const Icon(Icons.tune, size: 20),
-            label: Text('Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}'),
+            label: Text(
+              'Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}',
+            ),
             style: TextButton.styleFrom(
-              foregroundColor: _filters.hasFilters ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
+              foregroundColor: _filters.hasFilters
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             onPressed: _openFilters,
           ),
         ),
-        if (filteredGames.isNotEmpty) _buildGrid(filteredGames) else Center(
-          child: Padding(
-            padding: EdgeInsets.all(32.0),
-            child: Text('Aún no tienes juegos en tu biblioteca o ninguno coincide con los filtros.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          )
-        ),
+        if (filteredGames.isNotEmpty)
+          _buildGrid(filteredGames)
+        else
+          Center(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Text(
+                'Aún no tienes juegos en tu biblioteca o ninguno coincide con los filtros.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -957,8 +1297,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return Center(
         child: Padding(
           padding: EdgeInsets.all(32.0),
-          child: Text('Aún no has escrito ninguna reseña.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        )
+          child: Text(
+            'Aún no has escrito ninguna reseña.',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
       );
     }
     return Column(
@@ -970,7 +1315,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _formatDate(String isoString) {
     try {
       final date = DateTime.parse(isoString).toLocal();
-      const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const months = [
+        'Ene',
+        'Feb',
+        'Mar',
+        'Abr',
+        'May',
+        'Jun',
+        'Jul',
+        'Ago',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dic',
+      ];
       return "${date.day} ${months[date.month - 1]}. ${date.year}";
     } catch (e) {
       return '';
@@ -978,27 +1336,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String _getStatusText(String status) {
-    switch(status) {
-      case 'beaten': return 'Terminado';
-      case 'playing': return 'Jugando';
-      case 'wishlist': return 'Quiero';
-      case 'abandoned': return 'Abandonado';
-      case 'on_hold': return 'En Pausa';
-      default: return 'Desconocido';
+    switch (status) {
+      case 'beaten':
+        return 'Terminado';
+      case 'playing':
+        return 'Jugando';
+      case 'wishlist':
+        return 'Quiero';
+      case 'abandoned':
+        return 'Abandonado';
+      case 'on_hold':
+        return 'En Pausa';
+      default:
+        return 'Desconocido';
     }
   }
 
   Widget _buildReviewCard(Map<String, dynamic> activity) {
     final gameData = activity['games'] ?? {};
     final userData = activity['users'] ?? _userProfile ?? {};
-    
+
     final title = gameData['title'] ?? 'Juego Desconocido';
     final coverUrl = gameData['cover_url'] ?? '';
-    
+
     final rating = (activity['rating'] ?? 0).toDouble();
     final comment = activity['comment'] ?? '';
     final status = activity['status'] ?? 'unknown';
-    final dateStr = activity['created_at'] != null ? _formatDate(activity['created_at']) : '';
+    final dateStr = activity['created_at'] != null
+        ? _formatDate(activity['created_at'])
+        : '';
 
     final likes = (activity['review_likes'] as List?) ?? [];
     final comments = (activity['review_comments'] as List?) ?? [];
@@ -1024,7 +1390,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).colorScheme.surfaceContainerHighest),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1032,7 +1400,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(dateStr, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
+                Text(
+                  dateStr,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -1040,11 +1414,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 50, height: 70,
+                  width: 50,
+                  height: 70,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
                     color: Theme.of(context).primaryColorDark,
-                    image: coverUrl.isNotEmpty ? DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover) : null,
+                    image: coverUrl.isNotEmpty
+                        ? DecorationImage(
+                            image: NetworkImage(coverUrl),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1052,22 +1432,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.flag, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          Icon(
+                            Icons.flag,
+                            size: 14,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 4),
-                          Text(_getStatusText(status), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
+                          Text(
+                            _getStatusText(status),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                              fontSize: 13,
+                            ),
+                          ),
                         ],
                       ),
                       if (rating > 0) ...[
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.star, color: Theme.of(context).colorScheme.secondary, size: 16),
+                            Icon(
+                              Icons.star,
+                              color: Theme.of(context).colorScheme.secondary,
+                              size: 16,
+                            ),
                             const SizedBox(width: 4),
-                            Text(rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(
+                              rating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -1076,7 +1485,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
-            
+
             if (comment.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
@@ -1086,30 +1495,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            
+
             const SizedBox(height: 12),
-            Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), height: 1),
+            Divider(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.24),
+              height: 1,
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Icon(
-                  hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined, 
-                  size: 16, 
-                  color: hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant
+                  hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                  size: 16,
+                  color: hasLiked
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  likes.length.toString(), 
+                  likes.length.toString(),
                   style: TextStyle(
-                    color: hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant, 
+                    color: hasLiked
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
-                    fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal
-                  )
+                    fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal,
+                  ),
                 ),
                 const SizedBox(width: 16),
-                Icon(Icons.chat_bubble_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 4),
-                Text(comments.length.toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
+                Text(
+                  comments.length.toString(),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
           ],
