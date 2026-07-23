@@ -17,8 +17,14 @@ import 'franchise_games_screen.dart';
 class GameDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
   final ScrollController? scrollController;
+  final bool autoOpenReview;
 
-  const GameDetailsScreen({super.key, required this.gameData, this.scrollController});
+  const GameDetailsScreen({
+    super.key, 
+    required this.gameData, 
+    this.scrollController,
+    this.autoOpenReview = false,
+  });
 
   @override
   State<GameDetailsScreen> createState() => _GameDetailsScreenState();
@@ -63,7 +69,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchUserData();
+    _fetchUserData().then((_) {
+      if (widget.autoOpenReview && mounted) {
+        _showReviewModal();
+      }
+    });
     _startCarousel(widget.gameData['screenshots']);
     _enrichGameData();
     _fetchReviews();
@@ -2084,18 +2094,17 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     return SelectionArea(
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: CustomScrollView(
-        controller: widget.scrollController,
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 250,
-            pinned: true,
-            centerTitle: false, 
-            leading: const Padding(
-              padding: EdgeInsets.only(top: 30.0),
-              child: BackButton(),
-            ),
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          CustomScrollView(
+            controller: widget.scrollController,
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 250,
+                pinned: true,
+                centerTitle: false, 
+                automaticallyImplyLeading: false,
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             flexibleSpace: FlexibleSpaceBar(
               background: highResCoverUrl.isNotEmpty
                   ? Stack(
@@ -2198,6 +2207,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
         ],
       ),
-    ));
+      Positioned(
+        top: MediaQuery.of(context).size.width < 600 ? 30.0 : 5.0,
+        left: 8.0,
+        child: const BackButton(color: Colors.white),
+      ),
+    ],
+  ),
+));
   }
 }
