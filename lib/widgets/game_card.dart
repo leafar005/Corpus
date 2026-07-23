@@ -153,18 +153,18 @@ class _GameCardState extends State<GameCard> {
                   ? Image.network(coverUrl, fit: BoxFit.cover)
                   : Container(
                       color: Theme.of(context).primaryColorDark,
-                      child: const Center(child: Icon(Icons.videogame_asset, size: 40, color: Colors.white54)),
+                      child: Center(child: Icon(Icons.videogame_asset, size: 40, color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.54))),
                     ),
                     
               if (_isHovered)
                 Positioned.fill(
                   child: Container(
-                    color: Colors.black.withValues(alpha: 0.7),
+                    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
                     padding: const EdgeInsets.all(8.0),
                     alignment: Alignment.center,
                     child: Text(
                       title,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
                       textAlign: TextAlign.center,
                       maxLines: 4,
                       overflow: TextOverflow.ellipsis,
@@ -195,10 +195,10 @@ class _GameCardState extends State<GameCard> {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: color.withValues(alpha: 0.5)),
-                        boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2))],
+                        boxShadow: [BoxShadow(color: Theme.of(context).shadowColor.withValues(alpha: 0.54), blurRadius: 4, offset: const Offset(0, 2))],
                       ),
                       child: Text(
                         text,

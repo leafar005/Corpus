@@ -241,7 +241,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 borderRadius: BorderRadius.circular(20),
                 borderSide: BorderSide.none,
               ),
-              hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.5)),
+              hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             ),
             style: const TextStyle(fontSize: 16),
             onChanged: _onSearchChanged,
@@ -267,7 +267,7 @@ class _SearchScreenState extends State<SearchScreen> {
               icon: const Icon(Icons.tune, size: 20),
               label: Text('Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}'),
               style: TextButton.styleFrom(
-                foregroundColor: _filters.hasFilters ? Theme.of(context).colorScheme.primary : Colors.grey[400],
+                foregroundColor: _filters.hasFilters ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               onPressed: _openFilters,
             ),
@@ -286,7 +286,7 @@ class _SearchScreenState extends State<SearchScreen> {
         );
       }
       if (_popularGames.isEmpty && _isLoadingPopular) {
-        return const Center(child: CircularProgressIndicator());
+        return Center(child: CircularProgressIndicator());
       }
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,14 +304,14 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     if (_results.isEmpty && _isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator());
     }
 
     if (_results.isEmpty && !_isLoading) {
-      return const Center(
+      return Center(
         child: Text(
           'No se encontraron resultados...',
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );
     }
