@@ -169,7 +169,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   onPressed: () => Navigator.pop(context, _filters),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   child: const Text('Aplicar'),
                 ),
@@ -208,14 +208,48 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       const Text('Orden:'),
                       const SizedBox(width: 16),
                       ChoiceChip(
-                        label: const Text('Descendente'),
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_downward, 
+                              size: 16, 
+                              color: !_filters.sortAscending ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8)
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Descendente',
+                              style: TextStyle(
+                                color: !_filters.sortAscending ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ],
+                        ),
                         selected: !_filters.sortAscending,
+                        showCheckmark: false,
                         onSelected: (val) => setState(() => _filters.sortAscending = !val),
                       ),
                       const SizedBox(width: 8),
                       ChoiceChip(
-                        label: const Text('Ascendente'),
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_upward, 
+                              size: 16, 
+                              color: _filters.sortAscending ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8)
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Ascendente',
+                              style: TextStyle(
+                                color: _filters.sortAscending ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ],
+                        ),
                         selected: _filters.sortAscending,
+                        showCheckmark: false,
                         onSelected: (val) => setState(() => _filters.sortAscending = val),
                       ),
                     ],
@@ -314,37 +348,31 @@ class _FilterSectionState extends State<_FilterSection> {
             final isSelected = _selected.contains(id);
             final baseAvatar = _avatars[i];
 
-            return Theme(
-              data: Theme.of(context).copyWith(
-                splashColor: primary.withValues(alpha: 0.1),
-                highlightColor: primary.withValues(alpha: 0.1),
-              ),
-              child: FilterChip(
-                avatar: baseAvatar == null
-                    ? null
-                    : ColorFiltered(
-                        colorFilter: ColorFilter.mode(
-                          isSelected ? Colors.white : Colors.grey.shade400,
-                          BlendMode.srcIn,
-                        ),
-                        child: baseAvatar,
+            return FilterChip(
+              avatar: baseAvatar == null
+                  ? null
+                  : ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                        isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        BlendMode.srcIn,
                       ),
-                label: Text(_labels[i], style: TextStyle(fontSize: 13, color: isSelected ? Colors.white : Colors.grey.shade300)),
-                selected: isSelected,
-                selectedColor: primary,
-                checkmarkColor: Colors.white,
-                showCheckmark: false,
-                onSelected: (selected) {
-                  setState(() {
-                    if (selected) {
-                      _selected.add(id);
-                    } else {
-                      _selected.remove(id);
-                    }
-                  });
-                  widget.onChanged(_selected);
-                },
-              ),
+                      child: baseAvatar,
+                    ),
+              label: Text(_labels[i], style: TextStyle(fontSize: 13, color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8))),
+              selected: isSelected,
+              selectedColor: primary,
+              checkmarkColor: Theme.of(context).colorScheme.onPrimary,
+              showCheckmark: false,
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    _selected.add(id);
+                  } else {
+                    _selected.remove(id);
+                  }
+                });
+                widget.onChanged(_selected);
+              },
             );
           }),
         ),

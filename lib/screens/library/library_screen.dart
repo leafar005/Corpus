@@ -70,7 +70,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.videogame_asset_off, size: 80, color: Colors.grey.shade700),
+                  Icon(Icons.videogame_asset_off, size: 80, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(height: 16),
                   const Text(
                     'Tu biblioteca está vacía',
@@ -79,7 +79,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Pulsa el botón + para añadir\ntus primeros juegos.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
                 ],

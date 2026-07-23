@@ -377,7 +377,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.grey.shade400),
+          Icon(icon, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(width: 4),
           Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
           const SizedBox(width: 4),
@@ -458,13 +458,13 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          Text('@$username', style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                          Text('@$username', style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         ],
                       ),
                       const Spacer(),
                       if (widget.reviewData['user_id'] == Supabase.instance.client.auth.currentUser?.id)
                         IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                          icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           onPressed: () => _deleteReview(widget.reviewData['id']),
                         ),
                     ],
@@ -533,7 +533,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                               color: Theme.of(context).primaryColorDark,
                               image: coverUrl.isNotEmpty ? DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover) : null,
                             ),
-                            child: coverUrl.isEmpty ? const Center(child: Icon(Icons.videogame_asset, color: Colors.white54)) : null,
+                            child: coverUrl.isEmpty ? Center(child: Icon(Icons.videogame_asset, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54))) : null,
                           ),
                         ),
                       ),
@@ -570,9 +570,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                             ],
                             Row(
                               children: [
-                                Icon(_getStatusIcon(status), size: 18, color: Colors.grey.shade400),
+                                Icon(_getStatusIcon(status), size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 const SizedBox(width: 6),
-                                Text(_getStatusText(status), style: TextStyle(fontSize: 16, color: Colors.grey.shade400)),
+                                Text(_getStatusText(status), style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                               ],
                             ),
                           ],
@@ -627,25 +627,25 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Row(children: [
-                                const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                                Icon(Icons.access_time, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 const SizedBox(width: 8),
-                                Text('${playTimeHours.toStringAsFixed(1)} horas', style: const TextStyle(color: Colors.grey)),
+                                Text('${playTimeHours.toStringAsFixed(1)} horas', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                               ]),
                             ),
                           if (playedFrom != null)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Row(children: [
-                                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                                Icon(Icons.calendar_today, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 const SizedBox(width: 8),
-                                Text(_formatDateRange(playedFrom, playedUntil), style: const TextStyle(color: Colors.grey)),
+                                Text(_formatDateRange(playedFrom, playedUntil), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                               ]),
                             ),
                           if (progressPercent != null)
                             Row(children: [
-                              const Icon(Icons.pie_chart, size: 16, color: Colors.grey),
+                              Icon(Icons.pie_chart, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                               const SizedBox(width: 8),
-                              Text('$progressPercent% completado', style: const TextStyle(color: Colors.grey)),
+                              Text('$progressPercent% completado', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             ]),
                         ],
                       ),
@@ -658,11 +658,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                   if (dateStr.isNotEmpty)
                     Text(
                       dateStr,
-                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                     ),
                   
                   const SizedBox(height: 16),
-                  Divider(color: Colors.white24),
+                  Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24)),
                   const SizedBox(height: 8),
                   
                   // Like and Comment Buttons
@@ -740,7 +740,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                       const SizedBox(width: 8),
                                       Text(
                                         _formatDate(comment['created_at']),
-                                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                                       ),
                                     ],
                                   ),
@@ -767,7 +767,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                             ),
                             if (isMyComment)
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                                icon: Icon(Icons.delete_outline, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 onPressed: () => _deleteComment(comment['id']),
                                 constraints: const BoxConstraints(),
                                 padding: EdgeInsets.zero,
@@ -794,7 +794,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
             ),
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
-              border: Border(top: BorderSide(color: Colors.white10)),
+              border: Border(top: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.1))),
             ),
             child: Column(
               children: [
@@ -836,7 +836,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.add_photo_alternate, color: Colors.grey),
+                        icon: Icon(Icons.add_photo_alternate, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () async {
@@ -852,9 +852,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                       controller: _commentController,
                       textCapitalization: TextCapitalization.sentences,
                       maxLength: 500,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Añadir un comentario...',
-                        hintStyle: TextStyle(color: Colors.grey),
+                        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         border: InputBorder.none,
                         counterText: '',
                       ),

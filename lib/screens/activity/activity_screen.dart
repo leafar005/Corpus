@@ -176,7 +176,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: Colors.white10, width: 1),
+            bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.1), width: 1),
           ),
         ),
         child: Column(
@@ -203,7 +203,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                       const SizedBox(width: 12),
                     ],
                   ),
-                Text(dateStr, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                Text(dateStr, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)),
               ],
             ),
             const SizedBox(height: 16),
@@ -219,7 +219,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     color: Theme.of(context).primaryColorDark,
                     image: coverUrl.isNotEmpty ? DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover) : null,
                     boxShadow: [
-                      BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2)),
+                      BoxShadow(color: Theme.of(context).shadowColor.withValues(alpha: 0.54), blurRadius: 4, offset: Offset(0, 2)),
                     ],
                   ),
                 ),
@@ -235,9 +235,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(_getStatusIcon(status), size: 18, color: Colors.grey.shade400),
+                          Icon(_getStatusIcon(status), size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           const SizedBox(width: 6),
-                          Text(_getStatusText(status), style: TextStyle(color: Colors.grey.shade400, fontSize: 16)),
+                          Text(_getStatusText(status), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
                         ],
                       ),
                       if (rating > 0 || (activity['play_time_hours'] ?? 0) > 0) ...[
@@ -251,9 +251,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
                               const SizedBox(width: 16),
                             ],
                             if ((activity['play_time_hours'] ?? 0) > 0) ...[
-                              Icon(Icons.access_time, color: Colors.grey.shade400, size: 18),
+                              Icon(Icons.access_time, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 18),
                               const SizedBox(width: 4),
-                              Text('${(activity['play_time_hours']).toDouble().toStringAsFixed(1)} h', style: TextStyle(color: Colors.grey.shade400, fontSize: 16)),
+                              Text('${(activity['play_time_hours']).toDouble().toStringAsFixed(1)} h', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
                             ],
                           ],
                         ),
@@ -310,13 +310,13 @@ class _ActivityScreenState extends State<ActivityScreen> {
                         Icon(
                           hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined, 
                           size: 20, 
-                          color: hasLiked ? Theme.of(context).colorScheme.primary : Colors.grey.shade400
+                          color: hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant
                         ),
                         const SizedBox(width: 6),
                         Text(
                           likes.length.toString(), 
                           style: TextStyle(
-                            color: hasLiked ? Theme.of(context).colorScheme.primary : Colors.grey.shade400, 
+                            color: hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant, 
                             fontSize: 16,
                             fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal
                           )
@@ -345,9 +345,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
                     child: Row(
                       children: [
-                        Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey.shade400),
+                        Icon(Icons.chat_bubble_outline, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 6),
-                        Text(comments.length.toString(), style: TextStyle(color: Colors.grey.shade400, fontSize: 16)),
+                        Text(comments.length.toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
                       ],
                     ),
                   ),
@@ -369,8 +369,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
         : _activities.isEmpty
-          ? const Center(
-              child: Text('No hay actividad todavía.\n¡Añade un juego a tu biblioteca para empezar!', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+          ? Center(
+              child: Text('No hay actividad todavía.\n¡Añade un juego a tu biblioteca para empezar!', textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             )
           : ListView.builder(
               itemCount: _activities.length,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
-import 'dart:ui' as ui;
 import 'dart:math';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
@@ -224,7 +223,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         setState(() {
           _enrichedData = {
             if (game['summary'] != null) 'summary': game['summary'],
-            if (developer != null) 'developer': developer,
+            'developer': ?developer,
             if (game['category'] != null) 'category': game['category'],
             if (game['game_type'] != null) 'game_type': game['game_type'],
             if (game['parent_game'] != null) 'parent_game': game['parent_game'],
@@ -359,9 +358,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       children: [
         Row(
           children: [
-            Icon(icon, size: 16, color: Colors.grey),
+            Icon(icon, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 8),
-            Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+            Text(label, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const Spacer(),
             Text(value > 0 ? value.toStringAsFixed(1) : '-', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.primary)),
           ],
@@ -472,10 +471,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           builder: (modalContext, setModalState) {
             Widget chip(String value, String label, IconData icon, String current, Color color, Function(String) onSelect) {
               final sel = current == value;
-              final tc = sel ? (color == Theme.of(modalContext).colorScheme.secondary ? Theme.of(modalContext).scaffoldBackgroundColor : Colors.white) : Colors.white70;
+              final tc = sel ? (color == Theme.of(modalContext).colorScheme.secondary ? Theme.of(modalContext).scaffoldBackgroundColor : Colors.white) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
               return ChoiceChip(
                 label: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(icon, size: 18, color: sel ? tc : Colors.grey.shade400),
+                  Icon(icon, size: 18, color: sel ? tc : Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 6),
                   Text(label),
                 ]),
@@ -485,7 +484,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 backgroundColor: Theme.of(modalContext).colorScheme.surfaceContainerHighest,
                 labelStyle: TextStyle(color: tc, fontWeight: sel ? FontWeight.bold : FontWeight.normal),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                side: BorderSide(color: sel ? color : Colors.grey.shade700),
+                side: BorderSide(color: sel ? color : Theme.of(context).colorScheme.onSurfaceVariant),
                 showCheckmark: false,
               );
             }
@@ -524,7 +523,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     Text(hasReview ? 'Editar Reseña' : 'Añadir Reseña', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 24),
 
-                    const Text('Estado', style: TextStyle(color: Colors.grey)),
+                    Text('Estado', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 12),
                     Wrap(spacing: 8, runSpacing: 8, children: [
                       chip('wishlist', 'Quiero', Icons.favorite, reviewStatus, _getStatusColor('wishlist'), (v) => reviewStatus = v),
@@ -536,7 +535,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     const SizedBox(height: 24),
 
                     if (reviewStatus != 'wishlist') ...[
-                      const Text('Tipo de completado', style: TextStyle(color: Colors.grey)),
+                      Text('Tipo de completado', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 12),
                       Wrap(spacing: 8, runSpacing: 8, children: [
                         chip('story', 'Historia', Icons.auto_stories, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
@@ -546,7 +545,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                       const SizedBox(height: 24),
 
                       Row(children: [
-                        const Text('Nota', style: TextStyle(color: Colors.grey)),
+                        Text('Nota', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         const Spacer(),
                         Text(reviewRating > 0 ? reviewRating.toStringAsFixed(1) : '-', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(modalContext).colorScheme.secondary)),
                       ]),
@@ -573,7 +572,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
                       const SizedBox(height: 16),
                       Row(children: [
-                        const Text('Rejugada', style: TextStyle(color: Colors.grey)),
+                        Text('Rejugada', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         const Spacer(),
                         Switch(
                           value: reviewIsReplay,
@@ -585,7 +584,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(children: [
-                            const Text('Nº de rejugada', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            Text('Nº de rejugada', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
                             const SizedBox(width: 12),
                             SizedBox(
                               width: 60,
@@ -601,7 +600,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         ),
 
                       const SizedBox(height: 16),
-                      const Text('Reseña', style: TextStyle(color: Colors.grey)),
+                      Text('Reseña', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: reviewCommentController,
@@ -659,7 +658,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                           title: const Text('Información Extra', style: TextStyle(fontSize: 14)),
                           children: [
                             if (platforms.isNotEmpty) ...[
-                              const Text('Plataforma', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                              Text('Plataforma', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
                               const SizedBox(height: 8),
                               DropdownButtonFormField<String>(
                                 initialValue: reviewPlatform,
@@ -671,7 +670,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                               ),
                               const SizedBox(height: 16),
                             ],
-                            const Text('Tiempo de juego (horas)', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            Text('Tiempo de juego (horas)', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
                             const SizedBox(height: 8),
                             TextField(
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -679,7 +678,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                               onChanged: (val) => setModalState(() => playTimeText = val),
                             ),
                             const SizedBox(height: 16),
-                            const Text('Fecha de juego', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            Text('Fecha de juego', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
                             const SizedBox(height: 8),
                             Row(children: [
                               Expanded(
@@ -692,7 +691,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                                   },
                                 ),
                               ),
-                              const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('-', style: TextStyle(color: Colors.grey))),
+                              Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))),
                               Expanded(
                                 child: OutlinedButton.icon(
                                   icon: const Icon(Icons.calendar_today, size: 16),
@@ -706,7 +705,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                             ]),
                             const SizedBox(height: 16),
                             Row(children: [
-                              const Text('Progreso', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                              Text('Progreso', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
                               const Spacer(),
                               Text('$reviewProgressPercent%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(modalContext).colorScheme.primary)),
                             ]),
@@ -925,7 +924,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       case 'beaten': return Theme.of(context).colorScheme.secondary;
       case 'playing': return Colors.blueAccent;
       case 'wishlist': return Theme.of(context).colorScheme.primary;
-      default: return Colors.grey.shade700;
+      default: return Theme.of(context).colorScheme.onSurfaceVariant;
     }
   }
 
@@ -1202,7 +1201,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(width: 4),
           Text(value.toStringAsFixed(1), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
         ],
@@ -1269,7 +1268,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     ),
                     if (review['id'] != null)
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 20, color: Colors.grey),
+                        icon: Icon(Icons.delete_outline, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () => _deleteReview(review['id']),
@@ -1321,24 +1320,24 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   const SizedBox(height: 12),
                   Wrap(spacing: 12, runSpacing: 4, children: [
                     if (playTime > 0) Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                      Icon(Icons.access_time, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text('${playTime.toStringAsFixed(1)}h', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text('${playTime.toStringAsFixed(1)}h', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     ]),
                     if (playedFrom != null) Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                      Icon(Icons.calendar_today, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text(_formatDateRange(playedFrom, playedUntil), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(_formatDateRange(playedFrom, playedUntil), style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     ]),
                     if (progress != null) Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.pie_chart, size: 14, color: Colors.grey),
+                      Icon(Icons.pie_chart, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text('$progress%', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text('$progress%', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     ]),
                   ]),
                 ],
                 const SizedBox(height: 16),
-                Text(dateStr, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(dateStr, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
               ],
             ),
           ),
@@ -1425,7 +1424,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         : null;
     final Color catColor = resolvedCategory != null
         ? IgdbConstants.getCategoryColor(resolvedCategory, themeSecondary: Theme.of(context).colorScheme.secondary)
-        : Colors.grey;
+        : Theme.of(context).colorScheme.onSurfaceVariant;
 
     final List<dynamic> genresList = (widget.gameData['genres'] as List?)?.isNotEmpty == true 
         ? widget.gameData['genres'] 
@@ -1509,10 +1508,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(
               children: [
-                const Icon(Icons.business, color: Colors.grey, size: 20),
+                Icon(Icons.business, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(developer, style: const TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w500)),
+                  child: Text(developer, style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
                 ),
               ],
             ),
@@ -1529,9 +1528,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.calendar_today, color: Colors.grey, size: 16),
+                      Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 16),
                       const SizedBox(width: 6),
-                      Text(releaseDate, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                      Text(releaseDate, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     ],
                   ),
                 if (categoryLabel != null)
@@ -1657,7 +1656,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               return Chip(
                 label: Text(IgdbConstants.formatThemeWithEmoji(tName), style: const TextStyle(fontSize: 13)),
                 backgroundColor: Colors.transparent,
-                side: BorderSide(color: Colors.grey.withValues(alpha: 0.5)),
+                side: BorderSide(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               );
             }).toList(),
@@ -1698,12 +1697,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           const SizedBox(height: 32),
           Row(
             children: [
-              const Icon(Icons.settings, color: Colors.grey, size: 18),
+              Icon(Icons.memory, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Motor Gráfico: ${gameEnginesList.join(', ')}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                 ),
               ),
             ],
@@ -1740,7 +1739,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     child: ChoiceChip(
                       label: Text(tab['label']),
                       showCheckmark: false,
-                      avatar: Icon(tab['icon'], size: 18, color: isSelected ? Colors.white : Colors.grey),
+                      avatar: Icon(tab['icon'], size: 18, color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant),
                       selected: isSelected,
                       onSelected: (bool selected) {
                         if (selected) setState(() => _selectedMediaTabIndex = tab['id']);
@@ -1865,7 +1864,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? Colors.white : Colors.grey[400],
+                  color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -1889,9 +1888,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       }
       
       if (_relatedGames.isEmpty) {
-        return const Padding(
+        return Padding(
           padding: EdgeInsets.all(32),
-          child: Center(child: Text('No hay contenido relacionado.', style: TextStyle(color: Colors.grey))),
+          child: Center(child: Text('No hay contenido relacionado.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))),
         );
       }
 
@@ -1959,7 +1958,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 final coverMap = g['cover'] as Map?;
                 final coverId = coverMap?['image_id'] as String?;
                 final coverUrl = IGDBService.getCoverUrl(coverId);
-                final genres = (g['genres'] as List?)?.map((e) => e['name'].toString()).join(', ') ?? '';
+
                 int? releaseYear;
                 if (g['first_release_date'] != null) {
                   releaseYear = DateTime.fromMillisecondsSinceEpoch((g['first_release_date'] as int) * 1000).year;
@@ -2010,7 +2009,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                               ? Image.network(coverUrl, fit: BoxFit.cover, width: double.infinity)
                               : Container(
                                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                  child: const Center(child: Icon(Icons.videogame_asset, color: Colors.grey, size: 36)),
+                                  child: Center(child: Icon(Icons.videogame_asset, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 36)),
                                 ),
                         ),
                       ),
@@ -2040,7 +2039,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     int tabIdx = 0;
     final int infoTabIdx = tabIdx++;
     final int mediaTabIdx = hasMedia ? tabIdx++ : -1;
-    final int relatedTabIdx = hasRelated ? tabIdx++ : -1;
+    final int relatedTabIdx = tabIdx++;
 
     final Widget tabsAndContentWidget = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2092,6 +2091,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             expandedHeight: 250,
             pinned: true,
             centerTitle: false, 
+            leading: const Padding(
+              padding: EdgeInsets.only(top: 30.0),
+              child: BackButton(),
+            ),
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             flexibleSpace: FlexibleSpaceBar(
               background: highResCoverUrl.isNotEmpty
@@ -2107,7 +2110,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                               ? buildFadeInImage(_selectedScreenshotUrl!, key: ValueKey(_selectedScreenshotUrl))
                               : (!_isEnriching 
                                   ? buildFadeInImage(highResCoverUrl, key: ValueKey(highResCoverUrl)) 
-                                  : Container(key: const ValueKey('empty'), color: Theme.of(context).primaryColorDark)),
+                                  : Container(key: ValueKey('empty'), color: Theme.of(context).primaryColorDark)),
                         ),
                           
                         Container(color: Colors.black.withValues(alpha: 0.3)),

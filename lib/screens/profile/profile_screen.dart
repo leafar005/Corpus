@@ -272,7 +272,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         fontSize: isDesktop ? 32 : 24, 
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        shadows: const [Shadow(color: Colors.black87, blurRadius: 8)],
+                        shadows: const [
+                          Shadow(offset: Offset(-1, -1), color: Colors.black),
+                          Shadow(offset: Offset(1, -1), color: Colors.black),
+                          Shadow(offset: Offset(1, 1), color: Colors.black),
+                          Shadow(offset: Offset(-1, 1), color: Colors.black),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -280,8 +285,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       '@$username',
                       style: TextStyle(
                         fontSize: isDesktop ? 18 : 14,
-                        color: Colors.white70,
-                        shadows: const [Shadow(color: Colors.black87, blurRadius: 6)],
+                        color: Colors.white,
+                        shadows: const [
+                          Shadow(offset: Offset(-1, -1), color: Colors.black),
+                          Shadow(offset: Offset(1, -1), color: Colors.black),
+                          Shadow(offset: Offset(1, 1), color: Colors.black),
+                          Shadow(offset: Offset(-1, 1), color: Colors.black),
+                        ],
                       ),
                     ),
                   ],
@@ -332,7 +342,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? Colors.white : Colors.grey[400],
+                color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -421,14 +431,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (bio != null && bio.isNotEmpty) ...[
-          const Text('Bio', style: TextStyle(fontSize: 18, color: Colors.grey)),
+          Text('Bio', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 8),
           Text(bio, style: const TextStyle(fontSize: 14, height: 1.5)),
           const SizedBox(height: 24),
         ],
         if (!isMobile) _buildRatingsHistogram(),
         if (platforms.isNotEmpty) ...[
-          const Text('Plataformas', style: TextStyle(fontSize: 18, color: Colors.grey)),
+          Text('Plataformas', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -468,7 +478,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text('Calificaciones', style: TextStyle(fontSize: 18, color: Colors.grey)),
+            Text('Calificaciones', style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -478,7 +488,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Text(
                 '${ratings.length} | ${avgRating.toStringAsFixed(1)} ★ Media',
-                style: const TextStyle(fontSize: 12, color: Colors.white70),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
               ),
             ),
           ],
@@ -515,9 +525,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            Text('1★', style: TextStyle(color: Colors.grey, fontSize: 12)),
-            Text('10★', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          children: [
+            Text('1★', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
+            Text('10★', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
           ],
         ),
         const SizedBox(height: 24),
@@ -561,7 +571,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(number, style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold, letterSpacing: 2)),
               const SizedBox(height: 4),
-              Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+              Text(label, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
           ),
         ),
@@ -658,7 +668,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       : Center(
                                           child: Icon(
                                             Icons.add, 
-                                            color: isNumberOne ? Colors.amber.withValues(alpha: 0.8) : Colors.grey
+                                            color: isNumberOne ? Colors.amber.withValues(alpha: 0.8) : Theme.of(context).colorScheme.onSurfaceVariant
                                           ),
                                         ),
                                   ),
@@ -666,7 +676,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                             if (isNumberOne)
-                              const Positioned(
+                              Positioned(
                                 top: -14, 
                                 left: 0,
                                 right: 0,
@@ -674,7 +684,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Icons.star, 
                                   color: Colors.amber, 
                                   size: 26, 
-                                  shadows: [Shadow(color: Colors.black87, blurRadius: 4)]
+                                  shadows: [Shadow(color: Theme.of(context).colorScheme.onSurface, blurRadius: 4)]
                                 ),
                               ),
                           ],
@@ -701,7 +711,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(width: 8),
-              Text('$count', style: const TextStyle(color: Colors.grey)),
+              Text('$count', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
           ),
           MouseRegion(
@@ -783,16 +793,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     IconData? icon;
     Color color;
     switch (platform) {
-      case 'pc': icon = Icons.computer; color = Colors.grey.shade300; break;
+      case 'pc': icon = Icons.computer; color = Theme.of(context).colorScheme.onSurfaceVariant; break;
       case 'linux': imagePath = 'assets/images/linux.png'; color = Colors.orangeAccent.shade700; break;
       case 'playstation': imagePath = 'assets/images/playstation.png'; color = Colors.blue; break;
       case 'xbox': imagePath = 'assets/images/xbox.png'; color = Colors.green; break;
       case 'switch': imagePath = 'assets/images/switch.png'; color = Colors.red; break;
-      case 'wii': imagePath = 'assets/images/wii.png'; color = Colors.grey.shade400; break;
-      case 'mac': imagePath = 'assets/images/mac.png'; color = Colors.grey.shade800; break;
+      case 'wii': imagePath = 'assets/images/wii.png'; color = Theme.of(context).colorScheme.onSurfaceVariant; break;
+      case 'mac': imagePath = 'assets/images/mac.png'; color = Theme.of(context).colorScheme.onSurfaceVariant; break;
       case 'android': imagePath = 'assets/images/android.png'; color = const Color(0xFF3DDC84); break;
       case 'nintendo': imagePath = 'assets/images/switch.png'; color = Colors.red; break; // Fallback para datos antiguos
-      default: icon = Icons.device_unknown; color = Colors.grey; break;
+      default: icon = Icons.device_unknown; color = Theme.of(context).colorScheme.onSurfaceVariant; break;
     }
     return Container(
       padding: const EdgeInsets.all(8),
@@ -823,10 +833,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildSectionTitle('Completados', _allGames.length, _allGames),
           _buildCarousel(_allGames),
         ] else ...[
-          const Center(
+          Center(
             child: Padding(
               padding: EdgeInsets.all(32.0),
-              child: Text('Aún no tienes juegos completados con nota.', style: TextStyle(color: Colors.grey)),
+              child: Text('Aún no tienes juegos completados con nota.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             )
           )
         ],
@@ -927,15 +937,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: const Icon(Icons.tune, size: 20),
             label: Text('Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}'),
             style: TextButton.styleFrom(
-              foregroundColor: _filters.hasFilters ? Theme.of(context).colorScheme.primary : Colors.grey[400],
+              foregroundColor: _filters.hasFilters ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             onPressed: _openFilters,
           ),
         ),
-        if (filteredGames.isNotEmpty) _buildGrid(filteredGames) else const Center(
+        if (filteredGames.isNotEmpty) _buildGrid(filteredGames) else Center(
           child: Padding(
             padding: EdgeInsets.all(32.0),
-            child: Text('Aún no tienes juegos en tu biblioteca o ninguno coincide con los filtros.', style: TextStyle(color: Colors.grey)),
+            child: Text('Aún no tienes juegos en tu biblioteca o ninguno coincide con los filtros.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           )
         ),
       ],
@@ -944,10 +954,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildReviewsTab() {
     if (_userReviews.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(32.0),
-          child: Text('Aún no has escrito ninguna reseña.', style: TextStyle(color: Colors.grey)),
+          child: Text('Aún no has escrito ninguna reseña.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
         )
       );
     }
@@ -1022,7 +1032,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(dateStr, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(dateStr, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
               ],
             ),
             const SizedBox(height: 8),
@@ -1046,9 +1056,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.flag, size: 14, color: Colors.grey.shade400),
+                          Icon(Icons.flag, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           const SizedBox(width: 4),
-                          Text(_getStatusText(status), style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                          Text(_getStatusText(status), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
                         ],
                       ),
                       if (rating > 0) ...[
@@ -1078,28 +1088,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
             
             const SizedBox(height: 12),
-            Divider(color: Colors.white24, height: 1),
+            Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), height: 1),
             const SizedBox(height: 8),
             Row(
               children: [
                 Icon(
                   hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined, 
                   size: 16, 
-                  color: hasLiked ? Theme.of(context).colorScheme.primary : Colors.grey.shade400
+                  color: hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant
                 ),
                 const SizedBox(width: 4),
                 Text(
                   likes.length.toString(), 
                   style: TextStyle(
-                    color: hasLiked ? Theme.of(context).colorScheme.primary : Colors.grey.shade400, 
+                    color: hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant, 
                     fontSize: 13,
                     fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal
                   )
                 ),
                 const SizedBox(width: 16),
-                Icon(Icons.chat_bubble_outline, size: 16, color: Colors.grey.shade400),
+                Icon(Icons.chat_bubble_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 4),
-                Text(comments.length.toString(), style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                Text(comments.length.toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
               ],
             ),
           ],
