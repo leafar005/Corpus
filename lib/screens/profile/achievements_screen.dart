@@ -188,9 +188,29 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
       final Map<String, int> sagaProgress = _calculateSagaProgress(reviewsResp, grouped.values.toList());
 
+      final List<Map<String, dynamic>> sortedAchievements = grouped.values.toList();
+      sortedAchievements.sort((a, b) {
+        String getGroupId(String id) {
+          final matchSuffix = RegExp(r'_(\d+|all)$').firstMatch(id);
+          return matchSuffix != null ? id.substring(0, id.length - matchSuffix.group(0)!.length) : id;
+        }
+        
+        int progA = sagaProgress[getGroupId(a['id'] as String)] ?? 0;
+        int progB = sagaProgress[getGroupId(b['id'] as String)] ?? 0;
+        
+        bool hasProgA = progA > 0;
+        bool hasProgB = progB > 0;
+        
+        if (hasProgA && !hasProgB) return -1;
+        if (!hasProgA && hasProgB) return 1;
+        
+        // Si ambos tienen progreso o ambos no tienen progreso, ordenamos por rareza/xp
+        return (a['xp_reward'] as int).compareTo(b['xp_reward'] as int);
+      });
+
       if (mounted) {
         setState(() {
-          _allAchievements = grouped.values.toList();
+          _allAchievements = sortedAchievements;
           _unlockedAchievements = unlockedMap;
           _sagaProgress = sagaProgress;
           _sagaMilestones = sagaMilestones;
@@ -241,47 +261,61 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         counts[prefix] = (counts[prefix] ?? 0) + 1;
       }
 
-      if (dev.contains('kojima')) inc('kojima');
-      if (dev.contains('fromsoftware')) inc('fromsoftware');
-      if (dev.contains('nintendo')) inc('nintendo');
-      if (dev.contains('capcom')) inc('capcom');
-      if (dev.contains('naughty dog')) inc('naughty_dog');
-      if (dev.contains('rockstar')) inc('rockstar');
-      if (dev.contains('cd projekt')) inc('cd_projekt');
-      if (dev.contains('konami')) inc('konami');
-      if (dev.contains('valve')) inc('valve');
-      if (dev.contains('remedy')) inc('remedy');
-      if (dev.contains('team ninja') || dev.contains('koei tecmo')) inc('team_ninja');
-      if (dev.contains('game freak')) inc('pokemon');
+      final title = (game['title'] as String?)?.toLowerCase() ?? '';
+      final bool isCrossover = title.contains('smash bros') ||
+                               title.contains('project x zone') ||
+                               title.contains('vs. capcom') ||
+                               title.contains('vs capcom') ||
+                               title.contains('all-stars') ||
+                               title.contains('fortnite') ||
+                               title.contains('dead by daylight') ||
+                               title.contains('teppen') ||
+                               title.contains('poker night') ||
+                               title.contains('cross tag');
 
-      if (saga.contains('zelda')) inc('zelda');
-      if (saga.contains('mario')) inc('mario');
-      if (saga.contains('resident evil')) inc('resident_evil');
-      if (saga.contains('dark souls') || saga.contains('elden ring')) inc('dark_souls');
-      if (saga.contains("assassin's creed")) inc('assassins_creed');
-      if (saga.contains('final fantasy')) inc('final_fantasy');
-      if (saga.contains('call of duty')) inc('call_of_duty');
-      if (saga.contains('elder scrolls')) inc('elder_scrolls');
-      if (saga.contains('god of war')) inc('god_of_war');
-      if (saga.contains('sonic')) inc('sonic');
-      if (saga.contains('tomb raider')) inc('tomb_raider');
-      if (saga.contains('monster hunter')) inc('monster_hunter');
-      if (saga.contains('kingdom hearts')) inc('kingdom_hearts');
-      if (saga.contains('silent hill')) inc('silent_hill');
-      if (saga.contains('metroid')) inc('metroid');
-      if (saga.contains('kirby')) inc('kirby');
-      if (saga.contains('devil may cry')) inc('devil_may_cry');
-      if (saga.contains('castlevania')) inc('castlevania');
-      if (saga.contains('mass effect')) inc('mass_effect');
-      if (saga.contains('doom')) inc('doom');
-      if (saga.contains('bioshock')) inc('bioshock');
-      if (saga.contains('borderlands')) inc('borderlands');
-      if (saga.contains('metro')) inc('metro');
-      if (saga.contains('dead space')) inc('dead_space');
-      if (saga.contains('yakuza') || saga.contains('like a dragon')) inc('yakuza');
-      if (saga.contains('xenoblade')) inc('xenoblade');
-      if (saga.contains('persona') || saga.contains('shin megami tensei')) inc('persona');
-      if (saga.contains('halo')) inc('halo');
+      if (dev.contains('kojima') || saga.contains('metal gear') || saga.contains('death stranding') || saga.contains('zone of the enders')) { inc('kojima'); }
+      if (dev.contains('fromsoftware') || saga.contains('dark souls') || saga.contains('elden ring') || saga.contains('bloodborne') || saga.contains('sekiro') || saga.contains("demon's souls") || saga.contains('armored core')) { inc('fromsoftware'); }
+      if (dev.contains('nintendo')) { inc('nintendo'); }
+      if (dev.contains('capcom') || (!isCrossover && (saga.contains('resident evil') || saga.contains('monster hunter') || saga.contains('devil may cry') || saga.contains('street fighter') || saga.contains('mega man') || saga.contains('ace attorney') || saga.contains('dead rising')))) { inc('capcom'); }
+      if (dev.contains('naughty dog') || saga.contains('uncharted') || saga.contains('the last of us') || saga.contains('jak and daxter') || saga.contains('crash bandicoot')) { inc('naughty_dog'); }
+      if (dev.contains('rockstar') || saga.contains('grand theft auto') || saga.contains('red dead') || saga.contains('max payne') || saga.contains('bully') || saga.contains('l.a. noire')) { inc('rockstar'); }
+      if (dev.contains('cd projekt') || saga.contains('witcher') || saga.contains('cyberpunk')) { inc('cd_projekt'); }
+      if (dev.contains('valve') || saga.contains('half-life') || saga.contains('portal') || saga.contains('left 4 dead') || saga.contains('counter-strike') || saga.contains('team fortress')) { inc('valve'); }
+      if (dev.contains('remedy') || saga.contains('alan wake') || saga.contains('control') || saga.contains('max payne')) { inc('remedy'); }
+      if (dev.contains('team ninja') || dev.contains('koei tecmo') || saga.contains('ninja gaiden') || saga.contains('nioh') || saga.contains('dead or alive')) { inc('team_ninja'); }
+      if (dev.contains('konami') || saga.contains('metal gear') || saga.contains('silent hill') || saga.contains('castlevania') || saga.contains('contra') || saga.contains('pro evolution') || saga.contains('efootball') || saga.contains('suikoden')) { inc('konami'); }
+      if (dev.contains('game freak') || (!isCrossover && saga.contains('pokemon'))) { inc('pokemon'); }
+
+      if (!isCrossover) {
+        if (saga.contains('zelda')) { inc('zelda'); }
+        if (saga.contains('mario')) { inc('mario'); }
+        if (saga.contains('resident evil')) { inc('resident_evil'); }
+        if (saga.contains('dark souls') || saga.contains('elden ring')) { inc('dark_souls'); }
+        if (saga.contains("assassin's creed")) { inc('assassins_creed'); }
+        if (saga.contains('final fantasy')) { inc('final_fantasy'); }
+        if (saga.contains('call of duty')) { inc('call_of_duty'); }
+        if (saga.contains('elder scrolls')) { inc('elder_scrolls'); }
+        if (saga.contains('god of war')) { inc('god_of_war'); }
+        if (saga.contains('sonic')) { inc('sonic'); }
+        if (saga.contains('tomb raider')) { inc('tomb_raider'); }
+        if (saga.contains('monster hunter')) { inc('monster_hunter'); }
+        if (saga.contains('kingdom hearts')) { inc('kingdom_hearts'); }
+        if (saga.contains('silent hill')) { inc('silent_hill'); }
+        if (saga.contains('metroid')) { inc('metroid'); }
+        if (saga.contains('kirby')) { inc('kirby'); }
+        if (saga.contains('devil may cry')) { inc('devil_may_cry'); }
+        if (saga.contains('castlevania')) { inc('castlevania'); }
+        if (saga.contains('mass effect')) { inc('mass_effect'); }
+        if (saga.contains('doom')) { inc('doom'); }
+        if (saga.contains('bioshock')) { inc('bioshock'); }
+        if (saga.contains('borderlands')) { inc('borderlands'); }
+        if (saga.contains('metro')) { inc('metro'); }
+        if (saga.contains('dead space')) { inc('dead_space'); }
+        if (saga.contains('yakuza') || saga.contains('like a dragon')) { inc('yakuza'); }
+        if (saga.contains('xenoblade')) { inc('xenoblade'); }
+        if (saga.contains('persona') || saga.contains('shin megami tensei')) { inc('persona'); }
+        if (saga.contains('halo')) { inc('halo'); }
+      }
 
       if (gameModes != null) {
         if (gameModes.any((mode) => mode.toString().toLowerCase().contains('single player'))) {
@@ -352,17 +386,82 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
   Color _getRarityColor(String rarity) {
     switch (rarity) {
+      case 'Legendario':
+        return Colors.cyanAccent; // #00E5FF
       case 'Épico':
-        return Colors.deepPurpleAccent;
+        return Colors.deepPurpleAccent; // #E040FB
       case 'Difícil':
         return Colors.orange;
       case 'Medio':
         return Colors.blue;
       case 'Fácil':
+      case 'Común':
+      case 'Raro':
         return Colors.green;
       default:
         return Colors.grey;
     }
+  }
+
+  Map<String, dynamic> _getAchievementBadgeStyle(Map<String, dynamic> achievement, int currentProgress, List<int> milestones, bool isUnlocked) {
+    final int totalStages = milestones.length;
+    
+    // CASO A: LOGRO DE HAZAÑA (1 solo hito / Estático) -> Usamos el color de Rareza / Gema
+    if (totalStages <= 1) {
+      final Color color = _getRarityColor(achievement['rarity'] as String);
+      return {
+        'type': 'gem',
+        'label': achievement['rarity'] as String,
+        'color': isUnlocked ? color : Colors.grey,
+        'borderColor': isUnlocked ? color.withValues(alpha: 0.5) : Colors.transparent,
+        'bgColor': isUnlocked ? color.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.2),
+        'icon': _getIconData(achievement['icon_name'] as String),
+      };
+    }
+
+    // CASO B: LOGRO PROGRESIVO (2 o 3 hitos) -> Usamos escala metálica
+    int currentStageIndex = 0;
+    for (int i = 0; i < totalStages; i++) {
+      if (currentProgress >= milestones[i]) {
+        currentStageIndex = i + 1; // 1 = Bronce, 2 = Plata, 3 = Oro
+      }
+    }
+
+    // Si tiene 2 hitos, mapeamos el escalón 2 directamente a Oro (3)
+    if (totalStages == 2 && currentStageIndex == 2) {
+      currentStageIndex = 3; 
+    }
+
+    Color color;
+    String label;
+
+    switch (currentStageIndex) {
+      case 3:
+        label = 'Maestro (Oro)';
+        color = const Color(0xFFFFD700); // Dorado intenso
+        break;
+      case 2:
+        label = 'Fanático (Plata)';
+        color = const Color(0xFFC0C0C0); // Gris metálico
+        break;
+      case 1:
+        label = 'Novato (Bronce)';
+        color = const Color(0xFFCD7F32); // Marrón cobrizo
+        break;
+      default:
+        label = 'Bloqueado';
+        color = Colors.grey;
+        break;
+    }
+    
+    return {
+      'type': 'medal',
+      'label': label,
+      'color': color,
+      'borderColor': isUnlocked ? color.withValues(alpha: 0.5) : Colors.transparent,
+      'bgColor': isUnlocked ? color.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.2),
+      'icon': _getIconData(achievement['icon_name'] as String),
+    };
   }
 
   Widget _buildLevelHeader() {
@@ -435,6 +534,67 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     );
   }
 
+  void _showXpInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.stars, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              const Text('¿Cómo ganar XP?'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Puedes ganar Experiencia (XP) realizando diferentes acciones en Corpus:',
+              ),
+              const SizedBox(height: 16),
+              _buildXpRow(context, Icons.person_add, 'Crear tu cuenta', '50 XP'),
+              _buildXpRow(context, Icons.add_circle_outline, 'Añadir un juego a tu biblioteca', '5 XP'),
+              _buildXpRow(context, Icons.emoji_events, 'Completar (Terminar) un juego', '20 XP'),
+              _buildXpRow(context, Icons.rate_review, 'Escribir una reseña', '10 XP'),
+              _buildXpRow(context, Icons.workspace_premium, 'Desbloquear logros', 'Variable'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildXpRow(BuildContext context, IconData icon, String action, String xp) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(action, style: const TextStyle(fontSize: 14)),
+          ),
+          Text(
+            xp,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredAchievements = _allAchievements.where((ach) {
@@ -450,6 +610,13 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       appBar: AppBar(
         title: const Text('Progresión y Logros'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: '¿Cómo ganar XP?',
+            onPressed: _showXpInfoDialog,
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -516,6 +683,17 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                         groupId = aId.substring(0, aId.length - matchSuffix.group(0)!.length);
                       }
 
+                      final milestonesData = _sagaMilestones[groupId] ?? <Map<String, dynamic>>[{'target': 1}];
+                      final milestones = milestonesData.map((e) => e['target'] as int).toList();
+                      final currentProgress = _sagaProgress[groupId] ?? (isUnlocked ? milestones.first : 0);
+                      
+                      final badgeStyle = _getAchievementBadgeStyle(achievement, currentProgress, milestones, isUnlocked);
+                      final Color badgeColor = badgeStyle['color'] as Color;
+                      final Color borderColor = badgeStyle['borderColor'] as Color;
+                      final Color bgColor = badgeStyle['bgColor'] as Color;
+                      final IconData badgeIcon = badgeStyle['icon'] as IconData;
+                      final bool isMedal = badgeStyle['type'] == 'medal';
+
                       return Card(
                         margin: EdgeInsets.zero,
                         elevation: isUnlocked ? 2 : 0,
@@ -528,11 +706,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
-                            color: isUnlocked
-                                ? _getRarityColor(
-                                    achievement['rarity'] as String,
-                                  ).withValues(alpha: 0.5)
-                                : Colors.transparent,
+                            color: borderColor,
                             width: 1,
                           ),
                         ),
@@ -562,19 +736,21 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => AchievementGamesScreen(
-                                    achievementId: aId,
-                                    achievementName:
-                                        achievement['name'] as String,
-                                    companyId: companyId,
-                                    collectionId: collectionId,
-                                    franchiseId: franchiseId,
-                                    collectionId2: collectionId2,
-                                    franchiseId2: franchiseId2,
-                                    milestones: _sagaMilestones[groupId] ?? <Map<String, dynamic>>[{'target': 1, 'xp': 10}],
-                                  ),
+                                    builder: (context) => AchievementGamesScreen(
+                                      achievementId: aId,
+                                      achievementName:
+                                          achievement['name'] as String,
+                                      companyId: companyId,
+                                      collectionId: collectionId,
+                                      franchiseId: franchiseId,
+                                      collectionId2: collectionId2,
+                                      franchiseId2: franchiseId2,
+                                      milestones: _sagaMilestones[groupId] ?? <Map<String, dynamic>>[{'target': 1, 'xp': 10}],
+                                      achievementIcon: badgeIcon,
+                                      achievementColor: badgeColor,
+                                    ),
                                 ),
-                              );
+                              ).then((_) { _fetchAchievementsData(); });
                             }
                           },
                           child: Padding(
@@ -601,27 +777,22 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                               value: progress,
                                               strokeWidth: 3,
                                               backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                              color: Theme.of(context).colorScheme.primary,
+                                              color: badgeColor,
                                             );
                                           },
                                         ),
                                       ),
-                                    CircleAvatar(
-                                      backgroundColor: isUnlocked
-                                          ? _getRarityColor(
-                                              achievement['rarity'] as String,
-                                            ).withValues(alpha: 0.2)
-                                          : Colors.grey.withValues(alpha: 0.2),
-                                      radius: 28,
+                                    Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: bgColor,
+                                        shape: BoxShape.circle,
+                                        border: isMedal ? Border.all(color: badgeColor.withValues(alpha: 0.3), width: 2) : null,
+                                      ),
                                       child: Icon(
-                                        _getIconData(
-                                          achievement['icon_name'] as String,
-                                        ),
-                                        color: isUnlocked
-                                            ? _getRarityColor(
-                                                achievement['rarity'] as String,
-                                              )
-                                            : Colors.grey,
+                                        badgeIcon,
+                                        color: badgeColor,
                                         size: 28,
                                       ),
                                     ),
@@ -675,18 +846,10 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: isUnlocked
-                                        ? _getRarityColor(
-                                            achievement['rarity'] as String,
-                                          ).withValues(alpha: 0.1)
-                                        : Colors.transparent,
+                                    color: bgColor,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: isUnlocked
-                                          ? _getRarityColor(
-                                              achievement['rarity'] as String,
-                                            )
-                                          : Colors.grey,
+                                      color: badgeColor,
                                     ),
                                   ),
                                   child: Text(
@@ -694,11 +857,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
-                                      color: isUnlocked
-                                          ? _getRarityColor(
-                                              achievement['rarity'] as String,
-                                            )
-                                          : Colors.grey,
+                                      color: badgeColor,
                                     ),
                                   ),
                                 ),
@@ -708,9 +867,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                     '${unlockedDate.day.toString().padLeft(2, '0')}/${unlockedDate.month.toString().padLeft(2, '0')}/${unlockedDate.year}',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
+                                      color: badgeColor,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),

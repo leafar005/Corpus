@@ -5,8 +5,11 @@ import 'dart:io';
 import 'dart:math';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import '../../utils/storage_utils.dart';
 import '../profile/profile_screen.dart';
+import '../library/search_screen.dart';
+import '../../services/igdb_service.dart';
 
 class ReviewDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -35,6 +38,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   final FocusNode _commentFocusNode = FocusNode();
   bool _isSubmitting = false;
   XFile? _commentImage;
+  Map<String, dynamic>? _selectedGameForComment;
 
   @override
   void initState() {
@@ -131,7 +135,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
   Future<void> _submitComment() async {
     final content = _commentController.text.trim();
-    if (content.isEmpty && _commentImage == null) return;
+    if (content.isEmpty && _commentImage == null && _selectedGameForComment == null) return;
 
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
     final reviewId = widget.reviewData['id'];
@@ -162,11 +166,15 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         'review_user_id': widget.reviewData['user_id'],
         'review_game_id': widget.reviewData['game_id'],
         'content': content.isNotEmpty ? content : null,
-        'image_url': ?imageUrl,
+        'image_url': imageUrl,
+        'attached_game': _selectedGameForComment,
       });
 
       _commentController.clear();
-      setState(() => _commentImage = null);
+      setState(() {
+        _commentImage = null;
+        _selectedGameForComment = null;
+      });
       await _fetchInteractions(); // Refresh to get the new comment with user data
     } catch (e) {
       debugPrint('[CORPUS DEBUG] Error submitting comment: $e');
@@ -304,6 +312,23 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       }
 
       await Supabase.instance.client.from('reviews').delete().eq('id', reviewId);
+      
+      final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+      if (gameId != null) {
+        final remainingReviews = await Supabase.instance.client
+            .from('reviews')
+            .select('id')
+            .eq('game_id', gameId)
+            .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
+            
+        if (remainingReviews.isEmpty) {
+          await Supabase.instance.client
+              .from('user_games')
+              .delete()
+              .eq('game_id', gameId)
+              .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reseña eliminada')));
         Navigator.pop(context); // Go back to the previous screen
@@ -369,6 +394,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       case 'story': return 'Historia';
       case 'story_extras': return 'Historia + Extras';
       case '100_percent': return '100%';
+      case 'endless': return 'Sin Fin';
+      case 'on_hold': return 'En Pausa';
       default: return type;
     }
   }
@@ -378,6 +405,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       case 'story': return Icons.auto_stories;
       case 'story_extras': return Icons.extension;
       case '100_percent': return Icons.stars;
+      case 'endless': return Icons.all_inclusive;
+      case 'on_hold': return Icons.pause;
       default: return Icons.flag;
     }
   }
@@ -423,6 +452,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width > 800;
     final title = widget.gameData['title'] ?? 'Desconocido';
     final coverUrl = widget.gameData['cover_url'] ?? '';
     final username = widget.userData?['username'] ?? 'Jugador';
@@ -646,7 +676,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                               onTap: () => _showImageFullScreen(imageUrls[idx]),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(imageUrls[idx], height: 140, fit: BoxFit.fitHeight),
+                                  child: Image.network(imageUrls[idx], height: isDesktop ? 280 : 140, fit: BoxFit.fitHeight),
                               ),
                             ),
                           );
@@ -817,7 +847,48 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         onTap: () => _showImageFullScreen(comment['image_url']),
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(8),
-                                          child: Image.network(comment['image_url'], height: 150, fit: BoxFit.fitHeight),
+                                          child: Image.network(comment['image_url'], height: isDesktop ? 300 : 150, fit: BoxFit.fitHeight),
+                                        ),
+                                      ),
+                                    ),
+                                  if (comment['attached_game'] != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          final gameData = Map<String, dynamic>.from(comment['attached_game']);
+                                          final isDesktop = MediaQuery.of(context).size.width > 800;
+                                          if (isDesktop) {
+                                            Navigator.push(context, MaterialPageRoute(builder: (context) => GameDetailsScreen(gameData: gameData)));
+                                          } else {
+                                            showModalBottomSheet(
+                                              context: context,
+                                              isScrollControlled: true,
+                                              useSafeArea: false,
+                                              enableDrag: true,
+                                              builder: (context) => DraggableScrollableSheet(
+                                                initialChildSize: 1.0, minChildSize: 0.5, maxChildSize: 1.0, expand: false, snap: true,
+                                                builder: (context, scrollController) => GameDetailsScreen(gameData: gameData, scrollController: scrollController),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        child: Container(
+                                          width: isDesktop ? 160 : 120,
+                                          height: isDesktop ? 224 : 168,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(8),
+                                            color: Theme.of(context).primaryColorDark,
+                                            image: (comment['attached_game']['cover_url'] != null || comment['attached_game']['cover'] != null)
+                                                ? DecorationImage(
+                                                    image: NetworkImage(comment['attached_game']['cover_url'] ?? IGDBService.getCoverUrl(comment['attached_game']['cover']?['image_id'])),
+                                                    fit: BoxFit.cover,
+                                                  )
+                                                : null,
+                                          ),
+                                          child: (comment['attached_game']['cover_url'] == null && comment['attached_game']['cover'] == null)
+                                              ? Center(child: Icon(Icons.videogame_asset, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)))
+                                              : null,
                                         ),
                                       ),
                                     ),
@@ -906,6 +977,48 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                       ),
                     ),
                   ),
+                if (_selectedGameForComment != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0, left: 16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              color: Theme.of(context).primaryColorDark,
+                              image: (_selectedGameForComment!['cover_url'] != null || _selectedGameForComment!['cover'] != null)
+                                  ? DecorationImage(
+                                      image: NetworkImage(
+                                        _selectedGameForComment!['cover_url'] ?? IGDBService.getCoverUrl(_selectedGameForComment!['cover']?['image_id'])
+                                      ),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: (_selectedGameForComment!['cover_url'] == null && _selectedGameForComment!['cover'] == null)
+                                ? Center(child: Icon(Icons.videogame_asset, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)))
+                                : null,
+                          ),
+                          Positioned(
+                            top: -8, right: -8,
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedGameForComment = null),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                child: const Icon(Icons.close, color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
@@ -916,7 +1029,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                     children: [
                       IconButton(
                         icon: Icon(Icons.add_photo_alternate, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        padding: EdgeInsets.zero,
+                        padding: const EdgeInsets.all(6),
                         constraints: const BoxConstraints(),
                         onPressed: () async {
                           final picker = ImagePicker();
@@ -924,22 +1037,49 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                           if (file != null) setState(() => _commentImage = file);
                         },
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                    child: TextField(
-                      focusNode: _commentFocusNode,
-                      controller: _commentController,
-                      textCapitalization: TextCapitalization.sentences,
-                      maxLength: 500,
-                      decoration: InputDecoration(
-                        hintText: 'Añadir un comentario...',
-                        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        border: InputBorder.none,
-                        counterText: '',
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: Icon(Icons.videogame_asset, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(),
+                        onPressed: () async {
+                          final game = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SearchScreen(isSelectionMode: true),
+                            ),
+                          );
+                          if (game != null) {
+                            setState(() => _selectedGameForComment = game);
+                          }
+                        },
                       ),
-                      maxLines: null,
-                    ),
-                  ),
+                      Expanded(
+                        child: Focus(
+                          onKeyEvent: (node, event) {
+                            final isDesktop = MediaQuery.of(context).size.width > 800;
+                            if (isDesktop && event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter && !HardwareKeyboard.instance.isShiftPressed) {
+                              _submitComment();
+                              return KeyEventResult.handled;
+                            }
+                            return KeyEventResult.ignored;
+                          },
+                          child: TextField(
+                            focusNode: _commentFocusNode,
+                            controller: _commentController,
+                            textCapitalization: TextCapitalization.sentences,
+                            maxLength: 500,
+                            decoration: InputDecoration(
+                              hintText: 'Añadir un comentario...',
+                              hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              border: InputBorder.none,
+                              counterText: '',
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            ),
+                            maxLines: null,
+                          ),
+                        ),
+                      ),
                   if (_isSubmitting)
                     const Padding(
                       padding: EdgeInsets.all(12.0),

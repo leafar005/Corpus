@@ -202,7 +202,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Perfil guardado correctamente')),
         );
-        Navigator.pop(context, true); // Retornar true para indicar que se actualizó
+        Navigator.pop(context); // Cierra EditProfileScreen
+        Navigator.pop(context); // Cierra SettingsScreen
       }
       
     } catch (e) {

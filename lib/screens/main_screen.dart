@@ -4,6 +4,7 @@ import 'home/home_screen.dart';
 import 'library/search_screen.dart';
 import 'activity/activity_screen.dart';
 import 'profile/profile_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -29,12 +30,28 @@ class _MainScreenState extends State<MainScreen> {
     const ProfileScreen(),
   ];
 
-  void _onTabTapped(int index) {
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedTab();
+  }
+
+  Future<void> _loadSavedTab() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _currentIndex = prefs.getInt('main_tab_index') ?? 0;
+      });
+    }
+  }
+
+  void _onTabTapped(int index) async {
     if (_currentIndex == index) {
       // Si toca la misma pestaña, hace "pop" hasta el principio de esa pestaña
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
     } else {
       setState(() => _currentIndex = index);
+      SharedPreferences.getInstance().then((prefs) => prefs.setInt('main_tab_index', index));
     }
   }
 

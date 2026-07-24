@@ -7,7 +7,8 @@ import '../../widgets/filter_bottom_sheet.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
-  const SearchScreen({super.key, this.initialQuery});
+  final bool isSelectionMode;
+  const SearchScreen({super.key, this.initialQuery, this.isSelectionMode = false});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -343,6 +344,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 isInLibrary: isInLibrary,
                 userRating: userRating,
                 onReturn: _fetchUserGamesCache,
+                onTap: widget.isSelectionMode 
+                    ? (cleanData) => Navigator.pop(context, cleanData) 
+                    : null,
               );
             },
           ),

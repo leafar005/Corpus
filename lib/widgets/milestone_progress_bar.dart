@@ -14,6 +14,26 @@ class MilestoneProgressBar extends StatelessWidget {
     required this.backgroundColor,
   });
 
+  static Color getSegmentColor(int index, int totalMilestones, Color fallbackColor) {
+    if (totalMilestones <= 1) return fallbackColor;
+
+    int tier = index + 1; // 1=Bronce, 2=Plata, 3=Oro
+    if (totalMilestones == 2 && tier == 2) {
+      tier = 3;
+    }
+
+    switch (tier) {
+      case 3:
+        return const Color(0xFFFFD700); // Dorado
+      case 2:
+        return const Color(0xFFC0C0C0); // Plata
+      case 1:
+        return const Color(0xFFCD7F32); // Bronce
+      default:
+        return fallbackColor;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (milestones.isEmpty) return const SizedBox.shrink();
@@ -27,6 +47,8 @@ class MilestoneProgressBar extends StatelessWidget {
       final xp = m['xp'] as int;
       final gap = target - prevTarget;
 
+      final Color segmentColor = getSegmentColor(i, milestones.length, color);
+
       textSegments.add(
         Expanded(
           flex: gap,
@@ -37,7 +59,7 @@ class MilestoneProgressBar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: current >= target ? color : Colors.grey.withValues(alpha: 0.8),
+                color: current >= target ? segmentColor : Colors.grey.withValues(alpha: 0.8),
               ),
             ),
           ),
@@ -95,7 +117,6 @@ class _MilestoneBarPainter extends CustomPainter {
     if (maxTarget <= 0) return;
 
     final bgPaint = Paint()..color = backgroundColor;
-    final fillPaint = Paint()..color = color;
 
     final double h = size.height;
     final double h2 = h / 2.0;
@@ -111,6 +132,9 @@ class _MilestoneBarPainter extends CustomPainter {
 
       final bool isFirst = i == 0;
       final bool isLast = i == milestones.length - 1;
+
+      final Color segmentColor = MilestoneProgressBar.getSegmentColor(i, milestones.length, color);
+      final fillPaint = Paint()..color = segmentColor;
 
       // Calculate progress in this segment
       double segmentProgress = 0.0;
