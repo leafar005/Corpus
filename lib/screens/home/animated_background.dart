@@ -298,34 +298,42 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
                     ),
                   ),
                   const SizedBox(height: 16),
-                  MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: () => _navigateToGameDetails(gameData, coverUrl, false),
-                      child: RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                            fontFamily: 'Helvetica',
-                            fontSize: isPortrait ? 22 : 24,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: _randomPrefix,
-                              style: const TextStyle(color: Colors.white70),
-                            ),
-                            TextSpan(
-                              text: title,
+                  SizedBox(
+                    height: isPortrait ? 56 : null,
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () => _navigateToGameDetails(gameData, coverUrl, false),
+                          child: RichText(
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            text: TextSpan(
                               style: TextStyle(
-                                color: Theme.of(context).primaryColor,
-                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Helvetica',
+                                fontSize: isPortrait ? 22 : 24,
+                                fontWeight: FontWeight.w500,
                               ),
+                              children: [
+                                TextSpan(
+                                  text: _randomPrefix,
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                TextSpan(
+                                  text: title,
+                                  style: TextStyle(
+                                    color: Theme.of(context).primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: '?',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ],
                             ),
-                            const TextSpan(
-                              text: '?',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),

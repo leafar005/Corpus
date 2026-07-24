@@ -34,13 +34,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<Map<String, dynamic>> _fetchPlayingGames() async {
     final userId = Supabase.instance.client.auth.currentUser!.id;
     
-    // Obtener display_name
+    // Obtener display_name (o username como fallback, o email como último recurso)
     final userResp = await Supabase.instance.client
         .from('users')
-        .select('display_name')
+        .select('display_name, username')
         .eq('id', userId)
-        .single();
-    final displayName = userResp['display_name'] as String? ?? 'Usuario';
+        .maybeSingle();
+    final displayName = (userResp?['display_name'] as String?)?.isNotEmpty == true
+        ? userResp!['display_name'] as String
+        : (userResp?['username'] as String?)?.isNotEmpty == true
+            ? userResp!['username'] as String
+            : (Supabase.instance.client.auth.currentUser?.email?.split('@').first ?? 'tú');
 
     // Obtener juegos
     final response = await Supabase.instance.client
