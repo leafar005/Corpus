@@ -9,6 +9,7 @@ class GameCard extends StatefulWidget {
   final double userRating;
   final VoidCallback onReturn;
   final bool isGrayscale;
+  final void Function(Map<String, dynamic>)? onTap;
 
   const GameCard({
     super.key,
@@ -17,6 +18,7 @@ class GameCard extends StatefulWidget {
     this.userRating = 0.0,
     required this.onReturn,
     this.isGrayscale = false,
+    this.onTap,
   });
 
   @override
@@ -111,6 +113,11 @@ class _GameCardState extends State<GameCard> {
             } catch (_) {
               try { cleanData['developer'] = companies[0]['company']['name']; } catch (_) {}
             }
+          }
+
+          if (widget.onTap != null) {
+            widget.onTap!(cleanData);
+            return;
           }
 
           final isDesktop = MediaQuery.of(context).size.width > 800;

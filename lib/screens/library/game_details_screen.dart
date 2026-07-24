@@ -13,6 +13,7 @@ import '../../utils/storage_utils.dart';
 import '../activity/review_details_screen.dart';
 import 'search_screen.dart';
 import 'franchise_games_screen.dart';
+import '../../widgets/achievement_toast.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -629,6 +630,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       case 'story': return 'Historia';
       case 'story_extras': return 'Historia + Extras';
       case '100_percent': return '100%';
+      case 'endless': return 'Sin Fin';
+      case 'on_hold': return 'En Pausa';
       default: return type;
     }
   }
@@ -638,6 +641,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       case 'story': return Icons.auto_stories;
       case 'story_extras': return Icons.extension;
       case '100_percent': return Icons.stars;
+      case 'endless': return Icons.all_inclusive;
+      case 'on_hold': return Icons.pause;
       default: return Icons.flag;
     }
   }
@@ -755,23 +760,35 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     Text('Estado', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 12),
                     Wrap(spacing: 8, runSpacing: 8, children: [
-                      chip('wishlist', 'Quiero', Icons.favorite, reviewStatus, _getStatusColor('wishlist'), (v) => reviewStatus = v),
-                      chip('playing', 'Jugando', Icons.videogame_asset, reviewStatus, _getStatusColor('playing'), (v) => reviewStatus = v),
-                      chip('beaten', 'Terminado', Icons.emoji_events, reviewStatus, _getStatusColor('beaten'), (v) => reviewStatus = v),
-                      chip('abandoned', 'Abandonado', Icons.cancel_outlined, reviewStatus, _getStatusColor('abandoned'), (v) => reviewStatus = v),
-                      chip('on_hold', 'En Pausa', Icons.pause_circle_outline, reviewStatus, _getStatusColor('on_hold'), (v) => reviewStatus = v),
+                      chip('wishlist', 'Quiero', Icons.favorite, reviewStatus, _getStatusColor('wishlist'), (v) { reviewStatus = v; reviewCompletionType = 'none'; }),
+                      chip('playing', 'Jugando', Icons.videogame_asset, reviewStatus, _getStatusColor('playing'), (v) { reviewStatus = v; reviewCompletionType = 'none'; }),
+                      chip('beaten', 'Terminado', Icons.emoji_events, reviewStatus, _getStatusColor('beaten'), (v) { reviewStatus = v; reviewCompletionType = 'none'; }),
+                      chip('abandoned', 'Abandonado', Icons.cancel_outlined, reviewStatus, _getStatusColor('abandoned'), (v) { reviewStatus = v; reviewCompletionType = 'none'; }),
                     ]),
                     const SizedBox(height: 24),
 
-                    if (reviewStatus != 'wishlist') ...[
+                    if (reviewStatus == 'beaten') ...[
                       Text('Tipo de completado', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 12),
                       Wrap(spacing: 8, runSpacing: 8, children: [
+                        chip('none', 'Nada', Icons.do_not_disturb_alt, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
                         chip('story', 'Historia', Icons.auto_stories, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
                         chip('story_extras', 'Historia + Extras', Icons.extension, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
                         chip('100_percent', '100%', Icons.stars, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
                       ]),
                       const SizedBox(height: 24),
+                    ] else if (reviewStatus == 'playing') ...[
+                      Text('Modo de juego', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      const SizedBox(height: 12),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        chip('none', 'Nada', Icons.do_not_disturb_alt, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
+                        chip('endless', 'Sin Fin', Icons.all_inclusive, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
+                        chip('on_hold', 'En Pausa', Icons.pause, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
+                      ]),
+                      const SizedBox(height: 24),
+                    ],
+
+                    if (reviewStatus != 'wishlist') ...[
 
                       Row(children: [
                         Text('Nota', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
@@ -1000,9 +1017,16 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     required List<XFile> newImages,
     required List<String> existingImages,
   }) async {
+    if (_isSaving) return;
     setState(() => _isSaving = true);
     final userId = Supabase.instance.client.auth.currentUser!.id;
     final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+
+    Set<String> beforeAchievements = {};
+    try {
+      final beforeRes = await Supabase.instance.client.from('user_achievements').select('achievement_id').eq('user_id', userId);
+      beforeAchievements = beforeRes.map((e) => e['achievement_id'] as String).toSet();
+    } catch (_) {}
 
     try {
       await Supabase.instance.client.from('games').upsert({
@@ -1054,30 +1078,31 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
 
     try {
+      final isWishlist = status == 'wishlist';
       final reviewData = {
         'user_id': userId,
         'game_id': igdbId,
-        'rating': rating >= 1 ? rating : null,
-        'rating_gameplay': ratingGameplay >= 1 ? ratingGameplay : null,
-        'rating_narrative': ratingNarrative >= 1 ? ratingNarrative : null,
-        'rating_soundtrack': ratingSoundtrack >= 1 ? ratingSoundtrack : null,
-        'rating_visuals': ratingVisuals >= 1 ? ratingVisuals : null,
-        'comment': comment.trim().isNotEmpty ? comment.trim() : null,
+        'rating': isWishlist ? null : (rating >= 1 ? rating : null),
+        'rating_gameplay': isWishlist ? null : (ratingGameplay >= 1 ? ratingGameplay : null),
+        'rating_narrative': isWishlist ? null : (ratingNarrative >= 1 ? ratingNarrative : null),
+        'rating_soundtrack': isWishlist ? null : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
+        'rating_visuals': isWishlist ? null : (ratingVisuals >= 1 ? ratingVisuals : null),
+        'comment': isWishlist ? null : (comment.trim().isNotEmpty ? comment.trim() : null),
         'status': status,
-        'completion_type': completionType,
-        'is_replay': isReplay,
-        'replay_number': isReplay ? replayNumber : null,
-        'platform': platform,
-        'play_time_hours': playTimeHours != null && playTimeHours > 0 ? playTimeHours : null,
-        'played_from': playedFrom?.toIso8601String().split('T')[0],
-        'played_until': playedUntil?.toIso8601String().split('T')[0],
-        'progress_percent': progressPercent,
+        'completion_type': isWishlist ? 'none' : completionType,
+        'is_replay': isWishlist ? false : isReplay,
+        'replay_number': isWishlist ? null : (isReplay ? replayNumber : null),
+        'platform': isWishlist ? null : platform,
+        'play_time_hours': isWishlist ? null : (playTimeHours != null && playTimeHours > 0 ? playTimeHours : null),
+        'played_from': isWishlist ? null : playedFrom?.toIso8601String().split('T')[0],
+        'played_until': isWishlist ? null : playedUntil?.toIso8601String().split('T')[0],
+        'progress_percent': isWishlist ? null : progressPercent,
       };
 
       // Handle images upload
-      List<String> finalImageUrls = List<String>.from(existingImages);
+      List<String> finalImageUrls = isWishlist ? [] : List<String>.from(existingImages);
       
-      if (newImages.isNotEmpty) {
+      if (!isWishlist && newImages.isNotEmpty) {
         for (final file in newImages) {
           try {
             final bytes = await file.readAsBytes();
@@ -1105,6 +1130,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (reviewId != null) {
         await Supabase.instance.client.from('reviews').update(reviewData).eq('id', reviewId);
       } else {
+        // If wishlist and no text, do we even need a review? We always create one.
         await Supabase.instance.client.from('reviews').insert(reviewData);
       }
 
@@ -1112,14 +1138,77 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         'user_id': userId,
         'game_id': igdbId,
         'status': status,
-        'rating': rating >= 1 ? rating : null,
-        'rating_gameplay': ratingGameplay >= 1 ? ratingGameplay : null,
-        'rating_narrative': ratingNarrative >= 1 ? ratingNarrative : null,
-        'rating_soundtrack': ratingSoundtrack >= 1 ? ratingSoundtrack : null,
-        'rating_visuals': ratingVisuals >= 1 ? ratingVisuals : null,
-        'comment': comment.trim().isNotEmpty ? comment.trim() : null,
+        'rating': isWishlist ? null : (rating >= 1 ? rating : null),
+        'rating_gameplay': isWishlist ? null : (ratingGameplay >= 1 ? ratingGameplay : null),
+        'rating_narrative': isWishlist ? null : (ratingNarrative >= 1 ? ratingNarrative : null),
+        'rating_soundtrack': isWishlist ? null : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
+        'rating_visuals': isWishlist ? null : (ratingVisuals >= 1 ? ratingVisuals : null),
+        'comment': isWishlist ? null : (comment.trim().isNotEmpty ? comment.trim() : null),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       }, onConflict: 'user_id, game_id');
+
+      // Check newly unlocked achievements
+      try {
+        final afterRes = await Supabase.instance.client.from('user_achievements').select('achievement_id').eq('user_id', userId);
+        final afterAchievements = afterRes.map((e) => e['achievement_id'] as String).toSet();
+        
+        final newlyUnlocked = afterAchievements.difference(beforeAchievements);
+        if (newlyUnlocked.isNotEmpty) {
+          final detailsRes = await Supabase.instance.client.from('achievements').select('*').inFilter('id', newlyUnlocked.toList());
+          
+          if (mounted && detailsRes.isNotEmpty) {
+            int toastDelay = 300;
+            for (final ach in detailsRes) {
+              final String aId = ach['id'] as String;
+              final String title = ach['name'] as String? ?? 'Logro desbloqueado';
+              final String rarity = (ach['rarity'] as String?)?.toLowerCase() ?? 'comun';
+              final int xpReward = ach['xp_reward'] as int? ?? 0;
+              
+              String subtitle = 'Logro desbloqueado';
+              Color color = const Color(0xFFFFD700); // Oro por defecto
+
+              if (title.contains('(Maestro)') || title.contains('(Nivel 3)') || aId.endsWith('_all')) {
+                subtitle = 'Maestro de saga';
+                color = const Color(0xFFFFD700); // Oro
+              } else if (title.contains('(Nivel 2)')) {
+                subtitle = 'Hito alcanzado';
+                color = const Color(0xFFC0C0C0); // Plata
+              } else if (title.contains('(Nivel 1)')) {
+                subtitle = 'Logro desbloqueado';
+                color = const Color(0xFFCD7F32); // Bronce
+              } else {
+                if (rarity == 'legendario' || rarity == 'platino' || rarity == 'épico' || rarity == 'epico') {
+                  subtitle = 'Hazaña legendaria';
+                  color = Colors.cyanAccent;
+                } else if (rarity == 'difícil' || rarity == 'dificil' || rarity == 'medio') {
+                  subtitle = 'Logro desbloqueado';
+                  color = Colors.blueAccent;
+                } else {
+                  subtitle = 'Logro desbloqueado';
+                  color = Colors.green;
+                }
+              }
+
+              Future.delayed(Duration(milliseconds: toastDelay), () {
+                if (mounted) {
+                  AchievementToast.show(
+                    context,
+                    title: title,
+                    subtitle: subtitle,
+                    xpReward: xpReward,
+                    icon: Icons.workspace_premium, // Fallback icon genérico para el toast
+                    color: color,
+                  );
+                }
+              });
+              
+              toastDelay += 3700; // Incrementamos el delay para que no se pisen (3.5s + 0.2s margen)
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[CORPUS DEBUG] Error checking newly unlocked achievements: $e');
+      }
 
       if (mounted) {
         setState(() => _inLibrary = true);
@@ -1322,6 +1411,29 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
       await Supabase.instance.client.from('reviews').delete().eq('id', reviewId);
       
+      final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+      if (gameId != null) {
+        final remainingReviews = await Supabase.instance.client
+            .from('reviews')
+            .select('id')
+            .eq('game_id', gameId)
+            .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
+            
+        if (remainingReviews.isEmpty) {
+          await Supabase.instance.client
+              .from('user_games')
+              .delete()
+              .eq('game_id', gameId)
+              .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
+              
+          if (mounted) {
+            setState(() {
+              _inLibrary = false;
+            });
+          }
+        }
+      }
+      
       if (mounted) {
         setState(() {
           _reviews.removeWhere((r) => r['id'] == reviewId);
@@ -1460,6 +1572,16 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         final rVisuals = (review['rating_visuals'] ?? 0).toDouble();
         final List<dynamic> imageUrls = review['image_urls'] ?? [];
         final dateStr = createdAt != null ? _formatDate(createdAt) : '';
+        final rStatus = review['status'] ?? 'wishlist';
+        String statusText;
+        switch (rStatus) {
+          case 'playing': statusText = 'Jugando'; break;
+          case 'beaten': statusText = 'Terminado'; break;
+          case 'abandoned': statusText = 'Abandonado'; break;
+          case 'on_hold': statusText = 'En Pausa'; break;
+          case 'wishlist': statusText = 'Quiero'; break;
+          default: statusText = 'Desconocido';
+        }
 
         return GestureDetector(
           onTap: () {
@@ -1487,9 +1609,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   children: [
                     Expanded(
                       child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                        if (completionType == 'none')
-                          const Text('Quiero', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold))
-                        else
+                        Text(statusText, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                        if (completionType != 'none')
                           _buildInfoBadge(_getCompletionTypeText(completionType), _getCompletionTypeIcon(completionType), Theme.of(context).colorScheme.primary),
                         if (isReplay) _buildInfoBadge('Rejugada${replayNumber != null ? ' #$replayNumber' : ''}', Icons.replay, Colors.orangeAccent),
                         if (rPlatform != null) _buildInfoBadge(rPlatform, Icons.devices, Colors.blueGrey),

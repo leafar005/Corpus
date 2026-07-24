@@ -351,7 +351,11 @@ class IGDBService {
       // Construir la condición principal del logro (compañía OR saga)
       List<String> mainConditions = [];
       if (companyId != null) {
-        mainConditions.add('involved_companies.company = ($companyId)');
+        if ([37, 129, 1012, 26, 56, 305, 401, 908, 170, 769].contains(companyId)) {
+          mainConditions.add('(involved_companies.company = ($companyId) & involved_companies.developer = true)');
+        } else {
+          mainConditions.add('involved_companies.company = ($companyId)');
+        }
       }
       if (collectionId != null && franchiseId != null) {
         // Si tenemos AMBOS (colección Y franquicia del mismo logro), los unimos con OR
