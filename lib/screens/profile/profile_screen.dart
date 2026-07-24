@@ -9,9 +9,12 @@ import 'achievements_screen.dart';
 import '../../utils/level_calculator.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/widgets/filter_bottom_sheet.dart';
+import '../social/friends_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
+  final String? userId;
+  const ProfileScreen({super.key, this.userId});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -48,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchProfileData() async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = widget.userId ?? Supabase.instance.client.auth.currentUser!.id;
 
     // 1. Fetch user profile, create if missing
     var userResp = await Supabase.instance.client
@@ -57,9 +60,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .eq('id', userId)
         .maybeSingle();
 
-    if (userResp == null) {
-      final email =
-          Supabase.instance.client.auth.currentUser!.email ?? 'jugador';
+    if (userResp == null && widget.userId == null) {
+      // Solo auto-creamos el perfil del usuario actual
+      final email = Supabase.instance.client.auth.currentUser!.email ?? 'jugador';
       final defaultUsername = email.split('@')[0];
 
       try {
@@ -69,7 +72,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .select()
             .single();
       } catch (e) {
-        // En caso de colisión de username o error
         userResp = {'username': defaultUsername};
       }
     }
@@ -241,28 +243,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
 
-        // Settings Button
+        // Back Button (if navigated from another screen)
+        if (Navigator.canPop(context))
+          Positioned(
+            top: isDesktop ? 16 : 40,
+            left: 16,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withValues(alpha: 0.5),
+              ),
+            ),
+          ),
+
+        // Buttons: Friends + Settings
         if (isMe)
           Positioned(
             top: isDesktop ? 16 : 40,
             right: 16,
-            child: IconButton(
-              icon: const Icon(
-                Icons.settings,
-                color: Colors.white,
-                shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SettingsScreen(
-                      userProfile: _userProfile!,
-                      hallOfFame: _hallOfFame,
-                    ),
+            child: Row(
+              children: [
+                _FriendsBadgeButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FriendsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.settings,
+                    color: Colors.white,
+                    shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                   ),
-                ).then((_) => _fetchProfileData());
-              },
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SettingsScreen(
+                          userProfile: _userProfile!,
+                          hallOfFame: _hallOfFame,
+                        ),
+                      ),
+                    ).then((_) => _fetchProfileData());
+                  },
+                ),
+              ],
             ),
           ),
 
@@ -922,13 +952,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             if (isNumberOne)
                               Positioned(
-                                top: -14,
+                                top: -18,
                                 left: 0,
                                 right: 0,
                                 child: Icon(
                                   Icons.star,
                                   color: Colors.amber,
                                   size: 26,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black.withValues(alpha: 0.6),
+                                      offset: const Offset(0, 2),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
                                 ),
                               ),
                           ],
@@ -1546,3 +1583,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
+
+/// Botón de amigos con badge que muestra las solicitudes pendientes.
+class _FriendsBadgeButton extends StatefulWidget {
+  final VoidCallback onPressed;
+  const _FriendsBadgeButton({required this.onPressed});
+
+  @override
+  State<_FriendsBadgeButton> createState() => _FriendsBadgeButtonState();
+}
+
+class _FriendsBadgeButtonState extends State<_FriendsBadgeButton> {
+  int _pendingCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPendingCount();
+  }
+
+  Future<void> _loadPendingCount() async {
+    try {
+      final myId = Supabase.instance.client.auth.currentUser?.id;
+      if (myId == null) return;
+      final data = await Supabase.instance.client
+          .from('friendships')
+          .select('requester_id')
+          .eq('addressee_id', myId)
+          .eq('status', 'pending');
+      if (mounted) {
+        setState(() => _pendingCount = (data as List).length);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Badge(
+      isLabelVisible: _pendingCount > 0,
+      label: Text(_pendingCount.toString()),
+      child: IconButton(
+        icon: const Icon(
+          Icons.people_rounded,
+          color: Colors.white,
+          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+        tooltip: 'Amigos',
+        onPressed: () {
+          widget.onPressed();
+          _loadPendingCount();
+        },
+      ),
+    );
+  }
+}
+
