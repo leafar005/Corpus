@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../utils/storage_utils.dart';
+import '../profile/profile_screen.dart';
 
 class ReviewDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -228,6 +229,39 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     }
   }
 
+  Widget _buildCommentContent(String text) {
+    final RegExp regex = RegExp(r'(@\w+)');
+    final matches = regex.allMatches(text);
+    if (matches.isEmpty) {
+      return Text(text, style: const TextStyle(fontSize: 14, height: 1.4));
+    }
+
+    int currentIndex = 0;
+    List<TextSpan> spans = [];
+
+    for (final match in matches) {
+      if (match.start > currentIndex) {
+        spans.add(TextSpan(text: text.substring(currentIndex, match.start)));
+      }
+      spans.add(TextSpan(
+        text: match.group(0),
+        style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+      ));
+      currentIndex = match.end;
+    }
+
+    if (currentIndex < text.length) {
+      spans.add(TextSpan(text: text.substring(currentIndex)));
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: DefaultTextStyle.of(context).style.copyWith(fontSize: 14, height: 1.4),
+        children: spans,
+      ),
+    );
+  }
+
   Future<void> _deleteReview(String reviewId) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -445,29 +479,37 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // User Info
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                        child: avatarUrl == null ? const Icon(Icons.person, ) : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          Text('@$username', style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                        ],
-                      ),
-                      const Spacer(),
-                      if (widget.reviewData['user_id'] == Supabase.instance.client.auth.currentUser?.id)
-                        IconButton(
-                          icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                          onPressed: () => _deleteReview(widget.reviewData['id']),
+                  GestureDetector(
+                    onTap: () {
+                      final userId = widget.reviewData['user_id'];
+                      if (userId != null) {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: userId)));
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                          child: avatarUrl == null ? const Icon(Icons.person, ) : null,
                         ),
-                    ],
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text('@$username', style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          ],
+                        ),
+                        const Spacer(),
+                        if (widget.reviewData['user_id'] == Supabase.instance.client.auth.currentUser?.id)
+                          IconButton(
+                            icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            onPressed: () => _deleteReview(widget.reviewData['id']),
+                          ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -716,41 +758,57 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                         final comment = _comments[index];
                         final user = comment['users'];
                         final isMyComment = comment['user_id'] == currentUserId;
+                        final contentStr = comment['content']?.toString() ?? '';
+                        final isReply = contentStr.trim().startsWith('@');
                         
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              backgroundImage: user?['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null,
-                              child: user?['avatar_url'] == null ? const Icon(Icons.person, size: 16, ) : null,
+                        return Padding(
+                          padding: EdgeInsets.only(left: isReply ? 40.0 : 0.0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                            GestureDetector(
+                              onTap: () {
+                                final uid = comment['user_id'];
+                                if (uid != null) {
+                                  Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: uid)));
+                                }
+                              },
+                              child: CircleAvatar(
+                                radius: 16,
+                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                backgroundImage: user?['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null,
+                                child: user?['avatar_url'] == null ? const Icon(Icons.person, size: 16, ) : null,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        user?['username'] ?? 'Usuario',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        _formatDate(comment['created_at']),
-                                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
-                                      ),
-                                    ],
+                                  GestureDetector(
+                                    onTap: () {
+                                      final uid = comment['user_id'];
+                                      if (uid != null) {
+                                        Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: uid)));
+                                      }
+                                    },
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          user?['username'] ?? 'Usuario',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _formatDate(comment['created_at']),
+                                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
-                                  const SizedBox(height: 4),
                                   if (comment['content'] != null && comment['content'].toString().isNotEmpty)
-                                    Text(
-                                      comment['content'],
-                                      style: const TextStyle(fontSize: 14, height: 1.4),
-                                    ),
+                                    _buildCommentContent(comment['content']),
                                   if (comment['image_url'] != null)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 8.0),
@@ -758,22 +816,42 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         onTap: () => _showImageFullScreen(comment['image_url']),
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(8),
-                                            child: Image.network(comment['image_url'], height: 150, fit: BoxFit.fitHeight),
+                                          child: Image.network(comment['image_url'], height: 150, fit: BoxFit.fitHeight),
                                         ),
                                       ),
                                     ),
                                 ],
                               ),
                             ),
-                            if (isMyComment)
-                              IconButton(
-                                icon: Icon(Icons.delete_outline, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                                onPressed: () => _deleteComment(comment['id']),
-                                constraints: const BoxConstraints(),
-                                padding: EdgeInsets.zero,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.reply, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  onPressed: () {
+                                    final targetUsername = user?['username'] ?? 'Usuario';
+                                    final prefix = '@$targetUsername ';
+                                    if (!_commentController.text.contains(prefix)) {
+                                      _commentController.text = prefix + _commentController.text;
+                                    }
+                                    _commentController.selection = TextSelection.fromPosition(TextPosition(offset: _commentController.text.length));
+                                    _commentFocusNode.requestFocus();
+                                  },
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.all(4),
+                                ),
+                                if (isMyComment)
+                                  IconButton(
+                                    icon: Icon(Icons.delete_outline, size: 20, color: Theme.of(context).colorScheme.error),
+                                    onPressed: () => _deleteComment(comment['id']),
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.all(4),
+                                  ),
+                              ],
+                            ),
                           ],
-                        );
+                        ),
+                      );
                       },
                     ),
                     const SizedBox(height: 24),
