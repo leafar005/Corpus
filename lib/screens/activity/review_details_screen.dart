@@ -431,8 +431,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
     // Extract all fields from reviewData
     final rating = (widget.reviewData['rating'] ?? 0).toDouble();
-    final comment = widget.reviewData['comment'] ?? '';
-    final status = widget.reviewData['status'] ?? 'unknown';
+    final comment = widget.reviewData['comment'] ?? widget.reviewData['content'] ?? '';
+    final metadata = widget.reviewData['metadata'] as Map<String, dynamic>? ?? {};
+    final status = widget.reviewData['status'] ?? metadata['status'] ?? 'unknown';
     final createdAt = widget.reviewData['created_at'];
     final completionType = widget.reviewData['completion_type'] ?? 'story';
     final isReplay = widget.reviewData['is_replay'] ?? false;
