@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
-import 'review_details_screen.dart';
+import '../activity/review_details_screen.dart';
+import '../profile/profile_screen.dart';
+
+
+/// Feed de actividad social en tiempo real.
+/// Muestra la actividad del usuario actual y la de sus amigos aceptados.
+/// La tabla `activity_feed` se puebla automáticamente mediante triggers
+/// de PostgreSQL cuando se cambia el estado de un juego o se escribe una reseña.
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key});
 
@@ -10,78 +17,220 @@ class ActivityScreen extends StatefulWidget {
 }
 
 class _ActivityScreenState extends State<ActivityScreen> {
+  final _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _activities = [];
   bool _isLoading = true;
+  RealtimeChannel? _realtimeChannel;
 
   @override
   void initState() {
     super.initState();
     _fetchActivity();
+    _subscribeRealtime();
     libraryUpdateNotifier.addListener(_onLibraryUpdated);
   }
 
   @override
   void dispose() {
+    _realtimeChannel?.unsubscribe();
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
     super.dispose();
   }
 
   void _onLibraryUpdated() {
-    if (mounted) {
-      _fetchActivity();
-    }
+    if (mounted) _fetchActivity();
   }
 
-  Future<void> _fetchActivity() async {
-    setState(() => _isLoading = true);
+  // ──────────────────────────────────────────
+  // DATOS
+  // ──────────────────────────────────────────
+
+  Future<void> _fetchActivity({bool silent = false}) async {
+    if (!silent && _activities.isEmpty) {
+      setState(() => _isLoading = true);
+    }
     try {
-      // Obtenemos todos los juegos guardados por cualquier usuario (reseñas, notas o cambios de estado)
-      final response = await Supabase.instance.client
-          .from('reviews')
-          .select('*, games(*), users!reviews_user_id_users_fkey(*), review_likes(user_id), review_comments(id)')
+      // Obtenemos el feed con datos del usuario, del juego y de la reseña completa si existe
+      final response = await _supabase
+          .from('activity_feed')
+          .select('''
+            *,
+            users!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
+            games!activity_feed_game_id_fkey(igdb_id, title, cover_url)
+          ''')
           .order('created_at', ascending: false)
-          .limit(50);
-      
-      debugPrint('[CORPUS DEBUG] _fetchActivity response count: ${response.length}');
-      if (response.isNotEmpty) {
-        debugPrint('[CORPUS DEBUG] _fetchActivity first item: ${response[0]}');
+          .limit(60);
+
+      // Enriquecer reseñas y agrupar eventos relacionados
+      final mergedActivities = <Map<String, dynamic>>[];
+      for (var item in List<Map<String, dynamic>>.from(response)) {
+        if (item['action_type'] == 'reviewed') {
+          final reviewId = (item['metadata'] as Map?)?['review_id'];
+          if (reviewId != null) {
+            try {
+              final reviewData = await _supabase
+                  .from('reviews')
+                  .select('*, review_likes(user_id), review_comments(id)')
+                  .eq('id', reviewId)
+                  .maybeSingle();
+              if (reviewData != null) {
+                item = Map<String, dynamic>.from(item);
+                item['_review'] = reviewData;
+              }
+            } catch (_) {}
+          }
+        }
+
+        // Agrupar con eventos recientes del mismo usuario y juego (dentro de 24 horas)
+        bool merged = false;
+        final userId = item['user_id'];
+        final gameId = item['game_id'];
+        final type = item['action_type'];
+        final dateStr = item['created_at'];
+        
+        if (userId != null && gameId != null && dateStr != null) {
+          final date = DateTime.parse(dateStr);
+          for (int i = mergedActivities.length - 1; i >= 0 && i >= mergedActivities.length - 4; i--) {
+            final prev = mergedActivities[i];
+            if (prev['user_id'] == userId && prev['game_id'] == gameId) {
+              final prevDate = DateTime.parse(prev['created_at']);
+              if (date.difference(prevDate).abs().inHours < 24) {
+                if (type == 'status_change' && prev['action_type'] == 'reviewed') {
+                  // Priorizar status_change como header principal
+                  prev['action_type'] = 'status_change';
+                  if (prev['metadata'] == null) prev['metadata'] = <String, dynamic>{};
+                  final itemMeta = item['metadata'] as Map? ?? {};
+                  (prev['metadata'] as Map)['status'] = itemMeta['status'];
+                  merged = true;
+                  break;
+                } else if (type == 'reviewed' && prev['action_type'] == 'status_change') {
+                  // Añadir review al status_change existente
+                  prev['_review'] = item['_review'];
+                  merged = true;
+                  break;
+                } else if (type == 'status_change' && prev['action_type'] == 'status_change') {
+                  // Quedarnos con el estado más reciente (prev ya es más reciente)
+                  merged = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (!merged) {
+          mergedActivities.add(item);
+        }
       }
-          
+
       if (mounted) {
         setState(() {
-          _activities = List<Map<String, dynamic>>.from(response);
+          _activities = mergedActivities;
           _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('[CORPUS DEBUG] ERROR en _fetchActivity: $e');
+      debugPrint('[ActivityScreen] Error cargando actividad: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  /// Suscripción Realtime: cuando llega un nuevo evento al feed, recargamos.
+  void _subscribeRealtime() {
+    _realtimeChannel = _supabase
+        .channel('activity_feed_changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'activity_feed',
+          callback: (payload) {
+            if (mounted) _fetchActivity();
+          },
+        )
+        .subscribe();
+  }
+
+  // ──────────────────────────────────────────
+  // LIKES
+  // ──────────────────────────────────────────
+
+  Future<void> _toggleLike(int index) async {
+    final activity = _activities[index];
+    final review = activity['_review'] as Map<String, dynamic>?;
+    if (review == null) return;
+
+    final currentUserId = _supabase.auth.currentUser?.id;
+    if (currentUserId == null) return;
+    final reviewId = review['id'];
+
+    final likes = List<Map<String, dynamic>>.from(review['review_likes'] ?? []);
+    final hasLiked = likes.any((l) => l['user_id'] == currentUserId);
+
+    setState(() {
+      if (hasLiked) {
+        likes.removeWhere((l) => l['user_id'] == currentUserId);
+      } else {
+        likes.add({'user_id': currentUserId});
+      }
+      _activities[index]['_review']['review_likes'] = likes;
+    });
+
+    try {
+      if (!hasLiked) {
+        await _supabase.from('review_likes').insert({
+          'user_id': currentUserId,
+          'review_id': reviewId,
+          'review_user_id': review['user_id'],
+          'review_game_id': review['game_id'],
+        });
+      } else {
+        await _supabase.from('review_likes').delete().match({'user_id': currentUserId, 'review_id': reviewId});
+      }
+    } catch (_) {
+      // Revertir
+      setState(() {
+        if (!hasLiked) {
+          likes.removeWhere((l) => l['user_id'] == currentUserId);
+        } else {
+          likes.add({'user_id': currentUserId});
+        }
+        _activities[index]['_review']['review_likes'] = likes;
+      });
+    }
+  }
+
+  // ──────────────────────────────────────────
+  // HELPERS DE FORMATO
+  // ──────────────────────────────────────────
 
   String _formatDate(String isoString) {
     try {
       final date = DateTime.parse(isoString).toLocal();
       const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-      return "${date.day} ${months[date.month - 1]}. ${date.year}";
-    } catch (e) {
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inMinutes < 1) return 'Ahora mismo';
+      if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes}m';
+      if (diff.inHours < 24) return 'Hace ${diff.inHours}h';
+      return '${date.day} ${months[date.month - 1]}. ${date.year}';
+    } catch (_) {
       return '';
     }
   }
 
   String _getStatusText(String status) {
-    switch(status) {
+    switch (status) {
       case 'beaten': return 'Terminado';
       case 'playing': return 'Jugando';
-      case 'wishlist': return 'Quiero';
+      case 'wishlist': return 'En wishlist';
       case 'abandoned': return 'Abandonado';
       case 'on_hold': return 'En Pausa';
-      default: return 'Desconocido';
+      default: return 'Actualizado';
     }
   }
 
   IconData _getStatusIcon(String status) {
-    switch(status) {
+    switch (status) {
       case 'beaten': return Icons.emoji_events;
       case 'playing': return Icons.sports_esports;
       case 'wishlist': return Icons.bookmark;
@@ -91,169 +240,265 @@ class _ActivityScreenState extends State<ActivityScreen> {
     }
   }
 
-  Future<void> _toggleLike(int index) async {
-    final activity = _activities[index];
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    if (currentUserId == null) return;
-    final reviewId = activity['id'];
-    if (reviewId == null) return;
-
-    final likes = List<Map<String, dynamic>>.from(activity['review_likes'] ?? []);
-    final hasLiked = likes.any((l) => l['user_id'] == currentUserId);
-
-    setState(() {
-      if (hasLiked) {
-        likes.removeWhere((l) => l['user_id'] == currentUserId);
-      } else {
-        likes.add({'user_id': currentUserId});
-      }
-      _activities[index]['review_likes'] = likes;
-    });
-
-    try {
-      if (!hasLiked) {
-        await Supabase.instance.client.from('review_likes').insert({
-          'user_id': currentUserId,
-          'review_id': reviewId,
-          'review_user_id': activity['user_id'],
-          'review_game_id': activity['game_id'],
-        });
-      } else {
-        await Supabase.instance.client
-            .from('review_likes')
-            .delete()
-            .match({'user_id': currentUserId, 'review_id': reviewId});
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          if (!hasLiked) {
-            likes.removeWhere((l) => l['user_id'] == currentUserId);
-          } else {
-            likes.add({'user_id': currentUserId});
-          }
-          _activities[index]['review_likes'] = likes;
-        });
-      }
+  String _getActionText(String actionType, String? status) {
+    switch (actionType) {
+      case 'status_change':
+        switch (status) {
+          case 'playing': return 'está jugando a';
+          case 'beaten': return 'ha completado';
+          case 'wishlist': return 'quiere jugar a';
+          case 'abandoned': return 'ha abandonado';
+          case 'on_hold': return 'ha pausado';
+          default: return 'actualizó';
+        }
+      case 'reviewed': return 'ha reseñado';
+      case 'achievement': return 'ha desbloqueado un logro en';
+      default: return 'hizo algo con';
     }
   }
 
-  Widget _buildActivityCard(Map<String, dynamic> activity, int index) {
-    final gameData = activity['games'] ?? {};
-    final userData = activity['users'] ?? {};
-    
-    final title = gameData['title'] ?? 'Juego Desconocido';
-    final coverUrl = gameData['cover_url'] ?? '';
-    final username = userData['username'] ?? 'Jugador';
-    final avatarUrl = userData['avatar_url'];
-    
-    final rating = (activity['rating'] ?? 0).toDouble();
-    final comment = activity['comment'] ?? '';
-    final status = activity['status'] ?? 'unknown';
-    final dateStr = activity['created_at'] != null ? _formatDate(activity['created_at']) : '';
-    final replayCount = activity['replay_count'] ?? 0;
+  IconData _getActionIcon(String actionType, String? status) {
+    if (actionType == 'reviewed') return Icons.rate_review_rounded;
+    if (actionType == 'achievement') return Icons.emoji_events_rounded;
+    switch (status) {
+      case 'beaten': return Icons.emoji_events;
+      case 'playing': return Icons.sports_esports;
+      case 'wishlist': return Icons.bookmark;
+      case 'abandoned': return Icons.cancel;
+      case 'on_hold': return Icons.pause_circle;
+      default: return Icons.flag;
+    }
+  }
 
-    final likes = (activity['review_likes'] as List?) ?? [];
-    final comments = (activity['review_comments'] as List?) ?? [];
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    final hasLiked = likes.any((l) => l['user_id'] == currentUserId);
-    final List<dynamic> imageUrls = activity['image_urls'] ?? [];
+  Color _getActionColor(String actionType, String? status, BuildContext ctx) {
+    if (actionType == 'reviewed') return Theme.of(ctx).colorScheme.secondary;
+    if (actionType == 'achievement') return Colors.amber;
+    switch (status) {
+      case 'beaten': return Colors.green;
+      case 'playing': return Theme.of(ctx).colorScheme.primary;
+      case 'abandoned': return Colors.red;
+      default: return Theme.of(ctx).colorScheme.onSurfaceVariant;
+    }
+  }
+
+  // ──────────────────────────────────────────
+  // CARD
+  // ──────────────────────────────────────────
+
+  Widget _buildActivityCard(Map<String, dynamic> activity, int index) {
+    final userData = activity['users'] as Map<String, dynamic>? ?? {};
+    final gameData = activity['games'] as Map<String, dynamic>? ?? {};
+    final meta = activity['metadata'] as Map<String, dynamic>? ?? {};
+    final review = activity['_review'] as Map<String, dynamic>?;
+
+    final displayName = userData['display_name'] as String? ??
+        userData['username'] as String? ?? 'Usuario';
+    final avatarUrl = userData['avatar_url'] as String?;
+    final gameTitle = gameData['title'] as String? ?? 'Juego desconocido';
+    final coverUrl = gameData['cover_url'] as String?;
+
+    final actionType = activity['action_type'] as String? ?? 'status_change';
+    final status = meta['status'] as String?;
+    final dateStr = _formatDate(activity['created_at'] as String? ?? '');
+
+    final actionText = _getActionText(actionType, status);
+    final actionIcon = _getActionIcon(actionType, status);
+    final actionColor = _getActionColor(actionType, status, context);
+
+    final myId = _supabase.auth.currentUser?.id;
+    final activityUserId = userData['id'] as String?;
+    final isOwnActivity = myId == activityUserId;
+
+    // Datos de la reseña enriquecida
+    final rating = review != null ? (review['rating'] as num?)?.toDouble() : (meta['rating'] as num?)?.toDouble();
+    final comment = review?['comment'] as String? ?? meta['comment'] as String? ?? '';
+    final List<dynamic> imageUrls = review?['image_urls'] ?? [];
+    final likes = review != null ? (review['review_likes'] as List?) ?? [] : [];
+    final comments = review != null ? (review['review_comments'] as List?) ?? [] : [];
+    final replayCount = review?['replay_count'] ?? 0;
+    final hasLiked = likes.any((l) => l['user_id'] == myId);
+    final isReview = review != null;
+
+    void openReview() {
+      if (review == null) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReviewDetailsScreen(
+            gameData: gameData,
+            userData: userData,
+            reviewData: review,
+          ),
+        ),
+      ).then((_) => _fetchActivity(silent: true));
+    }
+
+    void openReviewComments() {
+      if (review == null) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReviewDetailsScreen(
+            gameData: gameData,
+            userData: userData,
+            reviewData: review,
+            focusComment: true,
+          ),
+        ),
+      ).then((_) => _fetchActivity(silent: true));
+    }
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ReviewDetailsScreen(
-              gameData: gameData,
-              userData: userData,
-              reviewData: activity,
-            ),
-          ),
-        ).then((_) => _fetchActivity());
-      },
+      onTap: isReview ? openReview : null,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.1), width: 1),
+            bottom: BorderSide(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+            ),
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cabecera del usuario
+            // ── Cabecera: avatar + acción + tiempo ──
             Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                  child: avatarUrl == null ? const Icon(Icons.person, size: 24, ) : null,
-                ),
-                const SizedBox(width: 12),
-                Text(username, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-                const Spacer(),
-                if (replayCount > 0)
-                  Row(
+                GestureDetector(
+                  onTap: () {
+                    if (activityUserId != null) {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: activityUserId)));
+                    }
+                  },
+                  child: Row(
                     children: [
-                      Icon(Icons.replay, size: 16, color: Theme.of(context).colorScheme.secondary),
-                      const SizedBox(width: 4),
-                      Text(replayCount.toString(), style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontWeight: FontWeight.bold, fontSize: 14)),
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                        child: avatarUrl == null ? const Icon(Icons.person, size: 24) : null,
+                      ),
                       const SizedBox(width: 12),
                     ],
                   ),
-                Text(dateStr, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      if (activityUserId != null) {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: activityUserId)));
+                      }
+                    },
+                    child: RichText(
+                      text: TextSpan(
+                        style: DefaultTextStyle.of(context).style.copyWith(fontSize: 15),
+                        children: [
+                          TextSpan(
+                            text: isOwnActivity ? 'Tú' : displayName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(text: ' $actionText '),
+                          TextSpan(
+                            text: gameTitle,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(actionIcon, size: 16, color: actionColor),
+                const SizedBox(width: 4),
+                Text(
+                  dateStr,
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
               ],
             ),
+
             const SizedBox(height: 16),
-            
-            // Info del Juego y Nota
+
+            // ── Cuerpo: portada + info del juego / reseña ──
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 100, height: 140,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Theme.of(context).primaryColorDark,
-                    image: coverUrl.isNotEmpty ? DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover) : null,
-                    boxShadow: [
-                      BoxShadow(color: Theme.of(context).shadowColor.withValues(alpha: 0.54), blurRadius: 4, offset: Offset(0, 2)),
-                    ],
+                if (coverUrl != null)
+                  Container(
+                    width: 100,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      image: DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).shadowColor.withValues(alpha: 0.4),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
+                if (coverUrl != null) const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title, 
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22)
+                        gameTitle,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(_getStatusIcon(status), size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                          const SizedBox(width: 6),
-                          Text(_getStatusText(status), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
-                        ],
-                      ),
-                      if (rating > 0 || (activity['play_time_hours'] ?? 0) > 0) ...[
+                      // Estado del juego
+                      if (status != null)
+                        Row(
+                          children: [
+                            Icon(_getStatusIcon(status), size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            const SizedBox(width: 6),
+                            Text(
+                              _getStatusText(status),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      // Nota + tiempo de juego
+                      if (rating != null && rating > 0 || (review?['play_time_hours'] ?? 0) > 0) ...[
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            if (rating > 0) ...[
+                            if (rating != null && rating > 0) ...[
                               Icon(Icons.star, color: Theme.of(context).colorScheme.secondary, size: 18),
                               const SizedBox(width: 4),
-                              Text(rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              Text(
+                                rating.toStringAsFixed(1),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
                               const SizedBox(width: 16),
                             ],
-                            if ((activity['play_time_hours'] ?? 0) > 0) ...[
+                            if ((review?['play_time_hours'] ?? 0) > 0) ...[
                               Icon(Icons.access_time, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 18),
                               const SizedBox(width: 4),
-                              Text('${(activity['play_time_hours']).toDouble().toStringAsFixed(1)} h', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
+                              Text(
+                                '${(review!['play_time_hours'] as num).toDouble().toStringAsFixed(1)} h',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
+                              ),
+                            ],
+                            if (replayCount > 0) ...[
+                              const SizedBox(width: 12),
+                              Icon(Icons.replay, size: 16, color: Theme.of(context).colorScheme.secondary),
+                              const SizedBox(width: 4),
+                              Text(
+                                replayCount.toString(),
+                                style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
                             ],
                           ],
                         ),
@@ -263,7 +508,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 ),
               ],
             ),
-            
+
+            // ── Comentario / reseña ──
             if (comment.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(
@@ -273,7 +519,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            
+
+            // ── Imágenes adjuntas ──
             if (imageUrls.isNotEmpty) ...[
               const SizedBox(height: 16),
               SizedBox(
@@ -285,10 +532,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: GestureDetector(
-                        onTap: () => _showImageFullScreen(imageUrls[idx]),
+                        onTap: () => _showImageFullScreen(imageUrls[idx] as String),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(imageUrls[idx], height: 120, fit: BoxFit.fitHeight),
+                          child: Image.network(imageUrls[idx] as String, height: 120, fit: BoxFit.fitHeight),
                         ),
                       ),
                     );
@@ -296,88 +543,65 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 ),
               ),
             ],
-            
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                InkWell(
-                  onTap: () => _toggleLike(index),
-                  borderRadius: BorderRadius.circular(4),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-                    child: Row(
-                      children: [
-                        Icon(
-                          hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined, 
-                          size: 20, 
-                          color: hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          likes.length.toString(), 
-                          style: TextStyle(
-                            color: hasLiked ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant, 
-                            fontSize: 16,
-                            fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal
-                          )
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ReviewDetailsScreen(
-                          gameData: gameData,
-                          userData: userData,
-                          reviewData: activity,
-                          focusComment: true,
-                        ),
+
+            // ── Acciones (likes / comentarios) solo en reseñas ──
+            if (isReview) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () => _toggleLike(index),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                            size: 20,
+                            color: hasLiked
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            likes.length.toString(),
+                            style: TextStyle(
+                              color: hasLiked
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontSize: 16,
+                              fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ],
                       ),
-                    ).then((_) => _fetchActivity());
-                  },
-                  borderRadius: BorderRadius.circular(4),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-                    child: Row(
-                      children: [
-                        Icon(Icons.chat_bubble_outline, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        const SizedBox(width: 6),
-                        Text(comments.length.toString(), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
-                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 16),
+                  InkWell(
+                    onTap: openReviewComments,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      child: Row(
+                        children: [
+                          Icon(Icons.chat_bubble_outline, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          const SizedBox(width: 6),
+                          Text(
+                            comments.length.toString(),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Actividad Global'),
-      ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : _activities.isEmpty
-          ? Center(
-              child: Text('No hay actividad todavía.\n¡Añade un juego a tu biblioteca para empezar!', textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            )
-          : ListView.builder(
-              itemCount: _activities.length,
-              itemBuilder: (context, index) {
-                return _buildActivityCard(_activities[index], index);
-              },
-            ),
     );
   }
 
@@ -393,9 +617,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              InteractiveViewer(
-                child: Image.network(imageUrl, fit: BoxFit.contain),
-              ),
+              InteractiveViewer(child: Image.network(imageUrl, fit: BoxFit.contain)),
               Positioned(
                 top: 16,
                 right: 16,
@@ -408,6 +630,56 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.people_outline_rounded, size: 72, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(height: 16),
+          Text(
+            'Aquí verás tu actividad y la de tus amigos',
+            style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '¡Añade juegos a tu biblioteca o invita a amigos para empezar!',
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Actividad'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Actualizar',
+            onPressed: _fetchActivity,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _activities.isEmpty
+              ? _buildEmptyState()
+              : RefreshIndicator(
+                  onRefresh: _fetchActivity,
+                  child: ListView.builder(
+                    itemCount: _activities.length,
+                    itemBuilder: (context, index) => _buildActivityCard(_activities[index], index),
+                  ),
+                ),
     );
   }
 }

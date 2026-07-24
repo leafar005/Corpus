@@ -66,6 +66,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   List<Map<String, dynamic>> _reviews = [];
   Timer? _carouselTimer;
   
+  // ¿Quién lo tiene? - amigos con este juego en la biblioteca
+  List<Map<String, dynamic>> _friendsWithGame = [];
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +82,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     _fetchReviews();
     _fetchTimeToBeat();
     _fetchRelatedGames();
+    _fetchFriendsWithGame();
   }
 
   Future<void> _fetchTimeToBeat() async {
@@ -112,6 +116,221 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     } catch (_) {
       if (mounted) setState(() => _isLoadingRelated = false);
     }
+  }
+
+  /// Carga los amigos que tienen este juego en su biblioteca.
+  Future<void> _fetchFriendsWithGame() async {
+    final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+    if (gameId == null) return;
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    try {
+      // Obtener IDs de amigos aceptados
+      final sentFriends = await Supabase.instance.client
+          .from('friendships')
+          .select('addressee_id')
+          .eq('requester_id', myId)
+          .eq('status', 'accepted');
+      final receivedFriends = await Supabase.instance.client
+          .from('friendships')
+          .select('requester_id')
+          .eq('addressee_id', myId)
+          .eq('status', 'accepted');
+
+      final friendIds = <String>[
+        ...List<Map<String, dynamic>>.from(sentFriends).map((f) => f['addressee_id'] as String),
+        ...List<Map<String, dynamic>>.from(receivedFriends).map((f) => f['requester_id'] as String),
+      ];
+      if (friendIds.isEmpty) return;
+
+      // Buscar cuáles de esos amigos tienen el juego
+      final result = await Supabase.instance.client
+          .from('user_games')
+          .select('status, users!user_games_user_id_fkey(id, username, display_name, avatar_url)')
+          .eq('game_id', gameId is int ? gameId : int.parse(gameId.toString()))
+          .inFilter('user_id', friendIds);
+
+      if (mounted) {
+        setState(() {
+          _friendsWithGame = List<Map<String, dynamic>>.from(result);
+        });
+      }
+    } catch (e) {
+      debugPrint('[GameDetails] Error cargando amigos con el juego: $e');
+    }
+  }
+
+  Color _friendStatusColor(String status) {
+    switch (status) {
+      case 'playing': return Colors.blue;
+      case 'beaten': return Colors.green;
+      case 'abandoned': return Colors.red;
+      case 'on_hold': return Colors.orange;
+      case 'wishlist': return Colors.grey;
+      default: return Colors.grey;
+    }
+  }
+
+  IconData _friendStatusIcon(String status) {
+    switch (status) {
+      case 'playing': return Icons.sports_esports;
+      case 'beaten': return Icons.emoji_events;
+      case 'abandoned': return Icons.close;
+      case 'on_hold': return Icons.pause;
+      case 'wishlist': return Icons.bookmark;
+      default: return Icons.flag;
+    }
+  }
+
+  String _friendStatusLabel(String status) {
+    switch (status) {
+      case 'playing': return 'Jugando';
+      case 'beaten': return 'Completado';
+      case 'abandoned': return 'Abandonado';
+      case 'on_hold': return 'En pausa';
+      case 'wishlist': return 'En wishlist';
+      default: return 'Desconocido';
+    }
+  }
+
+  Future<void> _showFriendGameActivity(Map<String, dynamic> user, String currentStatus) async {
+    final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+    if (gameId == null) return;
+    final userId = user['id'];
+    if (userId == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final List<dynamic> rawActivities = await Supabase.instance.client
+          .from('activity_feed')
+          .select('*, users!activity_feed_user_id_fkey(*), games(*)')
+          .eq('user_id', userId)
+          .eq('game_id', gameId)
+          .order('created_at', ascending: false)
+          .limit(10);
+          
+      final List<Map<String, dynamic>> activities = List<Map<String, dynamic>>.from(rawActivities);
+      
+      Map<String, dynamic>? bestActivity;
+      if (activities.isNotEmpty) {
+        bestActivity = activities.firstWhere(
+          (act) => act['action_type'] == 'reviewed' || act['rating'] != null || (act['content'] != null && act['content'].toString().isNotEmpty),
+          orElse: () => activities.first,
+        );
+      }
+      
+      Map<String, dynamic>? finalReviewData;
+      if (bestActivity != null) {
+        final metadata = bestActivity['metadata'] as Map<String, dynamic>? ?? {};
+        final reviewId = metadata['review_id'];
+        if (reviewId != null) {
+          try {
+            final reviewResponse = await Supabase.instance.client
+                .from('reviews')
+                .select('*, review_likes(user_id), review_comments(id)')
+                .eq('id', reviewId)
+                .maybeSingle();
+            if (reviewResponse != null) {
+              finalReviewData = reviewResponse;
+            }
+          } catch (_) {}
+        }
+      }
+      
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
+
+      if (finalReviewData != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReviewDetailsScreen(
+              gameData: widget.gameData,
+              userData: user,
+              reviewData: finalReviewData!,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Este estado no tiene una reseña asociada.'))
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar la actividad: $e'))
+      );
+    }
+  }
+
+  // Widget "¿Quién lo tiene?" — avatares de amigos que tienen este juego
+  Widget _buildFriendsWithGame(BuildContext context) {
+    if (_friendsWithGame.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '¿Quién lo tiene?',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _friendsWithGame.map((f) {
+              final user = f['users'] as Map<String, dynamic>? ?? {};
+              final avatarUrl = user['avatar_url'] as String?;
+              final displayName = user['display_name'] as String? ?? user['username'] as String? ?? '?';
+              final status = f['status'] as String? ?? 'wishlist';
+              final statusColor = _friendStatusColor(status);
+              final statusIcon = _friendStatusIcon(status);
+              return GestureDetector(
+                onTap: () => _showFriendGameActivity(user, status),
+                child: Tooltip(
+                  message: '$displayName · ${_friendStatusLabel(status)}',
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CircleAvatar(
+                        radius: 34,
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                        child: avatarUrl == null ? const Icon(Icons.person, size: 34) : null,
+                      ),
+                      Positioned(
+                        bottom: -2,
+                        right: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(statusIcon, size: 18, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -2161,6 +2380,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                               coverArtWidget,
                               const SizedBox(height: 24),
                               interactiveWidget,
+                              if (isDesktop) _buildFriendsWithGame(context),
                             ],
                           ),
                         ),
@@ -2190,11 +2410,19 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                           children: [
                             SizedBox(width: 120, child: coverArtWidget),
                             const SizedBox(width: 16),
-                            Expanded(child: headerInfoWidget),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  headerInfoWidget,
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 24),
                         interactiveWidget,
+                        if (!isDesktop) _buildFriendsWithGame(context),
                         const SizedBox(height: 32),
                         tabsAndContentWidget,
                         const SizedBox(height: 60),
