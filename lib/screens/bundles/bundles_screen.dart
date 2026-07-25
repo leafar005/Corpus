@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/bundle_service.dart';
 import '../../services/igdb_service.dart';
-import '../library/game_details_screen.dart';
 import '../../widgets/game_card.dart';
 
 class _BundlesData {
@@ -33,6 +32,7 @@ class BundlesScreen extends StatefulWidget {
 }
 
 class _BundlesScreenState extends State<BundlesScreen> {
+  static const int _cacheSchemaVersion = 2;
   late Future<_BundlesData> _dataFuture;
   bool _isBackgroundRefreshing = false;
   
@@ -84,7 +84,8 @@ class _BundlesScreenState extends State<BundlesScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final str = prefs.getString('bundles_full_cache');
-      if (str != null) {
+      final version = prefs.getInt('bundles_full_cache_version');
+      if (str != null && version == _cacheSchemaVersion) {
         return _BundlesData.fromJson(json.decode(str));
       }
     } catch (e) {
@@ -150,9 +151,19 @@ class _BundlesScreenState extends State<BundlesScreen> {
         final chunk = titleList.skip(i).take(batchSize).toList();
         final results = await Future.wait(chunk.map((title) async {
           try {
-            final r = await IGDBService.searchGameLenient(title);
+            final cleanedTitle = title
+                .replaceAll(RegExp(r'\s*-?\s*(Digital\s+)?Deluxe\s+Edition.*$', caseSensitive: false), '')
+                .replaceAll(RegExp(r'\s*-?\s*Game\s+of\s+the\s+Year\s+Edition.*$', caseSensitive: false), '')
+                .replaceAll(RegExp(r"\s*-?\s*Collector(')?s\s+Edition.*$", caseSensitive: false), '')
+                .replaceAll(RegExp(r'\s*-?\s*Expansion\s+Standalone.*$', caseSensitive: false), '')
+                .replaceAll(RegExp(r'\s*-?\s*Premium\s+Edition.*$', caseSensitive: false), '')
+                .replaceAll(RegExp(r'\s*-?\s*Ultimate\s+Edition.*$', caseSensitive: false), '')
+                .replaceAll(RegExp(r'\s*-?\s*Complete\s+Edition.*$', caseSensitive: false), '')
+                .trim();
+            final r = await IGDBService.searchGameLenient(cleanedTitle);
             return r.isNotEmpty ? r.first as Map<String, dynamic> : null;
-          } catch (_) {
+          } catch (e) {
+            debugPrint('Error en searchGameLenient para "$title": $e');
             return null;
           }
         }));
@@ -178,6 +189,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('bundles_full_cache', json.encode(newData.toJson()));
       await prefs.setInt('bundles_full_cache_time', DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt('bundles_full_cache_version', _cacheSchemaVersion);
     } catch (e) {
       debugPrint('Error saving cache: $e');
     }
