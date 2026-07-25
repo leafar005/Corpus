@@ -4,6 +4,7 @@ import 'home/home_screen.dart';
 import 'library/search_screen.dart';
 import 'activity/activity_screen.dart';
 import 'profile/profile_screen.dart';
+import 'bundles/bundles_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MainScreen extends StatefulWidget {
@@ -21,12 +22,14 @@ class _MainScreenState extends State<MainScreen> {
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
   ];
 
   final List<Widget> _screens = [
     const HomeScreen(),
     const SearchScreen(),
     const ActivityScreen(),
+    const BundlesScreen(),
     const ProfileScreen(),
   ];
 
@@ -119,7 +122,9 @@ class _MainScreenState extends State<MainScreen> {
           const SizedBox(width: 16),
           _buildTopNavItem(2, 'Actividad', Icons.group),
           const SizedBox(width: 16),
-          _buildTopNavItem(3, 'Perfil', Icons.person),
+          _buildTopNavItem(3, 'Bundles', Icons.local_offer),
+          const SizedBox(width: 16),
+          _buildTopNavItem(4, 'Perfil', Icons.person),
         ],
       ),
     );
@@ -158,6 +163,7 @@ class _MainScreenState extends State<MainScreen> {
                   _buildNavigator(1),
                   _buildNavigator(2),
                   _buildNavigator(3),
+                  _buildNavigator(4),
                 ],
               ),
             ),
@@ -174,6 +180,7 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
             BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
             BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Actividad'),
+            BottomNavigationBarItem(icon: Icon(Icons.local_offer), label: 'Bundles'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
           ],
         ),
