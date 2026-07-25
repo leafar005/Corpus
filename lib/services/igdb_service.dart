@@ -1,6 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart'; // Añadido para kIsWeb
+import 'package:html/parser.dart' show parse;
 import '../env.dart';
 
 class IGDBService {
@@ -234,6 +235,40 @@ class IGDBService {
     return [];
   }
 
+  /// Convierte un único Steam App ID en la ficha de IGDB.
+  static Future<Map<String, dynamic>?> getGameBySteamId(int steamAppId) async {
+    await _authenticate();
+    try {
+      final String url = kIsWeb 
+          ? 'https://corsproxy.io/?https://api.igdb.com/v4/external_games'
+          : 'https://api.igdb.com/v4/external_games';
+          
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Client-ID': Env.igdbClientId,
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+        },
+        body: 'fields game; where uid = "$steamAppId"; limit 1;',
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        if (data.isNotEmpty && data.first['game'] != null) {
+          final int igdbId = data.first['game'] is Map 
+              ? data.first['game']['id'] 
+              : data.first['game'];
+          return await getGameById(igdbId);
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) print('[IGDB ERROR] Fallo al convertir SteamID $steamAppId: $e');
+      return null;
+    }
+  }
+
   // 5. Traductor: Convertir la ID de la imagen en un enlace URL real de internet
   static String getCoverUrl(String? imageId) {
     if (imageId == null) return '';
@@ -434,5 +469,166 @@ class IGDBService {
       if (kDebugMode) print('Error fetching franchise/collection games: $e');
       return [];
     }
+  }
+
+  /// Decodifica entidades HTML (&amp;, &#039;, &quot;, etc.) que a veces
+  /// vienen crudas desde fuentes externas como barter.vg
+  static String decodeHtmlEntities(String text) {
+    return parse(text).body?.text ?? text;
+  }
+
+  /// Búsqueda "permisiva" pensada para resolver títulos de bundles/DLCs
+  /// que no tienen cover propia ni rating en IGDB, pero sí existen.
+  static Future<List<dynamic>> searchGameLenient(String rawQuery) async {
+    await _authenticate();
+
+    final query = decodeHtmlEntities(rawQuery).trim();
+    if (query.isEmpty) return [];
+
+    final String url = kIsWeb
+        ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
+        : 'https://api.igdb.com/v4/games';
+
+    final words = query.toLowerCase().split(' ').where((w) => w.isNotEmpty).toList();
+    final wordConditions = words.map((w) =>
+        '(name ~ *"$w"* | alternative_names.name ~ *"$w"*)').join(' & ');
+
+    // Sin exigir cover != null ni total_rating_count != null.
+    // Ordenamos por total_rating_count desc pero sin filtrarlo.
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Client-ID': Env.igdbClientId,
+        'Authorization': 'Bearer $_accessToken',
+        'Accept': 'application/json',
+      },
+      body: 'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name; where $wordConditions; sort total_rating_count desc; limit 5;',
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List;
+    }
+    return [];
+  }
+
+  /// Consulta masiva en lotes a IGDB usando Steam App IDs con reporte de progreso.
+  static Future<Map<String, Map<String, dynamic>>> getGamesBySteamIds(
+    List<int> steamAppIds, {
+    Function(int processed, int total, String step)? onProgress,
+  }) async {
+    if (steamAppIds.isEmpty) return {};
+    await _authenticate();
+
+    final String extUrl = kIsWeb
+        ? 'https://corsproxy.io/?https://api.igdb.com/v4/external_games'
+        : 'https://api.igdb.com/v4/external_games';
+
+    final Map<int, int> steamIdToIgdbId = {};
+    const chunkSize = 50;
+
+    for (var i = 0; i < steamAppIds.length; i += chunkSize) {
+      final chunk = steamAppIds.skip(i).take(chunkSize).toList();
+      final orConditions = chunk.map((id) => 'uid = "$id"').join(' | ');
+      final body = 'fields uid, game; where $orConditions; limit ${chunk.length};';
+
+      try {
+        final response = await http.post(
+          Uri.parse(extUrl),
+          headers: {
+            'Client-ID': Env.igdbClientId,
+            'Authorization': 'Bearer $_accessToken',
+            'Accept': 'application/json',
+          },
+          body: body,
+        );
+
+        if (response.statusCode == 200) {
+          final List<dynamic> data = jsonDecode(response.body);
+          for (final entry in data) {
+            final uidStr = entry['uid']?.toString();
+            final uid = int.tryParse(uidStr ?? '');
+            final rawGame = entry['game'];
+            final gameId = rawGame is Map ? rawGame['id'] : rawGame;
+            
+            if (uid != null && gameId != null) {
+              steamIdToIgdbId[uid] = gameId is int ? gameId : int.parse(gameId.toString());
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) print('[IGDB BATCH ERROR] Chunk $i: $e');
+      }
+
+      // Notificamos el progreso a la barra (del 0% al 100% de esta fase)
+      if (onProgress != null) {
+        final current = (i + chunk.length < steamAppIds.length) ? i + chunk.length : steamAppIds.length;
+        onProgress(current, steamAppIds.length, 'Identificando juegos en IGDB ($current de ${steamAppIds.length})...');
+      }
+    }
+
+    if (steamIdToIgdbId.isEmpty) return {};
+
+    if (onProgress != null) {
+      onProgress(steamAppIds.length, steamAppIds.length, 'Descargando portadas en alta resolución...');
+    }
+
+    final igdbIds = steamIdToIgdbId.values.toSet().toList();
+    final games = await getGamesByIdsFull(igdbIds);
+
+    final Map<int, Map<String, dynamic>> gamesById = {
+      for (final g in games) (g['id'] as num).toInt(): g as Map<String, dynamic>,
+    };
+
+    final Map<String, Map<String, dynamic>> result = {};
+    steamIdToIgdbId.forEach((steamId, igdbId) {
+      final game = gamesById[igdbId];
+      if (game != null) result['steam:$steamId'] = game;
+    });
+
+    return result;
+  }
+
+
+  /// Datos completos (con cover, para GameCard) de una lista de IGDB IDs,
+  /// en lotes para no exceder los límites de IGDB.
+  static Future<List<dynamic>> getGamesByIdsFull(List<int> igdbIds) async {
+    if (igdbIds.isEmpty) return [];
+    await _authenticate();
+
+    final String url = kIsWeb
+        ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
+        : 'https://api.igdb.com/v4/games';
+
+    final List<dynamic> allResults = [];
+    const chunkSize = 200;
+
+    for (var i = 0; i < igdbIds.length; i += chunkSize) {
+      final chunk = igdbIds.skip(i).take(chunkSize).toList();
+      final idsString = chunk.join(',');
+      final body = 'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name; where id = ($idsString); limit ${chunk.length};';
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Client-ID': Env.igdbClientId,
+          'Authorization': 'Bearer $_accessToken',
+          'Accept': 'application/json',
+        },
+        body: body,
+      );
+
+      if (kDebugMode) {
+        print('[IGDB BATCH getGamesByIdsFull] status=${response.statusCode}');
+        if (response.statusCode != 200) {
+          print('[IGDB BATCH getGamesByIdsFull] Error response: ${response.body}');
+        }
+      }
+
+      if (response.statusCode == 200) {
+        allResults.addAll(jsonDecode(response.body) as List);
+      }
+    }
+
+    return allResults;
   }
 }
