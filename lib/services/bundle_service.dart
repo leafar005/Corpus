@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GameBundle {
   final String id;
@@ -18,6 +19,24 @@ class GameBundle {
     this.endDate,
     required this.tiers,
   });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'storeName': storeName,
+    'url': url,
+    'endDate': endDate?.toIso8601String(),
+    'tiers': tiers.map((t) => t.toJson()).toList(),
+  };
+
+  factory GameBundle.fromJson(Map<String, dynamic> json) => GameBundle(
+    id: json['id'],
+    title: json['title'],
+    storeName: json['storeName'],
+    url: json['url'],
+    endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
+    tiers: (json['tiers'] as List).map((t) => BundleTier.fromJson(t)).toList(),
+  );
 }
 
 class BundleTier {
@@ -26,6 +45,18 @@ class BundleTier {
   final List<BundleGame> games;
 
   BundleTier({required this.name, this.price, required this.games});
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'price': price,
+    'games': games.map((g) => g.toJson()).toList(),
+  };
+
+  factory BundleTier.fromJson(Map<String, dynamic> json) => BundleTier(
+    name: json['name'],
+    price: json['price'] != null ? (json['price'] as num).toDouble() : null,
+    games: (json['games'] as List).map((g) => BundleGame.fromJson(g)).toList(),
+  );
 }
 
 class BundleGame {
@@ -33,15 +64,86 @@ class BundleGame {
   final int? steamAppId;
 
   BundleGame({required this.title, this.steamAppId});
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'steamAppId': steamAppId,
+  };
+
+  factory BundleGame.fromJson(Map<String, dynamic> json) => BundleGame(
+    title: json['title'],
+    steamAppId: json['steamAppId'] != null ? (json['steamAppId'] as num).toInt() : null,
+  );
 }
 
 class BundleService {
   static const String _endpoint = 'https://barter.vg/bundles/json/';
+  static const String _cacheKey = 'active_bundles_cache';
+
+  // --- Flags de depuración: solo volcamos el primer bundle de cada tienda ---
+  static bool _dumpedFanatical = false;
+  static bool _dumpedHumble = false;
 
   static int storeRankPublic(String storeName) {
     if (storeName == 'Humble Bundle') return 1;
     if (storeName == 'Fanatical') return 2;
     return 99;
+  }
+
+  static Future<List<GameBundle>?> getCachedBundles() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedString = prefs.getString(_cacheKey);
+      if (cachedString != null) {
+        final List<dynamic> decoded = json.decode(cachedString);
+        return decoded.map((e) => GameBundle.fromJson(e)).toList();
+      }
+    } catch (e) {
+      if (kDebugMode) print('[BUNDLE SERVICE] Error leyendo caché: $e');
+    }
+    return null;
+  }
+
+  /// Volcado de depuración: imprime la estructura cruda de un bundle
+  /// para poder localizar dónde vive el precio por tier / pick count.
+  static void _debugDumpBundleStructure(String storeName, String key, Map<String, dynamic> bundleMap) {
+    if (!kDebugMode) return;
+
+    debugPrint('========== DEBUG DUMP [$storeName] bundle key=$key ==========');
+    debugPrint('Claves de nivel superior del bundle: ${bundleMap.keys.toList()}');
+
+    for (final k in bundleMap.keys) {
+      final lower = k.toLowerCase();
+      if (lower.contains('tier') || lower.contains('price') || lower.contains('cost')) {
+        debugPrint('  -> $k = ${bundleMap[k]}');
+      }
+    }
+
+    final meta = bundleMap['meta'];
+    if (meta is Map) {
+      debugPrint('meta completo: ${json.encode(meta)}');
+    }
+
+    final rawGames = bundleMap['games'] ?? bundleMap['items'];
+    if (rawGames is Map && rawGames.isNotEmpty) {
+      final firstKey = rawGames.keys.first;
+      debugPrint('Ejemplo de juego crudo (key=$firstKey): ${json.encode(rawGames[firstKey])}');
+
+      final allKeys = rawGames.keys.toList();
+      if (allKeys.length > 3) {
+        final midKey = allKeys[allKeys.length ~/ 2];
+        debugPrint('Ejemplo de juego crudo intermedio (key=$midKey): ${json.encode(rawGames[midKey])}');
+      }
+    } else {
+      debugPrint('rawGames no es un Map o está vacío. Tipo real: ${rawGames.runtimeType}');
+    }
+
+    final tiersRaw = bundleMap['tiers'] ?? bundleMap['tier'] ?? bundleMap['prices'] ?? bundleMap['levels'];
+    if (tiersRaw != null) {
+      debugPrint('Estructura de tiers/prices separada: ${json.encode(tiersRaw)}');
+    }
+
+    debugPrint('========== FIN DEBUG DUMP [$storeName] ==========');
   }
 
   /// Único añadido al código estable: lee divisa o texto sin alterar el bucle
@@ -80,14 +182,14 @@ class BundleService {
 
       final dynamic decoded = json.decode(response.body);
       if (decoded is! Map) return [];
-      
+
       Map<String, dynamic> data = Map<String, dynamic>.from(decoded);
       if (data.containsKey('bundles') && data['bundles'] is Map) {
         data = Map<String, dynamic>.from(data['bundles']);
       } else if (data.containsKey('data') && data['data'] is Map) {
         data = Map<String, dynamic>.from(data['data']);
       }
-      
+
       final List<GameBundle> activeBundles = [];
       final now = DateTime.now().toUtc();
 
@@ -103,6 +205,16 @@ class BundleService {
 
         final String storeName = isHumble ? 'Humble Bundle' : 'Fanatical';
 
+        // --- VOLCADO DE DEPURACIÓN (solo una vez por tienda) ---
+        if (isFanatical && !_dumpedFanatical) {
+          _dumpedFanatical = true;
+          _debugDumpBundleStructure(storeName, key, bundleMap);
+        }
+        if (isHumble && !_dumpedHumble) {
+          _dumpedHumble = true;
+          _debugDumpBundleStructure(storeName, key, bundleMap);
+        }
+
         final meta = bundleMap['meta'] is Map ? Map<String, dynamic>.from(bundleMap['meta']) : <String, dynamic>{};
         final String title = meta['title']?.toString() ?? bundleMap['title']?.toString() ?? bundleMap['name']?.toString() ?? 'Bundle sin título';
         final String url = meta['url']?.toString() ?? bundleMap['url']?.toString() ?? bundleMap['bundle_url']?.toString() ?? 'https://barter.vg/bundle/$key/';
@@ -115,10 +227,8 @@ class BundleService {
             if (endStr != '0' && endStr.isNotEmpty && endStr != 'null') {
               final int endTimestamp = int.parse(endStr);
               if (endTimestamp > 0) {
-                // Si son 10 dígitos, son segundos. Si son 13, milisegundos.
                 final isSeconds = endStr.length <= 10;
                 endDate = DateTime.fromMillisecondsSinceEpoch(isSeconds ? endTimestamp * 1000 : endTimestamp, isUtc: true);
-                // Le damos 24h de gracia
                 if (endDate.isBefore(now.subtract(const Duration(days: 1)))) return;
               }
             }
@@ -134,7 +244,7 @@ class BundleService {
               final gMap = Map<String, dynamic>.from(gameVal);
               final tier = int.tryParse(gMap['tier']?.toString() ?? '1') ?? 1;
               final steamId = int.tryParse(gMap['id']?.toString() ?? gMap['steam_app_id']?.toString() ?? gMap['appid']?.toString() ?? gMap['steam_id']?.toString() ?? '');
-              
+
               if (steamId != null && steamId > 0) {
                 gamesByTier.putIfAbsent(tier, () => []).add(BundleGame(
                   title: gMap['title']?.toString() ?? gMap['name']?.toString() ?? gMap['game_title']?.toString() ?? 'Juego Desconocido',
@@ -146,15 +256,18 @@ class BundleService {
         }
 
         final List<BundleTier> tiersList = [];
-        gamesByTier.forEach((tierNum, gamesList) {
+        final sortedTiers = gamesByTier.keys.toList()..sort();
+
+        for (final tierNum in sortedTiers) {
+          final gamesList = gamesByTier[tierNum]!;
           if (gamesList.isNotEmpty) {
             tiersList.add(BundleTier(
               name: 'Tier $tierNum',
-              price: _readPrice({}, bundleMap), // Si barter añade precio global al bundle, lo leerá
+              price: _readPrice({}, bundleMap),
               games: gamesList,
             ));
           }
-        });
+        }
 
         if (tiersList.isNotEmpty) {
           activeBundles.add(GameBundle(
@@ -172,16 +285,25 @@ class BundleService {
       activeBundles.sort((a, b) {
         final aExpired = a.endDate != null && a.endDate!.isBefore(nowSort);
         final bExpired = b.endDate != null && b.endDate!.isBefore(nowSort);
-        
+
         if (aExpired && !bExpired) return 1;
         if (!aExpired && bExpired) return -1;
-        
+
         if (a.endDate == null && b.endDate != null) return 1;
         if (a.endDate != null && b.endDate == null) return -1;
         if (a.endDate == null && b.endDate == null) return 0;
-        
+
         return a.endDate!.compareTo(b.endDate!);
       });
+
+      // Guardar en caché
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final jsonList = activeBundles.map((b) => b.toJson()).toList();
+        await prefs.setString(_cacheKey, json.encode(jsonList));
+      } catch (e) {
+        if (kDebugMode) print('[BUNDLE SERVICE] Error guardando caché: $e');
+      }
 
       if (kDebugMode) print('[BUNDLE SERVICE] Encontrados ${activeBundles.length} bundles activos.');
       return activeBundles;
