@@ -77,9 +77,12 @@ class IGDBService {
     final bool isTextSearch = cleanQuery.isNotEmpty && involvedCompanies == null && collections == null && franchises == null;
     if (isTextSearch) {
       if (sortClause.contains('total_rating_count') && sortClause.contains('desc')) {
-        whereConditions += ' & total_rating_count != null';
+        // Truco de IGDB: Si ordenamos por un campo, IGDB excluye automáticamente los nulos.
+        // Añadiendo esta condición OR explícita evitamos que los excluya,
+        // ordenando primero los populares y dejando los juegos indie sin votos (null) al final.
+        whereConditions += ' & (total_rating_count != null | total_rating_count = null)';
       } else if (sortClause.contains('rating') && sortClause.contains('desc')) {
-        whereConditions += ' & rating != null';
+        whereConditions += ' & (rating != null | rating = null)';
       }
     }
 

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/bundle_service.dart';
 import '../../services/igdb_service.dart';
@@ -9,6 +11,18 @@ class _BundlesData {
   final List<GameBundle> bundles;
   final Map<String, Map<String, dynamic>> resolvedGames;
   _BundlesData(this.bundles, this.resolvedGames);
+
+  Map<String, dynamic> toJson() => {
+    'bundles': bundles.map((b) => b.toJson()).toList(),
+    'resolvedGames': resolvedGames,
+  };
+
+  factory _BundlesData.fromJson(Map<String, dynamic> json) {
+    final bList = (json['bundles'] as List).map((e) => GameBundle.fromJson(e)).toList();
+    final Map<String, dynamic> rRaw = json['resolvedGames'] ?? {};
+    final rMap = rRaw.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v)));
+    return _BundlesData(bList, rMap);
+  }
 }
 
 class BundlesScreen extends StatefulWidget {
@@ -20,6 +34,7 @@ class BundlesScreen extends StatefulWidget {
 
 class _BundlesScreenState extends State<BundlesScreen> {
   late Future<_BundlesData> _dataFuture;
+  bool _isBackgroundRefreshing = false;
   
   final ValueNotifier<double> _progressNotifier = ValueNotifier<double>(0.0);
   final ValueNotifier<String> _statusNotifier = ValueNotifier<String>('Conectando con Humble Bundle y Fanatical...');
@@ -27,7 +42,55 @@ class _BundlesScreenState extends State<BundlesScreen> {
   @override
   void initState() {
     super.initState();
-    _dataFuture = _loadData();
+    _initData();
+  }
+
+  void _initData() {
+    _dataFuture = _loadDataFromCache().then((cached) {
+      if (cached != null) {
+        _checkAndRevalidate();
+        return cached;
+      }
+      return _loadData();
+    });
+  }
+
+  void _checkAndRevalidate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cacheTime = prefs.getInt('bundles_full_cache_time') ?? 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    // Si la caché tiene menos de 8 horas, no recargamos de fondo
+    final eightHours = 8 * 60 * 60 * 1000;
+    if (now - cacheTime < eightHours) {
+      return; 
+    }
+
+    if (mounted) setState(() => _isBackgroundRefreshing = true);
+    
+    _loadData().then((freshData) {
+      if (mounted) {
+        setState(() {
+          _dataFuture = Future.value(freshData);
+          _isBackgroundRefreshing = false;
+        });
+      }
+    }).catchError((_) {
+      if (mounted) setState(() => _isBackgroundRefreshing = false);
+    });
+  }
+
+  Future<_BundlesData?> _loadDataFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString('bundles_full_cache');
+      if (str != null) {
+        return _BundlesData.fromJson(json.decode(str));
+      }
+    } catch (e) {
+      debugPrint('Error loading cache: $e');
+    }
+    return null;
   }
 
   @override
@@ -108,9 +171,18 @@ class _BundlesScreenState extends State<BundlesScreen> {
     }
 
     _progressNotifier.value = 1.0;
-    _statusNotifier.value = '¡Ofertas listas!';
+    _statusNotifier.value = 'Completado.';
 
-    return _BundlesData(bundles, resolved);
+    final newData = _BundlesData(bundles, resolved);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('bundles_full_cache', json.encode(newData.toJson()));
+      await prefs.setInt('bundles_full_cache_time', DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint('Error saving cache: $e');
+    }
+
+    return newData;
   }
 
   Map<String, dynamic>? _lookup(BundleGame bg, Map<String, Map<String, dynamic>> resolved) {
@@ -190,6 +262,12 @@ class _BundlesScreenState extends State<BundlesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bundles Activos'),
+        bottom: _isBackgroundRefreshing
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(2.0),
+                child: LinearProgressIndicator(minHeight: 2.0),
+              )
+            : null,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -206,7 +284,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
       body: FutureBuilder<_BundlesData>(
         future: _dataFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
             // --- BARRA DE PROGRESO COMPACTA Y CENTRADA ---
             return Center(
               child: ConstrainedBox(
