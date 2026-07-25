@@ -202,7 +202,7 @@ class IGDBService {
         'Authorization': 'Bearer $_accessToken',
         'Accept': 'application/json',
       },
-      body: 'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name; where id = $igdbId;',
+      body: 'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name, websites.url, websites.category, websites.type; where id = $igdbId;',
     );
 
     if (response.statusCode == 200) {
@@ -532,7 +532,11 @@ class IGDBService {
     for (var i = 0; i < steamAppIds.length; i += chunkSize) {
       final chunk = steamAppIds.skip(i).take(chunkSize).toList();
       final orConditions = chunk.map((id) => 'uid = "$id"').join(' | ');
-      final body = 'fields uid, game; where $orConditions; limit ${chunk.length};';
+      // OJO: no limitar a chunk.length. Un mismo Steam AppID puede tener
+      // varias filas en external_games (duplicados, distintas categorías),
+      // así que con limit = chunk.length algunos juegos del lote se quedan
+      // fuera de la respuesta sin ningún error. 500 es el máximo por petición.
+      final body = 'fields uid, game; where $orConditions; limit 500;';
 
       try {
         final response = await http.post(

@@ -5,6 +5,7 @@ import 'profile/edit_profile_screen.dart';
 import 'info_screen.dart';
 import 'appearance_screen.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/import_service.dart';
 import 'settings/import_preview_screen.dart';
 
@@ -178,6 +179,40 @@ class SettingsScreen extends StatelessWidget {
           ),
           
           const Divider(color: Colors.white24, height: 32),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Text('Preferencias', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          ),
+          FutureBuilder<SharedPreferences>(
+            future: SharedPreferences.getInstance(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const ListTile(
+                  leading: CircularProgressIndicator(),
+                  title: Text('Cargando preferencias...'),
+                );
+              }
+              final prefs = snapshot.data!;
+              return StatefulBuilder(
+                builder: (context, setState) {
+                  final localizeLinks = prefs.getBool('localize_links') ?? true;
+                  return SwitchListTile(
+                    secondary: const Icon(Icons.language),
+                    title: const Text('Traducir enlaces de tiendas'),
+                    subtitle: const Text('Convierte los enlaces de tiendas a euros y español.'),
+                    value: localizeLinks,
+                    activeColor: Theme.of(context).colorScheme.primary,
+                    onChanged: (bool value) {
+                      prefs.setBool('localize_links', value);
+                      setState(() {});
+                    },
+                  );
+                },
+              );
+            },
+          ),
+          
+          const Divider(color: Colors.white24, height: 32),
           
           ListTile(
             leading: const Icon(Icons.delete_forever, color: Colors.orange),
@@ -238,6 +273,29 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
           
+          ListTile(
+            leading: const Icon(Icons.cleaning_services, color: Colors.orange),
+            title: const Text('DEBUG: Limpiar caché de Bundles', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+            onTap: () async {
+              try {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('bundles_full_cache');
+                await prefs.remove('bundles_full_cache_time');
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Caché de bundles eliminada.'), backgroundColor: Colors.orange)
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al limpiar caché: $e'), backgroundColor: Colors.red)
+                  );
+                }
+              }
+            },
+          ),
+
           const Divider(color: Colors.white24, height: 32),
           ListTile(
             leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
