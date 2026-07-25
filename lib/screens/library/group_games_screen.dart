@@ -2,23 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/widgets/game_card.dart';
 
-class FranchiseGamesScreen extends StatefulWidget {
+class GroupGamesScreen extends StatefulWidget {
   final String title;
   final int collectionId;
   final bool isFranchise;
+  final bool isCompany;
 
-  const FranchiseGamesScreen({
+  const GroupGamesScreen({
     super.key,
     required this.title,
     required this.collectionId,
     this.isFranchise = false,
+    this.isCompany = false,
   });
 
   @override
-  State<FranchiseGamesScreen> createState() => _FranchiseGamesScreenState();
+  State<GroupGamesScreen> createState() => _GroupGamesScreenState();
 }
 
-class _FranchiseGamesScreenState extends State<FranchiseGamesScreen> {
+class _GroupGamesScreenState extends State<GroupGamesScreen> {
   List<dynamic> _games = [];
   bool _isLoading = true;
   String? _error;
@@ -31,10 +33,12 @@ class _FranchiseGamesScreenState extends State<FranchiseGamesScreen> {
 
   Future<void> _loadGames() async {
     try {
-      final games = await IGDBService.getGamesByCollection(
-        widget.collectionId, 
-        isFranchise: widget.isFranchise
-      );
+      final games = widget.isCompany
+          ? await IGDBService.getAchievementGames(companyId: widget.collectionId, limit: 100)
+          : await IGDBService.getGamesByCollection(
+              widget.collectionId, 
+              isFranchise: widget.isFranchise
+            );
       if (mounted) {
         setState(() {
           _games = games;
