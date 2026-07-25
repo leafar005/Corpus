@@ -164,6 +164,32 @@ class BundleService {
     return null;
   }
 
+  /// Extrae el Steam AppID real de una entrada de juego de barter.vg.
+  /// Para "paquetes" (type == 2, p.ej. Ediciones Deluxe), el campo 'id' es un ID de paquete de Steam
+  /// que NO existe en IGDB. El AppID real del juego base está dentro de 'included'.
+  static int? _extractSteamAppId(Map<String, dynamic> gMap) {
+    final int gameType = int.tryParse(gMap['type']?.toString() ?? '1') ?? 1;
+
+    if (gameType == 2 && gMap['included'] is Map) {
+      final included = Map<String, dynamic>.from(gMap['included']);
+      if (included.isNotEmpty) {
+        final sortedKeys = included.keys.toList()
+          ..sort((a, b) => (int.tryParse(a) ?? 999999).compareTo(int.tryParse(b) ?? 999999));
+        final baseId = included[sortedKeys.first];
+        final parsed = int.tryParse(baseId?.toString() ?? '');
+        if (parsed != null && parsed > 0) return parsed;
+      }
+    }
+
+    return int.tryParse(
+      gMap['id']?.toString() ??
+      gMap['steam_app_id']?.toString() ??
+      gMap['appid']?.toString() ??
+      gMap['steam_id']?.toString() ??
+      '',
+    );
+  }
+
   /// Motor de lectura restaurado al 100% a la versión que resolvió los 428 juegos
   static Future<List<GameBundle>> getActiveBundles() async {
     try {
@@ -219,6 +245,22 @@ class BundleService {
         final String title = meta['title']?.toString() ?? bundleMap['title']?.toString() ?? bundleMap['name']?.toString() ?? 'Bundle sin título';
         final String url = meta['url']?.toString() ?? bundleMap['url']?.toString() ?? bundleMap['bundle_url']?.toString() ?? 'https://barter.vg/bundle/$key/';
 
+        // --- DEBUG TEMPORAL ---
+        final List<String> _debugTargets = ['Twin Sails', 'Choice', 'Prestige Collection'];
+        if (kDebugMode && _debugTargets.any((t) => title.toLowerCase().contains(t.toLowerCase()))) {
+          final dynamic dbgRawGames = bundleMap['games'] ?? bundleMap['items'];
+          debugPrint('========== DUMP COMPLETO [$storeName] "$title" (key=$key) ==========');
+          if (dbgRawGames is Map) {
+            dbgRawGames.forEach((gk, gv) {
+              debugPrint('  game_key=$gk -> $gv');
+            });
+          } else {
+            debugPrint('  rawGames no es un Map: ${dbgRawGames.runtimeType}');
+          }
+          debugPrint('========== FIN DUMP [$storeName] "$title" ==========');
+        }
+        // --- FIN DEBUG TEMPORAL ---
+
         DateTime? endDate;
         final endRaw = meta['end'] ?? bundleMap['end'];
         if (endRaw != null) {
@@ -242,8 +284,14 @@ class BundleService {
           rawGames.forEach((gameKey, gameVal) {
             if (gameVal is Map) {
               final gMap = Map<String, dynamic>.from(gameVal);
-              final tier = int.tryParse(gMap['tier']?.toString() ?? '1') ?? 1;
-              final steamId = int.tryParse(gMap['id']?.toString() ?? gMap['steam_app_id']?.toString() ?? gMap['appid']?.toString() ?? gMap['steam_id']?.toString() ?? '');
+              
+              // El campo 'tier' solo representa niveles de precio reales en Humble Bundle.
+              // En Fanatical es un campo interno, lo ignoramos y agrupamos en un único tier.
+              final int tier = isHumble
+                  ? (int.tryParse(gMap['tier']?.toString() ?? '1') ?? 1)
+                  : 1;
+
+              final steamId = _extractSteamAppId(gMap);
 
               if (steamId != null && steamId > 0) {
                 gamesByTier.putIfAbsent(tier, () => []).add(BundleGame(
