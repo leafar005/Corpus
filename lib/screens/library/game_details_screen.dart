@@ -11,8 +11,9 @@ import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
 import '../../utils/storage_utils.dart';
 import '../activity/review_details_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'search_screen.dart';
-import 'franchise_games_screen.dart';
+import 'group_games_screen.dart';
 import '../../widgets/achievement_toast.dart';
 
 class GameDetailsScreen extends StatefulWidget {
@@ -69,6 +70,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   
   // ¿Quién lo tiene? - amigos con este juego en la biblioteca
   List<Map<String, dynamic>> _friendsWithGame = [];
+  bool _localizeLinks = true;
 
   @override
   void initState() {
@@ -78,12 +80,22 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         _showReviewModal();
       }
     });
+    _loadPreferences();
     _startCarousel(widget.gameData['screenshots']);
     _enrichGameData();
     _fetchReviews();
     _fetchTimeToBeat();
     _fetchRelatedGames();
     _fetchFriendsWithGame();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _localizeLinks = prefs.getBool('localize_links') ?? true;
+      });
+    }
   }
 
   Future<void> _fetchTimeToBeat() async {
@@ -437,13 +449,18 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (game != null && mounted) {
         // Extraer desarrollador
         String? developer;
+        int? developerId;
         if (game['involved_companies'] != null && (game['involved_companies'] as List).isNotEmpty) {
           final companies = game['involved_companies'] as List;
           try {
             final dev = companies.firstWhere((c) => c['developer'] == true);
             developer = dev['company']['name'];
+            developerId = dev['company']['id'];
           } catch (_) {
-            try { developer = companies[0]['company']['name']; } catch (_) {}
+            try { 
+              developer = companies[0]['company']['name']; 
+              developerId = companies[0]['company']['id']; 
+            } catch (_) {}
           }
         }
 
@@ -453,7 +470,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         setState(() {
           _enrichedData = {
             if (game['summary'] != null) 'summary': game['summary'],
-            'developer': ?developer,
+            'developer': developer,
+            'developer_id': developerId,
             if (game['category'] != null) 'category': game['category'],
             if (game['game_type'] != null) 'game_type': game['game_type'],
             if (game['parent_game'] != null) 'parent_game': game['parent_game'],
@@ -480,6 +498,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 : [],
             'player_perspectives': game['player_perspectives'] != null
                 ? (game['player_perspectives'] as List).map((p) => p['name']).toList()
+                : [],
+            'websites': game['websites'] != null
+                ? (game['websites'] as List).map((w) => {'url': w['url'], 'category': w['type'] ?? w['category']}).toList()
                 : [],
             if (game['collection'] != null) 'collection': {'id': game['collection']['id'], 'name': game['collection']['name']},
             'franchises': game['franchises'] != null
@@ -1756,6 +1777,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final developer = (widget.gameData['developer'] != null && widget.gameData['developer'] != 'Desconocido' && widget.gameData['developer'] != 'Desarrollador desconocido')
         ? widget.gameData['developer']
         : _enrichedData['developer'];
+    final developerId = widget.gameData['developer_id'] ?? _enrichedData['developer_id'];
     final hasParentGame = widget.gameData['parent_game'] != null || _enrichedData['parent_game'] != null;
     
     // Resolver categoría usando IgdbConstants (centralizado)
@@ -1856,14 +1878,28 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         if (developer != null && developer != 'Desconocido' && developer != 'Desarrollador desconocido')
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Icon(Icons.business, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(developer, style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(4),
+              onTap: developerId != null ? () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => GroupGamesScreen(
+                  title: developer.toString(),
+                  collectionId: developerId as int,
+                  isCompany: true,
+                )));
+              } : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.business, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(developer, style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         if (releaseDate != null || categoryLabel != null)
@@ -1925,7 +1961,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final List videosList = (widget.gameData['videos'] as List?)?.isNotEmpty == true 
         ? widget.gameData['videos'] 
         : (_enrichedData['videos'] as List? ?? []);
+    final List websitesList = (widget.gameData['websites'] as List?)?.isNotEmpty == true 
+        ? widget.gameData['websites'] 
+        : (_enrichedData['websites'] as List? ?? []);
     final bool hasMedia = screenshotsList.isNotEmpty || artworksList.isNotEmpty || videosList.isNotEmpty;
+    final bool hasLinks = websitesList.isNotEmpty;
 
     Widget buildInfoTab() {
       return Column(
@@ -1945,7 +1985,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   onPressed: () {
                     if (collectionId != null) {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => FranchiseGamesScreen(
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => GroupGamesScreen(
                         title: collectionName!,
                         collectionId: collectionId!,
                         isFranchise: false,
@@ -1962,7 +2002,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 onPressed: () {
                   if (f['id'] != null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => FranchiseGamesScreen(
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => GroupGamesScreen(
                       title: f['name'].toString(),
                       collectionId: f['id'] as int,
                       isFranchise: true,
@@ -2385,29 +2425,198 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       );
     }
 
-    // Asignar índices dinámicamente para evitar huecos si Media no existe
+    /// Convierte enlaces internacionales o estadounidenses a su versión de España
+    String localizeUrlToSpain(String rawUrl) {
+      if (!_localizeLinks) return rawUrl;
+      
+      String url = rawUrl;
+      final lower = url.toLowerCase();
+
+      // 1. STEAM: Fuerza idioma español y tienda regional de España (Euros €)
+      if (lower.contains('store.steampowered.com')) {
+        final separator = url.contains('?') ? '&' : '?';
+        if (!lower.contains('l=spanish') && !lower.contains('cc=es')) {
+          return '$url${separator}l=spanish&cc=es';
+        }
+      }
+
+      // 2. PLAYSTATION STORE: Cambia regiones como /en-us/ o /en-gb/ por /es-es/
+      if (lower.contains('store.playstation.com')) {
+        return url.replaceAll(RegExp(r'/(en|es|fr|de|it|pt|ja|ko|zh)-[a-z]{2}/', caseSensitive: false), '/es-es/');
+      }
+
+      // 3. XBOX / MICROSOFT STORE: Cambia región a /es-es/
+      if (lower.contains('xbox.com') || lower.contains('microsoft.com')) {
+        return url.replaceAll(RegExp(r'/(en|es|fr|de|it|pt|ja|ko|zh)-[a-z]{2}/', caseSensitive: false), '/es-es/');
+      }
+
+      // 4. EPIC GAMES STORE: Cambia región a /es-ES/
+      if (lower.contains('store.epicgames.com') || lower.contains('epicgames.com')) {
+        return url.replaceAll(RegExp(r'/(en|es|fr|de|it|pt|ja|ko|zh)-[a-zA-Z]{2}/', caseSensitive: false), '/es-ES/');
+      }
+
+      // 5. NINTENDO: Cambia regiones americanas o británicas a /es-es/
+      if (lower.contains('nintendo.com')) {
+        return url.replaceAll(RegExp(r'/(en-us|en-gb|us|uk)/', caseSensitive: false), '/es-es/');
+      }
+
+      // 6. APPLE APP STORE (iOS): Cambia la tienda /us/ por /es/
+      if (lower.contains('apps.apple.com')) {
+        return url.replaceAll(RegExp(r'/apps\.apple\.com/[a-z]{2}/', caseSensitive: false), '/apps.apple.com/es/');
+      }
+
+      // 7. GOG: Fuerza idioma español
+      if (lower.contains('gog.com')) {
+        return url.replaceAll(RegExp(r'/gog\.com/(en|de|fr|pl|ru|zh)/', caseSensitive: false), '/gog.com/es/');
+      }
+
+      // Si es un enlace de Twitter, YouTube o una web independiente, se devuelve intacto
+      return url;
+    }
+
+    Widget buildLinksTab() {
+      final List websitesList = (widget.gameData['websites'] as List?)?.isNotEmpty == true 
+          ? widget.gameData['websites'] 
+          : (_enrichedData['websites'] as List? ?? []);
+
+      if (websitesList.isEmpty) {
+        return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No hay enlaces disponibles.')));
+      }
+
+      int getCategory(dynamic w) {
+        if (w is Map && w['category'] != null) {
+          final c = w['category'];
+          if (c is int) return c;
+          if (c is String) return int.tryParse(c) ?? 0;
+          if (c is num) return c.toInt();
+        }
+        return 0;
+      }
+
+      bool isConsoleStore(dynamic w) {
+        if (w is Map && w['url'] != null) {
+          final url = w['url'].toString().toLowerCase();
+          return url.contains('playstation.com') || url.contains('xbox.com') || url.contains('nintendo.com');
+        }
+        return false;
+      }
+
+      final stores = websitesList.where((w) => [13, 15, 16, 17].contains(getCategory(w)) || isConsoleStore(w)).toList();
+      final socials = websitesList.where((w) => [4, 5, 6, 8, 9, 14, 18].contains(getCategory(w))).toList();
+      final official = websitesList.where((w) => [1, 2, 3].contains(getCategory(w))).toList();
+      final mobile = websitesList.where((w) => [10, 11, 12].contains(getCategory(w))).toList();
+      final others = websitesList.where((w) => ![1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].contains(getCategory(w)) && !isConsoleStore(w)).toList();
+
+      Widget buildLinkSection(String title, List links, IconData icon) {
+        if (links.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...links.map((link) {
+              String name = 'Enlace';
+              IconData itemIcon = Icons.link;
+              final cat = getCategory(link);
+              switch (cat) {
+                case 1: name = 'Sitio Oficial'; itemIcon = Icons.language; break;
+                case 2: name = 'Wikia'; itemIcon = Icons.menu_book; break;
+                case 3: name = 'Wikipedia'; itemIcon = Icons.menu_book; break;
+                case 4: name = 'Facebook'; itemIcon = Icons.facebook; break;
+                case 5: name = 'Twitter'; itemIcon = Icons.alternate_email; break;
+                case 6: name = 'Twitch'; itemIcon = Icons.live_tv; break;
+                case 8: name = 'Instagram'; itemIcon = Icons.camera_alt; break;
+                case 9: name = 'YouTube'; itemIcon = Icons.video_library; break;
+                case 10: name = 'iPhone'; itemIcon = Icons.phone_iphone; break;
+                case 11: name = 'iPad'; itemIcon = Icons.tablet_mac; break;
+                case 12: name = 'Android'; itemIcon = Icons.phone_android; break;
+                case 13: name = 'Steam'; itemIcon = Icons.computer; break;
+                case 14: name = 'Reddit'; itemIcon = Icons.forum; break;
+                case 15: name = 'Itch.io'; itemIcon = Icons.gamepad; break;
+                case 16: name = 'Epic Games'; itemIcon = Icons.computer; break;
+                case 17: name = 'GOG'; itemIcon = Icons.computer; break;
+                case 18: name = 'Discord'; itemIcon = Icons.chat; break;
+                default: 
+                  final urlString = link['url'].toString().toLowerCase();
+                  if (urlString.contains('playstation.com')) {
+                    name = 'PlayStation Store';
+                    itemIcon = Icons.gamepad;
+                  } else if (urlString.contains('xbox.com')) {
+                    name = 'Xbox Store';
+                    itemIcon = Icons.sports_esports;
+                  } else if (urlString.contains('nintendo.com')) {
+                    name = 'Nintendo eShop';
+                    itemIcon = Icons.videogame_asset;
+                  } else {
+                    // Extraer dominio para links desconocidos
+                    try {
+                      final uri = Uri.parse(link['url'].toString());
+                      name = uri.host.replaceFirst('www.', '');
+                    } catch (_) {}
+                  }
+              }
+              return ListTile(
+                leading: Icon(itemIcon),
+                title: Text(name),
+                subtitle: Text(localizeUrlToSpain(link['url'].toString()), maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: const Icon(Icons.open_in_new, size: 16),
+                onTap: () => launchUrl(
+                  Uri.parse(localizeUrlToSpain(link['url'].toString())),
+                  mode: LaunchMode.externalApplication,
+                ),
+              );
+            }),
+            const SizedBox(height: 24),
+          ],
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          buildLinkSection('Tiendas', stores, Icons.store),
+          buildLinkSection('Sociales y Comunidad', socials, Icons.people),
+          buildLinkSection('Información Oficial', official, Icons.info),
+          buildLinkSection('Móvil', mobile, Icons.smartphone),
+          buildLinkSection('Otros', others, Icons.link),
+        ],
+      );
+    }
+
+    // Asignar índices dinámicamente para evitar huecos
     int tabIdx = 0;
     final int infoTabIdx = tabIdx++;
     final int mediaTabIdx = hasMedia ? tabIdx++ : -1;
     final int relatedTabIdx = tabIdx++;
+    final int linksTabIdx = hasLinks ? tabIdx++ : -1;
 
     final Widget tabsAndContentWidget = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (hasMedia || hasRelated)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 24),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 buildTabButton(infoTabIdx, 'Información'),
                 if (hasMedia) buildTabButton(mediaTabIdx, 'Media'),
                 if (hasRelated) buildTabButton(relatedTabIdx, 'Relacionado'),
+                if (hasLinks) buildTabButton(linksTabIdx, 'Links'),
               ],
             ),
           ),
+        ),
         if (_selectedMainTabIndex == infoTabIdx) buildInfoTab()
         else if (hasMedia && _selectedMainTabIndex == mediaTabIdx) buildMediaTab()
-        else buildRelatedTab(),
+        else if (_selectedMainTabIndex == relatedTabIdx) buildRelatedTab()
+        else if (hasLinks && _selectedMainTabIndex == linksTabIdx) buildLinksTab()
       ],
     );
 
