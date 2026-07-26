@@ -68,6 +68,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   List<Map<String, dynamic>> _reviews = [];
   Timer? _carouselTimer;
   
+  // Stash Community Reviews
+  List<Map<String, dynamic>> _stashReviews = [];
+  bool _isLoadingStashReviews = true;
+  int _stashReviewLimit = 5;
+
   // ¿Quién lo tiene? - amigos con este juego en la biblioteca
   List<Map<String, dynamic>> _friendsWithGame = [];
   bool _localizeLinks = true;
@@ -84,6 +89,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     _startCarousel(widget.gameData['screenshots']);
     _enrichGameData();
     _fetchReviews();
+    _fetchStashReviews();
     _fetchTimeToBeat();
     _fetchRelatedGames();
     _fetchFriendsWithGame();
@@ -472,6 +478,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             if (game['summary'] != null) 'summary': game['summary'],
             'developer': developer,
             'developer_id': developerId,
+            if (game['name'] != null) 'title': game['name'],
+            if (game['cover'] != null) 'cover_url': IGDBService.getCoverUrl(game['cover']['image_id']),
+            if (game['first_release_date'] != null) 'release_date': DateTime.fromMillisecondsSinceEpoch(game['first_release_date'] * 1000).toIso8601String(),
             if (game['category'] != null) 'category': game['category'],
             if (game['game_type'] != null) 'game_type': game['game_type'],
             if (game['parent_game'] != null) 'parent_game': game['parent_game'],
@@ -601,6 +610,72 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
+  Future<void> _fetchStashReviews() async {
+    final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+    if (igdbId == null) return;
+    
+    try {
+      final response = await Supabase.instance.client
+          .from('stash_community_reviews')
+          .select()
+          .eq('game_id', igdbId)
+          .order('stash_created_at', ascending: false)
+          .limit(20);
+          
+      List<Map<String, dynamic>> localReviews = List<Map<String, dynamic>>.from(response);
+      
+      bool needsFetch = false;
+      final metaResponse = await Supabase.instance.client
+          .from('stash_sync_metadata')
+          .select('last_checked_at')
+          .eq('game_id', igdbId)
+          .maybeSingle();
+
+      if (metaResponse != null && metaResponse['last_checked_at'] != null) {
+        final lastChecked = DateTime.parse(metaResponse['last_checked_at']);
+        if (DateTime.now().difference(lastChecked).inDays > 7) {
+          needsFetch = true;
+        }
+      } else {
+        needsFetch = true;
+      }
+      if (mounted) {
+        setState(() {
+          _stashReviews = localReviews;
+          _isLoadingStashReviews = needsFetch;
+        });
+      }
+
+      if (needsFetch) {
+        final functionResponse = await Supabase.instance.client.functions.invoke(
+          'fetch-stash-reviews',
+          body: {'igdb_id': igdbId},
+        );
+        
+        if (functionResponse.status == 200) {
+          final newResponse = await Supabase.instance.client
+              .from('stash_community_reviews')
+              .select()
+              .eq('game_id', igdbId)
+              .order('stash_created_at', ascending: false)
+              .limit(20);
+              
+          if (mounted) {
+            setState(() {
+              _stashReviews = List<Map<String, dynamic>>.from(newResponse);
+              _isLoadingStashReviews = false;
+            });
+          }
+        } else {
+          if (mounted) setState(() => _isLoadingStashReviews = false);
+        }
+      }
+    } catch (e) {
+      debugPrint('[CORPUS DEBUG] Error fetching stash reviews: $e');
+      if (mounted) setState(() => _isLoadingStashReviews = false);
+    }
+  }
+
 
 
   Widget _buildSubRatingSlider(String label, IconData icon, double value, Function(double) onChanged) {
@@ -684,6 +759,91 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
+    );
+  }
+
+  Widget _buildStashReviewsList() {
+    if (_isLoadingStashReviews && _stashReviews.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    if (_stashReviews.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: Text('No hay reseñas de la comunidad.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ),
+      );
+    }
+
+    final visibleReviews = _stashReviews.take(_stashReviewLimit).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        ...visibleReviews.map((review) {
+          final rating = (review['rating'] ?? 0).toDouble();
+          final comment = review['comment'] ?? '';
+          final displayName = review['stash_user_display_name'] ?? 'Usuario';
+          final avatarUrl = review['stash_user_avatar_url'];
+          
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                      child: avatarUrl == null ? const Icon(Icons.person, size: 16) : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold))),
+                    if (rating > 0)
+                      Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 16),
+                          const SizedBox(width: 4),
+                          Text(rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                  ],
+                ),
+                if (comment.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(comment, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4)),
+                ],
+              ],
+            ),
+          );
+        }).toList(),
+        
+        if (_stashReviews.length > _stashReviewLimit)
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _stashReviewLimit += 5;
+                });
+              },
+              icon: const Icon(Icons.expand_more),
+              label: const Text('Ver más reseñas'),
+            ),
+          ),
+      ],
     );
   }
 
@@ -1768,8 +1928,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.gameData['title'] ?? 'Desconocido';
-    final coverUrl = widget.gameData['cover_url'] ?? '';
+    final title = widget.gameData['title'] ?? _enrichedData['title'] ?? 'Desconocido';
+    final coverUrl = widget.gameData['cover_url'] ?? _enrichedData['cover_url'] ?? '';
     final highResCoverUrl = coverUrl.replaceAll('t_cover_big', 't_1080p');
     
     // Datos con fallback a _enrichedData (para cuando venimos de la biblioteca)
@@ -1840,9 +2000,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     // Formatear fecha de lanzamiento
     String? releaseDate;
-    if (widget.gameData['release_date'] != null) {
+    final rawReleaseDate = widget.gameData['release_date'] ?? _enrichedData['release_date'];
+    if (rawReleaseDate != null) {
       try {
-        final date = DateTime.parse(widget.gameData['release_date'].toString());
+        final date = DateTime.parse(rawReleaseDate.toString());
         const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         releaseDate = '${date.day} de ${months[date.month - 1]} de ${date.year}';
       } catch (_) {}
@@ -2592,6 +2753,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     // Asignar índices dinámicamente para evitar huecos
     int tabIdx = 0;
     final int infoTabIdx = tabIdx++;
+    final int communityTabIdx = tabIdx++;
     final int mediaTabIdx = hasMedia ? tabIdx++ : -1;
     final int relatedTabIdx = tabIdx++;
     final int linksTabIdx = hasLinks ? tabIdx++ : -1;
@@ -2606,6 +2768,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             child: Row(
               children: [
                 buildTabButton(infoTabIdx, 'Información'),
+                buildTabButton(communityTabIdx, 'Comunidad'),
                 if (hasMedia) buildTabButton(mediaTabIdx, 'Media'),
                 if (hasRelated) buildTabButton(relatedTabIdx, 'Relacionado'),
                 if (hasLinks) buildTabButton(linksTabIdx, 'Links'),
@@ -2614,6 +2777,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
         ),
         if (_selectedMainTabIndex == infoTabIdx) buildInfoTab()
+        else if (_selectedMainTabIndex == communityTabIdx) _buildStashReviewsList()
         else if (hasMedia && _selectedMainTabIndex == mediaTabIdx) buildMediaTab()
         else if (_selectedMainTabIndex == relatedTabIdx) buildRelatedTab()
         else if (hasLinks && _selectedMainTabIndex == linksTabIdx) buildLinksTab()
