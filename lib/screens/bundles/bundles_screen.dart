@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 import '../../services/bundle_service.dart';
 import '../../services/igdb_service.dart';
+import '../library/game_details_screen.dart';
 import '../../widgets/game_card.dart';
 
 class _BundlesData {
@@ -35,7 +37,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
   static const int _cacheSchemaVersion = 2;
   late Future<_BundlesData> _dataFuture;
   bool _isBackgroundRefreshing = false;
-  
   final ValueNotifier<double> _progressNotifier = ValueNotifier<double>(0.0);
   final ValueNotifier<String> _statusNotifier = ValueNotifier<String>('Conectando con Humble Bundle y Fanatical...');
 
@@ -60,7 +61,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
     final cacheTime = prefs.getInt('bundles_full_cache_time') ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;
     
-    // Si la caché tiene menos de 8 horas, no recargamos de fondo
     final eightHours = 8 * 60 * 60 * 1000;
     if (now - cacheTime < eightHours) {
       return; 
@@ -101,6 +101,32 @@ class _BundlesScreenState extends State<BundlesScreen> {
     super.dispose();
   }
 
+  /// Filtro inteligente: descarta cupones, suscripciones de IGN/DC, bandas sonoras y archivos 3D
+  /// (Hemos eliminado 'juego desconocido' de aquí para no destruir los ítems antes de que IGDB resuelva su Steam ID)
+  bool _isRealGame(String title) {
+    final lower = title.toLowerCase().trim();
+    if (lower.isEmpty || lower == 'null' || lower == 'bundle sin título') return false;
+    
+    // Lista negra de ítems comerciales de Barter.vg que no son juegos
+    if (lower.contains('coupon') ||
+        lower.contains('voucher') ||
+        lower.contains('discount') ||
+        lower.contains('ign plus') ||
+        lower.contains('dc universe') ||
+        lower.contains('1-month') ||
+        lower.contains('3-month') ||
+        lower.contains('membership') ||
+        lower.contains('subscription') ||
+        lower.contains('soundtrack') ||
+        lower.contains('artbook') ||
+        lower.contains('audio_only') ||
+        lower.contains('stl') ||
+        lower.contains('3d print')) {
+      return false;
+    }
+    return true;
+  }
+
   Future<_BundlesData> _loadData() async {
     _progressNotifier.value = 0.05;
     _statusNotifier.value = 'Descargando catálogo de ofertas...';
@@ -122,18 +148,20 @@ class _BundlesScreenState extends State<BundlesScreen> {
     }
 
     _progressNotifier.value = 0.15;
-    _statusNotifier.value = 'Procesando ${steamIds.length} juegos de Steam...';
+    _statusNotifier.value = 'Procesando ${steamIds.length} juegos en IGDB...';
 
+    // 1. PRIMERO: Intentamos resolver todo por Steam ID en IGDB
     final Map<String, Map<String, dynamic>> resolved = steamIds.isEmpty
         ? {}
         : await IGDBService.getGamesBySteamIds(
             steamIds.toList(),
             onProgress: (processed, total, step) {
-              _progressNotifier.value = 0.15 + (processed / total) * 0.60;
+              _progressNotifier.value = 0.15 + (processed / total) * 0.40;
               _statusNotifier.value = step;
             },
           );
 
+    // 2. SEGUNDO: Rescate por título en IGDB para indies y juegos sin Steam ID
     final List<BundleGame> unresolvedGames = allBundleGames.where((g) {
       if (g.steamAppId != null && g.steamAppId! > 0) {
         return !resolved.containsKey('steam:${g.steamAppId}');
@@ -141,11 +169,14 @@ class _BundlesScreenState extends State<BundlesScreen> {
       return !resolved.containsKey('title:${g.title}');
     }).toList();
 
-    final Set<String> titlesToSearch = unresolvedGames.map((g) => g.title).toSet();
+    final Set<String> titlesToSearch = unresolvedGames
+        .map((g) => g.title)
+        .where((t) => t.isNotEmpty && t != 'Juego Desconocido' && t != 'null')
+        .toSet();
     final List<String> titleList = titlesToSearch.toList();
 
     if (titleList.isNotEmpty) {
-      _statusNotifier.value = 'Rescatando indies y expansiones...';
+      _statusNotifier.value = 'Rescatando títulos en IGDB...';
       const batchSize = 5;
       for (var i = 0; i < titleList.length; i += batchSize) {
         final chunk = titleList.skip(i).take(batchSize).toList();
@@ -159,11 +190,12 @@ class _BundlesScreenState extends State<BundlesScreen> {
                 .replaceAll(RegExp(r'\s*-?\s*Premium\s+Edition.*$', caseSensitive: false), '')
                 .replaceAll(RegExp(r'\s*-?\s*Ultimate\s+Edition.*$', caseSensitive: false), '')
                 .replaceAll(RegExp(r'\s*-?\s*Complete\s+Edition.*$', caseSensitive: false), '')
+                .replaceAll(RegExp(r'\s*\(.*?\)', caseSensitive: false), '')
+                .replaceAll(RegExp(r'\s*\[.*?\]', caseSensitive: false), '')
                 .trim();
             final r = await IGDBService.searchGameLenient(cleanedTitle);
             return r.isNotEmpty ? r.first as Map<String, dynamic> : null;
-          } catch (e) {
-            debugPrint('Error en searchGameLenient para "$title": $e');
+          } catch (_) {
             return null;
           }
         }));
@@ -174,10 +206,61 @@ class _BundlesScreenState extends State<BundlesScreen> {
             resolved['title:${chunk[j]}'] = data;
           }
         }
-
         final currentTitleIdx = (i + chunk.length < titleList.length) ? i + chunk.length : titleList.length;
-        _progressNotifier.value = 0.75 + (currentTitleIdx / titleList.length) * 0.25;
-        _statusNotifier.value = 'Rescatando por título ($currentTitleIdx de ${titleList.length})...';
+        _progressNotifier.value = 0.55 + (currentTitleIdx / titleList.length) * 0.20;
+      }
+    }
+
+    // 3. TERCERO (EL COMODÍN INFALIBLE): Rescate final usando la API de Steam
+    // Si IGDB no conoció el juego pero tenemos un Steam ID, le preguntamos a Steam.
+    final List<int> stillUnresolvedSteamIds = steamIds
+        .where((id) => !resolved.containsKey('steam:$id'))
+        .toList();
+
+    if (stillUnresolvedSteamIds.isNotEmpty) {
+      _statusNotifier.value = 'Consultando servidores de Steam...';
+      for (var i = 0; i < stillUnresolvedSteamIds.length; i++) {
+        final appId = stillUnresolvedSteamIds[i];
+        try {
+          final response = await http.get(Uri.parse('https://store.steampowered.com/api/appdetails?appids=$appId&l=spanish'));
+          if (response.statusCode == 200) {
+            final jsonResp = json.decode(response.body);
+            final appData = jsonResp[appId.toString()];
+            
+            // Si la API de Steam nos dice que existe y ES UN JUEGO (descarta cupones, música o DLCs)
+            if (appData != null && appData['success'] == true) {
+              final data = appData['data'];
+              final String type = (data['type'] ?? '').toString().toLowerCase();
+              
+              if (type == 'game') {
+                // Creamos un mapa idéntico a los de IGDB para que GameCard y GameDetailsScreen funcionen transparentemente
+                final String name = data['name'] ?? 'Juego de Steam';
+                final String cover = data['header_image'] ?? data['capsule_image'] ?? '';
+                final List developers = data['developers'] ?? [];
+                final String devName = developers.isNotEmpty ? developers.first.toString() : 'Desconocido';
+                final List genres = data['genres'] ?? [];
+                final List<String> genreNames = genres.map((g) => g['description'].toString()).toList();
+
+                resolved['steam:$appId'] = {
+                  'id': appId, // Usamos el ID de Steam como fallback numérico
+                  'igdb_id': null,
+                  'name': name,
+                  'title': name,
+                  'cover_url': cover,
+                  'developer': devName,
+                  'summary': data['short_description'] ?? data['detailed_description'] ?? 'Sin descripción disponible.',
+                  'platforms': ['PC (Steam)'],
+                  'genres': genreNames,
+                  'release_date': data['release_date']?['date'],
+                  'steam_app_id': appId,
+                };
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Error en rescate de Steam API para appId $appId: $e');
+        }
+        _progressNotifier.value = 0.75 + ((i + 1) / stillUnresolvedSteamIds.length) * 0.25;
       }
     }
 
@@ -205,7 +288,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
     return resolved['title:${bg.title}'];
   }
 
-  // --- CABECERA DE TIER CON PRECIO TOTAL Y DESGLOSE POR JUEGO ---
   Widget _buildTierHeader(BuildContext context, BundleTier tier, String bundleTitle, Color badgeColor) {
     final String tierName = tier.name;
     final double? price = tier.price;
@@ -267,8 +349,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -297,7 +377,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
         future: _dataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-            // --- BARRA DE PROGRESO COMPACTA Y CENTRADA ---
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
@@ -495,6 +574,16 @@ class _BundlesScreenState extends State<BundlesScreen> {
                             const Divider(height: 24),
                             
                             ...bundle.tiers.map((tier) {
+                              // FILTRO DE DESTRUCCIÓN: Si no existe en 'resolved' (ni por IGDB ni por Steam), se elimina de la lista.
+                              // Esto destruye instantáneamente el 9º ítem fantasma de Humble Choice y los cupones.
+                              final validGames = tier.games.where((bg) {
+                                final gameData = _lookup(bg, resolved);
+                                return gameData != null; 
+                              }).toList();
+
+                              // Si después de filtrar la basura el tier se queda vacío, no dibujamos nada
+                              if (validGames.isEmpty) return const SizedBox.shrink();
+
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 20),
                                 child: Column(
@@ -511,13 +600,13 @@ class _BundlesScreenState extends State<BundlesScreen> {
                                         crossAxisSpacing: 10,
                                         mainAxisSpacing: 10,
                                       ),
-                                      itemCount: tier.games.length,
+                                      itemCount: validGames.length,
                                       itemBuilder: (context, gIndex) {
-                                        final bg = tier.games[gIndex];
-                                        final gameData = _lookup(bg, resolved);
-                                        if (gameData == null) {
-                                          return _buildUnresolvedCard(context, bg.title);
-                                        }
+                                        final bg = validGames[gIndex];
+                                        final gameData = _lookup(bg, resolved)!; // Ya sabemos que no es null
+                                        
+                                        // Dibujamos el GameCard estándar. Al hacer clic, te llevará a GameDetailsScreen
+                                        // con todos los metadatos perfectamente estructurados, venga de IGDB o de Steam.
                                         return GameCard(game: gameData, onReturn: () {});
                                       },
                                     ),
@@ -535,30 +624,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
             }).toList(),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildUnresolvedCard(BuildContext context, String title) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.videogame_asset_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 28),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
-        ],
       ),
     );
   }
