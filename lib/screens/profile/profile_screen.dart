@@ -1330,7 +1330,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildReviewsTab() {
-    if (_userReviews.isEmpty) {
+    final textReviews = _userReviews.where((r) {
+      final comment = r['comment'] as String?;
+      return comment != null && comment.trim().isNotEmpty;
+    }).toList();
+
+    if (textReviews.isEmpty) {
       return Center(
         child: Padding(
           padding: EdgeInsets.all(32.0),
@@ -1345,7 +1350,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: _userReviews.map((r) => _buildReviewCard(r)).toList(),
+      children: textReviews.map((r) => _buildReviewCard(r)).toList(),
     );
   }
 
