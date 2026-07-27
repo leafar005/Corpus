@@ -67,8 +67,8 @@ class ImportService {
   }
 
   static List<CsvGameRow> parseCsv(Uint8List fileBytes) {
-    final String content = utf8.decode(fileBytes, allowMalformed: true);
-    final List<List<dynamic>> rows = const CsvToListConverter(shouldParseNumbers: false).convert(content);
+    final String content = utf8.decode(fileBytes, allowMalformed: true).replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final List<List<dynamic>> rows = const CsvToListConverter(shouldParseNumbers: false, eol: '\n').convert(content);
     if (rows.isEmpty) return [];
 
     final List<String> headers = rows.first.map((e) => e.toString().toLowerCase().trim()).toList();

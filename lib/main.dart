@@ -47,13 +47,14 @@ class CorpusApp extends StatelessWidget {
 
 // El AuthGate es un "vigilante". Comprueba en tiempo real si estás logueado o no.
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  final Stream<AuthState>? authStream;
+  const AuthGate({super.key, this.authStream});
 
   @override
   Widget build(BuildContext context) {
     // StreamBuilder escucha los cambios de estado de Supabase continuamente
     return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
+      stream: authStream ?? Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           // Mientras comprueba si hay sesión guardada, muestra un circulito de carga

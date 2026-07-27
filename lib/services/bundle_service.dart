@@ -83,6 +83,7 @@ class BundleService {
   static int storeRankPublic(String storeName) {
     if (storeName == 'Humble Bundle') return 1;
     if (storeName == 'Fanatical') return 2;
+    if (storeName == 'Steam') return 3;
     return 99;
   }
 

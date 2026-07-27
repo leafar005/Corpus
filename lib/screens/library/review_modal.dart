@@ -512,7 +512,7 @@ class ReviewModal {
                         child: isSaving
                             ? CircularProgressIndicator(color: Theme.of(modalContext).scaffoldBackgroundColor)
                             : Text(
-                                reviewStatus == 'wishlist' ? 'Guardar' : 'Publicar Reseña',
+                                reviewStatus == 'wishlist' ? 'Guardar' : 'Guardar Reseña',
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                               ),
                       ),

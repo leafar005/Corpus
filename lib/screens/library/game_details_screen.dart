@@ -13,6 +13,7 @@ import 'group_games_screen.dart';
 import '../../widgets/achievement_toast.dart';
 import 'review_modal.dart';
 import '../../repositories/review_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -427,6 +428,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             if (game['category'] != null) 'category': game['category'],
             if (game['game_type'] != null) 'game_type': game['game_type'],
             if (game['parent_game'] != null) 'parent_game': game['parent_game'],
+            if (game['version_parent'] != null) 'version_parent': game['version_parent'],
+            if (game['remake_of'] != null) 'remake_of': game['remake_of'],
+            if (game['remaster_of'] != null) 'remaster_of': game['remaster_of'],
             'platforms': game['platforms'] != null
                 ? (game['platforms'] as List).map((p) => p['name']).toList()
                 : [],
@@ -477,6 +481,164 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       debugPrint('[CORPUS DEBUG] Error enriching game data: $e');
     } finally {
       if (mounted) setState(() => _isEnriching = false);
+    }
+  }
+
+  /// Obtiene el ID y nombre del juego original (si existe) desde parent_game, version_parent, etc.
+  ({int id, String? name})? _getOriginalGameInfo() {
+    final candidates = [
+      widget.gameData['parent_game'],
+      _enrichedData['parent_game'],
+      widget.gameData['version_parent'],
+      _enrichedData['version_parent'],
+      widget.gameData['remake_of'],
+      _enrichedData['remake_of'],
+      widget.gameData['remaster_of'],
+      _enrichedData['remaster_of'],
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate == null || candidate.toString() == 'null' || candidate.toString().isEmpty) continue;
+
+      int? id;
+      String? name;
+
+      if (candidate is Map) {
+        final idRaw = candidate['id'] ?? candidate['igdb_id'];
+        id = (idRaw is num) ? idRaw.toInt() : int.tryParse(idRaw?.toString() ?? '');
+        name = candidate['name']?.toString() ?? candidate['title']?.toString();
+      } else if (candidate is List && candidate.isNotEmpty) {
+        final first = candidate.first;
+        if (first is Map) {
+          final idRaw = first['id'] ?? first['igdb_id'];
+          id = (idRaw is num) ? idRaw.toInt() : int.tryParse(idRaw?.toString() ?? '');
+          name = first['name']?.toString() ?? first['title']?.toString();
+        } else {
+          id = (first is num) ? first.toInt() : int.tryParse(first?.toString() ?? '');
+        }
+      } else {
+        id = (candidate is num) ? candidate.toInt() : int.tryParse(candidate.toString());
+      }
+
+      if (id != null && id > 0) {
+        // Si IGDB solo devolvió el ID sin el nombre, intentamos buscar el título en juegos relacionados
+        if (name == null && _relatedGames.isNotEmpty) {
+          try {
+            final match = _relatedGames.firstWhere((g) => (g is Map) && ((g['id'] == id) || (g['igdb_id'] == id)));
+            if (match is Map) {
+              name = match['name']?.toString() ?? match['title']?.toString();
+            }
+          } catch (_) {}
+        }
+        return (id: id, name: name);
+      }
+    }
+    return null;
+  }
+
+  /// Navega al juego original de forma INSTANTÁNEA precargando su carátula y datos desde la RAM o base de datos local
+  Future<void> _navigateToOriginalGame(int id, String? name) async {
+    final cleanData = <String, dynamic>{
+      'igdb_id': id,
+      'id': id,
+      if (name != null) 'title': name,
+    };
+
+    // 1. BÚSQUEDA INSTANTÁNEA EN RAM (_relatedGames)
+    // En el 90% de los casos, tu pestaña "Relacionado" ya descargó este juego con su carátula en segundo plano.
+    bool foundInRam = false;
+    if (_relatedGames.isNotEmpty) {
+      try {
+        final match = _relatedGames.firstWhere((g) => (g is Map) && ((g['id'] == id) || (g['igdb_id'] == id)));
+        if (match is Map) {
+          final matchMap = Map<String, dynamic>.from(match);
+          cleanData.addAll(matchMap);
+          if (matchMap['name'] != null) cleanData['title'] = matchMap['name'];
+          final coverMap = matchMap['cover'] as Map?;
+          final coverId = coverMap?['image_id'] as String?;
+          if (coverId != null) {
+            cleanData['cover_url'] = IGDBService.getCoverUrl(coverId);
+          }
+          if (matchMap['first_release_date'] != null) {
+            cleanData['release_date'] = DateTime.fromMillisecondsSinceEpoch((matchMap['first_release_date'] as int) * 1000).toIso8601String();
+          }
+          if (matchMap['genres'] != null && matchMap['genres'] is List) {
+            cleanData['genres'] = (matchMap['genres'] as List).map((gen) => gen is Map ? gen['name'] : gen).toList();
+          }
+          foundInRam = true;
+        }
+      } catch (_) {}
+    }
+
+    // 2. BÚSQUEDA RÁPIDA EN SUPABASE (Si no estaba en RAM o le falta la carátula)
+    final hasCover = cleanData['cover_url'] != null && (cleanData['cover_url'] as String).isNotEmpty;
+    if (!foundInRam || !hasCover) {
+      bool showingSpinner = false;
+      try {
+        // Hacemos una consulta ultra-rápida a tu tabla local (tarda unos 50ms, imperceptible para el ojo humano)
+        final localDbGame = await Supabase.instance.client
+            .from('games')
+            .select()
+            .eq('igdb_id', id)
+            .maybeSingle();
+            
+        if (localDbGame != null) {
+          cleanData.addAll(localDbGame);
+        } else {
+          // 3. FALLBACK A IGDB (Solo si es un juego jamás visto ni cacheado por ningún usuario de la app)
+          showingSpinner = true;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => const Center(child: CircularProgressIndicator()),
+          );
+          final igdbGame = await IGDBService.getGameById(id);
+          if (showingSpinner && mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+            showingSpinner = false;
+          }
+          if (igdbGame != null) {
+            cleanData['title'] = igdbGame['name'] ?? cleanData['title'];
+            if (igdbGame['cover'] != null) {
+              cleanData['cover_url'] = IGDBService.getCoverUrl(igdbGame['cover']['image_id']);
+            }
+            if (igdbGame['summary'] != null) cleanData['summary'] = igdbGame['summary'];
+            if (igdbGame['first_release_date'] != null) {
+              cleanData['release_date'] = DateTime.fromMillisecondsSinceEpoch((igdbGame['first_release_date'] as int) * 1000).toIso8601String();
+            }
+            if (igdbGame['genres'] != null && igdbGame['genres'] is List) {
+              cleanData['genres'] = (igdbGame['genres'] as List).map((gen) => gen is Map ? gen['name'] : gen).toList();
+            }
+          }
+        }
+      } catch (_) {
+        if (showingSpinner && mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+      }
+    }
+
+    if (!mounted) return;
+
+    // Abrimos la pantalla con el 100% de los datos listos
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+    if (isDesktop) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => GameDetailsScreen(gameData: cleanData)));
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: false,
+        enableDrag: true,
+        builder: (_) => DraggableScrollableSheet(
+          initialChildSize: 1.0,
+          minChildSize: 0.5,
+          maxChildSize: 1.0,
+          expand: false,
+          snap: true,
+          builder: (context, scrollController) => GameDetailsScreen(gameData: cleanData, scrollController: scrollController),
+        ),
+      );
     }
   }
 
@@ -1863,7 +2025,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.gameData['title'] ?? _enrichedData['title'] ?? 'Desconocido';
+    final title = widget.gameData['title'] ?? _enrichedData['title'] ?? (_isEnriching ? 'Cargando...' : 'Desconocido');
     final coverUrl = widget.gameData['cover_url'] ?? _enrichedData['cover_url'] ?? '';
     final highResCoverUrl = coverUrl.replaceAll('t_cover_big', 't_1080p');
     
@@ -1873,7 +2035,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         ? widget.gameData['developer']
         : _enrichedData['developer'];
     final developerId = widget.gameData['developer_id'] ?? _enrichedData['developer_id'];
-    final hasParentGame = widget.gameData['parent_game'] != null || _enrichedData['parent_game'] != null;
+    final originalGame = _getOriginalGameInfo();
+    final hasParentGame = originalGame != null;
     
     // Resolver categoría usando IgdbConstants (centralizado)
     // Fix #3: Lectura segura del tipo numérico (puede llegar como int, double o num desde JSON/Supabase)
@@ -2000,7 +2163,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
         if (releaseDate != null || categoryLabel != null)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 4),
             child: Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: 8,
@@ -2033,6 +2196,26 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     ),
                   ),
               ],
+            ),
+          ),
+        // --- BOTÓN DE JUEGO ORIGINAL ---
+        if (_getOriginalGameInfo() case final originalGame?)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: ActionChip(
+              avatar: Icon(Icons.arrow_back_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+              label: Text(
+                'Juego original',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 13,
+                ),
+              ),
+              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+              side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              onPressed: () => _navigateToOriginalGame(originalGame.id, originalGame.name),
             ),
           ),
       ],
@@ -2208,7 +2391,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               headerInfoWidget,
-                              const SizedBox(height: 32),
+                              const SizedBox(height: 12),
                               tabsAndContentWidget,
                               const SizedBox(height: 60),
                             ],
@@ -2241,7 +2424,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         const SizedBox(height: 24),
                         interactiveWidget,
                         if (!isDesktop) _buildFriendsWithGame(context),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 12),
                         tabsAndContentWidget,
                         const SizedBox(height: 60),
                       ],
