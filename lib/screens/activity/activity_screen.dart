@@ -50,7 +50,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       setState(() => _isLoading = true);
     }
     try {
-      // Obtenemos el feed con datos del usuario, del juego y de la reseña completa si existe
+      // 1. Una sola query para el feed completo
       final response = await _supabase
           .from('activity_feed')
           .select('''
@@ -61,23 +61,38 @@ class _ActivityScreenState extends State<ActivityScreen> {
           .order('created_at', ascending: false)
           .limit(60);
 
-      // Enriquecer reseñas y agrupar eventos relacionados
+      final feedItems = List<Map<String, dynamic>>.from(response);
+
+      // 2. Recoger todos los review_id en una sola pasada (evita N+1 queries)
+      final reviewIds = feedItems
+          .where((item) => item['action_type'] == 'reviewed')
+          .map((item) => (item['metadata'] as Map?)?['review_id'] as String?)
+          .whereType<String>()
+          .toSet()
+          .toList();
+
+      // 3. Una única query batch para todas las reviews necesarias
+      final Map<String, Map<String, dynamic>> reviewsById = {};
+      if (reviewIds.isNotEmpty) {
+        try {
+          final reviewsResp = await _supabase
+              .from('reviews')
+              .select('*, review_likes(user_id), review_comments(id)')
+              .inFilter('id', reviewIds);
+          for (final r in List<Map<String, dynamic>>.from(reviewsResp)) {
+            reviewsById[r['id'] as String] = r;
+          }
+        } catch (_) {}
+      }
+
+      // 4. Enriquecer items y agrupar eventos relacionados (lógica de merge sin queries)
       final mergedActivities = <Map<String, dynamic>>[];
-      for (var item in List<Map<String, dynamic>>.from(response)) {
+      for (var item in feedItems) {
         if (item['action_type'] == 'reviewed') {
-          final reviewId = (item['metadata'] as Map?)?['review_id'];
-          if (reviewId != null) {
-            try {
-              final reviewData = await _supabase
-                  .from('reviews')
-                  .select('*, review_likes(user_id), review_comments(id)')
-                  .eq('id', reviewId)
-                  .maybeSingle();
-              if (reviewData != null) {
-                item = Map<String, dynamic>.from(item);
-                item['_review'] = reviewData;
-              }
-            } catch (_) {}
+          final reviewId = (item['metadata'] as Map?)?['review_id'] as String?;
+          if (reviewId != null && reviewsById.containsKey(reviewId)) {
+            item = Map<String, dynamic>.from(item);
+            item['_review'] = reviewsById[reviewId];
           }
         }
 
@@ -96,7 +111,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
               final prevDate = DateTime.parse(prev['created_at']);
               if (date.difference(prevDate).abs().inHours < 24) {
                 if (type == 'status_change' && prev['action_type'] == 'reviewed') {
-                  // Priorizar status_change como header principal
                   prev['action_type'] = 'status_change';
                   if (prev['metadata'] == null) prev['metadata'] = <String, dynamic>{};
                   final itemMeta = item['metadata'] as Map? ?? {};
@@ -104,12 +118,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
                   merged = true;
                   break;
                 } else if (type == 'reviewed' && prev['action_type'] == 'status_change') {
-                  // Añadir review al status_change existente
                   prev['_review'] = item['_review'];
                   merged = true;
                   break;
                 } else if (type == 'status_change' && prev['action_type'] == 'status_change') {
-                  // Quedarnos con el estado más reciente (prev ya es más reciente)
                   merged = true;
                   break;
                 }

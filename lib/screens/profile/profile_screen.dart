@@ -53,7 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchProfileData() async {
     final userId = widget.userId ?? Supabase.instance.client.auth.currentUser!.id;
 
-    // 1. Fetch user profile, create if missing
+    // 1. Perfil de usuario (va primero porque puede necesitar auto-crearse)
     var userResp = await Supabase.instance.client
         .from('users')
         .select()
@@ -76,28 +76,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
-    // 2. Fetch all user games with details and social metrics
-    final gamesResp = await Supabase.instance.client
-        .from('user_games')
-        .select('*, games(*)')
-        .eq('user_id', userId)
-        .order('updated_at', ascending: false);
-
-    // Fetch reviews from reviews table
-    final reviewsResp = await Supabase.instance.client
-        .from('reviews')
-        .select('*, games(*), review_likes(user_id), review_comments(id)')
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
-
-    final hallOfFameList = List<Map<String, dynamic>?>.filled(5, null);
-    try {
-      final hallOfFameResp = await Supabase.instance.client
+    // 2. Las siguientes queries son independientes entre sí — las lanzamos en paralelo
+    final results = await Future.wait([
+      // Todos los juegos del usuario con detalles
+      Supabase.instance.client
+          .from('user_games')
+          .select('*, games(*)')
+          .eq('user_id', userId)
+          .order('updated_at', ascending: false),
+      // Reseñas del usuario
+      Supabase.instance.client
+          .from('reviews')
+          .select('*, games(*), review_likes(user_id), review_comments(id)')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false),
+      // Hall of fame
+      Supabase.instance.client
           .from('hall_of_fame')
           .select('*, games(*)')
           .eq('user_id', userId)
-          .order('pin_order', ascending: true);
+          .order('pin_order', ascending: true)
+          .catchError((_) => <Map<String, dynamic>>[]),
+    ]);
 
+    final gamesResp = results[0];
+    final reviewsResp = results[1];
+    final hallOfFameResp = results[2];
+
+    final hallOfFameList = List<Map<String, dynamic>?>.filled(5, null);
+    try {
       for (var row in hallOfFameResp) {
         final order = row['pin_order'] as int;
         if (order >= 1 && order <= 5 && row['games'] != null) {
