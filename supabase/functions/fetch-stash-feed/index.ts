@@ -1,10 +1,22 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const log = (level: 'INFO' | 'WARN' | 'ERROR', message: string, meta: Record<string, any> = {}) => {
+  console.log(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level,
+      service: 'fetch-stash-feed',
+      message,
+      ...meta,
+    })
+  );
+};
+
 
 const USER_AGENTS = [
   'Stash/2.6.8 (io.stash.team.games.tracker.StashApp; build:1; iOS 26.5.2) Alamofire/5.4.4',
@@ -15,7 +27,7 @@ const USER_AGENTS = [
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -25,7 +37,14 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const stashToken = Deno.env.get('STASH_JWT_TOKEN') || '';
+    const stashToken = Deno.env.get('STASH_JWT_TOKEN') ?? '';
+    if (!stashToken) {
+      console.error('STASH_JWT_TOKEN environment variable is not set');
+      return new Response(
+        JSON.stringify({ error: 'Stash token not configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 }
+      );
+    }
 
     // Global feed of recent reviews
     const stashUrl = `https://api.stash.games/api/v1/games/reviews/latest?limit=25`;
@@ -53,12 +72,14 @@ serve(async (req) => {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`Stash API Error: ${res.status} ${errText}`);
+      log('ERROR', 'Stash API devolvió error HTTP', { status: res.status, errorText: errText });
       throw new Error(`Stash API responded with status ${res.status}`);
     }
 
     const data = await res.json();
     const allItems = data.items || [];
+
+    log('INFO', 'Feed reciente de Stash obtenido', { itemsCount: allItems.length });
 
     const gamesMap = new Map();
     const reviewsMap = new Map();
@@ -108,10 +129,10 @@ serve(async (req) => {
         .from('games')
         .upsert(gamesToUpsert, {
           onConflict: 'igdb_id',
-          ignoreDuplicates: true // Solo queremos insertar si no existe, o actualizar el cover
+          ignoreDuplicates: true
         });
       if (gamesError) {
-        console.error('Error upserting games:', gamesError);
+        log('ERROR', 'Error al hacer upsert de juegos referenciados', { error: gamesError.message });
       }
     }
 
@@ -126,21 +147,24 @@ serve(async (req) => {
         });
 
       if (upsertError) {
-        console.error('Error in upsert reviews:', upsertError);
+        log('ERROR', 'Error en upsert idempotente de feed de reseñas', { error: upsertError.message });
         throw upsertError;
       }
       insertedCount = reviewsToInsert.length;
     }
+
+    log('INFO', 'Sincronización de feed reciente completada', { upsertedCount: insertedCount });
 
     return new Response(JSON.stringify({ success: true, processed: insertedCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error: any) {
-    console.error("Error fetch-stash-feed:", error);
+    log('ERROR', 'Error fatal en fetch-stash-feed', { error: error.message || String(error) });
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });
   }
 });
+

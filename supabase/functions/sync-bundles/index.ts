@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const IGDB_CLIENT_ID = Deno.env.get('IGDB_CLIENT_ID') ?? '';
@@ -79,7 +78,7 @@ async function igdbRequest(bodyQuery: string): Promise<any[]> {
 
 const IGDB_FIELDS = 'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, total_rating_count, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.id, collection.name, franchises.id, franchises.name, game_engines.name, external_games.uid, external_games.category;';
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const FUNCTION_START = Date.now();
   const TIME_BUDGET_MS = 120_000; // dejamos margen bajo los 150s del límite
 

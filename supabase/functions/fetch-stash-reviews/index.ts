@@ -1,10 +1,22 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const log = (level: 'INFO' | 'WARN' | 'ERROR', message: string, meta: Record<string, any> = {}) => {
+  console.log(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level,
+      service: 'fetch-stash-reviews',
+      message,
+      ...meta,
+    })
+  );
+};
+
 
 const USER_AGENTS = [
   'Stash/2.6.8 (io.stash.team.games.tracker.StashApp; build:1; iOS 26.5.2) Alamofire/5.4.4',
@@ -15,27 +27,37 @@ const USER_AGENTS = [
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { igdb_id } = await req.json();
+    const body = await req.json();
 
-    if (!igdb_id) {
-      throw new Error('igdb_id is required');
+    // Validación de entrada: igdb_id debe ser un entero positivo
+    const igdbId = parseInt(body?.igdb_id);
+    if (!Number.isInteger(igdbId) || igdbId <= 0) {
+      return new Response(
+        JSON.stringify({ error: 'igdb_id must be a positive integer' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Stash API parameters
-    // Preferimos la variable de entorno, pero usamos tu token actual como fallback seguro
-    const stashToken = Deno.env.get('STASH_JWT_TOKEN') || 'eyJraWQiOiJ3MjdhNzM1Ni00NTFmLTQ5M2ItOTY2OC1hNDY4TDMkYmE2IjlcJ0eXAiOiJKV1QilCJhbGciOiJSUzI1NiJ9.eyJzZWIiOiIxMTQ4OTEzIiwiZGV2aWNlX2lkIjoiRUVCRkMzN0UtNDcxNS00ODcyLUJFRjMtRTA0MUZFNkU0MjA3IiwidXNlcl9pZCI6IjExNTYxMzI5MjYzOTE4OTUyMDQzNiIsImlhdCI6MTcyMTk5MzYyNCwic29jaWFsX3R5cGUiOiJnb29nbGUiLCJleHAiOjE3ODk5MzYyNjQsInN1YiI6IjExNDg5MTMiLCJpc3MiOiJodHRwczpcL1wvc3Rhc2guZ2FtZXMiLCJqdGkiOiI0OTYxMzQ0My1jYmI1LTQ5MTEtOGI4Yy1hOTgwYzExY2I2NGRlIiwibmJmIjoxNzgxOTI5NjI0LCJzY29wZSI6WyJ1c2VyIiwiZGV2aWNlIl19.HqBqdwlmcnf3Lb22-cn9Vc8SwOTajaxz3_Bf_Aad-52k0hGVzrz9_XOwbbrojAmN3xNXtlYM8OO2HM0StwEO4Id-t9vK1ZkjhsyHbhOGi7y8Fojl-iywZ3umrOhPAsCmztWl3CLNEGLvoNOJiCK8HuzKG74OR9qGNpAAWpyFDTXbMKK-Mue7m060YDCrkbsXzCoDdSGqQOkyK1C0DuVAMuc64NeATz6xGo8KYPiDI3nKB7GF9fGdLAwZ1Qs2O0A_DHn7eFnRnI0GbU1qA7fn4fR8BjRILemEIQggCZBJN4Jm4pvufH41o1m8XBBaaAO5EwTXUYWvo_6x4yySa4Vgw';
-    
-    const stashUrl = `https://api.stash.games/api/v1/games/${igdb_id}/reviews?limit=20&offset=0&sort.direction=DESC&sort.field=DATE_ADDED`;
+    const stashToken = Deno.env.get('STASH_JWT_TOKEN') ?? '';
+    if (!stashToken) {
+      console.error('STASH_JWT_TOKEN environment variable is not set');
+      return new Response(
+        JSON.stringify({ error: 'Stash token not configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 }
+      );
+    }
+
+    const stashUrl = `https://api.stash.games/api/v1/games/${igdbId}/reviews?limit=20&offset=0&sort.direction=DESC&sort.field=DATE_ADDED`;
 
     // Jitter: retraso aleatorio entre 500ms y 2000ms
     const jitterMs = Math.floor(Math.random() * 1500) + 500;
@@ -61,13 +83,15 @@ serve(async (req) => {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`Stash API Error: ${res.status} ${errText}`);
+      log('ERROR', 'Stash API devolvió error HTTP', { status: res.status, errorText: errText });
       throw new Error(`Stash API responded with status ${res.status}`);
     }
 
     const data = await res.json();
     const allItems = data.items || [];
     
+    log('INFO', 'Reseñas recibidas de la API de Stash', { igdbId, itemsCount: allItems.length });
+
     const gamesMap = new Map();
     const reviewsMap = new Map();
     
@@ -92,9 +116,9 @@ serve(async (req) => {
         
       const userName = user?.fullName || user?.login || 'Usuario Desconocido';
   
-      const key = `${game ? game.id : igdb_id}_${userName}`;
+      const key = `${game ? game.id : igdbId}_${userName}`;
       reviewsMap.set(key, {
-        game_id: game ? game.id : igdb_id, 
+        game_id: game ? game.id : igdbId, 
         stash_user_display_name: userName,
         stash_user_avatar_url: user?.imageUrl || null,
         comment: review.comment.trim(),
@@ -115,13 +139,12 @@ serve(async (req) => {
           ignoreDuplicates: true 
         });
       if (gamesError) {
-        console.error('Error upserting games:', gamesError);
+        log('ERROR', 'Error en upsert de juegos referenciados', { error: gamesError.message });
       }
     }
 
     let insertedCount = 0;
     if (reviewsToInsert.length > 0) {
-      // Upsert basado en game_id y nombre de usuario para actualizar reseñas viejas del mismo usuario
       const { error: upsertError } = await supabase
         .from('stash_community_reviews')
         .upsert(reviewsToInsert, { 
@@ -130,7 +153,7 @@ serve(async (req) => {
         });
         
       if (upsertError) {
-        console.error('Error in upsert:', upsertError);
+        log('ERROR', 'Error en upsert idempotente de reseñas', { error: upsertError.message });
         throw upsertError;
       }
       insertedCount = reviewsToInsert.length;
@@ -139,21 +162,24 @@ serve(async (req) => {
     // Actualizar metadata para la caché
     const { error: metaError } = await supabase
       .from('stash_sync_metadata')
-      .upsert({ game_id: igdb_id, last_checked_at: new Date().toISOString() });
+      .upsert({ game_id: igdbId, last_checked_at: new Date().toISOString() });
       
     if (metaError) {
-      console.error('Error updating metadata:', metaError);
+      log('ERROR', 'Error en upsert de metadata de caché', { error: metaError.message });
     }
+
+    log('INFO', 'Sincronización de reseñas completada', { igdbId, upsertedCount: insertedCount });
 
     return new Response(JSON.stringify({ success: true, processed: insertedCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error: any) {
-    console.error("Error fetch-stash-reviews:", error);
+    log('ERROR', 'Error fatal en fetch-stash-reviews', { error: error.message || String(error) });
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });
   }
 });
+

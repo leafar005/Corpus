@@ -80,10 +80,6 @@ class BundleService {
   static const String _endpoint = 'https://barter.vg/bundles/json/';
   static const String _cacheKey = 'active_bundles_cache';
 
-  // --- Flags de depuración: solo volcamos el primer bundle de cada tienda ---
-  static bool _dumpedFanatical = false;
-  static bool _dumpedHumble = false;
-
   static int storeRankPublic(String storeName) {
     if (storeName == 'Humble Bundle') return 1;
     if (storeName == 'Fanatical') return 2;
@@ -104,49 +100,9 @@ class BundleService {
     return null;
   }
 
-  /// Volcado de depuración: imprime la estructura cruda de un bundle
-  /// para poder localizar dónde vive el precio por tier / pick count.
-  static void _debugDumpBundleStructure(String storeName, String key, Map<String, dynamic> bundleMap) {
-    if (!kDebugMode) return;
-
-    debugPrint('========== DEBUG DUMP [$storeName] bundle key=$key ==========');
-    debugPrint('Claves de nivel superior del bundle: ${bundleMap.keys.toList()}');
-
-    for (final k in bundleMap.keys) {
-      final lower = k.toLowerCase();
-      if (lower.contains('tier') || lower.contains('price') || lower.contains('cost')) {
-        debugPrint('  -> $k = ${bundleMap[k]}');
-      }
-    }
-
-    final meta = bundleMap['meta'];
-    if (meta is Map) {
-      debugPrint('meta completo: ${json.encode(meta)}');
-    }
-
-    final rawGames = bundleMap['games'] ?? bundleMap['items'];
-    if (rawGames is Map && rawGames.isNotEmpty) {
-      final firstKey = rawGames.keys.first;
-      debugPrint('Ejemplo de juego crudo (key=$firstKey): ${json.encode(rawGames[firstKey])}');
-
-      final allKeys = rawGames.keys.toList();
-      if (allKeys.length > 3) {
-        final midKey = allKeys[allKeys.length ~/ 2];
-        debugPrint('Ejemplo de juego crudo intermedio (key=$midKey): ${json.encode(rawGames[midKey])}');
-      }
-    } else {
-      debugPrint('rawGames no es un Map o está vacío. Tipo real: ${rawGames.runtimeType}');
-    }
-
-    final tiersRaw = bundleMap['tiers'] ?? bundleMap['tier'] ?? bundleMap['prices'] ?? bundleMap['levels'];
-    if (tiersRaw != null) {
-      debugPrint('Estructura de tiers/prices separada: ${json.encode(tiersRaw)}');
-    }
-
-    debugPrint('========== FIN DEBUG DUMP [$storeName] ==========');
-  }
-
-  /// Único añadido al código estable: lee divisa o texto sin alterar el bucle
+  /// Extrae el Steam AppID real de una entrada de juego de barter.vg.
+  /// Para "paquetes" (type == 2, p.ej. Ediciones Deluxe), el campo 'id' es un ID de paquete de Steam
+  /// que NO existe en IGDB. El AppID real del juego base está dentro de 'included'.
   static double? _readPrice(Map<String, dynamic> t, Map<String, dynamic> bundleMap) {
     final raw = t['price_eur'] ?? t['price_usd'] ?? t['price'] ?? t['cost'] ?? t['min_price'] ??
                 bundleMap['price_eur'] ?? bundleMap['price_usd'] ?? bundleMap['price'] ?? bundleMap['cost'];
@@ -231,35 +187,9 @@ class BundleService {
 
         final String storeName = isHumble ? 'Humble Bundle' : 'Fanatical';
 
-        // --- VOLCADO DE DEPURACIÓN (solo una vez por tienda) ---
-        if (isFanatical && !_dumpedFanatical) {
-          _dumpedFanatical = true;
-          _debugDumpBundleStructure(storeName, key, bundleMap);
-        }
-        if (isHumble && !_dumpedHumble) {
-          _dumpedHumble = true;
-          _debugDumpBundleStructure(storeName, key, bundleMap);
-        }
-
         final meta = bundleMap['meta'] is Map ? Map<String, dynamic>.from(bundleMap['meta']) : <String, dynamic>{};
         final String title = meta['title']?.toString() ?? bundleMap['title']?.toString() ?? bundleMap['name']?.toString() ?? 'Bundle sin título';
         final String url = meta['url']?.toString() ?? bundleMap['url']?.toString() ?? bundleMap['bundle_url']?.toString() ?? 'https://barter.vg/bundle/$key/';
-
-        // --- DEBUG TEMPORAL ---
-        final List<String> _debugTargets = ['Twin Sails', 'Choice', 'Prestige Collection'];
-        if (kDebugMode && _debugTargets.any((t) => title.toLowerCase().contains(t.toLowerCase()))) {
-          final dynamic dbgRawGames = bundleMap['games'] ?? bundleMap['items'];
-          debugPrint('========== DUMP COMPLETO [$storeName] "$title" (key=$key) ==========');
-          if (dbgRawGames is Map) {
-            dbgRawGames.forEach((gk, gv) {
-              debugPrint('  game_key=$gk -> $gv');
-            });
-          } else {
-            debugPrint('  rawGames no es un Map: ${dbgRawGames.runtimeType}');
-          }
-          debugPrint('========== FIN DUMP [$storeName] "$title" ==========');
-        }
-        // --- FIN DEBUG TEMPORAL ---
 
         DateTime? endDate;
         final endRaw = meta['end'] ?? bundleMap['end'];
@@ -274,7 +204,10 @@ class BundleService {
                 if (endDate.isBefore(now.subtract(const Duration(days: 1)))) return;
               }
             }
-          } catch (_) {}
+          } catch (e) {
+            if (kDebugMode) print('[BundleService] Error parseando timestamp "$endRaw": $e');
+          }
+
         }
 
         final Map<int, List<BundleGame>> gamesByTier = {};

@@ -298,26 +298,29 @@ class ImportService {
         if (developer == null || developer == 'Desconocido' || developer == 'Desarrollador desconocido') {
           if (gameData['involved_companies'] is List && (gameData['involved_companies'] as List).isNotEmpty) {
             final companies = gameData['involved_companies'] as List;
-            try {
-              final dev = companies.firstWhere((c) => c is Map && c['developer'] == true);
-              if (dev['company'] is Map) developer = dev['company']['name']?.toString();
-            } catch (_) {
-              try {
-                if (companies[0] is Map && companies[0]['company'] is Map) {
-                  developer = companies[0]['company']['name']?.toString();
-                }
-              } catch (_) {}
+            for (final c in companies) {
+              if (c is Map && c['developer'] == true && c['company'] is Map) {
+                developer = c['company']['name']?.toString();
+                break;
+              }
+            }
+            if (developer == null && companies[0] is Map && companies[0]['company'] is Map) {
+              developer = companies[0]['company']['name']?.toString();
             }
           }
         }
 
         // 3. FORMATEO DE FECHA DE LANZAMIENTO:
         String? releaseDate;
-        if (gameData['first_release_date'] != null) {
+        final rawReleaseDate = gameData['first_release_date'];
+        if (rawReleaseDate is num && rawReleaseDate > 0) {
           try {
-            releaseDate = DateTime.fromMillisecondsSinceEpoch((gameData['first_release_date'] as int) * 1000).toIso8601String().split('T')[0];
-          } catch (_) {}
+            releaseDate = DateTime.fromMillisecondsSinceEpoch(rawReleaseDate.toInt() * 1000).toIso8601String().split('T')[0];
+          } catch (e) {
+            if (kDebugMode) print('[ImportService] Error formateando fecha: $e');
+          }
         }
+
 
         final double? cleanRating = (row.rating != null && row.rating! >= 1.0) ? row.rating : null;
         final String dateAddedStr = row.dateAdded ?? DateTime.now().toUtc().toIso8601String();
