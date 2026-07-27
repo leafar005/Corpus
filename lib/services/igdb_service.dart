@@ -45,7 +45,11 @@ class IGDBService {
       );
       if (res.status == 200 && res.data != null) {
         final bodyString = res.data is String ? res.data : jsonEncode(res.data);
-        return http.Response(bodyString, 200);
+        return http.Response.bytes(
+          utf8.encode(bodyString),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
       }
     } catch (e) {
       if (kDebugMode) {
@@ -214,7 +218,7 @@ class IGDBService {
   static Future<Map<String, dynamic>?> getGameById(int igdbId) async {
     final response = await _postQuery(
       'games',
-      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name, websites.url, websites.category, websites.type; where id = $igdbId;',
+      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, version_parent, remakes, remasters, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name, websites.url, websites.category, websites.type; where id = $igdbId;',
     );
 
     if (response.statusCode == 200) {

@@ -80,6 +80,58 @@ class ReviewRepository {
   // Escritura
   // ──────────────────────────────────────────────────────────────────
 
+  /// Sanitiza los datos de reseña, forzando a null notas y comentarios cuando status == 'wishlist'.
+  static Map<String, dynamic> sanitizeReviewData({
+    required String userId,
+    required dynamic igdbId,
+    required String status,
+    required double rating,
+    required double ratingGameplay,
+    required double ratingNarrative,
+    required double ratingSoundtrack,
+    required double ratingVisuals,
+    required String comment,
+    required String completionType,
+    required bool isReplay,
+    required int? replayNumber,
+    required String? platform,
+    required double? playTimeHours,
+    required DateTime? playedFrom,
+    required DateTime? playedUntil,
+    required int? progressPercent,
+    required List<String> imageUrls,
+  }) {
+    final isWishlist = status == 'wishlist';
+    return <String, dynamic>{
+      'user_id': userId,
+      'game_id': igdbId,
+      'rating': isWishlist ? null : (rating >= 1 ? rating : null),
+      'rating_gameplay': isWishlist ? null : (ratingGameplay >= 1 ? ratingGameplay : null),
+      'rating_narrative': isWishlist ? null : (ratingNarrative >= 1 ? ratingNarrative : null),
+      'rating_soundtrack': isWishlist ? null : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
+      'rating_visuals': isWishlist ? null : (ratingVisuals >= 1 ? ratingVisuals : null),
+      'comment': isWishlist ? null : (comment.trim().isNotEmpty ? comment.trim() : null),
+      'status': status,
+      'completion_type': isWishlist ? 'none' : completionType,
+      'is_replay': isWishlist ? false : isReplay,
+      'replay_number': isWishlist ? null : (isReplay ? replayNumber : null),
+      'platform': isWishlist ? null : platform,
+      'play_time_hours': isWishlist ? null : (playTimeHours != null && playTimeHours > 0 ? playTimeHours : null),
+      'played_from': isWishlist ? null : playedFrom?.toIso8601String().split('T')[0],
+      'played_until': isWishlist ? null : playedUntil?.toIso8601String().split('T')[0],
+      'progress_percent': isWishlist ? null : progressPercent,
+      'image_urls': isWishlist ? <String>[] : imageUrls,
+    };
+  }
+
+  /// Calcula los IDs de logros recién desbloqueados comparando el antes y el después.
+  static Set<String> computeUnlockedAchievements(
+    Set<String> beforeAchievements,
+    Set<String> afterAchievements,
+  ) {
+    return afterAchievements.difference(beforeAchievements);
+  }
+
   /// Persiste el catálogo de juego en Supabase (upsert por igdb_id).
   /// No lanza si hay error — registra y continúa.
   Future<void> upsertGame({
@@ -104,14 +156,31 @@ class ReviewRepository {
               : int.tryParse(rawCat?.toString() ?? '');
           final String title = gameData['title'] ?? 'Desconocido';
           final bool hasParent = gameData['parent_game'] != null ||
-              enrichedData['parent_game'] != null;
+              enrichedData['parent_game'] != null ||
+              gameData['version_parent'] != null ||
+              enrichedData['version_parent'] != null ||
+              gameData['remake_of'] != null ||
+              enrichedData['remake_of'] != null ||
+              gameData['remaster_of'] != null ||
+              enrichedData['remaster_of'] != null;
           return IgdbConstants.resolveCategory(catId, title,
                   hasParentGame: hasParent,
                   summary: gameData['summary']?.toString() ??
                       enrichedData['summary']?.toString()) ??
               0;
         }(),
-        'parent_game': gameData['parent_game'] ?? enrichedData['parent_game'],
+        'parent_game': () {
+          final pg = gameData['parent_game'] ??
+              enrichedData['parent_game'] ??
+              gameData['version_parent'] ??
+              enrichedData['version_parent'] ??
+              gameData['remake_of'] ??
+              enrichedData['remake_of'] ??
+              gameData['remaster_of'] ??
+              enrichedData['remaster_of'];
+          if (pg is Map) return pg['id'] ?? pg['igdb_id'];
+          return pg;
+        }(),
         'themes': gameData['themes'] ?? enrichedData['themes'],
         'game_modes': gameData['game_modes'] ?? enrichedData['game_modes'],
         'player_perspectives': gameData['player_perspectives'] ?? enrichedData['player_perspectives'],
@@ -223,27 +292,27 @@ class ReviewRepository {
       finalImageUrls.addAll(uploaded);
     }
 
-    // Construir payload de reseña
-    final reviewData = <String, dynamic>{
-      'user_id': userId,
-      'game_id': igdbId,
-      'rating': isWishlist ? null : (rating >= 1 ? rating : null),
-      'rating_gameplay': isWishlist ? null : (ratingGameplay >= 1 ? ratingGameplay : null),
-      'rating_narrative': isWishlist ? null : (ratingNarrative >= 1 ? ratingNarrative : null),
-      'rating_soundtrack': isWishlist ? null : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
-      'rating_visuals': isWishlist ? null : (ratingVisuals >= 1 ? ratingVisuals : null),
-      'comment': isWishlist ? null : (comment.trim().isNotEmpty ? comment.trim() : null),
-      'status': status,
-      'completion_type': isWishlist ? 'none' : completionType,
-      'is_replay': isWishlist ? false : isReplay,
-      'replay_number': isWishlist ? null : (isReplay ? replayNumber : null),
-      'platform': isWishlist ? null : platform,
-      'play_time_hours': isWishlist ? null : (playTimeHours != null && playTimeHours > 0 ? playTimeHours : null),
-      'played_from': isWishlist ? null : playedFrom?.toIso8601String().split('T')[0],
-      'played_until': isWishlist ? null : playedUntil?.toIso8601String().split('T')[0],
-      'progress_percent': isWishlist ? null : progressPercent,
-      'image_urls': finalImageUrls,
-    };
+    // Construir payload de reseña mediante método sanitizador estático
+    final reviewData = sanitizeReviewData(
+      userId: userId,
+      igdbId: igdbId,
+      status: status,
+      rating: rating,
+      ratingGameplay: ratingGameplay,
+      ratingNarrative: ratingNarrative,
+      ratingSoundtrack: ratingSoundtrack,
+      ratingVisuals: ratingVisuals,
+      comment: comment,
+      completionType: completionType,
+      isReplay: isReplay,
+      replayNumber: replayNumber,
+      platform: platform,
+      playTimeHours: playTimeHours,
+      playedFrom: playedFrom,
+      playedUntil: playedUntil,
+      progressPercent: progressPercent,
+      imageUrls: finalImageUrls,
+    );
 
     // Insert o update según si ya existe la reseña
     if (reviewId != null) {
@@ -298,7 +367,7 @@ class ReviewRepository {
           .eq('user_id', userId);
       final afterAchievements =
           afterRes.map((e) => e['achievement_id'] as String).toSet();
-      newlyUnlocked = afterAchievements.difference(beforeAchievements);
+      newlyUnlocked = computeUnlockedAchievements(beforeAchievements, afterAchievements);
 
       if (newlyUnlocked.isNotEmpty) {
         final detailsRes = await _client
