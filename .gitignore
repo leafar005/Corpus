@@ -33,3 +33,4 @@ lib/env.dart
 
 # Scripts temporales
 scratch/
+supabase/.temp/
