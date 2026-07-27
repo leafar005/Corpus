@@ -346,8 +346,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         icon: const Icon(Icons.chevron_left, color: Colors.white),
                                         onPressed: () {
                                           _latestReviewsScrollController.animateTo(
-                                            _latestReviewsScrollController.offset - 300,
-                                            duration: const Duration(milliseconds: 300),
+                                            _latestReviewsScrollController.offset - 500,
+                                            duration: const Duration(milliseconds: 500),
                                             curve: Curves.easeInOut,
                                           );
                                         },
@@ -371,8 +371,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         icon: const Icon(Icons.chevron_right, color: Colors.white),
                                         onPressed: () {
                                           _latestReviewsScrollController.animateTo(
-                                            _latestReviewsScrollController.offset + 300,
-                                            duration: const Duration(milliseconds: 300),
+                                            _latestReviewsScrollController.offset + 500,
+                                            duration: const Duration(milliseconds: 500),
                                             curve: Curves.easeInOut,
                                           );
                                         },

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../library/game_details_screen.dart';
+import '../library/review_modal.dart';
+import '../../repositories/review_repository.dart';
+import '../../widgets/achievement_toast.dart';
 import 'dart:io';
 import 'dart:math';
 import 'package:image_picker/image_picker.dart';
@@ -30,6 +33,7 @@ class ReviewDetailsScreen extends StatefulWidget {
 }
 
 class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
+  late Map<String, dynamic> _currentReviewData;
   bool _isLoading = true;
   int _likesCount = 0;
   bool _hasLiked = false;
@@ -43,6 +47,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _currentReviewData = Map<String, dynamic>.from(widget.reviewData);
     _fetchInteractions();
     if (widget.focusComment) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -60,7 +65,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
   Future<void> _fetchInteractions() async {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
-    final reviewId = widget.reviewData['id'];
+    final reviewId = _currentReviewData['id'];
 
     if (reviewId == null) {
       if (mounted) setState(() => _isLoading = false);
@@ -97,7 +102,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
   Future<void> _toggleLike() async {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
-    final reviewId = widget.reviewData['id'];
+    final reviewId = _currentReviewData['id'];
     if (reviewId == null) return;
 
     // Optimistic UI update
@@ -111,8 +116,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         await Supabase.instance.client.from('review_likes').insert({
           'user_id': currentUserId,
           'review_id': reviewId,
-          'review_user_id': widget.reviewData['user_id'],
-          'review_game_id': widget.reviewData['game_id'],
+          'review_user_id': _currentReviewData['user_id'],
+          'review_game_id': _currentReviewData['game_id'],
         });
       } else {
         await Supabase.instance.client
@@ -163,8 +168,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       await Supabase.instance.client.from('review_comments').insert({
         'user_id': currentUserId,
         'review_id': reviewId,
-        'review_user_id': widget.reviewData['user_id'],
-        'review_game_id': widget.reviewData['game_id'],
+        'review_user_id': _currentReviewData['user_id'],
+        'review_game_id': _currentReviewData['game_id'],
         'content': content.isNotEmpty ? content : null,
         'image_url': imageUrl,
         'attached_game': _selectedGameForComment,
@@ -291,9 +296,24 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
     try {
       final List<String> urlsToDelete = [];
-      final reviewImageUrls = widget.reviewData['image_urls'] as List<dynamic>?;
+      try {
+        final dbReview = await Supabase.instance.client
+            .from('reviews')
+            .select('image_urls')
+            .eq('id', reviewId)
+            .maybeSingle();
+        if (dbReview != null && dbReview['image_urls'] != null) {
+          urlsToDelete.addAll((dbReview['image_urls'] as List).map((e) => e.toString()));
+        }
+      } catch (_) {}
+
+      final reviewImageUrls = _currentReviewData['image_urls'] as List<dynamic>?;
       if (reviewImageUrls != null) {
-        urlsToDelete.addAll(reviewImageUrls.map((e) => e.toString()));
+        for (var url in reviewImageUrls) {
+          if (!urlsToDelete.contains(url.toString())) {
+            urlsToDelete.add(url.toString());
+          }
+        }
       }
 
       final commentsResponse = await Supabase.instance.client
@@ -302,7 +322,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
           .eq('review_id', reviewId);
           
       for (var c in commentsResponse) {
-        if (c['image_url'] != null) {
+        if (c['image_url'] != null && !urlsToDelete.contains(c['image_url'])) {
           urlsToDelete.add(c['image_url']);
         }
       }
@@ -336,6 +356,160 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar reseña: $e')));
+      }
+    }
+  }
+
+  void _editReview() {
+    final rating = (_currentReviewData['rating'] ?? 0).toDouble();
+    final ratingGameplay = (_currentReviewData['rating_gameplay'] ?? 0).toDouble();
+    final ratingNarrative = (_currentReviewData['rating_narrative'] ?? 0).toDouble();
+    final ratingSoundtrack = (_currentReviewData['rating_soundtrack'] ?? 0).toDouble();
+    final ratingVisuals = (_currentReviewData['rating_visuals'] ?? 0).toDouble();
+    final metadata = _currentReviewData['metadata'] as Map<String, dynamic>? ?? {};
+    final status = _currentReviewData['status'] ?? metadata['status'] ?? 'beaten';
+
+    ReviewModal.show(
+      context: context,
+      gameData: widget.gameData,
+      enrichedData: widget.gameData,
+      existingReview: _currentReviewData,
+      isSaving: _isSubmitting,
+      currentRating: rating,
+      currentRatingGameplay: ratingGameplay,
+      currentRatingNarrative: ratingNarrative,
+      currentRatingSoundtrack: ratingSoundtrack,
+      currentRatingVisuals: ratingVisuals,
+      currentStatus: status,
+      commentController: TextEditingController(text: _currentReviewData['comment'] ?? _currentReviewData['content'] ?? ''),
+      onSave: _saveReviewModal,
+    );
+  }
+
+  Future<void> _saveReviewModal({
+    String? reviewId,
+    required double rating,
+    required double ratingGameplay,
+    required double ratingNarrative,
+    required double ratingSoundtrack,
+    required double ratingVisuals,
+    required String comment,
+    required String status,
+    required String completionType,
+    required bool isReplay,
+    required int? replayNumber,
+    required String? platform,
+    required double? playTimeHours,
+    required DateTime? playedFrom,
+    required DateTime? playedUntil,
+    required int? progressPercent,
+    required List<XFile> newImages,
+    required List<String> existingImages,
+  }) async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'] ?? _currentReviewData['game_id'];
+    final repo = ReviewRepository();
+
+    try {
+      final result = await repo.saveReview(
+        userId: userId,
+        igdbId: igdbId,
+        gameData: widget.gameData,
+        enrichedData: widget.gameData,
+        reviewId: reviewId ?? _currentReviewData['id'],
+        rating: rating,
+        ratingGameplay: ratingGameplay,
+        ratingNarrative: ratingNarrative,
+        ratingSoundtrack: ratingSoundtrack,
+        ratingVisuals: ratingVisuals,
+        comment: comment,
+        status: status,
+        completionType: completionType,
+        isReplay: isReplay,
+        replayNumber: replayNumber,
+        platform: platform,
+        playTimeHours: playTimeHours,
+        playedFrom: playedFrom,
+        playedUntil: playedUntil,
+        progressPercent: progressPercent,
+        newImages: newImages,
+        existingImages: existingImages,
+      );
+
+      // Mostrar toasts de logros si se han desbloqueado al editar
+      if (mounted && result.newAchievementDetails.isNotEmpty) {
+        int toastDelay = 300;
+        for (final ach in result.newAchievementDetails) {
+          final String aId = ach['id'] as String;
+          final String title = ach['name'] as String? ?? 'Logro desbloqueado';
+          final String rarity = (ach['rarity'] as String?)?.toLowerCase() ?? 'comun';
+          final int xpReward = ach['xp_reward'] as int? ?? 0;
+
+          String subtitle = 'Logro desbloqueado';
+          Color color = const Color(0xFFFFD700);
+
+          if (title.contains('(Maestro)') || title.contains('(Nivel 3)') || aId.endsWith('_all')) {
+            subtitle = 'Maestro de saga'; color = const Color(0xFFFFD700);
+          } else if (title.contains('(Nivel 2)')) {
+            subtitle = 'Hito alcanzado'; color = const Color(0xFFC0C0C0);
+          } else if (title.contains('(Nivel 1)')) {
+            subtitle = 'Logro desbloqueado'; color = const Color(0xFFCD7F32);
+          } else {
+            if (rarity == 'legendario' || rarity == 'platino' || rarity == 'épico' || rarity == 'epico') {
+              subtitle = 'Hazaña legendaria'; color = Colors.cyanAccent;
+            } else if (rarity == 'difícil' || rarity == 'dificil' || rarity == 'medio') {
+              subtitle = 'Logro desbloqueado'; color = Colors.blueAccent;
+            } else {
+              subtitle = 'Logro desbloqueado'; color = Colors.green;
+            }
+          }
+
+          Future.delayed(Duration(milliseconds: toastDelay), () {
+            if (mounted) {
+              AchievementToast.show(context,
+                  title: title, subtitle: subtitle,
+                  xpReward: xpReward, icon: Icons.workspace_premium, color: color);
+            }
+          });
+          toastDelay += 3700;
+        }
+      }
+
+      final updatedReview = await Supabase.instance.client
+          .from('reviews')
+          .select('*, users!reviews_user_id_users_fkey(*)')
+          .eq('id', _currentReviewData['id'])
+          .maybeSingle();
+
+      if (updatedReview != null && mounted) {
+        final existingUsers = _currentReviewData['users'];
+        final newReview = Map<String, dynamic>.from(updatedReview);
+        if (newReview['users'] == null && existingUsers != null) {
+          newReview['users'] = existingUsers;
+        }
+        setState(() {
+          _currentReviewData = newReview;
+        });
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // Cierra el modal de reseña
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reseña actualizada con éxito')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar reseña: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
       }
     }
   }
@@ -460,25 +634,25 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
 
     // Extract all fields from reviewData
-    final rating = (widget.reviewData['rating'] ?? 0).toDouble();
-    final comment = widget.reviewData['comment'] ?? widget.reviewData['content'] ?? '';
-    final metadata = widget.reviewData['metadata'] as Map<String, dynamic>? ?? {};
-    final status = widget.reviewData['status'] ?? metadata['status'] ?? 'unknown';
-    final createdAt = widget.reviewData['created_at'];
-    final completionType = widget.reviewData['completion_type'] ?? 'story';
-    final isReplay = widget.reviewData['is_replay'] ?? false;
-    final replayNumber = widget.reviewData['replay_number'];
-    final platform = widget.reviewData['platform'];
-    final List<dynamic> imageUrls = widget.reviewData['image_urls'] ?? [];
-    final playTimeHours = (widget.reviewData['play_time_hours'] ?? 0).toDouble();
-    final playedFrom = widget.reviewData['played_from'];
-    final playedUntil = widget.reviewData['played_until'];
-    final progressPercent = widget.reviewData['progress_percent'];
+    final rating = (_currentReviewData['rating'] ?? 0).toDouble();
+    final comment = _currentReviewData['comment'] ?? _currentReviewData['content'] ?? '';
+    final metadata = _currentReviewData['metadata'] as Map<String, dynamic>? ?? {};
+    final status = _currentReviewData['status'] ?? metadata['status'] ?? 'unknown';
+    final createdAt = _currentReviewData['created_at'];
+    final completionType = _currentReviewData['completion_type'] ?? 'story';
+    final isReplay = _currentReviewData['is_replay'] ?? false;
+    final replayNumber = _currentReviewData['replay_number'];
+    final platform = _currentReviewData['platform'];
+    final List<dynamic> imageUrls = _currentReviewData['image_urls'] ?? [];
+    final playTimeHours = (_currentReviewData['play_time_hours'] ?? 0).toDouble();
+    final playedFrom = _currentReviewData['played_from'];
+    final playedUntil = _currentReviewData['played_until'];
+    final progressPercent = _currentReviewData['progress_percent'];
 
-    final ratingGameplay = (widget.reviewData['rating_gameplay'] ?? 0).toDouble();
-    final ratingNarrative = (widget.reviewData['rating_narrative'] ?? 0).toDouble();
-    final ratingSoundtrack = (widget.reviewData['rating_soundtrack'] ?? 0).toDouble();
-    final ratingVisuals = (widget.reviewData['rating_visuals'] ?? 0).toDouble();
+    final ratingGameplay = (_currentReviewData['rating_gameplay'] ?? 0).toDouble();
+    final ratingNarrative = (_currentReviewData['rating_narrative'] ?? 0).toDouble();
+    final ratingSoundtrack = (_currentReviewData['rating_soundtrack'] ?? 0).toDouble();
+    final ratingVisuals = (_currentReviewData['rating_visuals'] ?? 0).toDouble();
 
     final dateStr = createdAt != null ? _formatDate(createdAt) : '';
 
@@ -512,7 +686,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                   // User Info
                   GestureDetector(
                     onTap: () {
-                      final userId = widget.reviewData['user_id'];
+                      final userId = _currentReviewData['user_id'];
                       if (userId != null) {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: userId)));
                       }
@@ -534,10 +708,21 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                           ],
                         ),
                         const Spacer(),
-                        if (widget.reviewData['user_id'] == Supabase.instance.client.auth.currentUser?.id)
-                          IconButton(
-                            icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                            onPressed: () => _deleteReview(widget.reviewData['id']),
+                        if (_currentReviewData['user_id'] == Supabase.instance.client.auth.currentUser?.id)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                tooltip: 'Editar reseña',
+                                onPressed: _editReview,
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                tooltip: 'Eliminar reseña',
+                                onPressed: () => _deleteReview(_currentReviewData['id']),
+                              ),
+                            ],
                           ),
                       ],
                     ),

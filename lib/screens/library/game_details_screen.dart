@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../globals.dart';
 import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
-import '../../utils/storage_utils.dart';
 import '../activity/review_details_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'search_screen.dart';
 import 'group_games_screen.dart';
 import '../../widgets/achievement_toast.dart';
+import 'review_modal.dart';
+import '../../repositories/review_repository.dart';
 
 class GameDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -33,6 +31,7 @@ class GameDetailsScreen extends StatefulWidget {
 }
 
 class _GameDetailsScreenState extends State<GameDetailsScreen> {
+  final _repo = ReviewRepository();
   bool _isSaving = false;
   String? _selectedScreenshotUrl;
   bool _isLoadingUserData = true;
@@ -141,40 +140,15 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   Future<void> _fetchFriendsWithGame() async {
     final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
     if (gameId == null) return;
-    final myId = Supabase.instance.client.auth.currentUser?.id;
+    final myId = _repo.client.auth.currentUser?.id;
     if (myId == null) return;
 
     try {
-      // Obtener IDs de amigos aceptados
-      final sentFriends = await Supabase.instance.client
-          .from('friendships')
-          .select('addressee_id')
-          .eq('requester_id', myId)
-          .eq('status', 'accepted');
-      final receivedFriends = await Supabase.instance.client
-          .from('friendships')
-          .select('requester_id')
-          .eq('addressee_id', myId)
-          .eq('status', 'accepted');
-
-      final friendIds = <String>[
-        ...List<Map<String, dynamic>>.from(sentFriends).map((f) => f['addressee_id'] as String),
-        ...List<Map<String, dynamic>>.from(receivedFriends).map((f) => f['requester_id'] as String),
-      ];
-      if (friendIds.isEmpty) return;
-
-      // Buscar cuáles de esos amigos tienen el juego
-      final result = await Supabase.instance.client
-          .from('user_games')
-          .select('status, users!user_games_user_id_fkey(id, username, display_name, avatar_url)')
-          .eq('game_id', gameId is int ? gameId : int.parse(gameId.toString()))
-          .inFilter('user_id', friendIds);
-
-      if (mounted) {
-        setState(() {
-          _friendsWithGame = List<Map<String, dynamic>>.from(result);
-        });
-      }
+      final friends = await _repo.fetchFriendsWithGame(
+        myId: myId,
+        gameId: gameId,
+      );
+      if (mounted) setState(() => _friendsWithGame = friends);
     } catch (e) {
       debugPrint('[GameDetails] Error cargando amigos con el juego: $e');
     }
@@ -226,53 +200,22 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     );
 
     try {
-      final List<dynamic> rawActivities = await Supabase.instance.client
-          .from('activity_feed')
-          .select('*, users!activity_feed_user_id_fkey(*), games(*)')
-          .eq('user_id', userId)
-          .eq('game_id', gameId)
-          .order('created_at', ascending: false)
-          .limit(10);
-          
-      final List<Map<String, dynamic>> activities = List<Map<String, dynamic>>.from(rawActivities);
-      
-      Map<String, dynamic>? bestActivity;
-      if (activities.isNotEmpty) {
-        bestActivity = activities.firstWhere(
-          (act) => act['action_type'] == 'reviewed' || act['rating'] != null || (act['content'] != null && act['content'].toString().isNotEmpty),
-          orElse: () => activities.first,
-        );
-      }
-      
-      Map<String, dynamic>? finalReviewData;
-      if (bestActivity != null) {
-        final metadata = bestActivity['metadata'] as Map<String, dynamic>? ?? {};
-        final reviewId = metadata['review_id'];
-        if (reviewId != null) {
-          try {
-            final reviewResponse = await Supabase.instance.client
-                .from('reviews')
-                .select('*, review_likes(user_id), review_comments(id)')
-                .eq('id', reviewId)
-                .maybeSingle();
-            if (reviewResponse != null) {
-              finalReviewData = reviewResponse;
-            }
-          } catch (_) {}
-        }
-      }
-      
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
+      final result = await _repo.fetchFriendActivityForGame(
+        userId: userId,
+        gameId: gameId,
+      );
 
-      if (finalReviewData != null) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+
+      if (result.review != null) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => ReviewDetailsScreen(
               gameData: widget.gameData,
               userData: user,
-              reviewData: finalReviewData!,
+              reviewData: result.review!,
             ),
           ),
         );
@@ -283,7 +226,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
+      Navigator.of(context, rootNavigator: true).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al cargar la actividad: $e'))
       );
@@ -538,20 +481,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Future<void> _fetchUserData() async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = _repo.client.auth.currentUser!.id;
     final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-    debugPrint('[CORPUS DEBUG] _fetchUserData -> userId: $userId, igdbId: $igdbId');
-    debugPrint('[CORPUS DEBUG] gameData keys: ${widget.gameData.keys.toList()}');
 
     try {
-      final response = await Supabase.instance.client
-          .from('user_games')
-          .select('*, users!user_games_user_id_fkey(*)')
-          .eq('user_id', userId)
-          .eq('game_id', igdbId)
-          .maybeSingle();
-
-      debugPrint('[CORPUS DEBUG] _fetchUserData response: $response');
+      final response = await _repo.fetchUserGame(userId: userId, gameId: igdbId);
 
       if (response != null && mounted) {
         setState(() {
@@ -563,111 +497,52 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           _ratingSoundtrack = (response['rating_soundtrack'] ?? 0).toDouble();
           _ratingVisuals = (response['rating_visuals'] ?? 0).toDouble();
           _commentController.text = response['comment'] ?? '';
-
           _userData = response['users'];
-          
-          if (_rating > 0) {
-            _ratingController.text = _rating.toStringAsFixed(1);
-          }
+          if (_rating > 0) _ratingController.text = _rating.toStringAsFixed(1);
         });
       } else {
-        debugPrint('[CORPUS DEBUG] _fetchUserData -> No user_game found for this game');
-        // Fetch current user data anyway just for the avatar in case they add a review
-        final userResp = await Supabase.instance.client.from('users').select().eq('id', userId).maybeSingle();
-        if (mounted) {
-          setState(() {
-            _userData = userResp;
-          });
-        }
+        final userResp = await _repo.fetchUserProfile(userId);
+        if (mounted) setState(() => _userData = userResp);
       }
     } catch (e) {
-      debugPrint('[CORPUS DEBUG] ERROR en _fetchUserData: $e');
+      debugPrint('[CORPUS] ERROR en _fetchUserData: $e');
     } finally {
       if (mounted) setState(() => _isLoadingUserData = false);
     }
   }
 
   Future<void> _fetchReviews() async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = _repo.client.auth.currentUser!.id;
     final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
 
     try {
-      final response = await Supabase.instance.client
-          .from('reviews')
-          .select('*, review_likes(user_id), review_comments(id)')
-          .eq('user_id', userId)
-          .eq('game_id', igdbId)
-          .order('created_at', ascending: false);
-      if (mounted) {
-        setState(() {
-          _reviews = List<Map<String, dynamic>>.from(response);
-
-        });
-      }
+      final reviews = await _repo.fetchReviews(userId: userId, gameId: igdbId);
+      if (mounted) setState(() => _reviews = reviews);
     } catch (e) {
-      debugPrint('[CORPUS DEBUG] Error fetching reviews: $e');
-
+      debugPrint('[CORPUS] Error fetching reviews: $e');
     }
   }
 
   Future<void> _fetchStashReviews() async {
     final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
     if (igdbId == null) return;
-    
-    try {
-      final response = await Supabase.instance.client
-          .from('stash_community_reviews')
-          .select()
-          .eq('game_id', igdbId)
-          .order('stash_created_at', ascending: false)
-          .limit(20);
-          
-      List<Map<String, dynamic>> localReviews = List<Map<String, dynamic>>.from(response);
-      
-      bool needsFetch = false;
-      final metaResponse = await Supabase.instance.client
-          .from('stash_sync_metadata')
-          .select('last_checked_at')
-          .eq('game_id', igdbId)
-          .maybeSingle();
 
-      if (metaResponse != null && metaResponse['last_checked_at'] != null) {
-        final lastChecked = DateTime.parse(metaResponse['last_checked_at']);
-        if (DateTime.now().difference(lastChecked).inDays > 7) {
-          needsFetch = true;
-        }
-      } else {
-        needsFetch = true;
-      }
+    try {
+      final local = await _repo.fetchStashReviewsLocal(igdbId);
       if (mounted) {
         setState(() {
-          _stashReviews = localReviews;
-          _isLoadingStashReviews = needsFetch;
+          _stashReviews = local.reviews;
+          _isLoadingStashReviews = local.needsFetch;
         });
       }
 
-      if (needsFetch) {
-        final functionResponse = await Supabase.instance.client.functions.invoke(
-          'fetch-stash-reviews',
-          body: {'igdb_id': igdbId},
-        );
-        
-        if (functionResponse.status == 200) {
-          final newResponse = await Supabase.instance.client
-              .from('stash_community_reviews')
-              .select()
-              .eq('game_id', igdbId)
-              .order('stash_created_at', ascending: false)
-              .limit(20);
-              
-          if (mounted) {
-            setState(() {
-              _stashReviews = List<Map<String, dynamic>>.from(newResponse);
-              _isLoadingStashReviews = false;
-            });
-          }
-        } else {
-          if (mounted) setState(() => _isLoadingStashReviews = false);
+      if (local.needsFetch) {
+        final updated = await _repo.refreshStashReviews(igdbId);
+        if (mounted) {
+          setState(() {
+            if (updated != null) _stashReviews = updated;
+            _isLoadingStashReviews = false;
+          });
         }
       }
     } catch (e) {
@@ -677,30 +552,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
 
-
-  Widget _buildSubRatingSlider(String label, IconData icon, double value, Function(double) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Text(label, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            const Spacer(),
-            Text(value > 0 ? value.toStringAsFixed(1) : '-', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.primary)),
-          ],
-        ),
-        Slider(
-          value: value,
-          min: 0, max: 10, divisions: 100,
-          activeColor: Theme.of(context).colorScheme.primary,
-          label: value > 0 ? value.toStringAsFixed(1) : "-",
-          onChanged: onChanged,
-        ),
-      ],
-    );
-  }
 
 
 
@@ -829,7 +680,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               ],
             ),
           );
-        }).toList(),
+        }),
+
         
         if (_stashReviews.length > _stashReviewLimit)
           Center(
@@ -847,341 +699,23 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     );
   }
 
+  /// Abre el bottom sheet de creación/edición de reseña.
+  /// La lógica del formulario vive en [ReviewModal] (review_modal.dart).
   void _showReviewModal({Map<String, dynamic>? existingReview}) {
-    final hasReview = existingReview != null;
-    final r = existingReview;
-
-    double reviewRating = hasReview ? (r!['rating'] ?? 0).toDouble() : _rating;
-    double reviewRatingGameplay = hasReview ? (r!['rating_gameplay'] ?? 0).toDouble() : _ratingGameplay;
-    double reviewRatingNarrative = hasReview ? (r!['rating_narrative'] ?? 0).toDouble() : _ratingNarrative;
-    double reviewRatingSoundtrack = hasReview ? (r!['rating_soundtrack'] ?? 0).toDouble() : _ratingSoundtrack;
-    double reviewRatingVisuals = hasReview ? (r!['rating_visuals'] ?? 0).toDouble() : _ratingVisuals;
-    String reviewStatus = hasReview ? (r!['status'] ?? _status) : _status;
-    String reviewCompletionType = hasReview ? (r!['completion_type'] ?? 'story') : 'story';
-    bool reviewIsReplay = hasReview ? (r!['is_replay'] ?? false) : false;
-    int reviewReplayNumber = hasReview ? (r!['replay_number'] ?? 1) : 1;
-    String? reviewPlatform = hasReview ? r!['platform'] : null;
-    String playTimeText = hasReview && r!['play_time_hours'] != null ? r['play_time_hours'].toString() : '';
-    DateTime? reviewPlayedFrom = hasReview && r!['played_from'] != null ? DateTime.parse(r['played_from']) : null;
-    DateTime? reviewPlayedUntil = hasReview && r!['played_until'] != null ? DateTime.parse(r['played_until']) : null;
-    int reviewProgressPercent = hasReview ? (r!['progress_percent'] ?? 0) : 0;
-    
-    final reviewCommentController = TextEditingController(text: hasReview ? (r!['comment'] ?? '') : _commentController.text);
-    final String? reviewId = hasReview ? r!['id'] : null;
-    
-    List<XFile> newImages = [];
-    List<String> existingImages = hasReview ? List<String>.from(r!['image_urls'] ?? []) : [];
-
-    final List<dynamic> platforms = (widget.gameData['platforms'] as List?)?.isNotEmpty == true
-        ? widget.gameData['platforms']
-        : (_enrichedData['platforms'] as List? ?? []);
-
-    showModalBottomSheet(
+    ReviewModal.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (modalContext) {
-        return StatefulBuilder(
-          builder: (modalContext, setModalState) {
-            Widget chip(String value, String label, IconData icon, String current, Color color, Function(String) onSelect) {
-              final sel = current == value;
-              final tc = sel ? (color == Theme.of(modalContext).colorScheme.secondary ? Theme.of(modalContext).scaffoldBackgroundColor : Colors.white) : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
-              return ChoiceChip(
-                label: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(icon, size: 18, color: sel ? tc : Theme.of(context).colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 6),
-                  Text(label),
-                ]),
-                selected: sel,
-                onSelected: (_) => setModalState(() => onSelect(value)),
-                selectedColor: color,
-                backgroundColor: Theme.of(modalContext).colorScheme.surfaceContainerHighest,
-                labelStyle: TextStyle(color: tc, fontWeight: sel ? FontWeight.bold : FontWeight.normal),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                side: BorderSide(color: sel ? color : Theme.of(context).colorScheme.onSurfaceVariant),
-                showCheckmark: false,
-              );
-            }
-
-            Widget buildRemovableImage({required Widget imageWidget, required VoidCallback onRemove}) {
-              return Stack(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(right: 8, top: 8),
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
-                    clipBehavior: Clip.hardEdge,
-                    child: imageWidget,
-                  ),
-                  Positioned(
-                    top: 0, right: 0,
-                    child: GestureDetector(
-                      onTap: onRemove,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                        child: const Icon(Icons.close, size: 16, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(modalContext).viewInsets.bottom, top: 24, left: 24, right: 24),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(hasReview ? 'Editar Reseña' : 'Añadir Reseña', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 24),
-
-                    Text('Estado', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                    const SizedBox(height: 12),
-                    Wrap(spacing: 8, runSpacing: 8, children: [
-                      chip('wishlist', 'Quiero', Icons.favorite, reviewStatus, _getStatusColor('wishlist'), (v) { reviewStatus = v; reviewCompletionType = 'none'; }),
-                      chip('playing', 'Jugando', Icons.videogame_asset, reviewStatus, _getStatusColor('playing'), (v) { reviewStatus = v; reviewCompletionType = 'none'; }),
-                      chip('beaten', 'Terminado', Icons.emoji_events, reviewStatus, _getStatusColor('beaten'), (v) { reviewStatus = v; reviewCompletionType = 'none'; }),
-                      chip('abandoned', 'Abandonado', Icons.cancel_outlined, reviewStatus, _getStatusColor('abandoned'), (v) { reviewStatus = v; reviewCompletionType = 'none'; }),
-                    ]),
-                    const SizedBox(height: 24),
-
-                    if (reviewStatus == 'beaten') ...[
-                      Text('Tipo de completado', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                      const SizedBox(height: 12),
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        chip('none', 'Nada', Icons.do_not_disturb_alt, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
-                        chip('story', 'Historia', Icons.auto_stories, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
-                        chip('story_extras', 'Historia + Extras', Icons.extension, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
-                        chip('100_percent', '100%', Icons.stars, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
-                      ]),
-                      const SizedBox(height: 24),
-                    ] else if (reviewStatus == 'playing') ...[
-                      Text('Modo de juego', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                      const SizedBox(height: 12),
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        chip('none', 'Nada', Icons.do_not_disturb_alt, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
-                        chip('endless', 'Sin Fin', Icons.all_inclusive, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
-                        chip('on_hold', 'En Pausa', Icons.pause, reviewCompletionType, Theme.of(modalContext).colorScheme.primary, (v) => reviewCompletionType = v),
-                      ]),
-                      const SizedBox(height: 24),
-                    ],
-
-                    if (reviewStatus != 'wishlist') ...[
-
-                      Row(children: [
-                        Text('Nota', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                        const Spacer(),
-                        Text(reviewRating > 0 ? reviewRating.toStringAsFixed(1) : '-', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(modalContext).colorScheme.secondary)),
-                      ]),
-                      Slider(
-                        value: reviewRating, min: 0, max: 10, divisions: 100,
-                        activeColor: Theme.of(modalContext).colorScheme.secondary,
-                        label: reviewRating > 0 ? reviewRating.toStringAsFixed(1) : "-",
-                        onChanged: (val) => setModalState(() => reviewRating = val),
-                      ),
-
-                      Theme(
-                        data: Theme.of(modalContext).copyWith(dividerColor: Colors.transparent),
-                        child: ExpansionTile(
-                          tilePadding: EdgeInsets.zero,
-                          title: const Text('Desglosar nota', style: TextStyle(fontSize: 14)),
-                          children: [
-                            _buildSubRatingSlider('Gameplay', Icons.sports_esports, reviewRatingGameplay, (val) => setModalState(() => reviewRatingGameplay = val)),
-                            _buildSubRatingSlider('Narrativa', Icons.auto_stories, reviewRatingNarrative, (val) => setModalState(() => reviewRatingNarrative = val)),
-                            _buildSubRatingSlider('Banda Sonora', Icons.music_note, reviewRatingSoundtrack, (val) => setModalState(() => reviewRatingSoundtrack = val)),
-                            _buildSubRatingSlider('Gráficos', Icons.brush, reviewRatingVisuals, (val) => setModalState(() => reviewRatingVisuals = val)),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-                      Row(children: [
-                        Text('Rejugada', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                        const Spacer(),
-                        Switch(
-                          value: reviewIsReplay,
-                          onChanged: (val) => setModalState(() => reviewIsReplay = val),
-                          activeThumbColor: Theme.of(modalContext).colorScheme.primary,
-                        ),
-                      ]),
-                      if (reviewIsReplay)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(children: [
-                            Text('Nº de rejugada', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              width: 60,
-                              child: TextField(
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.center,
-                                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(vertical: 8)),
-                                controller: TextEditingController(text: reviewReplayNumber.toString()),
-                                onChanged: (val) { final n = int.tryParse(val); if (n != null) setModalState(() => reviewReplayNumber = n); },
-                              ),
-                            ),
-                          ]),
-                        ),
-
-                      const SizedBox(height: 16),
-                      Text('Reseña', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: reviewCommentController,
-                        maxLines: 4, minLines: 2,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(hintText: '¿Qué te pareció el juego?', border: OutlineInputBorder()),
-                      ),
-                      const SizedBox(height: 12),
-                      
-                      if (existingImages.isNotEmpty || newImages.isNotEmpty) ...[
-                        SizedBox(
-                          height: 90,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              ...existingImages.map((url) => buildRemovableImage(
-                                  imageWidget: Image.network(url, fit: BoxFit.cover, width: 80, height: 80),
-                                  onRemove: () => setModalState(() => existingImages.remove(url)),
-                              )),
-                              ...newImages.map((file) => buildRemovableImage(
-                                  imageWidget: kIsWeb
-                                      ? Image.network(file.path, fit: BoxFit.cover, width: 80, height: 80)
-                                      : Image.file(File(file.path), fit: BoxFit.cover, width: 80, height: 80),
-                                  onRemove: () => setModalState(() => newImages.remove(file)),
-                              )),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      if (existingImages.length + newImages.length < 3)
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.add_photo_alternate, size: 18),
-                          label: const Text('Adjuntar imagen (máx 3)'),
-                          onPressed: () async {
-                            final picker = ImagePicker();
-                            final pickedFiles = await picker.pickMultiImage(
-                              imageQuality: 70,
-                              maxWidth: 1080,
-                            );
-                            if (pickedFiles.isNotEmpty) {
-                              setModalState(() {
-                                final remaining = 3 - existingImages.length - newImages.length;
-                                newImages.addAll(pickedFiles.take(remaining));
-                              });
-                            }
-                          },
-                        ),
-                      const SizedBox(height: 12),
-
-                      Theme(
-                        data: Theme.of(modalContext).copyWith(dividerColor: Colors.transparent),
-                        child: ExpansionTile(
-                          tilePadding: EdgeInsets.zero,
-                          title: const Text('Información Extra', style: TextStyle(fontSize: 14)),
-                          children: [
-                            if (platforms.isNotEmpty) ...[
-                              Text('Plataforma', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
-                              const SizedBox(height: 8),
-                              DropdownButtonFormField<String>(
-                                initialValue: reviewPlatform,
-                                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-                                dropdownColor: Theme.of(modalContext).colorScheme.surfaceContainerHighest,
-                                items: platforms.map((p) => DropdownMenuItem(value: p.toString(), child: Text(p.toString(), style: const TextStyle(fontSize: 14)))).toList(),
-                                onChanged: (val) => setModalState(() => reviewPlatform = val),
-                                hint: const Text('Seleccionar plataforma'),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            Text('Tiempo de juego (horas)', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
-                            const SizedBox(height: 8),
-                            TextField(
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'Ej: 45.5', contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-                              onChanged: (val) => setModalState(() => playTimeText = val),
-                            ),
-                            const SizedBox(height: 16),
-                            Text('Fecha de juego', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
-                            const SizedBox(height: 8),
-                            Row(children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  icon: const Icon(Icons.calendar_today, size: 16),
-                                  label: Text(reviewPlayedFrom != null ? '${reviewPlayedFrom!.day} ${_getMonthAbbr(reviewPlayedFrom!.month)} ${reviewPlayedFrom!.year}' : 'Desde', style: const TextStyle(fontSize: 13)),
-                                  onPressed: () async {
-                                    final d = await showDatePicker(context: modalContext, initialDate: reviewPlayedFrom ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime.now().add(const Duration(days: 365)));
-                                    if (d != null) setModalState(() => reviewPlayedFrom = d);
-                                  },
-                                ),
-                              ),
-                              Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('-', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  icon: const Icon(Icons.calendar_today, size: 16),
-                                  label: Text(reviewPlayedUntil != null ? '${reviewPlayedUntil!.day} ${_getMonthAbbr(reviewPlayedUntil!.month)} ${reviewPlayedUntil!.year}' : 'Hasta', style: const TextStyle(fontSize: 13)),
-                                  onPressed: () async {
-                                    final d = await showDatePicker(context: modalContext, initialDate: reviewPlayedUntil ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime.now().add(const Duration(days: 365)));
-                                    if (d != null) setModalState(() => reviewPlayedUntil = d);
-                                  },
-                                ),
-                              ),
-                            ]),
-                            const SizedBox(height: 16),
-                            Row(children: [
-                              Text('Progreso', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
-                              const Spacer(),
-                              Text('$reviewProgressPercent%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(modalContext).colorScheme.primary)),
-                            ]),
-                            Slider(
-                              value: reviewProgressPercent.toDouble(), min: 0, max: 100, divisions: 100,
-                              activeColor: Theme.of(modalContext).colorScheme.primary,
-                              label: '$reviewProgressPercent%',
-                              onChanged: (val) => setModalState(() => reviewProgressPercent = val.round()),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity, height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : () {
-                          _saveReview(
-                            reviewId: reviewId,
-                            rating: reviewRating, ratingGameplay: reviewRatingGameplay,
-                            ratingNarrative: reviewRatingNarrative, ratingSoundtrack: reviewRatingSoundtrack,
-                            ratingVisuals: reviewRatingVisuals, comment: reviewCommentController.text,
-                            status: reviewStatus, completionType: reviewStatus == 'wishlist' ? 'none' : reviewCompletionType,
-                            isReplay: reviewStatus == 'wishlist' ? false : reviewIsReplay, replayNumber: reviewIsReplay ? reviewReplayNumber : null,
-                            platform: reviewPlatform, playTimeHours: double.tryParse(playTimeText),
-                            playedFrom: reviewPlayedFrom, playedUntil: reviewPlayedUntil,
-                            progressPercent: reviewProgressPercent > 0 ? reviewProgressPercent : null,
-                            newImages: newImages, existingImages: existingImages,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(modalContext).colorScheme.secondary,
-                          foregroundColor: Theme.of(modalContext).scaffoldBackgroundColor,
-                        ),
-                        child: _isSaving
-                          ? CircularProgressIndicator(color: Theme.of(modalContext).scaffoldBackgroundColor)
-                          : Text(reviewStatus == 'wishlist' ? 'Guardar' : 'Publicar Reseña', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      gameData: widget.gameData,
+      enrichedData: _enrichedData,
+      existingReview: existingReview,
+      isSaving: _isSaving,
+      currentRating: _rating,
+      currentRatingGameplay: _ratingGameplay,
+      currentRatingNarrative: _ratingNarrative,
+      currentRatingSoundtrack: _ratingSoundtrack,
+      currentRatingVisuals: _ratingVisuals,
+      currentStatus: _status,
+      commentController: _commentController,
+      onSave: _saveReview,
     );
   }
 
@@ -1200,195 +734,65 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }) async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+
+    final userId = _repo.client.auth.currentUser!.id;
     final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
 
-    Set<String> beforeAchievements = {};
     try {
-      final beforeRes = await Supabase.instance.client.from('user_achievements').select('achievement_id').eq('user_id', userId);
-      beforeAchievements = beforeRes.map((e) => e['achievement_id'] as String).toSet();
-    } catch (_) {}
+      final result = await _repo.saveReview(
+        userId: userId,
+        igdbId: igdbId,
+        gameData: widget.gameData,
+        enrichedData: _enrichedData,
+        reviewId: reviewId,
+        rating: rating, ratingGameplay: ratingGameplay,
+        ratingNarrative: ratingNarrative, ratingSoundtrack: ratingSoundtrack,
+        ratingVisuals: ratingVisuals, comment: comment,
+        status: status, completionType: completionType,
+        isReplay: isReplay, replayNumber: replayNumber,
+        platform: platform, playTimeHours: playTimeHours,
+        playedFrom: playedFrom, playedUntil: playedUntil,
+        progressPercent: progressPercent,
+        newImages: newImages, existingImages: existingImages,
+      );
 
-    try {
-      await Supabase.instance.client.from('games').upsert({
-        'igdb_id': igdbId,
-        'title': widget.gameData['title'],
-        'cover_url': widget.gameData['cover_url'],
-        'release_date': widget.gameData['release_date']?.toString().split('T')[0],
-        'genres': widget.gameData['genres'] ?? _enrichedData['genres'],
-        // Fix #1: Guarda la categoría ya resuelta (no la cruda de IGDB) para que
-        // sea permanente y no requiera re-calcularse desde la biblioteca.
-        // Calcula inline con el mismo cast seguro que el build().
-        'category': () {
-          final dynamic rawCat = widget.gameData['category'] ?? widget.gameData['game_type'] ?? _enrichedData['category'] ?? _enrichedData['game_type'];
-          final int? catId = (rawCat is num) ? rawCat.toInt() : int.tryParse(rawCat?.toString() ?? '');
-          final String title = widget.gameData['title'] ?? 'Desconocido';
-          final bool hasParent = widget.gameData['parent_game'] != null || _enrichedData['parent_game'] != null;
-          return IgdbConstants.resolveCategory(catId, title, hasParentGame: hasParent,
-            summary: widget.gameData['summary']?.toString() ?? _enrichedData['summary']?.toString()) ?? 0;
-        }(),
-        'parent_game': widget.gameData['parent_game'] ?? _enrichedData['parent_game'],
-        'themes': widget.gameData['themes'] ?? _enrichedData['themes'],
-        'game_modes': widget.gameData['game_modes'] ?? _enrichedData['game_modes'],
-        'player_perspectives': widget.gameData['player_perspectives'] ?? _enrichedData['player_perspectives'],
-        'platforms': widget.gameData['platforms'] ?? _enrichedData['platforms'],
-        // Campos extra — requieren columnas nuevas en Supabase (add_games_columns.sql)
-        'summary': widget.gameData['summary'] ?? _enrichedData['summary'],
-        'developer': () {
-          final dev = widget.gameData['developer'];
-          if (dev != null && dev != 'Desconocido' && dev != 'Desarrollador desconocido') return dev;
-          return _enrichedData['developer'];
-        }(),
-        'collection': () {
-          final col = widget.gameData['collection'] ?? _enrichedData['collection'];
-          if (col is Map && col['id'] != null) return col; // Si ya es {id, name}, lo guardamos
-          if (col is String && col != 'null' && col.isNotEmpty) return {'name': col}; // Respaldo para datos viejos
-          return null;
-        }(),
-        'franchises': () {
-          final frs = widget.gameData['franchises'] ?? _enrichedData['franchises'];
-          if (frs is List && frs.isNotEmpty) {
-            return frs.map((f) => f is Map ? {'id': f['id'], 'name': f['name']} : {'name': f.toString()}).toList();
-          }
-          return [];
-        }(),
-        'game_engines': widget.gameData['game_engines'] ?? _enrichedData['game_engines'],
-      }, onConflict: 'igdb_id', ignoreDuplicates: false);
-    } catch (e) {
-      debugPrint('[CORPUS DEBUG] Game catalog upsert error: $e');
-    }
+      // Mostrar toasts de logros recién desbloqueados
+      if (mounted && result.newAchievementDetails.isNotEmpty) {
+        int toastDelay = 300;
+        for (final ach in result.newAchievementDetails) {
+          final String aId = ach['id'] as String;
+          final String title = ach['name'] as String? ?? 'Logro desbloqueado';
+          final String rarity = (ach['rarity'] as String?)?.toLowerCase() ?? 'comun';
+          final int xpReward = ach['xp_reward'] as int? ?? 0;
 
-    try {
-      final isWishlist = status == 'wishlist';
-      final reviewData = {
-        'user_id': userId,
-        'game_id': igdbId,
-        'rating': isWishlist ? null : (rating >= 1 ? rating : null),
-        'rating_gameplay': isWishlist ? null : (ratingGameplay >= 1 ? ratingGameplay : null),
-        'rating_narrative': isWishlist ? null : (ratingNarrative >= 1 ? ratingNarrative : null),
-        'rating_soundtrack': isWishlist ? null : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
-        'rating_visuals': isWishlist ? null : (ratingVisuals >= 1 ? ratingVisuals : null),
-        'comment': isWishlist ? null : (comment.trim().isNotEmpty ? comment.trim() : null),
-        'status': status,
-        'completion_type': isWishlist ? 'none' : completionType,
-        'is_replay': isWishlist ? false : isReplay,
-        'replay_number': isWishlist ? null : (isReplay ? replayNumber : null),
-        'platform': isWishlist ? null : platform,
-        'play_time_hours': isWishlist ? null : (playTimeHours != null && playTimeHours > 0 ? playTimeHours : null),
-        'played_from': isWishlist ? null : playedFrom?.toIso8601String().split('T')[0],
-        'played_until': isWishlist ? null : playedUntil?.toIso8601String().split('T')[0],
-        'progress_percent': isWishlist ? null : progressPercent,
-      };
+          String subtitle = 'Logro desbloqueado';
+          Color color = const Color(0xFFFFD700);
 
-      // Handle images upload
-      List<String> finalImageUrls = isWishlist ? [] : List<String>.from(existingImages);
-      
-      if (!isWishlist && newImages.isNotEmpty) {
-        for (final file in newImages) {
-          try {
-            final bytes = await file.readAsBytes();
-            final ext = file.name.split('.').last;
-            final fileName = '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}.$ext';
-            final path = '$userId/$fileName';
-            
-            await Supabase.instance.client.storage
-                .from('user_uploads')
-                .uploadBinary(path, bytes);
-                
-            final publicUrl = Supabase.instance.client.storage
-                .from('user_uploads')
-                .getPublicUrl(path);
-                
-            finalImageUrls.add(publicUrl);
-          } catch (e) {
-            debugPrint('[CORPUS DEBUG] Error uploading image: $e');
-          }
-        }
-      }
-      
-      reviewData['image_urls'] = finalImageUrls;
-
-      if (reviewId != null) {
-        await Supabase.instance.client.from('reviews').update(reviewData).eq('id', reviewId);
-      } else {
-        // If wishlist and no text, do we even need a review? We always create one.
-        await Supabase.instance.client.from('reviews').insert(reviewData);
-      }
-
-      await Supabase.instance.client.from('user_games').upsert({
-        'user_id': userId,
-        'game_id': igdbId,
-        'status': status,
-        'rating': isWishlist ? null : (rating >= 1 ? rating : null),
-        'rating_gameplay': isWishlist ? null : (ratingGameplay >= 1 ? ratingGameplay : null),
-        'rating_narrative': isWishlist ? null : (ratingNarrative >= 1 ? ratingNarrative : null),
-        'rating_soundtrack': isWishlist ? null : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
-        'rating_visuals': isWishlist ? null : (ratingVisuals >= 1 ? ratingVisuals : null),
-        'comment': isWishlist ? null : (comment.trim().isNotEmpty ? comment.trim() : null),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }, onConflict: 'user_id, game_id');
-
-      // Check newly unlocked achievements
-      try {
-        final afterRes = await Supabase.instance.client.from('user_achievements').select('achievement_id').eq('user_id', userId);
-        final afterAchievements = afterRes.map((e) => e['achievement_id'] as String).toSet();
-        
-        final newlyUnlocked = afterAchievements.difference(beforeAchievements);
-        if (newlyUnlocked.isNotEmpty) {
-          final detailsRes = await Supabase.instance.client.from('achievements').select('*').inFilter('id', newlyUnlocked.toList());
-          
-          if (mounted && detailsRes.isNotEmpty) {
-            int toastDelay = 300;
-            for (final ach in detailsRes) {
-              final String aId = ach['id'] as String;
-              final String title = ach['name'] as String? ?? 'Logro desbloqueado';
-              final String rarity = (ach['rarity'] as String?)?.toLowerCase() ?? 'comun';
-              final int xpReward = ach['xp_reward'] as int? ?? 0;
-              
-              String subtitle = 'Logro desbloqueado';
-              Color color = const Color(0xFFFFD700); // Oro por defecto
-
-              if (title.contains('(Maestro)') || title.contains('(Nivel 3)') || aId.endsWith('_all')) {
-                subtitle = 'Maestro de saga';
-                color = const Color(0xFFFFD700); // Oro
-              } else if (title.contains('(Nivel 2)')) {
-                subtitle = 'Hito alcanzado';
-                color = const Color(0xFFC0C0C0); // Plata
-              } else if (title.contains('(Nivel 1)')) {
-                subtitle = 'Logro desbloqueado';
-                color = const Color(0xFFCD7F32); // Bronce
-              } else {
-                if (rarity == 'legendario' || rarity == 'platino' || rarity == 'épico' || rarity == 'epico') {
-                  subtitle = 'Hazaña legendaria';
-                  color = Colors.cyanAccent;
-                } else if (rarity == 'difícil' || rarity == 'dificil' || rarity == 'medio') {
-                  subtitle = 'Logro desbloqueado';
-                  color = Colors.blueAccent;
-                } else {
-                  subtitle = 'Logro desbloqueado';
-                  color = Colors.green;
-                }
-              }
-
-              Future.delayed(Duration(milliseconds: toastDelay), () {
-                if (mounted) {
-                  AchievementToast.show(
-                    context,
-                    title: title,
-                    subtitle: subtitle,
-                    xpReward: xpReward,
-                    icon: Icons.workspace_premium, // Fallback icon genérico para el toast
-                    color: color,
-                  );
-                }
-              });
-              
-              toastDelay += 3700; // Incrementamos el delay para que no se pisen (3.5s + 0.2s margen)
+          if (title.contains('(Maestro)') || title.contains('(Nivel 3)') || aId.endsWith('_all')) {
+            subtitle = 'Maestro de saga'; color = const Color(0xFFFFD700);
+          } else if (title.contains('(Nivel 2)')) {
+            subtitle = 'Hito alcanzado'; color = const Color(0xFFC0C0C0);
+          } else if (title.contains('(Nivel 1)')) {
+            subtitle = 'Logro desbloqueado'; color = const Color(0xFFCD7F32);
+          } else {
+            if (rarity == 'legendario' || rarity == 'platino' || rarity == 'épico' || rarity == 'epico') {
+              subtitle = 'Hazaña legendaria'; color = Colors.cyanAccent;
+            } else if (rarity == 'difícil' || rarity == 'dificil' || rarity == 'medio') {
+              subtitle = 'Logro desbloqueado'; color = Colors.blueAccent;
+            } else {
+              subtitle = 'Logro desbloqueado'; color = Colors.green;
             }
           }
+
+          Future.delayed(Duration(milliseconds: toastDelay), () {
+            if (mounted) {
+              AchievementToast.show(context,
+                  title: title, subtitle: subtitle,
+                  xpReward: xpReward, icon: Icons.workspace_premium, color: color);
+            }
+          });
+          toastDelay += 3700;
         }
-      } catch (e) {
-        debugPrint('[CORPUS DEBUG] Error checking newly unlocked achievements: $e');
       }
 
       if (mounted) {
@@ -1398,7 +802,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         await Future.wait([_fetchUserData(), _fetchReviews()]);
       }
     } catch (e) {
-      debugPrint('[CORPUS DEBUG] Error saving review: $e');
+      debugPrint('[CORPUS] Error saving review: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al guardar reseña: $e')));
         Navigator.pop(context);
@@ -1407,6 +811,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (mounted) setState(() => _isSaving = false);
     }
   }
+
+
 
   String _formatDate(String isoString) {
     try {
@@ -1457,10 +863,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         title: const Text('Eliminar de biblioteca'),
         content: const Text('¿Seguro que quieres eliminar este juego de tu biblioteca? Se borrará tu reseña y nota.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
@@ -1469,70 +872,23 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         ],
       ),
     );
-
     if (confirm != true) return;
 
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = _repo.client.auth.currentUser!.id;
     final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
 
     try {
-      await Supabase.instance.client
-          .from('user_games')
-          .delete()
-          .eq('user_id', userId)
-          .eq('game_id', igdbId);
-
-      final reviewsResponse = await Supabase.instance.client
-          .from('reviews')
-          .select('id, image_urls')
-          .eq('user_id', userId)
-          .eq('game_id', igdbId);
-          
-      List<String> reviewIds = [];
-      List<String> allImageUrls = [];
-      
-      for (var r in reviewsResponse) {
-        reviewIds.add(r['id']);
-        if (r['image_urls'] != null) {
-          final rUrls = r['image_urls'] as List<dynamic>;
-          allImageUrls.addAll(rUrls.map((e) => e.toString()));
-        }
-      }
-      
-      if (reviewIds.isNotEmpty) {
-        final commentsResponse = await Supabase.instance.client
-            .from('review_comments')
-            .select('image_url')
-            .inFilter('review_id', reviewIds);
-            
-        for (var c in commentsResponse) {
-          if (c['image_url'] != null) allImageUrls.add(c['image_url']);
-        }
-      }
-      
-      if (allImageUrls.isNotEmpty) {
-        await StorageUtils.deleteImagesFromUrls(allImageUrls);
-      }
-
-      await Supabase.instance.client
-          .from('reviews')
-          .delete()
-          .eq('user_id', userId)
-          .eq('game_id', igdbId);
+      await _repo.deleteFromLibrary(userId: userId, gameId: igdbId);
 
       if (mounted) {
         setState(() {
           _reviews.clear();
           _inLibrary = false;
           _status = 'wishlist';
-          _rating = 0;
-          _ratingGameplay = 0;
-          _ratingNarrative = 0;
-          _ratingSoundtrack = 0;
-          _ratingVisuals = 0;
+          _rating = 0; _ratingGameplay = 0; _ratingNarrative = 0;
+          _ratingSoundtrack = 0; _ratingVisuals = 0;
           _commentController.clear();
           _ratingController.clear();
-
         });
         libraryUpdateNotifier.value++;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1541,9 +897,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al eliminar: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
       }
     }
   }
@@ -1564,60 +919,21 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         ],
       ),
     );
-
     if (confirm != true) return;
 
     try {
       final review = _reviews.firstWhere((r) => r['id'] == reviewId, orElse: () => <String, dynamic>{});
-      final List<String> urlsToDelete = [];
-      final reviewImageUrls = review['image_urls'] as List<dynamic>?;
-      if (reviewImageUrls != null) {
-        urlsToDelete.addAll(reviewImageUrls.map((e) => e.toString()));
-      }
-
-      final commentsResponse = await Supabase.instance.client
-          .from('review_comments')
-          .select('image_url')
-          .eq('review_id', reviewId);
-          
-      for (var c in commentsResponse) {
-        if (c['image_url'] != null) {
-          urlsToDelete.add(c['image_url']);
-        }
-      }
-
-      if (urlsToDelete.isNotEmpty) {
-        await StorageUtils.deleteImagesFromUrls(urlsToDelete);
-      }
-
-      await Supabase.instance.client.from('reviews').delete().eq('id', reviewId);
-      
       final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-      if (gameId != null) {
-        final remainingReviews = await Supabase.instance.client
-            .from('reviews')
-            .select('id')
-            .eq('game_id', gameId)
-            .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
-            
-        if (remainingReviews.isEmpty) {
-          await Supabase.instance.client
-              .from('user_games')
-              .delete()
-              .eq('game_id', gameId)
-              .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
-              
-          if (mounted) {
-            setState(() {
-              _inLibrary = false;
-            });
-          }
-        }
-      }
-      
+      final removedFromLibrary = await _repo.deleteReview(
+        reviewId: reviewId,
+        reviewData: review,
+        gameId: gameId,
+      );
+
       if (mounted) {
         setState(() {
           _reviews.removeWhere((r) => r['id'] == reviewId);
+          if (removedFromLibrary) _inLibrary = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reseña eliminada')));
       }
@@ -1798,11 +1114,24 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                       ]),
                     ),
                     if (review['id'] != null)
-                      IconButton(
-                        icon: Icon(Icons.delete_outline, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () => _deleteReview(review['id']),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.edit_outlined, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            padding: const EdgeInsets.only(right: 12),
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Editar reseña',
+                            onPressed: () => _showReviewModal(existingReview: review),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete_outline, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Eliminar reseña',
+                            onPressed: () => _deleteReview(review['id']),
+                          ),
+                        ],
                       ),
                   ],
                 ),
@@ -1922,6 +1251,612 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         _buildTimeToBeatCard('Extras', _timeToBeat?['normally'], Colors.purpleAccent, Icons.explore),
         const SizedBox(width: 8),
         _buildTimeToBeatCard('Completista', _timeToBeat?['completely'], Colors.amber, Icons.emoji_events),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Helpers de UI extraídos del build() para mantenerlo legible
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFadeInImage(String url, {Key? key}) {
+    return SizedBox.expand(
+      key: key,
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        alignment: Alignment.center,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) return child;
+          return AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOut,
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTabButton(int index, String title) {
+    final isSelected = _selectedMainTabIndex == index;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedMainTabIndex = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Convierte URLs internacionales a su versión de España.
+  String _localizeUrlToSpain(String rawUrl) {
+    if (!_localizeLinks) return rawUrl;
+    String url = rawUrl;
+    final lower = url.toLowerCase();
+    if (lower.contains('store.steampowered.com')) {
+      final separator = url.contains('?') ? '&' : '?';
+      if (!lower.contains('l=spanish') && !lower.contains('cc=es')) {
+        return '$url${separator}l=spanish&cc=es';
+      }
+    }
+    if (lower.contains('store.playstation.com')) {
+      return url.replaceAll(RegExp(r'/(en|es|fr|de|it|pt|ja|ko|zh)-[a-z]{2}/', caseSensitive: false), '/es-es/');
+    }
+    if (lower.contains('xbox.com') || lower.contains('microsoft.com')) {
+      return url.replaceAll(RegExp(r'/(en|es|fr|de|it|pt|ja|ko|zh)-[a-z]{2}/', caseSensitive: false), '/es-es/');
+    }
+    if (lower.contains('store.epicgames.com') || lower.contains('epicgames.com')) {
+      return url.replaceAll(RegExp(r'/(en|es|fr|de|it|pt|ja|ko|zh)-[a-zA-Z]{2}/', caseSensitive: false), '/es-ES/');
+    }
+    if (lower.contains('nintendo.com')) {
+      return url.replaceAll(RegExp(r'/(en-us|en-gb|us|uk)/', caseSensitive: false), '/es-es/');
+    }
+    if (lower.contains('apps.apple.com')) {
+      return url.replaceAll(RegExp(r'/apps\.apple\.com/[a-z]{2}/', caseSensitive: false), '/apps.apple.com/es/');
+    }
+    if (lower.contains('gog.com')) {
+      return url.replaceAll(RegExp(r'/gog\.com/(en|de|fr|pl|ru|zh)/', caseSensitive: false), '/gog.com/es/');
+    }
+    return url;
+  }
+
+  Widget _buildRelatedTab() {
+    if (_isLoadingRelated) {
+      return const Padding(
+        padding: EdgeInsets.all(32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_relatedGames.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.all(32),
+        child: Center(child: Text('No hay contenido relacionado.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))),
+      );
+    }
+
+    String gameTypeLabel(int? t) {
+      switch (t) {
+        case 1: return 'DLCs';
+        case 2: return 'Expansiones';
+        case 3: return 'Bundles';
+        case 4: return 'Expansiones Standalone';
+        case 5: return 'Mods';
+        case 6: return 'Episodios';
+        case 7: return 'Temporadas';
+        case 8: return 'Remakes';
+        case 9: return 'Remasters';
+        case 10: return 'Ediciones Expandidas';
+        case 11: return 'Ports';
+        case 12: return 'Forks';
+        case 13: return 'Packs';
+        case 14: return 'Actualizaciones';
+        default: return 'Relacionados';
+      }
+    }
+
+    const typeOrder = [8, 9, 4, 2, 1, 10, 11, 14, 3, 13, 6, 7, 12, 5, 0];
+    final Map<int?, List<dynamic>> grouped = {};
+    for (final g in _relatedGames) {
+      final key = (g['game_type'] is num) ? (g['game_type'] as num).toInt() : g['game_type'] as int?;
+      grouped.putIfAbsent(key, () => []).add(g);
+    }
+    final sortedKeys = grouped.keys.toList()
+      ..sort((a, b) {
+        final ai = typeOrder.indexOf(a ?? -1);
+        final bi = typeOrder.indexOf(b ?? -1);
+        return (ai < 0 ? 999 : ai).compareTo(bi < 0 ? 999 : bi);
+      });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final type in sortedKeys) ...[
+          Text(
+            '${gameTypeLabel(type)} (${grouped[type]!.length})',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 160,
+              childAspectRatio: 0.58,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: grouped[type]!.length,
+            itemBuilder: (context, i) {
+              final g = grouped[type]![i];
+              final coverMap = g['cover'] as Map?;
+              final coverId = coverMap?['image_id'] as String?;
+              final coverUrl = IGDBService.getCoverUrl(coverId);
+              int? releaseYear;
+              if (g['first_release_date'] != null) {
+                releaseYear = DateTime.fromMillisecondsSinceEpoch((g['first_release_date'] as int) * 1000).year;
+              }
+              return InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () {
+                  final cleanData = Map<String, dynamic>.from(g as Map);
+                  cleanData['igdb_id'] = g['id'];
+                  cleanData['title'] = g['name'];
+                  cleanData['cover_url'] = coverUrl;
+                  if (g['genres'] != null && g['genres'] is List) {
+                    cleanData['genres'] = (g['genres'] as List).map((gen) => gen is Map ? gen['name'] : gen).toList();
+                  }
+                  final isDesktop = MediaQuery.of(context).size.width > 800;
+                  if (isDesktop) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => GameDetailsScreen(gameData: cleanData)));
+                  } else {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: false,
+                      enableDrag: true,
+                      builder: (_) => DraggableScrollableSheet(
+                        initialChildSize: 1.0,
+                        minChildSize: 0.5,
+                        maxChildSize: 1.0,
+                        expand: false,
+                        snap: true,
+                        builder: (context, scrollController) {
+                          return GameDetailsScreen(
+                            gameData: cleanData,
+                            scrollController: scrollController,
+                          );
+                        },
+                      ),
+                    );
+                  }
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: coverUrl.isNotEmpty
+                            ? Image.network(coverUrl, fit: BoxFit.cover, width: double.infinity)
+                            : Container(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                child: Center(child: Icon(Icons.videogame_asset, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 36)),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 34,
+                      child: Text(
+                        releaseYear != null ? '${g['name']} ($releaseYear)' : g['name'].toString(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildLinksTab() {
+    final List websitesList = (widget.gameData['websites'] as List?)?.isNotEmpty == true
+        ? widget.gameData['websites']
+        : (_enrichedData['websites'] as List? ?? []);
+
+    if (websitesList.isEmpty) {
+      return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No hay enlaces disponibles.')));
+    }
+
+    int getCategory(dynamic w) {
+      if (w is Map && w['category'] != null) {
+        final c = w['category'];
+        if (c is int) return c;
+        if (c is String) return int.tryParse(c) ?? 0;
+        if (c is num) return c.toInt();
+      }
+      return 0;
+    }
+
+    bool isConsoleStore(dynamic w) {
+      if (w is Map && w['url'] != null) {
+        final url = w['url'].toString().toLowerCase();
+        return url.contains('playstation.com') || url.contains('xbox.com') || url.contains('nintendo.com');
+      }
+      return false;
+    }
+
+    final stores = websitesList.where((w) => [13, 15, 16, 17].contains(getCategory(w)) || isConsoleStore(w)).toList();
+    final socials = websitesList.where((w) => [4, 5, 6, 8, 9, 14, 18].contains(getCategory(w))).toList();
+    final official = websitesList.where((w) => [1, 2, 3].contains(getCategory(w))).toList();
+    final mobile = websitesList.where((w) => [10, 11, 12].contains(getCategory(w))).toList();
+    final others = websitesList.where((w) => ![1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].contains(getCategory(w)) && !isConsoleStore(w)).toList();
+
+    Widget buildLinkSection(String title, List links, IconData icon) {
+      if (links.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(icon, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 12),
+          ...links.map((link) {
+            String name = 'Enlace';
+            IconData itemIcon = Icons.link;
+            final cat = getCategory(link);
+            switch (cat) {
+              case 1: name = 'Sitio Oficial'; itemIcon = Icons.language; break;
+              case 2: name = 'Wikia'; itemIcon = Icons.menu_book; break;
+              case 3: name = 'Wikipedia'; itemIcon = Icons.menu_book; break;
+              case 4: name = 'Facebook'; itemIcon = Icons.facebook; break;
+              case 5: name = 'Twitter'; itemIcon = Icons.alternate_email; break;
+              case 6: name = 'Twitch'; itemIcon = Icons.live_tv; break;
+              case 8: name = 'Instagram'; itemIcon = Icons.camera_alt; break;
+              case 9: name = 'YouTube'; itemIcon = Icons.video_library; break;
+              case 10: name = 'iPhone'; itemIcon = Icons.phone_iphone; break;
+              case 11: name = 'iPad'; itemIcon = Icons.tablet_mac; break;
+              case 12: name = 'Android'; itemIcon = Icons.phone_android; break;
+              case 13: name = 'Steam'; itemIcon = Icons.computer; break;
+              case 14: name = 'Reddit'; itemIcon = Icons.forum; break;
+              case 15: name = 'Itch.io'; itemIcon = Icons.gamepad; break;
+              case 16: name = 'Epic Games'; itemIcon = Icons.computer; break;
+              case 17: name = 'GOG'; itemIcon = Icons.computer; break;
+              case 18: name = 'Discord'; itemIcon = Icons.chat; break;
+              default:
+                final urlString = link['url'].toString().toLowerCase();
+                if (urlString.contains('playstation.com')) {
+                  name = 'PlayStation Store'; itemIcon = Icons.gamepad;
+                } else if (urlString.contains('xbox.com')) {
+                  name = 'Xbox Store'; itemIcon = Icons.sports_esports;
+                } else if (urlString.contains('nintendo.com')) {
+                  name = 'Nintendo eShop'; itemIcon = Icons.videogame_asset;
+                } else {
+                  try {
+                    final uri = Uri.parse(link['url'].toString());
+                    name = uri.host.replaceFirst('www.', '');
+                  } catch (_) {}
+                }
+            }
+            return ListTile(
+              leading: Icon(itemIcon),
+              title: Text(name),
+              subtitle: Text(_localizeUrlToSpain(link['url'].toString()), maxLines: 1, overflow: TextOverflow.ellipsis),
+              trailing: const Icon(Icons.open_in_new, size: 16),
+              onTap: () => launchUrl(
+                Uri.parse(_localizeUrlToSpain(link['url'].toString())),
+                mode: LaunchMode.externalApplication,
+              ),
+            );
+          }),
+          const SizedBox(height: 24),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        buildLinkSection('Tiendas', stores, Icons.store),
+        buildLinkSection('Sociales y Comunidad', socials, Icons.people),
+        buildLinkSection('Información Oficial', official, Icons.info),
+        buildLinkSection('Móvil', mobile, Icons.smartphone),
+        buildLinkSection('Otros', others, Icons.link),
+      ],
+    );
+  }
+
+  Widget _buildInfoTab({
+    required String? summary,
+    required String? collectionName,
+    required int? collectionId,
+    required List<Map<String, dynamic>> franchisesData,
+    required List genresList,
+    required List themesList,
+    required List platformsList,
+    required List gameEnginesList,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (collectionName != null || franchisesData.isNotEmpty) ...[
+          const Text('Franquicia / Colección', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: [
+              if (collectionName != null)
+                ActionChip(
+                  label: Text(collectionName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                  side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  onPressed: () {
+                    if (collectionId != null) {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => GroupGamesScreen(
+                        title: collectionName,
+                        collectionId: collectionId,
+                        isFranchise: false,
+                      )));
+                    } else {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: collectionName)));
+                    }
+                  },
+                ),
+              ...franchisesData.where((f) => f['name'] != collectionName).map((f) => ActionChip(
+                label: Text(f['name'].toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.2),
+                side: BorderSide(color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                onPressed: () {
+                  if (f['id'] != null) {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => GroupGamesScreen(
+                      title: f['name'].toString(),
+                      collectionId: f['id'] as int,
+                      isFranchise: true,
+                    )));
+                  } else {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: f['name'].toString())));
+                  }
+                },
+              )),
+            ],
+          ),
+          const SizedBox(height: 28),
+        ],
+        if (genresList.isNotEmpty) ...[
+          const Text('Géneros', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: genresList.map((g) {
+              final gName = g is Map ? g['name'].toString() : g.toString();
+              return Chip(
+                label: Text(IgdbConstants.formatGenreWithEmoji(gName), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 28),
+        ],
+        if (themesList.isNotEmpty) ...[
+          const Text('Temáticas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: themesList.map((t) {
+              final tName = t is Map ? t['name'].toString() : t.toString();
+              return Chip(
+                label: Text(IgdbConstants.formatThemeWithEmoji(tName), style: const TextStyle(fontSize: 13)),
+                backgroundColor: Colors.transparent,
+                side: BorderSide(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 28),
+        ],
+        if (platformsList.isNotEmpty) ...[
+          const Text('Plataformas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8, runSpacing: 8,
+            children: platformsList.map((p) {
+              final style = IgdbConstants.getPlatformStyle(p.toString());
+              return Chip(
+                avatar: style['icon'] != null ? Image.asset(style['icon'], height: 20, fit: BoxFit.contain) : null,
+                label: Text(p.toString(), style: TextStyle(color: style['textColor'], fontWeight: FontWeight.bold)),
+                backgroundColor: style['color'],
+                side: BorderSide.none,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 28),
+        ],
+        if (summary != null) ...[
+          const Text('Sinopsis', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Text(summary, style: const TextStyle(fontSize: 16, height: 1.6)),
+          const SizedBox(height: 28),
+        ],
+        const Text('Tiempo Estimado (HLTB)', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        _buildTimeToBeatRow(),
+        if (gameEnginesList.isNotEmpty) ...[
+          const SizedBox(height: 28),
+          Row(children: [
+            Icon(Icons.memory, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Motor Gráfico: ${gameEnginesList.join(', ')}',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+              ),
+            ),
+          ]),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMediaTab({
+    required List screenshotsList,
+    required List artworksList,
+    required List videosList,
+  }) {
+    final List<Map<String, dynamic>> availableTabs = [];
+    if (screenshotsList.isNotEmpty) availableTabs.add({'id': 0, 'label': 'Capturas', 'icon': Icons.screenshot_monitor});
+    if (videosList.isNotEmpty) availableTabs.add({'id': 1, 'label': 'Tráilers', 'icon': Icons.video_library});
+    if (artworksList.isNotEmpty) availableTabs.add({'id': 2, 'label': 'Artworks', 'icon': Icons.brush});
+
+    if (availableTabs.isEmpty) return const SizedBox.shrink();
+
+    final int activeTabId = availableTabs.any((t) => t['id'] == _selectedMediaTabIndex)
+        ? _selectedMediaTabIndex
+        : availableTabs.first['id'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (availableTabs.length > 1) ...[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: availableTabs.map((tab) {
+                final isSelected = tab['id'] == activeTabId;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ChoiceChip(
+                    label: Text(tab['label']),
+                    showCheckmark: false,
+                    avatar: Icon(tab['icon'], size: 18, color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant),
+                    selected: isSelected,
+                    onSelected: (bool selected) {
+                      if (selected) setState(() => _selectedMediaTabIndex = tab['id']);
+                    },
+                    selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
+                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+        if (activeTabId == 0)
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 300, childAspectRatio: 16 / 9,
+              crossAxisSpacing: 12, mainAxisSpacing: 12,
+            ),
+            itemCount: screenshotsList.length,
+            itemBuilder: (context, index) {
+              final url = IGDBService.getScreenshotUrl(screenshotsList[index].toString());
+              return InkWell(
+                onTap: () => _showImageFullScreen(url),
+                borderRadius: BorderRadius.circular(12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(url, fit: BoxFit.cover),
+                ),
+              );
+            },
+          ),
+        if (activeTabId == 1)
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 300, childAspectRatio: 16 / 9,
+              crossAxisSpacing: 12, mainAxisSpacing: 12,
+            ),
+            itemCount: videosList.length,
+            itemBuilder: (context, index) {
+              final videoId = videosList[index].toString();
+              final thumbUrl = IGDBService.getVideoThumbnailUrl(videoId);
+              final videoUrl = IGDBService.getVideoUrl(videoId);
+              return InkWell(
+                onTap: () => launchUrl(Uri.parse(videoUrl), mode: LaunchMode.externalApplication),
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(thumbUrl, fit: BoxFit.cover),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.play_circle_fill, size: 48, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        if (activeTabId == 2)
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 200, childAspectRatio: 1,
+              crossAxisSpacing: 12, mainAxisSpacing: 12,
+            ),
+            itemCount: artworksList.length,
+            itemBuilder: (context, index) {
+              final url = IGDBService.getArtworkUrl(artworksList[index].toString());
+              return InkWell(
+                onTap: () => _showImageFullScreen(url),
+                borderRadius: BorderRadius.circular(12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(url, fit: BoxFit.cover),
+                ),
+              );
+            },
+          ),
       ],
     );
   }
@@ -2128,627 +2063,22 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final bool hasMedia = screenshotsList.isNotEmpty || artworksList.isNotEmpty || videosList.isNotEmpty;
     final bool hasLinks = websitesList.isNotEmpty;
 
-    Widget buildInfoTab() {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-        if (collectionName != null || franchisesData.isNotEmpty) ...[
-          const Text('Franquicia / Colección', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8, runSpacing: 8,
-            children: [
-              if (collectionName != null)
-                ActionChip(
-                  label: Text(collectionName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                  side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  onPressed: () {
-                    if (collectionId != null) {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => GroupGamesScreen(
-                        title: collectionName!,
-                        collectionId: collectionId!,
-                        isFranchise: false,
-                      )));
-                    } else {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: collectionName)));
-                    }
-                  },
-                ),
-              ...franchisesData.where((f) => f['name'] != collectionName).map((f) => ActionChip(
-                label: Text(f['name'].toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                backgroundColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.2),
-                side: BorderSide(color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.5)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                onPressed: () {
-                  if (f['id'] != null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => GroupGamesScreen(
-                      title: f['name'].toString(),
-                      collectionId: f['id'] as int,
-                      isFranchise: true,
-                    )));
-                  } else {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => SearchScreen(initialQuery: f['name'].toString())));
-                  }
-                },
-              )),
-            ],
-          ),
-          const SizedBox(height: 32),
-        ],
-
-          if (genresList.isNotEmpty) ...[
-          const SizedBox(height: 32),
-          const Text('Géneros', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8, runSpacing: 8,
-            children: genresList.map((g) {
-              final gName = g is Map ? g['name'].toString() : g.toString();
-              return Chip(
-                label: Text(IgdbConstants.formatGenreWithEmoji(gName), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              );
-            }).toList(),
-          ),
-        ],
-
-        if (themesList.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          const Text('Temáticas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8, runSpacing: 8,
-            children: themesList.map((t) {
-              final tName = t is Map ? t['name'].toString() : t.toString();
-              return Chip(
-                label: Text(IgdbConstants.formatThemeWithEmoji(tName), style: const TextStyle(fontSize: 13)),
-                backgroundColor: Colors.transparent,
-                side: BorderSide(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 32),
-        ],
-
-        if (platformsList.isNotEmpty) ...[
-          const Text('Plataformas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8, runSpacing: 8,
-            children: platformsList.map((p) {
-              final style = IgdbConstants.getPlatformStyle(p.toString());
-              return Chip(
-                avatar: style['icon'] != null ? Image.asset(style['icon'], height: 20, fit: BoxFit.contain) : null,
-                label: Text(p.toString(), style: TextStyle(color: style['textColor'], fontWeight: FontWeight.bold)),
-                backgroundColor: style['color'],
-                side: BorderSide.none,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 32),
-        ],
-
-        if (summary != null) ...[
-          const Text('Sinopsis', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Text(summary, style: const TextStyle(fontSize: 16, height: 1.6)),
-        ],
-        const SizedBox(height: 32),
-        const Text('Tiempo Estimado (HLTB)', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        _buildTimeToBeatRow(),
-        
-        if (gameEnginesList.isNotEmpty) ...[
-          const SizedBox(height: 32),
-          Row(
-            children: [
-              Icon(Icons.memory, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Motor Gráfico: ${gameEnginesList.join(', ')}',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
-                ),
-              ),
-            ],
-          ),
-        ],
-        ],
-      );
-    }
+    // buildInfoTab → extracted to _buildInfoTab(...)
 
 
-    Widget buildMediaTab() {
-      List<Map<String, dynamic>> availableTabs = [];
-      if (screenshotsList.isNotEmpty) availableTabs.add({'id': 0, 'label': 'Capturas', 'icon': Icons.screenshot_monitor});
-      if (videosList.isNotEmpty) availableTabs.add({'id': 1, 'label': 'Tráilers', 'icon': Icons.video_library});
-      if (artworksList.isNotEmpty) availableTabs.add({'id': 2, 'label': 'Artworks', 'icon': Icons.brush});
+    // buildMediaTab → extracted to _buildMediaTab(...)
 
-      if (availableTabs.isEmpty) return const SizedBox.shrink();
 
-      int activeTabId = availableTabs.any((t) => t['id'] == _selectedMediaTabIndex) 
-          ? _selectedMediaTabIndex 
-          : availableTabs.first['id'];
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (availableTabs.length > 1) ...[
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: availableTabs.map((tab) {
-                  final isSelected = tab['id'] == activeTabId;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ChoiceChip(
-                      label: Text(tab['label']),
-                      showCheckmark: false,
-                      avatar: Icon(tab['icon'], size: 18, color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant),
-                      selected: isSelected,
-                      onSelected: (bool selected) {
-                        if (selected) setState(() => _selectedMediaTabIndex = tab['id']);
-                      },
-                      selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-          if (activeTabId == 0) // Capturas
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 300,
-                childAspectRatio: 16/9,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: screenshotsList.length,
-              itemBuilder: (context, index) {
-                final url = IGDBService.getScreenshotUrl(screenshotsList[index].toString());
-                return InkWell(
-                  onTap: () => _showImageFullScreen(url),
-                  borderRadius: BorderRadius.circular(12),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(url, fit: BoxFit.cover),
-                  ),
-                );
-              },
-            ),
-          if (activeTabId == 1) // Tráilers
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 300,
-                childAspectRatio: 16/9,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: videosList.length,
-              itemBuilder: (context, index) {
-                final videoId = videosList[index].toString();
-                final thumbUrl = IGDBService.getVideoThumbnailUrl(videoId);
-                final videoUrl = IGDBService.getVideoUrl(videoId);
-                return InkWell(
-                  onTap: () => launchUrl(Uri.parse(videoUrl), mode: LaunchMode.externalApplication),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(thumbUrl, fit: BoxFit.cover),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.play_circle_fill, size: 48, color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          if (activeTabId == 2) // Artworks
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 200, // Artworks pueden ser verticales a veces, pero asumo cuadrícula igual
-                childAspectRatio: 1, // Cuadrado o 16/9, probemos cuadrado
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: artworksList.length,
-              itemBuilder: (context, index) {
-                final url = IGDBService.getArtworkUrl(artworksList[index].toString());
-                return InkWell(
-                  onTap: () => _showImageFullScreen(url),
-                  borderRadius: BorderRadius.circular(12),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(url, fit: BoxFit.cover),
-                  ),
-                );
-              },
-            ),
-        ],
-      );
-    }
-
-    Widget buildTabButton(int index, String title) {
-      final isSelected = _selectedMainTabIndex == index;
-      return MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: () => setState(() => _selectedMainTabIndex = index),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                  width: 3,
-                ),
-              ),
-            ),
-            child: SelectionContainer.disabled(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Mostrar siempre la pestaña Relacionado (el contenido aparece cuando carga)
-    // ignore: prefer_const_declarations
-    final bool hasRelated = true;
 
     // Group related games by game_type
-    Widget buildRelatedTab() {
-      // Mientras carga, mostrar un indicador giratorio en vez de dejar la pantalla vacía
-      if (_isLoadingRelated) {
-        return const Padding(
-          padding: EdgeInsets.all(32),
-          child: Center(child: CircularProgressIndicator()),
-        );
-      }
-      
-      if (_relatedGames.isEmpty) {
-        return Padding(
-          padding: EdgeInsets.all(32),
-          child: Center(child: Text('No hay contenido relacionado.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))),
-        );
-      }
 
-      // Map game_type int to display label (IGDB v4 enum)
-      String gameTypeLabel(int? t) {
-        switch (t) {
-          case 1: return 'DLCs';
-          case 2: return 'Expansiones';
-          case 3: return 'Bundles';
-          case 4: return 'Expansiones Standalone';
-          case 5: return 'Mods';
-          case 6: return 'Episodios';
-          case 7: return 'Temporadas';
-          case 8: return 'Remakes';
-          case 9: return 'Remasters';
-          case 10: return 'Ediciones Expandidas';
-          case 11: return 'Ports';
-          case 12: return 'Forks';
-          case 13: return 'Packs';
-          case 14: return 'Actualizaciones';
-          default: return 'Relacionados';
-        }
-      }
 
-      // Orden visual prioritario (Remakes y Remasters primero, mods al final)
-      const typeOrder = [8, 9, 4, 2, 1, 10, 11, 14, 3, 13, 6, 7, 12, 5, 0];
-      final Map<int?, List<dynamic>> grouped = {};
 
-      for (final g in _relatedGames) {
-        final key = (g['game_type'] is num) ? (g['game_type'] as num).toInt() : g['game_type'] as int?;
-        grouped.putIfAbsent(key, () => []).add(g);
-      }
 
-      // Sort groups
-      final sortedKeys = grouped.keys.toList()
-        ..sort((a, b) {
-          final ai = typeOrder.indexOf(a ?? -1);
-          final bi = typeOrder.indexOf(b ?? -1);
-          return (ai < 0 ? 999 : ai).compareTo(bi < 0 ? 999 : bi);
-        });
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final type in sortedKeys) ...[
-            Text(
-              '${gameTypeLabel(type)} (${grouped[type]!.length})',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            // Grid horizontal de cards
-            GridView.builder(
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 160,
-                childAspectRatio: 0.58,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              itemCount: grouped[type]!.length,
-              itemBuilder: (context, i) {
-                final g = grouped[type]![i];
-                final coverMap = g['cover'] as Map?;
-                final coverId = coverMap?['image_id'] as String?;
-                final coverUrl = IGDBService.getCoverUrl(coverId);
-
-                int? releaseYear;
-                if (g['first_release_date'] != null) {
-                  releaseYear = DateTime.fromMillisecondsSinceEpoch((g['first_release_date'] as int) * 1000).year;
-                }
-                return InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () {
-                    final cleanData = Map<String, dynamic>.from(g as Map);
-                    cleanData['igdb_id'] = g['id'];
-                    cleanData['title'] = g['name'];
-                    cleanData['cover_url'] = coverUrl;
-                    if (g['genres'] != null && g['genres'] is List) {
-                      cleanData['genres'] = (g['genres'] as List).map((gen) => gen is Map ? gen['name'] : gen).toList();
-                    }
-                    final isDesktop = MediaQuery.of(context).size.width > 800;
-                    if (isDesktop) {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => GameDetailsScreen(gameData: cleanData)));
-                    } else {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        useSafeArea: false,
-                        enableDrag: true,
-                        builder: (_) => DraggableScrollableSheet(
-                          initialChildSize: 1.0,
-                          minChildSize: 0.5,
-                          maxChildSize: 1.0,
-                          expand: false,
-                          snap: true,
-                          builder: (context, scrollController) {
-                            return GameDetailsScreen(
-                              gameData: cleanData,
-                              scrollController: scrollController,
-                            );
-                          },
-                        ),
-                      );
-                    }
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Carátula grande
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: coverUrl.isNotEmpty
-                              ? Image.network(coverUrl, fit: BoxFit.cover, width: double.infinity)
-                              : Container(
-                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                  child: Center(child: Icon(Icons.videogame_asset, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 36)),
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      // Título + año (altura fija para alinear las carátulas)
-                      SizedBox(
-                        height: 34,
-                        child: Text(
-                          releaseYear != null ? '${g['name']} ($releaseYear)' : g['name'].toString(),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-          ],
-        ],
-      );
-    }
-
-    /// Convierte enlaces internacionales o estadounidenses a su versión de España
-    String localizeUrlToSpain(String rawUrl) {
-      if (!_localizeLinks) return rawUrl;
-      
-      String url = rawUrl;
-      final lower = url.toLowerCase();
-
-      // 1. STEAM: Fuerza idioma español y tienda regional de España (Euros €)
-      if (lower.contains('store.steampowered.com')) {
-        final separator = url.contains('?') ? '&' : '?';
-        if (!lower.contains('l=spanish') && !lower.contains('cc=es')) {
-          return '$url${separator}l=spanish&cc=es';
-        }
-      }
-
-      // 2. PLAYSTATION STORE: Cambia regiones como /en-us/ o /en-gb/ por /es-es/
-      if (lower.contains('store.playstation.com')) {
-        return url.replaceAll(RegExp(r'/(en|es|fr|de|it|pt|ja|ko|zh)-[a-z]{2}/', caseSensitive: false), '/es-es/');
-      }
-
-      // 3. XBOX / MICROSOFT STORE: Cambia región a /es-es/
-      if (lower.contains('xbox.com') || lower.contains('microsoft.com')) {
-        return url.replaceAll(RegExp(r'/(en|es|fr|de|it|pt|ja|ko|zh)-[a-z]{2}/', caseSensitive: false), '/es-es/');
-      }
-
-      // 4. EPIC GAMES STORE: Cambia región a /es-ES/
-      if (lower.contains('store.epicgames.com') || lower.contains('epicgames.com')) {
-        return url.replaceAll(RegExp(r'/(en|es|fr|de|it|pt|ja|ko|zh)-[a-zA-Z]{2}/', caseSensitive: false), '/es-ES/');
-      }
-
-      // 5. NINTENDO: Cambia regiones americanas o británicas a /es-es/
-      if (lower.contains('nintendo.com')) {
-        return url.replaceAll(RegExp(r'/(en-us|en-gb|us|uk)/', caseSensitive: false), '/es-es/');
-      }
-
-      // 6. APPLE APP STORE (iOS): Cambia la tienda /us/ por /es/
-      if (lower.contains('apps.apple.com')) {
-        return url.replaceAll(RegExp(r'/apps\.apple\.com/[a-z]{2}/', caseSensitive: false), '/apps.apple.com/es/');
-      }
-
-      // 7. GOG: Fuerza idioma español
-      if (lower.contains('gog.com')) {
-        return url.replaceAll(RegExp(r'/gog\.com/(en|de|fr|pl|ru|zh)/', caseSensitive: false), '/gog.com/es/');
-      }
-
-      // Si es un enlace de Twitter, YouTube o una web independiente, se devuelve intacto
-      return url;
-    }
-
-    Widget buildLinksTab() {
-      final List websitesList = (widget.gameData['websites'] as List?)?.isNotEmpty == true 
-          ? widget.gameData['websites'] 
-          : (_enrichedData['websites'] as List? ?? []);
-
-      if (websitesList.isEmpty) {
-        return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No hay enlaces disponibles.')));
-      }
-
-      int getCategory(dynamic w) {
-        if (w is Map && w['category'] != null) {
-          final c = w['category'];
-          if (c is int) return c;
-          if (c is String) return int.tryParse(c) ?? 0;
-          if (c is num) return c.toInt();
-        }
-        return 0;
-      }
-
-      bool isConsoleStore(dynamic w) {
-        if (w is Map && w['url'] != null) {
-          final url = w['url'].toString().toLowerCase();
-          return url.contains('playstation.com') || url.contains('xbox.com') || url.contains('nintendo.com');
-        }
-        return false;
-      }
-
-      final stores = websitesList.where((w) => [13, 15, 16, 17].contains(getCategory(w)) || isConsoleStore(w)).toList();
-      final socials = websitesList.where((w) => [4, 5, 6, 8, 9, 14, 18].contains(getCategory(w))).toList();
-      final official = websitesList.where((w) => [1, 2, 3].contains(getCategory(w))).toList();
-      final mobile = websitesList.where((w) => [10, 11, 12].contains(getCategory(w))).toList();
-      final others = websitesList.where((w) => ![1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].contains(getCategory(w)) && !isConsoleStore(w)).toList();
-
-      Widget buildLinkSection(String title, List links, IconData icon) {
-        if (links.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...links.map((link) {
-              String name = 'Enlace';
-              IconData itemIcon = Icons.link;
-              final cat = getCategory(link);
-              switch (cat) {
-                case 1: name = 'Sitio Oficial'; itemIcon = Icons.language; break;
-                case 2: name = 'Wikia'; itemIcon = Icons.menu_book; break;
-                case 3: name = 'Wikipedia'; itemIcon = Icons.menu_book; break;
-                case 4: name = 'Facebook'; itemIcon = Icons.facebook; break;
-                case 5: name = 'Twitter'; itemIcon = Icons.alternate_email; break;
-                case 6: name = 'Twitch'; itemIcon = Icons.live_tv; break;
-                case 8: name = 'Instagram'; itemIcon = Icons.camera_alt; break;
-                case 9: name = 'YouTube'; itemIcon = Icons.video_library; break;
-                case 10: name = 'iPhone'; itemIcon = Icons.phone_iphone; break;
-                case 11: name = 'iPad'; itemIcon = Icons.tablet_mac; break;
-                case 12: name = 'Android'; itemIcon = Icons.phone_android; break;
-                case 13: name = 'Steam'; itemIcon = Icons.computer; break;
-                case 14: name = 'Reddit'; itemIcon = Icons.forum; break;
-                case 15: name = 'Itch.io'; itemIcon = Icons.gamepad; break;
-                case 16: name = 'Epic Games'; itemIcon = Icons.computer; break;
-                case 17: name = 'GOG'; itemIcon = Icons.computer; break;
-                case 18: name = 'Discord'; itemIcon = Icons.chat; break;
-                default: 
-                  final urlString = link['url'].toString().toLowerCase();
-                  if (urlString.contains('playstation.com')) {
-                    name = 'PlayStation Store';
-                    itemIcon = Icons.gamepad;
-                  } else if (urlString.contains('xbox.com')) {
-                    name = 'Xbox Store';
-                    itemIcon = Icons.sports_esports;
-                  } else if (urlString.contains('nintendo.com')) {
-                    name = 'Nintendo eShop';
-                    itemIcon = Icons.videogame_asset;
-                  } else {
-                    // Extraer dominio para links desconocidos
-                    try {
-                      final uri = Uri.parse(link['url'].toString());
-                      name = uri.host.replaceFirst('www.', '');
-                    } catch (_) {}
-                  }
-              }
-              return ListTile(
-                leading: Icon(itemIcon),
-                title: Text(name),
-                subtitle: Text(localizeUrlToSpain(link['url'].toString()), maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: const Icon(Icons.open_in_new, size: 16),
-                onTap: () => launchUrl(
-                  Uri.parse(localizeUrlToSpain(link['url'].toString())),
-                  mode: LaunchMode.externalApplication,
-                ),
-              );
-            }),
-            const SizedBox(height: 24),
-          ],
-        );
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          buildLinkSection('Tiendas', stores, Icons.store),
-          buildLinkSection('Sociales y Comunidad', socials, Icons.people),
-          buildLinkSection('Información Oficial', official, Icons.info),
-          buildLinkSection('Móvil', mobile, Icons.smartphone),
-          buildLinkSection('Otros', others, Icons.link),
-        ],
-      );
-    }
+    // Mostrar siempre la pestaña Relacionado
+    // ignore: prefer_const_declarations
+    final bool hasRelated = true;
 
     // Asignar índices dinámicamente para evitar huecos
     int tabIdx = 0;
@@ -2767,42 +2097,36 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                buildTabButton(infoTabIdx, 'Información'),
-                buildTabButton(communityTabIdx, 'Comunidad'),
-                if (hasMedia) buildTabButton(mediaTabIdx, 'Media'),
-                if (hasRelated) buildTabButton(relatedTabIdx, 'Relacionado'),
-                if (hasLinks) buildTabButton(linksTabIdx, 'Links'),
+                _buildTabButton(infoTabIdx, 'Información'),
+                _buildTabButton(communityTabIdx, 'Comunidad'),
+                if (hasMedia) _buildTabButton(mediaTabIdx, 'Media'),
+                if (hasRelated) _buildTabButton(relatedTabIdx, 'Relacionado'),
+                if (hasLinks) _buildTabButton(linksTabIdx, 'Links'),
               ],
             ),
           ),
         ),
-        if (_selectedMainTabIndex == infoTabIdx) buildInfoTab()
+        if (_selectedMainTabIndex == infoTabIdx) _buildInfoTab(
+          summary: summary,
+          collectionName: collectionName,
+          collectionId: collectionId,
+          franchisesData: franchisesData,
+          genresList: genresList,
+          themesList: themesList,
+          platformsList: platformsList,
+          gameEnginesList: gameEnginesList,
+        )
         else if (_selectedMainTabIndex == communityTabIdx) _buildStashReviewsList()
-        else if (hasMedia && _selectedMainTabIndex == mediaTabIdx) buildMediaTab()
-        else if (_selectedMainTabIndex == relatedTabIdx) buildRelatedTab()
-        else if (hasLinks && _selectedMainTabIndex == linksTabIdx) buildLinksTab()
+        else if (hasMedia && _selectedMainTabIndex == mediaTabIdx) _buildMediaTab(
+          screenshotsList: screenshotsList,
+          artworksList: artworksList,
+          videosList: videosList,
+        )
+        else if (_selectedMainTabIndex == relatedTabIdx) _buildRelatedTab()
+        else if (hasLinks && _selectedMainTabIndex == linksTabIdx) _buildLinksTab()
       ],
     );
 
-    Widget buildFadeInImage(String url, {Key? key}) {
-      return SizedBox.expand(
-        key: key,
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
-          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-            if (wasSynchronouslyLoaded) return child;
-            return AnimatedOpacity(
-              opacity: frame == null ? 0 : 1,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeOut,
-              child: child,
-            );
-          },
-        ),
-      );
-    }
 
     return SelectionArea(
       child: Scaffold(
@@ -2829,9 +2153,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                             return FadeTransition(opacity: animation, child: child);
                           },
                           child: _selectedScreenshotUrl != null
-                              ? buildFadeInImage(_selectedScreenshotUrl!, key: ValueKey(_selectedScreenshotUrl))
+                              ? _buildFadeInImage(_selectedScreenshotUrl!, key: ValueKey(_selectedScreenshotUrl))
                               : (!_isEnriching 
-                                  ? buildFadeInImage(highResCoverUrl, key: ValueKey(highResCoverUrl)) 
+                                  ? _buildFadeInImage(highResCoverUrl, key: ValueKey(highResCoverUrl)) 
                                   : Container(key: ValueKey('empty'), color: Theme.of(context).primaryColorDark)),
                         ),
                           
