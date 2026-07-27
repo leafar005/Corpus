@@ -2,15 +2,21 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' show parse;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../env.dart';
 
 class IGDBService {
   static String? _accessToken;
+  // TTL: los tokens de Twitch duran ~60 días; renovamos con 5 min de margen.
+  static DateTime? _tokenExpiresAt;
 
   // 1. Obtener el token de seguridad de Twitch (Autenticación)
   static Future<void> _authenticate() async {
-    // Si ya tenemos la llave maestra, no la pedimos otra vez
-    if (_accessToken != null) return; 
+    // Reutilizamos el token si existe Y no ha expirado (con 5 min de margen)
+    final now = DateTime.now();
+    if (_accessToken != null && _tokenExpiresAt != null && now.isBefore(_tokenExpiresAt!)) {
+      return;
+    }
 
     final url = kIsWeb 
         ? 'https://corsproxy.io/?https://id.twitch.tv/oauth2/token?client_id=${Env.igdbClientId}&client_secret=${Env.igdbClientSecret}&grant_type=client_credentials'
@@ -21,12 +27,53 @@ class IGDBService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       _accessToken = data['access_token'];
+      // Guardamos el tiempo de expiración restando 5 minutos de margen
+      final expiresIn = (data['expires_in'] as num?)?.toInt() ?? 3600;
+      _tokenExpiresAt = DateTime.now().add(Duration(seconds: expiresIn - 300));
     } else {
       throw Exception('Error al autenticar con Twitch: ${response.body}');
     }
   }
 
+  // 1b. Helper centralizado: Intenta usar la Edge Function igdb-proxy de Supabase,
+  // y hace fallback transparente a llamada directa con Twitch API si el proxy falla.
+  static Future<http.Response> _postQuery(String endpoint, String query) async {
+    try {
+      final res = await Supabase.instance.client.functions.invoke(
+        'igdb-proxy',
+        body: {'endpoint': endpoint, 'query': query},
+      );
+      if (res.status == 200 && res.data != null) {
+        final bodyString = res.data is String ? res.data : jsonEncode(res.data);
+        return http.Response(bodyString, 200);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        final msg = e.toString();
+        final shortMsg = msg.length > 120 ? '${msg.substring(0, 120)}...' : msg;
+        print('[IGDB Proxy Fallback] Edge function no disponible o error: $shortMsg');
+      }
+    }
+
+
+    await _authenticate();
+    final String url = kIsWeb
+        ? 'https://corsproxy.io/?https://api.igdb.com/v4/$endpoint'
+        : 'https://api.igdb.com/v4/$endpoint';
+
+    return await http.post(
+      Uri.parse(url),
+      headers: {
+        'Client-ID': Env.igdbClientId,
+        'Authorization': 'Bearer $_accessToken',
+        'Accept': 'application/json',
+      },
+      body: query,
+    );
+  }
+
   static Future<List<dynamic>> searchGames(
+
     String query, {
     int offset = 0,
     int limit = 35,
@@ -42,8 +89,6 @@ class IGDBService {
     List<int>? collections,
     List<int>? franchises,
   }) async {
-    await _authenticate();
-
     if (query.trim().isEmpty &&
         genres == null &&
         themes == null &&
@@ -56,12 +101,6 @@ class IGDBService {
         franchises == null) {
       return [];
     }
-    
-    await _authenticate();
-
-    final String url = kIsWeb 
-        ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
-        : 'https://api.igdb.com/v4/games';
 
     final String cleanQuery = query.trim();
     String whereConditions = 'cover != null';
@@ -145,14 +184,9 @@ class IGDBService {
       whereConditions += ' & franchises = (${franchises.join(',')})';
     }
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Client-ID': Env.igdbClientId,
-        'Authorization': 'Bearer $_accessToken',
-        'Accept': 'application/json',
-      },
-      body: 'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, total_rating_count, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.id, collection.name, franchises.id, franchises.name, game_engines.name; where $whereConditions; $sortClause limit $limit; offset $offset;',
+    final response = await _postQuery(
+      'games',
+      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, total_rating_count, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.id, collection.name, franchises.id, franchises.name, game_engines.name; where $whereConditions; $sortClause limit $limit; offset $offset;',
     );
 
     if (response.statusCode == 200) {
@@ -164,20 +198,9 @@ class IGDBService {
 
   // 3. Obtener los juegos más esperados o populares (Tendencias)
   static Future<List<dynamic>> getPopularGames({int offset = 0, int limit = 35}) async {
-    await _authenticate();
-    
-    final String url = kIsWeb 
-        ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
-        : 'https://api.igdb.com/v4/games';
-
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Client-ID': Env.igdbClientId,
-        'Authorization': 'Bearer $_accessToken',
-        'Accept': 'application/json',
-      },
-      body: 'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name; where cover != null & total_rating_count > 10; sort first_release_date desc; limit $limit; offset $offset;',
+    final response = await _postQuery(
+      'games',
+      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name; where cover != null & total_rating_count > 10; sort first_release_date desc; limit $limit; offset $offset;',
     );
 
     if (response.statusCode == 200) {
@@ -189,20 +212,9 @@ class IGDBService {
 
   // 4. Obtener un juego concreto por su ID de IGDB (para enriquecer datos que faltan)
   static Future<Map<String, dynamic>?> getGameById(int igdbId) async {
-    await _authenticate();
-
-    final String url = kIsWeb 
-        ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
-        : 'https://api.igdb.com/v4/games';
-
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Client-ID': Env.igdbClientId,
-        'Authorization': 'Bearer $_accessToken',
-        'Accept': 'application/json',
-      },
-      body: 'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name, websites.url, websites.category, websites.type; where id = $igdbId;',
+    final response = await _postQuery(
+      'games',
+      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name, websites.url, websites.category, websites.type; where id = $igdbId;',
     );
 
     if (response.statusCode == 200) {
@@ -215,21 +227,10 @@ class IGDBService {
   // 4b. Obtener varios juegos por sus IDs de IGDB en una sola consulta
   static Future<List<dynamic>> getGamesByIds(List<int> igdbIds) async {
     if (igdbIds.isEmpty) return [];
-    await _authenticate();
-
-    final String url = kIsWeb 
-        ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
-        : 'https://api.igdb.com/v4/games';
-
     final idsString = igdbIds.join(',');
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Client-ID': Env.igdbClientId,
-        'Authorization': 'Bearer $_accessToken',
-        'Accept': 'application/json',
-      },
-      body: 'fields name, screenshots.image_id; where id = ($idsString); limit 50;',
+    final response = await _postQuery(
+      'games',
+      'fields name, screenshots.image_id; where id = ($idsString); limit 50;',
     );
 
     if (response.statusCode == 200) {
@@ -240,23 +241,14 @@ class IGDBService {
 
   /// Convierte un único Steam App ID en la ficha de IGDB.
   static Future<Map<String, dynamic>?> getGameBySteamId(int steamAppId) async {
-    await _authenticate();
     try {
-      final String url = kIsWeb 
-          ? 'https://corsproxy.io/?https://api.igdb.com/v4/external_games'
-          : 'https://api.igdb.com/v4/external_games';
-          
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Client-ID': Env.igdbClientId,
-          'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json',
-        },
-        body: 'fields game; where uid = "$steamAppId"; limit 1;',
+      final response = await _postQuery(
+        'external_games',
+        'fields game; where uid = "$steamAppId"; limit 1;',
       );
 
       if (response.statusCode == 200) {
+
         final List<dynamic> data = json.decode(response.body);
         if (data.isNotEmpty && data.first['game'] != null) {
           final int igdbId = data.first['game'] is Map 
@@ -306,19 +298,9 @@ class IGDBService {
   // 10. Obtener tiempo de juego (HowLongToBeat)
   static Future<Map<String, dynamic>?> getTimeToBeat(int gameId) async {
     try {
-      await _authenticate();
-      final String url = kIsWeb 
-          ? 'https://corsproxy.io/?https://api.igdb.com/v4/game_time_to_beats'
-          : 'https://api.igdb.com/v4/game_time_to_beats';
-
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Client-ID': Env.igdbClientId,
-          'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json',
-        },
-        body: 'fields *; where game_id = $gameId; limit 1;',
+      final response = await _postQuery(
+        'game_time_to_beats',
+        'fields *; where game_id = $gameId; limit 1;',
       );
 
       if (response.statusCode == 200) {
@@ -340,19 +322,9 @@ class IGDBService {
   // 11. Obtener contenido relacionado (DLCs, remakes, ports, etc.) de un juego
   static Future<List<dynamic>> getRelatedGames(int igdbId) async {
     try {
-      await _authenticate();
-      final String url = kIsWeb
-          ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
-          : 'https://api.igdb.com/v4/games';
-
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Client-ID': Env.igdbClientId,
-          'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json',
-        },
-        body: 'fields name, cover.image_id, first_release_date, game_type, genres.name, total_rating; where (parent_game = $igdbId) | (version_parent = $igdbId) | (bundles = $igdbId); sort first_release_date asc; limit 100;',
+      final response = await _postQuery(
+        'games',
+        'fields name, cover.image_id, first_release_date, game_type, genres.name, total_rating; where (parent_game = $igdbId) | (version_parent = $igdbId) | (bundles = $igdbId); sort first_release_date asc; limit 100;',
       );
 
       if (response.statusCode == 200) {
@@ -364,6 +336,7 @@ class IGDBService {
       return [];
     }
   }
+
 
   // 12. Obtener juegos de una Colección, Franquicia o Compañía para la pantalla de logros
   // Usa paginación para cargar todos los juegos disponibles.
@@ -379,12 +352,8 @@ class IGDBService {
     int limit = 35,
   }) async {
     try {
-      await _authenticate();
-      final String url = kIsWeb
-          ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
-          : 'https://api.igdb.com/v4/games';
-
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
       
       // Construir la condición principal del logro (compañía OR saga)
       List<String> mainConditions = [];
@@ -422,15 +391,7 @@ class IGDBService {
 
       final body = 'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, total_rating_count, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.id, collection.name, franchises.id, franchises.name, game_engines.name; where $mainWhere & cover != null & game_type = (0, 8, 9, 10, 11) & first_release_date <= $now; sort total_rating_count desc; limit $limit; offset $offset;';
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Client-ID': Env.igdbClientId,
-          'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json',
-        },
-        body: body,
-      );
+      final response = await _postQuery('games', body);
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as List;
@@ -445,23 +406,13 @@ class IGDBService {
   // 13. Obtener juegos de una Colección o Franquicia (método legacy)
   static Future<List<dynamic>> getGamesByCollection(int collectionId, {bool isFranchise = false}) async {
     try {
-      await _authenticate();
-      final String url = kIsWeb
-          ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
-          : 'https://api.igdb.com/v4/games';
-
       final String filterCondition = isFranchise 
           ? 'franchises = ($collectionId)' 
           : '((collection = ($collectionId)) | (collections = ($collectionId)))';
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Client-ID': Env.igdbClientId,
-          'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json',
-        },
-        body: 'fields name, cover.image_id, first_release_date, total_rating, category, game_type, parent_game, platforms.name, genres.name, themes.name, game_modes.name, player_perspectives.name, involved_companies.developer, involved_companies.company.name, collection.id, collection.name, franchises.id, franchises.name, game_engines.name; where $filterCondition & cover != null; sort first_release_date asc; limit 50;',
+      final response = await _postQuery(
+        'games',
+        'fields name, cover.image_id, first_release_date, total_rating, category, game_type, parent_game, platforms.name, genres.name, themes.name, game_modes.name, player_perspectives.name, involved_companies.developer, involved_companies.company.name, collection.id, collection.name, franchises.id, franchises.name, game_engines.name; where $filterCondition & cover != null; sort first_release_date asc; limit 50;',
       );
 
       if (response.statusCode == 200) {
@@ -474,6 +425,7 @@ class IGDBService {
     }
   }
 
+
   /// Decodifica entidades HTML (&amp;, &#039;, &quot;, etc.) que a veces
   /// vienen crudas desde fuentes externas como barter.vg
   static String decodeHtmlEntities(String text) {
@@ -483,14 +435,8 @@ class IGDBService {
   /// Búsqueda "permisiva" pensada para resolver títulos de bundles/DLCs
   /// que no tienen cover propia ni rating en IGDB, pero sí existen.
   static Future<List<dynamic>> searchGameLenient(String rawQuery) async {
-    await _authenticate();
-
     final query = decodeHtmlEntities(rawQuery).trim();
     if (query.isEmpty) return [];
-
-    final String url = kIsWeb
-        ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
-        : 'https://api.igdb.com/v4/games';
 
     final words = query.toLowerCase().split(' ').where((w) => w.isNotEmpty).toList();
     final wordConditions = words.map((w) =>
@@ -498,19 +444,15 @@ class IGDBService {
 
     // Sin exigir cover != null ni total_rating_count != null.
     // Ordenamos por total_rating_count desc pero sin filtrarlo.
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Client-ID': Env.igdbClientId,
-        'Authorization': 'Bearer $_accessToken',
-        'Accept': 'application/json',
-      },
-      body: 'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name; where $wordConditions; sort total_rating_count desc; limit 5;',
+    final response = await _postQuery(
+      'games',
+      'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name; where $wordConditions; sort total_rating_count desc; limit 5;',
     );
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as List;
     }
+
     return [];
   }
 
@@ -520,11 +462,6 @@ class IGDBService {
     Function(int processed, int total, String step)? onProgress,
   }) async {
     if (steamAppIds.isEmpty) return {};
-    await _authenticate();
-
-    final String extUrl = kIsWeb
-        ? 'https://corsproxy.io/?https://api.igdb.com/v4/external_games'
-        : 'https://api.igdb.com/v4/external_games';
 
     final Map<int, int> steamIdToIgdbId = {};
     const chunkSize = 50;
@@ -539,15 +476,7 @@ class IGDBService {
       final body = 'fields uid, game; where $orConditions; limit 500;';
 
       try {
-        final response = await http.post(
-          Uri.parse(extUrl),
-          headers: {
-            'Client-ID': Env.igdbClientId,
-            'Authorization': 'Bearer $_accessToken',
-            'Accept': 'application/json',
-          },
-          body: body,
-        );
+        final response = await _postQuery('external_games', body);
 
         if (response.statusCode == 200) {
           final List<dynamic> data = jsonDecode(response.body);
@@ -600,11 +529,6 @@ class IGDBService {
   /// en lotes para no exceder los límites de IGDB.
   static Future<List<dynamic>> getGamesByIdsFull(List<int> igdbIds) async {
     if (igdbIds.isEmpty) return [];
-    await _authenticate();
-
-    final String url = kIsWeb
-        ? 'https://corsproxy.io/?https://api.igdb.com/v4/games'
-        : 'https://api.igdb.com/v4/games';
 
     final List<dynamic> allResults = [];
     const chunkSize = 200;
@@ -614,15 +538,8 @@ class IGDBService {
       final idsString = chunk.join(',');
       final body = 'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name; where id = ($idsString); limit ${chunk.length};';
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Client-ID': Env.igdbClientId,
-          'Authorization': 'Bearer $_accessToken',
-          'Accept': 'application/json',
-        },
-        body: body,
-      );
+      final response = await _postQuery('games', body);
+
 
       if (kDebugMode) {
         print('[IGDB BATCH getGamesByIdsFull] status=${response.statusCode}');
