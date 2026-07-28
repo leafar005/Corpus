@@ -10,6 +10,7 @@ import '../../utils/level_calculator.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/widgets/filter_bottom_sheet.dart';
 import '../social/friends_screen.dart';
+import 'profile_achievements_tab.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -30,6 +31,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _selectedTab = 0;
   List<Map<String, dynamic>?> _hallOfFame = List.filled(5, null);
   GameFilters _filters = GameFilters();
+
+  bool get _isOwnProfile {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    return widget.userId == null || widget.userId == currentUserId;
+  }
 
   @override
   void initState() {
@@ -392,19 +398,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: () {
-          final userId =
-              _userProfile?['id'] ??
-              Supabase.instance.client.auth.currentUser!.id;
-          final xp = (_userProfile?['xp'] as num?)?.toInt() ?? 0;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  AchievementsScreen(userId: userId, initialXp: xp),
-            ),
-          ).then((_) => _fetchProfileData());
-        },
+        onTap: _isOwnProfile
+            ? () {
+                final userId =
+                    _userProfile?['id'] ??
+                    Supabase.instance.client.auth.currentUser!.id;
+                final xp = (_userProfile?['xp'] as num?)?.toInt() ?? 0;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AchievementsScreen(userId: userId, initialXp: xp),
+                  ),
+                ).then((_) => _fetchProfileData());
+              }
+            : null,
         child: SizedBox(
           width: isDesktop ? 400 : double.infinity,
           child: Column(
@@ -471,6 +479,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildNavTab('Perfil', 0),
           _buildNavTab('Juegos', 1),
           _buildNavTab('Reseñas', 2),
+          _buildNavTab('Logros', 3),
         ],
       ),
     );
@@ -542,6 +551,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildAllGamesTab(),
                 ] else if (_selectedTab == 2) ...[
                   _buildReviewsTab(),
+                ] else if (_selectedTab == 3) ...[
+                  ProfileAchievementsTab(
+                    userId: _userProfile?['id'] ??
+                        widget.userId ??
+                        Supabase.instance.client.auth.currentUser!.id,
+                    isOwnProfile: _isOwnProfile,
+                  ),
                 ],
               ],
             ),
@@ -576,6 +592,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildAllGamesTab(),
         ] else if (_selectedTab == 2) ...[
           _buildReviewsTab(),
+        ] else if (_selectedTab == 3) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ProfileAchievementsTab(
+              userId: _userProfile?['id'] ??
+                  widget.userId ??
+                  Supabase.instance.client.auth.currentUser!.id,
+              isOwnProfile: _isOwnProfile,
+            ),
+          ),
         ],
       ],
     );

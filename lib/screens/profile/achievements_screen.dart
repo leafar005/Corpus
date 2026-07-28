@@ -113,9 +113,26 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
       final reviewsResp = await Supabase.instance.client
           .from('reviews')
-          .select('game_id, status, games(developer, collection, category, game_modes, franchises, title, release_date)')
-          .eq('user_id', widget.userId)
-          .eq('status', 'beaten');
+          .select('*, games(*)')
+          .eq('user_id', widget.userId);
+
+      final userGamesResp = await Supabase.instance.client
+          .from('user_games')
+          .select('*, games(*)')
+          .eq('user_id', widget.userId);
+
+      final Map<int, dynamic> uniqueBeatenGames = {};
+      for (var item in [...reviewsResp, ...userGamesResp]) {
+        final st = item['status'];
+        if (st != 'beaten' && st != 'completed') continue;
+        final game = item['games'];
+        if (game == null) continue;
+        final int? gameId = game['igdb_id'] as int?;
+        if (gameId != null) {
+          uniqueBeatenGames[gameId] = item;
+        }
+      }
+      final List<dynamic> combinedBeatenList = uniqueBeatenGames.values.toList();
       Map<String, Map<String, dynamic>> grouped = {};
       Map<String, List<Map<String, dynamic>>> sagaMilestones = {};
       for (var ach in achievementsResp) {
@@ -146,9 +163,9 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
           grouped[groupId] = Map<String, dynamic>.from(ach);
           grouped[groupId]!['name'] = baseName;
           grouped[groupId]!['original_name'] = name;
-          sagaMilestones[groupId] = [{'target': target, 'xp': ach['xp_reward']}];
+          sagaMilestones[groupId] = [{'target': target, 'xp': ach['xp_reward'], 'description': ach['description']}];
         } else {
-          sagaMilestones[groupId]!.add({'target': target, 'xp': ach['xp_reward']});
+          sagaMilestones[groupId]!.add({'target': target, 'xp': ach['xp_reward'], 'description': ach['description']});
           int currentXp = grouped[groupId]!['xp_reward'] as int;
           int newXp = ach['xp_reward'] as int;
           if (newXp > currentXp) {
@@ -165,7 +182,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       for (var list in sagaMilestones.values) {
         list.sort((a, b) => (a['target'] as int).compareTo(b['target'] as int));
       }
-      final Map<String, int> sagaProgress = _calculateSagaProgress(reviewsResp, grouped.values.toList());
+      final Map<String, int> sagaProgress = _calculateSagaProgress(combinedBeatenList, grouped.values.toList());
       final List<Map<String, dynamic>> sortedAchievements = grouped.values.toList();
       sortedAchievements.sort((a, b) {
         String getGroupId(String id) {
@@ -204,7 +221,8 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
   Map<String, int> _calculateSagaProgress(List<dynamic> data, List<Map<String, dynamic>> achievementsList) {
     Map<String, int> counts = {};
     for (var item in data) {
-      if (item['status'] != 'beaten') continue;
+      final st = item['status']?.toString().toLowerCase().trim();
+      if (st != 'beaten' && st != 'completed' && st != 'terminado') continue;
       final game = item['games'];
       if (game == null) continue;
       final category = game['category'] as int?;
@@ -329,16 +347,40 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
   }
 
   Color _getRarityColor(String rarity) {
-    switch (rarity) {
-      case 'Legendario': return Colors.cyanAccent;
-      case 'Épico': return Colors.deepPurpleAccent;
-      case 'Difícil': return Colors.orange;
-      case 'Medio': return Colors.blue;
-      case 'Fácil':
-      case 'Común':
-      case 'Raro': return Colors.green;
+    switch (rarity.trim().toLowerCase()) {
+      case 'legendario': return Colors.cyanAccent;
+      case 'épico': case 'epico': return Colors.deepPurpleAccent;
+      case 'difícil': case 'dificil': return Colors.orange;
+      case 'medio': return Colors.blue;
+      case 'fácil': case 'facil':
+      case 'común': case 'comun':
+      case 'raro': return Colors.green;
       default: return Colors.grey;
     }
+  }
+
+  String _getNextMilestoneDescription(String groupId, int currentProgress, String fallback) {
+    final milestonesData = _sagaMilestones[groupId];
+    if (milestonesData == null || milestonesData.isEmpty) return fallback;
+    for (final m in milestonesData) {
+      final target = m['target'] as int;
+      if (currentProgress < target) {
+        return (m['description'] as String?) ?? fallback;
+      }
+    }
+    return (milestonesData.last['description'] as String?) ?? fallback;
+  }
+
+  int _getNextMilestoneXp(String groupId, int currentProgress, int fallback) {
+    final milestonesData = _sagaMilestones[groupId];
+    if (milestonesData == null || milestonesData.isEmpty) return fallback;
+    for (final m in milestonesData) {
+      final target = m['target'] as int;
+      if (currentProgress < target) {
+        return (m['xp'] as int?) ?? fallback;
+      }
+    }
+    return (milestonesData.last['xp'] as int?) ?? fallback;
   }
 
   Map<String, dynamic> _getAchievementBadgeStyle(Map<String, dynamic> achievement, int currentProgress, List<int> milestones, bool isUnlocked) {
@@ -365,23 +407,18 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     }
     Color color;
     String label;
-    switch (currentStageIndex) {
-      case 3:
-        label = 'Maestro (Oro)';
-        color = const Color(0xFFFFD700);
-        break;
-      case 2:
-        label = 'Fanático (Plata)';
-        color = const Color(0xFFC0C0C0);
-        break;
-      case 1:
-        label = 'Novato (Bronce)';
-        color = const Color(0xFFCD7F32);
-        break;
-      default:
-        label = 'Bloqueado';
-        color = Colors.grey;
-        break;
+    if (currentStageIndex >= 3) {
+      label = 'Maestro (Oro)';
+      color = const Color(0xFFFFD700);
+    } else if (currentStageIndex == 2) {
+      label = 'Fanático (Plata)';
+      color = const Color(0xFFC0C0C0);
+    } else if (currentStageIndex == 1) {
+      label = 'Novato (Bronce)';
+      color = const Color(0xFFCD7F32);
+    } else {
+      label = 'Bloqueado';
+      color = Colors.grey;
     }
     return {
       'type': 'medal',
@@ -582,16 +619,13 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                   padding: const EdgeInsets.all(16),
                   sliver: SliverGrid(
                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 220,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 0.75,
+                      maxCrossAxisExtent: 180,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 0.78,
                     ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final achievement = filteredAchievements[index];
-                      final isUnlocked = _unlockedAchievements.containsKey(achievement['id']);
-                      final unlockedDate = isUnlocked ? _unlockedAchievements[achievement['id']] : null;
-                      
                       final String aId = achievement['id'] as String;
                       String groupId = aId;
                       final matchSuffix = RegExp(r'_(\d+|all)$').firstMatch(aId);
@@ -600,7 +634,28 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                       }
                       final milestonesData = _sagaMilestones[groupId] ?? <Map<String, dynamic>>[{'target': 1}];
                       final milestones = milestonesData.map((e) => e['target'] as int).toList();
-                      final currentProgress = _sagaProgress[groupId] ?? (isUnlocked ? milestones.first : 0);
+                      final currentProgress = _sagaProgress[groupId] ?? 0;
+                      final isUnlocked = _unlockedAchievements.containsKey(achievement['id']) ||
+                          _unlockedAchievements.keys.any((key) => key == groupId || key.startsWith('${groupId}_')) ||
+                          (currentProgress >= milestones.first);
+                      final displayDescription = _getNextMilestoneDescription(
+                        groupId,
+                        currentProgress,
+                        achievement['description'] as String,
+                      );
+                      final int displayXp = _getNextMilestoneXp(
+                        groupId,
+                        currentProgress,
+                        (achievement['xp_reward'] as int?) ?? 0,
+                      );
+                      DateTime? unlockedDate = _unlockedAchievements[achievement['id']];
+                      for (final entry in _unlockedAchievements.entries) {
+                        if (entry.key == groupId || entry.key.startsWith('${groupId}_') || entry.key == achievement['id']) {
+                          if (unlockedDate == null || entry.value.isAfter(unlockedDate)) {
+                            unlockedDate = entry.value;
+                          }
+                        }
+                      }
                       
                       final badgeStyle = _getAchievementBadgeStyle(achievement, currentProgress, milestones, isUnlocked);
                       final Color badgeColor = badgeStyle['color'] as Color;
@@ -610,10 +665,8 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                       final bool isMedal = badgeStyle['type'] == 'medal';
                       return Card(
                         margin: EdgeInsets.zero,
-                        elevation: isUnlocked ? 2 : 0,
-                        color: isUnlocked
-                            ? Theme.of(context).colorScheme.surface
-                            : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        elevation: isUnlocked ? 4 : 0,
+                        color: Theme.of(context).colorScheme.surface,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(color: borderColor, width: 1),
@@ -665,26 +718,26 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                 Stack(
                                   alignment: Alignment.center,
                                   children: [
-                                    if (!isUnlocked && _sagaProgress.containsKey(groupId))
-                                      SizedBox(
-                                        width: 60,
-                                        height: 60,
-                                        child: Builder(
-                                          builder: (context) {
-                                            final current = _sagaProgress[groupId]!;
-                                            final milestones = _sagaMilestones[groupId] ?? <Map<String, dynamic>>[{'target': 1}];
-                                            final maxTarget = milestones.last['target'] as int;
-                                            double progress = current / maxTarget;
-                                            if (progress > 1.0) progress = 1.0;
-                                            return CircularProgressIndicator(
-                                              value: progress,
-                                              strokeWidth: 3,
-                                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                              color: badgeColor,
-                                            );
-                                          },
-                                        ),
-                                      ),
+                                    Builder(
+                                      builder: (context) {
+                                        final milestones = _sagaMilestones[groupId] ?? <Map<String, dynamic>>[{'target': 1}];
+                                        final maxTarget = milestones.last['target'] as int;
+                                        final current = _sagaProgress[groupId] ?? 0;
+                                        final showCircle = current > 0 && current < maxTarget;
+                                        if (!showCircle) return const SizedBox(width: 56, height: 56);
+                                        double progress = current / maxTarget;
+                                        return SizedBox(
+                                          width: 60,
+                                          height: 60,
+                                          child: CircularProgressIndicator(
+                                            value: progress,
+                                            strokeWidth: 3,
+                                            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                            color: badgeColor,
+                                          ),
+                                        );
+                                      },
+                                    ),
                                     Container(
                                       width: 56,
                                       height: 56,
@@ -715,7 +768,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                 const SizedBox(height: 6),
                                 Expanded(
                                   child: Text(
-                                    achievement['description'] as String,
+                                    displayDescription,
                                     textAlign: TextAlign.center,                                    maxLines: 3,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -735,7 +788,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                     border: Border.all(color: badgeColor),
                                   ),
                                   child: Text(
-                                    '+${achievement['xp_reward'] ?? 0} XP',
+                                    '+$displayXp XP',
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
