@@ -1,4 +1,4 @@
-# 1. Crear el archivo vercel_build.sh en la raíz de tu proyecto
+# 1. Crear el archivo vercel_build.sh en la raíz de Corpus
 @'
 #!/bin/bash
 mkdir -p lib
@@ -13,3 +13,4 @@ EOF
 git clone https://github.com/flutter/flutter.git -b stable --depth 1
 ./flutter/bin/flutter build web --release
 '@ | Out-File -Encoding utf8 vercel_build.sh
+
