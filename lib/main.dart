@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/main_screen.dart';
 import 'env.dart';
-import 'screens/auth/login_screen.dart';
 import 'theme/app_theme.dart';
 
 import 'globals.dart';
@@ -63,15 +62,13 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        final session = snapshot.hasData ? snapshot.data!.session : null;
-
-        if (session != null) {
-          // Si hay sesión, dejamos pasar al usuario a la app principal.
-          return const MainScreen();
-        }
-
-        // Si no hay sesión, al Login de cabeza
-        return const LoginScreen();
+        // Con sesión o sin ella, entramos siempre a MainScreen.
+        // Las pantallas que necesitan cuenta (Perfil, Actividad, añadir a
+        // biblioteca...) detectan el modo invitado por su cuenta y
+        // muestran un aviso con botón de "Iniciar sesión" en su lugar.
+        return MainScreen(
+          key: ValueKey(snapshot.data?.session?.user.id),
+        );
       },
     );
   }

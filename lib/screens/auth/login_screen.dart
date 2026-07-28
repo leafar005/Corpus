@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,12 +18,19 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signIn() async {
     setState(() => _isLoading = true);
     try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('main_tab_index', 0);
+      
       await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      // Magia: no necesitamos cambiar de pantalla a mano.
-      // El "AuthGate" de main.dart detectará la sesión y nos llevará a la biblioteca automáticamente.
+      // Esta pantalla puede haberse abierto de dos formas: como pantalla de
+      // entrada "de toda la vida" (sin sesión) o empujada encima desde un
+      // aviso de modo invitado (Perfil, Actividad, Inicio...). En ambos
+      // casos, tras un login correcto, la cerramos nosotros mismos: ya no
+      // depende de que el AuthGate cambie de pantalla por su cuenta.
+      if (mounted) Navigator.of(context).pop();
     } on AuthException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,6 +64,10 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),

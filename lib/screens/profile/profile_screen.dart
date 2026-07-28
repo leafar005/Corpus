@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
+import '../../widgets/guest_login_prompt.dart';
 import '../library/game_details_screen.dart';
 import 'profile_games_list_screen.dart';
 import '../activity/review_details_screen.dart';
@@ -31,22 +33,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _selectedTab = 0;
   List<Map<String, dynamic>?> _hallOfFame = List.filled(5, null);
   GameFilters _filters = GameFilters();
+  StreamSubscription<AuthState>? _authSub;
 
   bool get _isOwnProfile {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     return widget.userId == null || widget.userId == currentUserId;
   }
 
+  /// Verdadero cuando se pide el perfil propio (userId == null) y no hay
+  /// sesión iniciada: aquí no hay nada que cargar, solo un aviso de login.
+  bool get _isGuestProfile =>
+      widget.userId == null && Supabase.instance.client.auth.currentUser == null;
+
   @override
   void initState() {
     super.initState();
-    _fetchProfileData();
-    libraryUpdateNotifier.addListener(_onLibraryUpdated);
+    if (_isGuestProfile) {
+      _isLoading = false;
+    } else {
+      _fetchProfileData();
+      libraryUpdateNotifier.addListener(_onLibraryUpdated);
+    }
+
+    // Si el invitado inicia sesión mientras está en esta pantalla (le hemos
+    // mandado a Login desde el botón y ha vuelto), refrescamos solos, sin
+    // que tenga que salir y volver a entrar a la pestaña de Perfil.
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      if (!mounted || widget.userId != null) return;
+      final loggedInNow = Supabase.instance.client.auth.currentUser != null;
+      if (loggedInNow && _userProfile == null) {
+        setState(() => _isLoading = true);
+        _fetchProfileData();
+        libraryUpdateNotifier.addListener(_onLibraryUpdated);
+      } else {
+        setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
+    _authSub?.cancel();
     super.dispose();
   }
 
@@ -162,6 +190,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isGuestProfile) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Center(
+          child: GuestLoginPrompt(
+            message: 'Inicia sesión para ver y personalizar tu perfil.',
+          ),
+        ),
+      );
+    }
+
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }

@@ -121,7 +121,17 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _fetchUserGamesCache() async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (mounted) {
+        setState(() {
+          _userGamesCache = {};
+        });
+      }
+      return;
+    }
+    
+    final userId = user.id;
     final response = await Supabase.instance.client
         .from('user_games')
         .select('game_id, rating')

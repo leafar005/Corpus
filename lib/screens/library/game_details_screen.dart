@@ -13,6 +13,7 @@ import 'group_games_screen.dart';
 import '../../widgets/achievement_toast.dart';
 import 'review_modal.dart';
 import '../../repositories/review_repository.dart';
+import '../../widgets/guest_login_prompt.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameDetailsScreen extends StatefulWidget {
@@ -81,25 +82,56 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   List<Map<String, dynamic>> _friendsWithGame = [];
   bool _localizeLinks = true;
 
+  StreamSubscription<AuthState>? _authSub;
+
+  bool get _isGuest => _repo.client.auth.currentUser == null;
+
   @override
   void initState() {
     super.initState();
-    _fetchUserData().then((_) {
-      if (widget.autoOpenReview && mounted) {
-        _showReviewModal();
+
+    if (_isGuest) {
+      _isLoadingUserData = false;
+      _isLoadingStashReviews = false;
+      _isLoadingStashStats = false;
+    } else {
+      _fetchUserData().then((_) {
+        if (widget.autoOpenReview && mounted) {
+          _showReviewModal();
+        }
+      });
+      _fetchReviews();
+      _fetchStashReviews();
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) _fetchStashStats();
+      });
+      _fetchFriendsWithGame();
+    }
+
+    _authSub = _repo.client.auth.onAuthStateChange.listen((_) {
+      if (!mounted || _repo.client.auth.currentUser == null) return;
+      if (_isLoadingUserData || _userData != null) {
+        return;
       }
+      setState(() {
+        _isLoadingUserData = true;
+        _isLoadingStashReviews = true;
+        _isLoadingStashStats = true;
+      });
+      _fetchUserData();
+      _fetchReviews();
+      _fetchStashReviews();
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) _fetchStashStats();
+      });
+      _fetchFriendsWithGame();
     });
+
     _loadPreferences();
     _startCarousel(widget.gameData['screenshots']);
     _enrichGameData();
-    _fetchReviews();
-    _fetchStashReviews();
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) _fetchStashStats();
-    });
     _fetchTimeToBeat();
     _fetchRelatedGames();
-    _fetchFriendsWithGame();
   }
 
   Future<void> _loadPreferences() async {
@@ -343,6 +375,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     _carouselTimer?.cancel();
     _commentController.dispose();
     _ratingController.dispose();
+    _authSub?.cancel();
     super.dispose();
   }
 
@@ -1055,6 +1088,16 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Widget _buildStashReviewsList() {
+    if (_isGuest) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: GuestLoginPrompt(
+          icon: Icons.reviews_outlined,
+          message: 'Inicia sesión para ver las reseñas de la comunidad.',
+        ),
+      );
+    }
+
     if (_isLoadingStashReviews && _stashReviews.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 48),
@@ -1502,6 +1545,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Widget _buildStatusButton() {
+    if (_isGuest) {
+      return const SizedBox(
+        width: double.infinity,
+        child: GuestLoginButton(label: 'Iniciar sesión para registrar'),
+      );
+    }
+
     final color = _inLibrary
         ? _getStatusColor(_status)
         : Theme.of(context).colorScheme.primary;
@@ -1619,6 +1669,17 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Widget _buildStashStatsSection() {
+    if (_isGuest) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: GuestLoginPrompt(
+          icon: Icons.groups_outlined,
+          message: 'Inicia sesión para ver las estadísticas de la comunidad.',
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      );
+    }
+
     if (_isLoadingStashStats && _stashStats == null) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
