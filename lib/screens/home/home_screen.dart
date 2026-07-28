@@ -64,6 +64,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    final newData = await _fetchHomeData();
+    if (mounted) {
+      setState(() {
+        _homeDataFuture = Future.value(newData);
+      });
+    }
+  }
+
   Future<Map<String, dynamic>> _fetchHomeData() async {
     final userId = Supabase.instance.client.auth.currentUser!.id;
 
@@ -170,8 +179,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ?.cast<Map<String, dynamic>>() ??
               [];
 
-          return CustomScrollView(
-            slivers: [
+          return RefreshIndicator(
+            onRefresh: _handleRefresh,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
               SliverToBoxAdapter(
                 child: SizedBox(
                   height: playingGames.isEmpty
@@ -199,17 +211,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           right: 0,
                           height:
                               250, // Más alto para que el degradado sea más suave
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.8),
-                                  Colors.black,
-                                ],
-                                stops: const [0.0, 0.7, 1.0],
+                          child: IgnorePointer(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withValues(alpha: 0.8),
+                                    Colors.black,
+                                  ],
+                                  stops: const [0.0, 0.7, 1.0],
+                                ),
                               ),
                             ),
                           ),
@@ -487,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ), // Cierra SliverToBoxAdapter
             ],
-          );
+          ));
         },
       ),
     );

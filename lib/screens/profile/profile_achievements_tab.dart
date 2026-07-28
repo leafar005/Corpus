@@ -1098,11 +1098,11 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
             maxCrossAxisExtent: 180,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 0.78,
+            childAspectRatio: MediaQuery.of(context).size.width < 600 ? 0.65 : 0.78,
           ),
           itemCount: _achievedList.length,
           itemBuilder: (context, index) {

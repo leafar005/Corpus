@@ -261,7 +261,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Back Button (if navigated from another screen)
         if (Navigator.canPop(context))
           Positioned(
-            top: isDesktop ? 16 : 40,
+            top: MediaQuery.of(context).padding.top + 16,
             left: 16,
             child: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -275,7 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Buttons: Friends + Settings
         if (isMe)
           Positioned(
-            top: isDesktop ? 16 : 40,
+            top: MediaQuery.of(context).padding.top + 16,
             right: 16,
             child: Row(
               children: [

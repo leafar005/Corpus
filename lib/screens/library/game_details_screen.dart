@@ -390,33 +390,101 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
-  void _showImageFullScreen(String imageUrl) {
+  void _showImageGallery(List<String> imageUrls, int initialIndex) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.zero,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(context).pop(),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              InteractiveViewer(
-                child: Image.network(imageUrl, fit: BoxFit.contain),
-              ),
-              Positioned(
-                top: 16,
-                right: 16,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 32),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-            ],
+      builder: (context) {
+        final PageController pageController = PageController(initialPage: initialIndex);
+        int currentIndex = initialIndex;
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).pop(),
+                    child: PageView.builder(
+                      controller: pageController,
+                      itemCount: imageUrls.length,
+                      onPageChanged: (index) {
+                        setState(() {
+                          currentIndex = index;
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                        return InteractiveViewer(
+                          child: Image.network(imageUrls[index], fit: BoxFit.contain),
+                        );
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                  if (MediaQuery.of(context).size.width > 800 && imageUrls.length > 1) ...[
+                    if (currentIndex > 0)
+                      Positioned(
+                        left: 16,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.chevron_left, color: Colors.white, size: 36),
+                              onPressed: () {
+                                pageController.previousPage(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (currentIndex < imageUrls.length - 1)
+                      Positioned(
+                        right: 16,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.chevron_right, color: Colors.white, size: 36),
+                              onPressed: () {
+                                pageController.nextPage(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              );
+            },
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1903,7 +1971,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: GestureDetector(
-                            onTap: () => _showImageFullScreen(imageUrls[idx]),
+                            onTap: () => _showImageGallery(List<String>.from(imageUrls), idx),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Image.network(
@@ -2989,7 +3057,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 screenshotsList[index].toString(),
               );
               return InkWell(
-                onTap: () => _showImageFullScreen(url),
+                onTap: () {
+                  final List<String> urls = screenshotsList.map((id) => IGDBService.getScreenshotUrl(id.toString())).toList();
+                  _showImageGallery(urls, index);
+                },
                 borderRadius: BorderRadius.circular(12),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -3060,7 +3131,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 artworksList[index].toString(),
               );
               return InkWell(
-                onTap: () => _showImageFullScreen(url),
+                onTap: () {
+                  final List<String> urls = artworksList.map((id) => IGDBService.getArtworkUrl(id.toString())).toList();
+                  _showImageGallery(urls, index);
+                },
                 borderRadius: BorderRadius.circular(12),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),

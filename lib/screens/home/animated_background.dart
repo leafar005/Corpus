@@ -410,15 +410,15 @@ class _HeroShowcaseState extends State<HeroShowcase>
                               coverUrl,
                               fit: BoxFit.cover,
                               width: isPortrait
-                                  ? constraints.maxWidth * 0.5
+                                  ? constraints.maxWidth * 0.38
                                   : 240,
                             )
                           : Container(
                               width: isPortrait
-                                  ? constraints.maxWidth * 0.5
+                                  ? constraints.maxWidth * 0.38
                                   : 240,
                               height: isPortrait
-                                  ? (constraints.maxWidth * 0.5) * 1.4
+                                  ? (constraints.maxWidth * 0.38) * 1.4
                                   : 340,
                               color: Colors.grey,
                             ),
@@ -438,7 +438,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
                       child: textSection,
                     ),
                     Positioned(
-                      bottom: constraints.maxHeight * 0.15, // Sube la carátula
+                      bottom: 32, // Bajamos la carátula para que no colisione con el texto
                       right: 16,
                       child: coverSection,
                     ),
