@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/main.dart' as app;
 
 /// Prueba de Integración End-to-End (E2E - Prioridad 5 de la Pirámide de Testing)
@@ -19,6 +20,14 @@ void main() {
         // 1. Levantar la aplicación completa
         app.main();
         await tester.pumpAndSettle();
+
+        // ── PASO 0: Limpiar sesión previa para probar siempre el Login ───────
+        try {
+          if (Supabase.instance.client.auth.currentUser != null) {
+            await Supabase.instance.client.auth.signOut();
+            await tester.pumpAndSettle();
+          }
+        } catch (_) {}
 
         // ── PASO 1: Iniciar Sesión / Autenticar ──────────────────────────────
         // Si la app se inicia sin sesión previa, aparece el LoginScreen

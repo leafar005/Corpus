@@ -73,18 +73,34 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
     });
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
-      final response = await Supabase.instance.client
+      final reviewsResp = await Supabase.instance.client
           .from('reviews')
-          .select('game_id, status, games(developer, collection, category, franchises, title, release_date, cover_url, igdb_id)')
+          .select('*, games(*)')
           .eq('user_id', userId);
-      final List<dynamic> data = response;
+
+      final userGamesResp = await Supabase.instance.client
+          .from('user_games')
+          .select('*, games(*)')
+          .eq('user_id', userId);
+
+      final Map<int, dynamic> uniqueGames = {};
+      for (var item in [...reviewsResp, ...userGamesResp]) {
+        final game = item['games'];
+        if (game == null) continue;
+        final int? gameId = game['igdb_id'] as int?;
+        if (gameId != null) {
+          uniqueGames[gameId] = item;
+        }
+      }
+      final List<dynamic> data = uniqueGames.values.toList();
       int completedCount = 0;
       final List<Map<String, dynamic>> beatenMatchingGames = [];
 
       if (mounted) {
         _userGamesStatus = {
           for (var item in data)
-            item['game_id'] as int: item['status'] as String,
+            if (item['games'] != null && item['games']['igdb_id'] != null)
+              item['games']['igdb_id'] as int: item['status'] as String,
         };
 
         final aId = widget.achievementId;

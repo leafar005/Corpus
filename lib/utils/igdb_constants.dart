@@ -17,13 +17,13 @@ class IgdbConstants {
     1:  {'name': 'DLC',             'colorValue': 0xFFE040FB}, // Colors.purpleAccent
     2:  {'name': 'Expansión',       'colorValue': 0xFFE040FB},
     3:  {'name': 'Bundle',          'colorValue': 0xFFFFAB40}, // Colors.orangeAccent
-    4:  {'name': 'Expansión Standalone', 'colorValue': 0xFFE040FB},
+    4:  {'name': 'Exp. Standalone', 'colorValue': 0xFFE040FB},
     5:  {'name': 'Mod',             'colorValue': 0xFF9E9E9E},
     6:  {'name': 'Episodio',        'colorValue': 0xFF9E9E9E},
     7:  {'name': 'Temporada',       'colorValue': 0xFF9E9E9E},
     8:  {'name': 'Remake',          'colorValue': 0xFFCDDC39}, // Se sobreescribe con Theme.secondary en UI
     9:  {'name': 'Remaster',        'colorValue': 0xFF64FFDA}, // Colors.tealAccent
-    10: {'name': 'Edición Expandida', 'colorValue': 0xFFFF4081}, // Colors.pinkAccent
+    10: {'name': 'Ed. Expandida', 'colorValue': 0xFFFF4081}, // Colors.pinkAccent
     11: {'name': 'Port',            'colorValue': 0xFFB2FF59}, // Colors.lightGreenAccent
     12: {'name': 'Fork',            'colorValue': 0xFF9E9E9E},
     13: {'name': 'Pack',            'colorValue': 0xFFFFAB40},
