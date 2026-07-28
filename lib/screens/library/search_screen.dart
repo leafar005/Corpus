@@ -188,6 +188,11 @@ class _SearchScreenState extends State<SearchScreen> {
         categories: _filters.categories.isNotEmpty ? _filters.categories : null,
       );
       
+      debugPrint('[DEBUG] searchGames devolvió ${games.length} resultados');
+      if (games.isNotEmpty) {
+        debugPrint('[DEBUG] Primeros nombres: ${games.take(3).map((g) => g['name']).toList()}');
+      }
+
       if (mounted && version == _searchVersion) {
         setState(() {
           if (games.isEmpty) {
@@ -206,8 +211,11 @@ class _SearchScreenState extends State<SearchScreen> {
           }
         });
       }
-    } catch (e) {
-      // Ignorar el error o mostrar en la interfaz si lo deseas
+    } catch (e, st) {
+      debugPrint('[SearchScreen] Error en searchGames: $e\n$st');
+      if (mounted) {
+        setState(() { _hasMoreSearchResults = false; });
+      }
     } finally {
       if (mounted && version == _searchVersion) {
         setState(() { _isLoading = false; });
