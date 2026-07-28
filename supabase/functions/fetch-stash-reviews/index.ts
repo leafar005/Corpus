@@ -5,19 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const log = (level: 'INFO' | 'WARN' | 'ERROR', message: string, meta: Record<string, any> = {}) => {
-  console.log(
-    JSON.stringify({
-      timestamp: new Date().toISOString(),
-      level,
-      service: 'fetch-stash-reviews',
-      message,
-      ...meta,
-    })
-  );
-};
-
-
 const USER_AGENTS = [
   'Stash/2.6.8 (io.stash.team.games.tracker.StashApp; build:1; iOS 26.5.2) Alamofire/5.4.4',
   'Stash/2.6.8 (Android; 33; Scale/2.75)',
@@ -25,7 +12,43 @@ const USER_AGENTS = [
   'Stash/2.6.8 (io.stash.team.games.tracker.StashApp; build:2; iOS 27.0) Alamofire/5.4.4',
 ];
 
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+function randomUserAgent(): string {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((res) => setTimeout(res, ms));
+}
+
+function jitter(): Promise<void> {
+  const ms = Math.floor(Math.random() * 1500) + 500;
+  return delay(ms);
+}
+
+function buildStashHeaders(token: string, userAgent: string): HeadersInit {
+  return {
+    'Host': 'api.stash.games',
+    'Accept': '*/*',
+    'Accept-Locale': 'es_ES',
+    'Time-Zone': 'Europe/Madrid',
+    'X-Requested-With': 'XMLHttpRequest',
+    'Accept-Language': 'es',
+    'Content-Type': 'application/json',
+    'User-Agent': userAgent,
+    'X-Game-Status-Version': 'v2',
+    'Authorization': `Bearer ${token}`,
+  };
+}
+
+function makeLogger(service: string) {
+  return (level: 'INFO' | 'WARN' | 'ERROR', message: string, meta: Record<string, any> = {}) => {
+    console.log(
+      JSON.stringify({ timestamp: new Date().toISOString(), level, service, message, ...meta })
+    );
+  };
+}
+
+const log = makeLogger('fetch-stash-reviews');
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -59,26 +82,14 @@ Deno.serve(async (req) => {
 
     const stashUrl = `https://api.stash.games/api/v1/games/${igdbId}/reviews?limit=20&offset=0&sort.direction=DESC&sort.field=DATE_ADDED`;
 
-    // Jitter: retraso aleatorio entre 500ms y 2000ms
-    const jitterMs = Math.floor(Math.random() * 1500) + 500;
-    await delay(jitterMs);
+    await jitter();
 
-    const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+    const randomUA = randomUserAgent();
+    const headers = buildStashHeaders(stashToken, randomUA);
 
     const res = await fetch(stashUrl, {
       method: 'GET',
-      headers: {
-        'Host': 'api.stash.games',
-        'Accept': '*/*',
-        'Accept-Locale': 'es_ES',
-        'Time-Zone': 'Europe/Madrid',
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept-Language': 'es',
-        'Content-Type': 'application/json',
-        'User-Agent': randomUA,
-        'X-Game-Status-Version': 'v2',
-        'Authorization': `Bearer ${stashToken}`
-      }
+      headers,
     });
 
     if (!res.ok) {
@@ -89,8 +100,9 @@ Deno.serve(async (req) => {
 
     const data = await res.json();
     const allItems = data.items || [];
+    const reviewsTotal = typeof data.total === 'number' ? data.total : null;
     
-    log('INFO', 'Reseñas recibidas de la API de Stash', { igdbId, itemsCount: allItems.length });
+    log('INFO', 'Reseñas recibidas de la API de Stash', { igdbId, itemsCount: allItems.length, reviewsTotal });
 
     const gamesMap = new Map();
     const reviewsMap = new Map();
@@ -159,7 +171,7 @@ Deno.serve(async (req) => {
       insertedCount = reviewsToInsert.length;
     }
 
-    // Actualizar metadata para la caché
+    // Actualizar metadata para la caché de reseñas
     const { error: metaError } = await supabase
       .from('stash_sync_metadata')
       .upsert({ game_id: igdbId, last_checked_at: new Date().toISOString() });
@@ -168,9 +180,25 @@ Deno.serve(async (req) => {
       log('ERROR', 'Error en upsert de metadata de caché', { error: metaError.message });
     }
 
-    log('INFO', 'Sincronización de reseñas completada', { igdbId, upsertedCount: insertedCount });
+    if (reviewsTotal !== null) {
+      const { error: statsError } = await supabase
+        .from('stash_game_stats')
+        .upsert(
+          {
+            game_id: igdbId,
+            reviews_count: reviewsTotal,
+            last_reviews_total_checked_at: new Date().toISOString(),
+          },
+          { onConflict: 'game_id' }
+        );
+      if (statsError) {
+        log('ERROR', 'Error al guardar reviews_count en stash_game_stats', { error: statsError.message });
+      }
+    }
 
-    return new Response(JSON.stringify({ success: true, processed: insertedCount }), {
+    log('INFO', 'Sincronización de reseñas completada', { igdbId, upsertedCount: insertedCount, reviewsTotal });
+
+    return new Response(JSON.stringify({ success: true, processed: insertedCount, total: reviewsTotal }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
@@ -182,4 +210,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
