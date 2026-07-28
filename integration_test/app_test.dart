@@ -35,7 +35,10 @@ void main() {
         final transientUsername = 'Tester_$timestamp';
 
         // Función auxiliar para esperar a que aparezca un widget (ej: tras peticiones HTTP reales a IGDB/Supabase)
-        Future<void> waitFor(Finder finder, {Duration timeout = const Duration(seconds: 25)}) async {
+        Future<void> waitFor(
+          Finder finder, {
+          Duration timeout = const Duration(seconds: 25),
+        }) async {
           final end = DateTime.now().add(timeout);
           while (DateTime.now().isBefore(end)) {
             await tester.pump(const Duration(milliseconds: 300));
@@ -56,16 +59,24 @@ void main() {
           if (Supabase.instance.client.auth.currentUser != null) {
             await Supabase.instance.client.auth.signOut();
             await tester.pumpAndSettle();
-            await tester.pump(const Duration(milliseconds: 500)); // Margen para el stream de auth
+            await tester.pump(
+              const Duration(milliseconds: 500),
+            ); // Margen para el stream de auth
           }
         } catch (_) {}
 
         try {
           // ── PASO 1: Comprobar pantalla de Login e intentar entrar sin cuenta ──
-          expect(find.text('Bienvenido a Corpus'), findsOneWidget,
-              reason: 'Debe mostrarse la pantalla de inicio de sesión');
+          expect(
+            find.text('Bienvenido a Corpus'),
+            findsOneWidget,
+            reason: 'Debe mostrarse la pantalla de inicio de sesión',
+          );
 
-          final emailField = find.widgetWithText(TextField, 'Correo electrónico');
+          final emailField = find.widgetWithText(
+            TextField,
+            'Correo electrónico',
+          );
           final passwordField = find.widgetWithText(TextField, 'Contraseña');
           expect(emailField, findsOneWidget);
           expect(passwordField, findsOneWidget);
@@ -74,7 +85,10 @@ void main() {
           await tester.enterText(passwordField, transientPassword);
           await tester.pump();
 
-          final loginButton = find.widgetWithText(ElevatedButton, 'Iniciar sesión');
+          final loginButton = find.widgetWithText(
+            ElevatedButton,
+            'Iniciar sesión',
+          );
           expect(loginButton, findsOneWidget);
 
           // Intentamos iniciar sesión con una cuenta que aún no existe
@@ -82,8 +96,12 @@ void main() {
           await tester.pumpAndSettle();
 
           // Comprobamos que seguimos en la pantalla de Login porque el usuario no existía
-          expect(find.text('Bienvenido a Corpus'), findsOneWidget,
-              reason: 'El login con una cuenta inexistente debe permanecer en LoginScreen');
+          expect(
+            find.text('Bienvenido a Corpus'),
+            findsOneWidget,
+            reason:
+                'El login con una cuenta inexistente debe permanecer en LoginScreen',
+          );
 
           // ── PASO 2: Navegar a pantalla de Registro y crear la cuenta ────────
           final registerLink = find.text('¿No tienes cuenta? Regístrate aquí');
@@ -91,13 +109,20 @@ void main() {
           await tester.tap(registerLink);
           await tester.pumpAndSettle();
 
-          expect(find.text('Crear cuenta'), findsOneWidget,
-              reason: 'Debe haberse abierto el RegisterScreen');
+          expect(
+            find.text('Crear cuenta'),
+            findsOneWidget,
+            reason: 'Debe haberse abierto el RegisterScreen',
+          );
 
           // Rellenar campos de registro con finders robustos por Key
-          final usernameField = find.byKey(const Key('register_username_field'));
+          final usernameField = find.byKey(
+            const Key('register_username_field'),
+          );
           final regEmailField = find.byKey(const Key('register_email_field'));
-          final regPasswordField = find.byKey(const Key('register_password_field'));
+          final regPasswordField = find.byKey(
+            const Key('register_password_field'),
+          );
 
           expect(usernameField, findsOneWidget);
           expect(regEmailField, findsOneWidget);
@@ -108,20 +133,29 @@ void main() {
           await tester.enterText(regPasswordField, transientPassword);
           await tester.pump();
 
-          final completeRegisterButton = find.widgetWithText(ElevatedButton, 'Completar registro');
+          final completeRegisterButton = find.widgetWithText(
+            ElevatedButton,
+            'Completar registro',
+          );
           expect(completeRegisterButton, findsOneWidget);
 
           await tester.tap(completeRegisterButton);
           await tester.pumpAndSettle();
-          await tester.pump(const Duration(milliseconds: 500)); // Margen para propagación de sesión
+          await tester.pump(
+            const Duration(milliseconds: 500),
+          ); // Margen para propagación de sesión
 
           // ── PASO 3: Verificar entrada a MainScreen vía AuthGate ─────────────
           // Al registrarse en Supabase, el AuthGate de main.dart detecta la sesión
           // y nos lleva directamente a la aplicación principal (sin pasar por Login de nuevo).
           final searchIcon = find.byIcon(Icons.search);
           await waitFor(searchIcon, timeout: const Duration(seconds: 15));
-          expect(searchIcon, findsWidgets,
-              reason: 'Tras completar el registro, AuthGate nos lleva automáticamente a la interfaz principal');
+          expect(
+            searchIcon,
+            findsWidgets,
+            reason:
+                'Tras completar el registro, AuthGate nos lleva automáticamente a la interfaz principal',
+          );
 
           // ── PASO 4: Buscar un Juego ('Elden Ring') ─────────────────────────
           await tester.tap(searchIcon.first);
@@ -138,8 +172,12 @@ void main() {
             matching: find.byType(GameCard),
           );
           await waitFor(eldenRingCard, timeout: const Duration(seconds: 25));
-          expect(eldenRingCard, findsWidgets,
-              reason: 'La búsqueda de Elden Ring debe devolver al menos una GameCard');
+          expect(
+            eldenRingCard,
+            findsWidgets,
+            reason:
+                'La búsqueda de Elden Ring debe devolver al menos una GameCard',
+          );
           await tester.tap(eldenRingCard.first);
           // Usar pumps de duración fija para no bloquearnos en fetches asíncronos de IGDB/covers
           await tester.pump();
@@ -180,9 +218,16 @@ void main() {
             of: find.textContaining(RegExp('elden ring', caseSensitive: false)),
             matching: find.byType(GameCard),
           );
-          await waitFor(eldenRingInLibrary, timeout: const Duration(seconds: 15));
-          expect(eldenRingInLibrary, findsWidgets,
-              reason: 'El juego reseñado debe aparecer como una GameCard en Mi Biblioteca');
+          await waitFor(
+            eldenRingInLibrary,
+            timeout: const Duration(seconds: 15),
+          );
+          expect(
+            eldenRingInLibrary,
+            findsWidgets,
+            reason:
+                'El juego reseñado debe aparecer como una GameCard en Mi Biblioteca',
+          );
         } finally {
           // ── PASO 7: Limpieza de cuenta y datos transitorios ────────────────
           try {
@@ -192,7 +237,10 @@ void main() {
               final uid = currentUser.id;
               await client.from('reviews').delete().eq('user_id', uid);
               await client.from('user_games').delete().eq('user_id', uid);
-              await client.from('user_achievements').delete().eq('user_id', uid);
+              await client
+                  .from('user_achievements')
+                  .delete()
+                  .eq('user_id', uid);
               await client.from('users').delete().eq('id', uid);
               await client.auth.signOut();
             }

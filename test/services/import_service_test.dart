@@ -6,20 +6,33 @@ import 'package:corpus/services/import_service.dart';
 void main() {
   group('ImportService.fixEncoding (Reparación UTF-8 / Mojibake)', () {
     test('Repara caracteres mojibake en español correctamente', () {
-      expect(ImportService.fixEncoding('SeÃ±or de los Anillos'), 'Señor de los Anillos');
-      expect(ImportService.fixEncoding('EdiciÃ³n Especial'), 'Edición Especial');
+      expect(
+        ImportService.fixEncoding('SeÃ±or de los Anillos'),
+        'Señor de los Anillos',
+      );
+      expect(
+        ImportService.fixEncoding('EdiciÃ³n Especial'),
+        'Edición Especial',
+      );
       expect(ImportService.fixEncoding('AlgÃºn tÃtulo'), 'Algún título');
     });
 
     test('Mantiene texto limpio sin alterar si no hay mojibake', () {
-      expect(ImportService.fixEncoding('The Legend of Zelda'), 'The Legend of Zelda');
-      expect(ImportService.fixEncoding('Chrono Trigger (SNES)'), 'Chrono Trigger (SNES)');
+      expect(
+        ImportService.fixEncoding('The Legend of Zelda'),
+        'The Legend of Zelda',
+      );
+      expect(
+        ImportService.fixEncoding('Chrono Trigger (SNES)'),
+        'Chrono Trigger (SNES)',
+      );
     });
   });
 
   group('ImportService.parseCsv (Mapeo de archivos CSV)', () {
     test('Extrae filas limpias con comillas y comas dentro del título', () {
-      const csvContent = '''title,release_year,status,rating,comment,platform,play_time_hours
+      const csvContent =
+          '''title,release_year,status,rating,comment,platform,play_time_hours
 "The Legend of Zelda: Breath of the Wild, The",2017,Beaten,10,"Increíble, una obra maestra",Nintendo Switch,120.5
 "God of War (2018)",2018,Completed,9.5,"Gran historia, buen combate",PlayStation 4,45
 ''';

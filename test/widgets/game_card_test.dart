@@ -5,88 +5,101 @@ import 'package:corpus/widgets/game_card.dart';
 
 void main() {
   group('GameCard Widget Tests', () {
-    testWidgets('Muestra título al hacer hover, nota y carátula cuando tiene datos completos', (WidgetTester tester) async {
-      final gameMock = {
-        'title': 'Elden Ring',
-        'cover_url': 'https://images.igdb.com/igdb/image/upload/t_cover_big/co4j8m.jpg',
-      };
+    testWidgets(
+      'Muestra título al hacer hover, nota y carátula cuando tiene datos completos',
+      (WidgetTester tester) async {
+        final gameMock = {
+          'title': 'Elden Ring',
+          'cover_url':
+              'https://images.igdb.com/igdb/image/upload/t_cover_big/co4j8m.jpg',
+        };
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: GameCard(
-              game: gameMock,
-              isInLibrary: true,
-              userRating: 9.5,
-              onReturn: () {},
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: GameCard(
+                game: gameMock,
+                isInLibrary: true,
+                userRating: 9.5,
+                onReturn: () {},
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: Offset.zero);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(tester.getCenter(find.byType(GameCard)));
-      await tester.pumpAndSettle();
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        await gesture.addPointer(location: Offset.zero);
+        addTearDown(gesture.removePointer);
+        await gesture.moveTo(tester.getCenter(find.byType(GameCard)));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Elden Ring'), findsOneWidget);
-      expect(find.text('9.5'), findsOneWidget);
-    });
+        expect(find.text('Elden Ring'), findsOneWidget);
+        expect(find.text('9.5'), findsOneWidget);
+      },
+    );
 
-    testWidgets('No muestra nota si el juego no está valorado (userRating = 0)', (WidgetTester tester) async {
-      final gameMock = {'title': 'Hollow Knight'};
+    testWidgets(
+      'No muestra nota si el juego no está valorado (userRating = 0)',
+      (WidgetTester tester) async {
+        final gameMock = {'title': 'Hollow Knight'};
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: GameCard(
-              game: gameMock,
-              isInLibrary: false,
-              userRating: 0.0,
-              onReturn: () {},
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: GameCard(
+                game: gameMock,
+                isInLibrary: false,
+                userRating: 0.0,
+                onReturn: () {},
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: Offset.zero);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(tester.getCenter(find.byType(GameCard)));
-      await tester.pumpAndSettle();
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        await gesture.addPointer(location: Offset.zero);
+        addTearDown(gesture.removePointer);
+        await gesture.moveTo(tester.getCenter(find.byType(GameCard)));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Hollow Knight'), findsOneWidget);
-      expect(find.text('0.0'), findsNothing);
-    });
+        expect(find.text('Hollow Knight'), findsOneWidget);
+        expect(find.text('0.0'), findsNothing);
+      },
+    );
 
-    testWidgets('Muestra un icono genérico (Icons.videogame_asset) cuando la URL de la carátula es nula o vacía', (WidgetTester tester) async {
-      final gameMock = {
-        'title': 'Juego Sin Carátula',
-        'cover_url': '',
-      };
+    testWidgets(
+      'Muestra un icono genérico (Icons.videogame_asset) cuando la URL de la carátula es nula o vacía',
+      (WidgetTester tester) async {
+        final gameMock = {'title': 'Juego Sin Carátula', 'cover_url': ''};
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: GameCard(
-              game: gameMock,
-              isInLibrary: true,
-              userRating: 0.0,
-              onReturn: () {},
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: GameCard(
+                game: gameMock,
+                isInLibrary: true,
+                userRating: 0.0,
+                onReturn: () {},
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: Offset.zero);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(tester.getCenter(find.byType(GameCard)));
-      await tester.pumpAndSettle();
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        await gesture.addPointer(location: Offset.zero);
+        addTearDown(gesture.removePointer);
+        await gesture.moveTo(tester.getCenter(find.byType(GameCard)));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Juego Sin Carátula'), findsOneWidget);
-      expect(find.byIcon(Icons.videogame_asset), findsOneWidget);
-    });
+        expect(find.text('Juego Sin Carátula'), findsOneWidget);
+        expect(find.byIcon(Icons.videogame_asset), findsOneWidget);
+      },
+    );
   });
 }

@@ -10,51 +10,60 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('Actualiza currentMode a ThemeMode.dark y emite evento de cambio', () async {
-      final notifier = ThemeNotifier();
-      bool notified = false;
-      notifier.addListener(() {
-        notified = true;
-      });
+    test(
+      'Actualiza currentMode a ThemeMode.dark y emite evento de cambio',
+      () async {
+        final notifier = ThemeNotifier();
+        bool notified = false;
+        notifier.addListener(() {
+          notified = true;
+        });
 
-      await notifier.setTheme(ThemeMode.dark);
+        await notifier.setTheme(ThemeMode.dark);
 
-      expect(notifier.currentMode, ThemeMode.dark);
-      expect(notified, isTrue);
-    });
+        expect(notifier.currentMode, ThemeMode.dark);
+        expect(notified, isTrue);
+      },
+    );
 
-    test('Actualiza seedColor a Colors.green y emite evento de cambio', () async {
-      final notifier = ThemeNotifier();
-      bool notified = false;
-      notifier.addListener(() {
-        notified = true;
-      });
+    test(
+      'Actualiza seedColor a Colors.green y emite evento de cambio',
+      () async {
+        final notifier = ThemeNotifier();
+        bool notified = false;
+        notifier.addListener(() {
+          notified = true;
+        });
 
-      await notifier.setColor(Colors.green);
+        await notifier.setColor(Colors.green);
 
-      expect(notifier.seedColor.toARGB32(), Colors.green.toARGB32());
-      expect(notified, isTrue);
-    });
+        expect(notifier.seedColor.toARGB32(), Colors.green.toARGB32());
+        expect(notified, isTrue);
+      },
+    );
   });
 
   group('libraryUpdateNotifier (Estado Global de Biblioteca)', () {
-    test('Incrementa su valor en +1 cuando se simula un cambio en la biblioteca o borrado de juego', () {
-      final initialValue = libraryUpdateNotifier.value;
-      int notifiedCount = 0;
-      
-      void listener() {
-        notifiedCount++;
-      }
+    test(
+      'Incrementa su valor en +1 cuando se simula un cambio en la biblioteca o borrado de juego',
+      () {
+        final initialValue = libraryUpdateNotifier.value;
+        int notifiedCount = 0;
 
-      libraryUpdateNotifier.addListener(listener);
+        void listener() {
+          notifiedCount++;
+        }
 
-      // Simular cambio en la biblioteca (ej: borrar juego o cuenta)
-      libraryUpdateNotifier.value++;
+        libraryUpdateNotifier.addListener(listener);
 
-      expect(libraryUpdateNotifier.value, initialValue + 1);
-      expect(notifiedCount, 1);
+        // Simular cambio en la biblioteca (ej: borrar juego o cuenta)
+        libraryUpdateNotifier.value++;
 
-      libraryUpdateNotifier.removeListener(listener);
-    });
+        expect(libraryUpdateNotifier.value, initialValue + 1);
+        expect(notifiedCount, 1);
+
+        libraryUpdateNotifier.removeListener(listener);
+      },
+    );
   });
 }
