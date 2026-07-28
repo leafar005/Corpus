@@ -189,17 +189,57 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
           final matchSuffix = RegExp(r'_(\d+|all)$').firstMatch(id);
           return matchSuffix != null ? id.substring(0, id.length - matchSuffix.group(0)!.length) : id;
         }
-        
-        int progA = sagaProgress[getGroupId(a['id'] as String)] ?? 0;
-        int progB = sagaProgress[getGroupId(b['id'] as String)] ?? 0;
-        
-        bool hasProgA = progA > 0;
-        bool hasProgB = progB > 0;
-        
-        if (hasProgA && !hasProgB) return -1;
-        if (!hasProgA && hasProgB) return 1;
-        
-        return (a['xp_reward'] as int).compareTo(b['xp_reward'] as int);
+
+        final String groupIdA = getGroupId(a['id'] as String);
+        final String groupIdB = getGroupId(b['id'] as String);
+
+        final int progA = sagaProgress[groupIdA] ?? 0;
+        final int progB = sagaProgress[groupIdB] ?? 0;
+
+        final List<Map<String, dynamic>> milestonesA = sagaMilestones[groupIdA] ?? <Map<String, dynamic>>[{'target': 1}];
+        final List<Map<String, dynamic>> milestonesB = sagaMilestones[groupIdB] ?? <Map<String, dynamic>>[{'target': 1}];
+
+        final int maxTargetA = milestonesA.last['target'] as int;
+        final int maxTargetB = milestonesB.last['target'] as int;
+
+        final bool isUnlockedA = unlockedMap.containsKey(a['id']) ||
+            unlockedMap.keys.any((k) => k == groupIdA || k.startsWith('${groupIdA}_')) ||
+            progA >= maxTargetA;
+        final bool isUnlockedB = unlockedMap.containsKey(b['id']) ||
+            unlockedMap.keys.any((k) => k == groupIdB || k.startsWith('${groupIdB}_')) ||
+            progB >= maxTargetB;
+
+        int getCategory(int prog, int maxTarget, bool isUnlocked) {
+          // 1: Logros completados al 100% (oro, o logro de 1 hito conseguido) -> DEBAJO
+          if (prog >= maxTarget || (isUnlocked && maxTarget <= 1)) {
+            return 1;
+          }
+          // 0: Logros en un punto medio (en progreso: 0 < prog < maxTarget) -> PRIMERO
+          if (prog > 0) {
+            return 0;
+          }
+          // 2: Logros sin comenzar (0 progreso) -> AL FINAL
+          return 2;
+        }
+
+        final int catA = getCategory(progA, maxTargetA, isUnlockedA);
+        final int catB = getCategory(progB, maxTargetB, isUnlockedB);
+
+        if (catA != catB) {
+          return catA.compareTo(catB);
+        }
+
+        // Dentro de la misma categoría, ordenar de mayor a menor XP
+        final int xpA = (a['xp_reward'] as num?)?.toInt() ?? 0;
+        final int xpB = (b['xp_reward'] as num?)?.toInt() ?? 0;
+        if (xpA != xpB) {
+          return xpB.compareTo(xpA);
+        }
+
+        // Si empatan en XP, ordenar alfabéticamente
+        final String nameA = (a['name'] ?? '').toString();
+        final String nameB = (b['name'] ?? '').toString();
+        return nameA.compareTo(nameB);
       });
       if (mounted) {
         setState(() {
