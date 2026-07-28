@@ -61,18 +61,28 @@ class ImportService {
   static List<dynamic> getNames(dynamic field) {
     if (field == null) return [];
     if (field is List) {
-      return field.map((e) => e is Map ? (e['name'] ?? e.toString()) : e).toList();
+      return field
+          .map((e) => e is Map ? (e['name'] ?? e.toString()) : e)
+          .toList();
     }
     return [field.toString()];
   }
 
   static List<CsvGameRow> parseCsv(Uint8List fileBytes) {
-    final String content = utf8.decode(fileBytes, allowMalformed: true).replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-    final List<List<dynamic>> rows = const CsvToListConverter(shouldParseNumbers: false, eol: '\n').convert(content);
+    final String content = utf8
+        .decode(fileBytes, allowMalformed: true)
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n');
+    final List<List<dynamic>> rows = const CsvToListConverter(
+      shouldParseNumbers: false,
+      eol: '\n',
+    ).convert(content);
     if (rows.isEmpty) return [];
 
-    final List<String> headers = rows.first.map((e) => e.toString().toLowerCase().trim()).toList();
-    
+    final List<String> headers = rows.first
+        .map((e) => e.toString().toLowerCase().trim())
+        .toList();
+
     int titleIdx = headers.indexOf('title');
     if (titleIdx == -1) titleIdx = headers.indexOf('name');
     if (titleIdx == -1) titleIdx = 0;
@@ -128,17 +138,40 @@ class ImportService {
         releaseYear = int.tryParse(row[yearIdx].toString().split('.').first);
       }
 
-      String rawStatus = statusIdx != -1 && statusIdx < row.length ? row[statusIdx].toString().toLowerCase().trim() : 'wishlist';
+      String rawStatus = statusIdx != -1 && statusIdx < row.length
+          ? row[statusIdx].toString().toLowerCase().trim()
+          : 'wishlist';
       String cleanStatus = 'wishlist';
-      if (rawStatus == 'beaten' || rawStatus == 'completed' || rawStatus == 'finished' || rawStatus == 'terminado') cleanStatus = 'beaten';
-      else if (rawStatus == 'playing' || rawStatus == 'jugando' || rawStatus == 'in progress') cleanStatus = 'playing';
-      else if (rawStatus == 'want' || rawStatus == 'wishlist' || rawStatus == 'backlog' || rawStatus == 'quiero') cleanStatus = 'wishlist';
-      else if (rawStatus == 'archived' || rawStatus == 'abandoned' || rawStatus == 'dropped' || rawStatus == 'abandonado') cleanStatus = 'abandoned';
-      else if (rawStatus == 'on_hold' || rawStatus == 'on hold' || rawStatus == 'paused' || rawStatus == 'pausado') cleanStatus = 'on_hold';
 
+      if (rawStatus == 'beaten' ||
+          rawStatus == 'completed' ||
+          rawStatus == 'finished' ||
+          rawStatus == 'terminado') {
+        cleanStatus = 'beaten';
+      } else if (rawStatus == 'playing' ||
+          rawStatus == 'jugando' ||
+          rawStatus == 'in progress') {
+        cleanStatus = 'playing';
+      } else if (rawStatus == 'want' ||
+          rawStatus == 'wishlist' ||
+          rawStatus == 'backlog' ||
+          rawStatus == 'quiero') {
+        cleanStatus = 'wishlist';
+      } else if (rawStatus == 'archived' ||
+          rawStatus == 'abandoned' ||
+          rawStatus == 'dropped' ||
+          rawStatus == 'abandonado') {
+        cleanStatus = 'abandoned';
+      } else if (rawStatus == 'on_hold' ||
+          rawStatus == 'on hold' ||
+          rawStatus == 'paused' ||
+          rawStatus == 'pausado') {
+        cleanStatus = 'on_hold';
+      }
       double? cleanRating;
       if (ratingIdx != -1 && ratingIdx < row.length && row[ratingIdx] != null) {
-        final double rawRating = double.tryParse(row[ratingIdx].toString()) ?? 0.0;
+        final double rawRating =
+            double.tryParse(row[ratingIdx].toString()) ?? 0.0;
         if (rawRating >= 1.0) {
           if (rawRating <= 5.0) {
             cleanRating = rawRating * 2.0;
@@ -152,13 +185,17 @@ class ImportService {
       }
 
       String? comment;
-      if (commentIdx != -1 && commentIdx < row.length && row[commentIdx] != null) {
+      if (commentIdx != -1 &&
+          commentIdx < row.length &&
+          row[commentIdx] != null) {
         final c = fixEncoding(row[commentIdx].toString().trim());
         if (c.isNotEmpty && c != 'nan' && c != 'null') comment = c;
       }
 
       String? platform;
-      if (platformIdx != -1 && platformIdx < row.length && row[platformIdx] != null) {
+      if (platformIdx != -1 &&
+          platformIdx < row.length &&
+          row[platformIdx] != null) {
         final p = row[platformIdx].toString().trim().toLowerCase();
         if (p.isNotEmpty && p != 'nan' && p != 'null') platform = p;
       }
@@ -170,7 +207,9 @@ class ImportService {
       }
 
       String? completionType;
-      if (completionIdx != -1 && completionIdx < row.length && row[completionIdx] != null) {
+      if (completionIdx != -1 &&
+          completionIdx < row.length &&
+          row[completionIdx] != null) {
         final ct = row[completionIdx].toString().trim().toLowerCase();
         if (ct.isNotEmpty && ct != 'nan' && ct != 'null') completionType = ct;
       }
@@ -181,18 +220,20 @@ class ImportService {
         if (d.isNotEmpty && d != 'nan' && d != 'null') dateAdded = d;
       }
 
-      parsedRows.add(CsvGameRow(
-        title: title,
-        igdbId: igdbId,
-        releaseYear: releaseYear,
-        status: cleanStatus,
-        rating: cleanRating,
-        comment: comment,
-        platform: platform,
-        playTimeHours: playTimeHours,
-        completionType: completionType,
-        dateAdded: dateAdded,
-      ));
+      parsedRows.add(
+        CsvGameRow(
+          title: title,
+          igdbId: igdbId,
+          releaseYear: releaseYear,
+          status: cleanStatus,
+          rating: cleanRating,
+          comment: comment,
+          platform: platform,
+          playTimeHours: playTimeHours,
+          completionType: completionType,
+          dateAdded: dateAdded,
+        ),
+      );
     }
 
     return parsedRows;
@@ -213,41 +254,50 @@ class ImportService {
       final int end = (i + chunkSize < total) ? i + chunkSize : total;
       final chunk = rows.sublist(i, end);
 
-      await Future.wait(chunk.map((row) async {
-        try {
-          if (row.igdbId != null && row.igdbId! > 0) {
-            final game = await IGDBService.getGameById(row.igdbId!);
-            if (game != null) {
-              row.igdbData = game;
-              row.matchStatus = 'matched';
-              return;
+      await Future.wait(
+        chunk.map((row) async {
+          try {
+            if (row.igdbId != null && row.igdbId! > 0) {
+              final game = await IGDBService.getGameById(row.igdbId!);
+              if (game != null) {
+                row.igdbData = game;
+                row.matchStatus = 'matched';
+                return;
+              }
             }
-          }
 
-          final results = await IGDBService.searchGames(row.title);
-          if (results.isEmpty) {
-            row.matchStatus = 'notFound';
-          } else if (results.length == 1) {
-            row.igdbData = results.first as Map<String, dynamic>;
-            row.matchStatus = 'matched';
-          } else {
-            final exact = results.where((g) => 
-                (g['name'] ?? g['title'] ?? '').toString().toLowerCase().trim() == row.title.toLowerCase().trim()
-            ).toList();
-
-            if (exact.length == 1) {
-              row.igdbData = exact.first as Map<String, dynamic>;
+            final results = await IGDBService.searchGames(row.title);
+            if (results.isEmpty) {
+              row.matchStatus = 'notFound';
+            } else if (results.length == 1) {
+              row.igdbData = results.first as Map<String, dynamic>;
               row.matchStatus = 'matched';
             } else {
-              row.candidates = results;
-              row.matchStatus = 'ambiguous';
+              final exact = results
+                  .where(
+                    (g) =>
+                        (g['name'] ?? g['title'] ?? '')
+                            .toString()
+                            .toLowerCase()
+                            .trim() ==
+                        row.title.toLowerCase().trim(),
+                  )
+                  .toList();
+
+              if (exact.length == 1) {
+                row.igdbData = exact.first as Map<String, dynamic>;
+                row.matchStatus = 'matched';
+              } else {
+                row.candidates = results;
+                row.matchStatus = 'ambiguous';
+              }
             }
+          } catch (e) {
+            if (kDebugMode) print('Error matching game ${row.title}:$e');
+            row.matchStatus = 'notFound';
           }
-        } catch (e) {
-          if (kDebugMode) print('Error matching game ${row.title}:$e');
-          row.matchStatus = 'notFound';
-        }
-      }));
+        }),
+      );
 
       processed = end;
       onProgress(processed, total);
@@ -264,7 +314,7 @@ class ImportService {
     final int total = matchedRows.length;
 
     const int batchSize = 100;
-    
+
     for (int i = 0; i < total; i += batchSize) {
       final int end = (i + batchSize < total) ? i + batchSize : total;
       final batch = matchedRows.sublist(i, end);
@@ -275,9 +325,12 @@ class ImportService {
 
       for (final row in batch) {
         if (row.igdbData == null && row.igdbId == null) continue;
-        
-        final gameData = row.igdbData ?? <String, dynamic>{'id': row.igdbId, 'name': row.title};
-        final int igdbId = (gameData['id'] ?? gameData['igdb_id'] ?? row.igdbId) as int;
+
+        final gameData =
+            row.igdbData ??
+            <String, dynamic>{'id': row.igdbId, 'name': row.title};
+        final int igdbId =
+            (gameData['id'] ?? gameData['igdb_id'] ?? row.igdbId) as int;
 
         // 1. TRADUCCIÓN ROBUSTA DE CARÁTULA A ALTA RESOLUCIÓN:
         String? coverUrl = gameData['cover_url'] as String?;
@@ -290,13 +343,18 @@ class ImportService {
           }
         }
         if (coverUrl != null && coverUrl.isNotEmpty) {
-          coverUrl = coverUrl.replaceAll('t_cover_big', 't_1080p').replaceAll('t_thumb', 't_1080p');
+          coverUrl = coverUrl
+              .replaceAll('t_cover_big', 't_1080p')
+              .replaceAll('t_thumb', 't_1080p');
         }
 
         // 2. EXTRACCIÓN DE DESARROLLADOR PARA ACTIVAR LOGROS DE COMPAÑÍA:
         String? developer = gameData['developer'] as String?;
-        if (developer == null || developer == 'Desconocido' || developer == 'Desarrollador desconocido') {
-          if (gameData['involved_companies'] is List && (gameData['involved_companies'] as List).isNotEmpty) {
+        if (developer == null ||
+            developer == 'Desconocido' ||
+            developer == 'Desarrollador desconocido') {
+          if (gameData['involved_companies'] is List &&
+              (gameData['involved_companies'] as List).isNotEmpty) {
             final companies = gameData['involved_companies'] as List;
             for (final c in companies) {
               if (c is Map && c['developer'] == true && c['company'] is Map) {
@@ -304,7 +362,9 @@ class ImportService {
                 break;
               }
             }
-            if (developer == null && companies[0] is Map && companies[0]['company'] is Map) {
+            if (developer == null &&
+                companies[0] is Map &&
+                companies[0]['company'] is Map) {
               developer = companies[0]['company']['name']?.toString();
             }
           }
@@ -315,15 +375,21 @@ class ImportService {
         final rawReleaseDate = gameData['first_release_date'];
         if (rawReleaseDate is num && rawReleaseDate > 0) {
           try {
-            releaseDate = DateTime.fromMillisecondsSinceEpoch(rawReleaseDate.toInt() * 1000).toIso8601String().split('T')[0];
+            releaseDate = DateTime.fromMillisecondsSinceEpoch(
+              rawReleaseDate.toInt() * 1000,
+            ).toIso8601String().split('T')[0];
           } catch (e) {
-            if (kDebugMode) print('[ImportService] Error formateando fecha: $e');
+            if (kDebugMode) {
+              print('[ImportService] Error formateando fecha: $e');
+            }
           }
         }
 
-
-        final double? cleanRating = (row.rating != null && row.rating! >= 1.0) ? row.rating : null;
-        final String dateAddedStr = row.dateAdded ?? DateTime.now().toUtc().toIso8601String();
+        final double? cleanRating = (row.rating != null && row.rating! >= 1.0)
+            ? row.rating
+            : null;
+        final String dateAddedStr =
+            row.dateAdded ?? DateTime.now().toUtc().toIso8601String();
 
         gamesPayload.add({
           'igdb_id': igdbId,
@@ -335,7 +401,15 @@ class ImportService {
           'developer': developer,
           'summary': gameData['summary'],
           'category': gameData['category'] ?? gameData['game_type'] ?? 0,
-          'collection': gameData['collection'] != null ? {'name': (gameData['collection'] is Map ? gameData['collection']['name'] : gameData['collection']).toString()} : null,
+          'collection': gameData['collection'] != null
+              ? {
+                  'name':
+                      (gameData['collection'] is Map
+                              ? gameData['collection']['name']
+                              : gameData['collection'])
+                          .toString(),
+                }
+              : null,
           'franchises': getNames(gameData['franchises']),
           'game_engines': getNames(gameData['game_engines']),
         });
@@ -346,21 +420,29 @@ class ImportService {
           'status': row.status,
           'rating': cleanRating,
           'comment': row.comment?.isNotEmpty == true ? row.comment : null,
-          'play_time_hours': (row.playTimeHours ?? 0) > 0 ? row.playTimeHours : null,
+          'play_time_hours': (row.playTimeHours ?? 0) > 0
+              ? row.playTimeHours
+              : null,
           'last_played_at': dateAddedStr,
           'updated_at': dateAddedStr,
         });
 
-        if (cleanRating != null || (row.comment?.isNotEmpty == true) || row.status == 'beaten') {
+        if (cleanRating != null ||
+            (row.comment?.isNotEmpty == true) ||
+            row.status == 'beaten') {
           reviewsPayload.add({
             'user_id': userId,
             'game_id': igdbId,
             'rating': cleanRating,
             'comment': row.comment?.isNotEmpty == true ? row.comment : null,
             'status': row.status,
-            'completion_type': row.completionType ?? (row.status == 'beaten' ? 'story' : 'none'),
+            'completion_type':
+                row.completionType ??
+                (row.status == 'beaten' ? 'story' : 'none'),
             'platform': row.platform,
-            'play_time_hours': (row.playTimeHours ?? 0) > 0 ? row.playTimeHours : null,
+            'play_time_hours': (row.playTimeHours ?? 0) > 0
+                ? row.playTimeHours
+                : null,
             'is_replay': false,
             'created_at': dateAddedStr,
           });
@@ -369,10 +451,14 @@ class ImportService {
 
       try {
         if (gamesPayload.isNotEmpty) {
-          await supabase.from('games').upsert(gamesPayload, onConflict: 'igdb_id');
+          await supabase
+              .from('games')
+              .upsert(gamesPayload, onConflict: 'igdb_id');
         }
         if (userGamesPayload.isNotEmpty) {
-          await supabase.from('user_games').upsert(userGamesPayload, onConflict: 'user_id, game_id');
+          await supabase
+              .from('user_games')
+              .upsert(userGamesPayload, onConflict: 'user_id, game_id');
         }
         if (reviewsPayload.isNotEmpty) {
           await supabase.from('reviews').insert(reviewsPayload);

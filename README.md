@@ -4,7 +4,7 @@
 
 Corpus is a cross-platform app (Flutter) built around one idea: your gaming library should be yours — detailed, private, and shared only with the people you actually play with.
 
-It combines a personal game journal with a closed social layer for your group, enriches everything automatically with data from IGDB, HowLongToBeat and Stash, and wraps it all in a gamification system that rewards you for actually playing.
+It combines a personal game journal with a closed social layer for your group, enriches everything automatically with data from IGDB and Stash, and wraps it all in an extensive gamification system that rewards you for playing and discovering.
 
 ---
 
@@ -12,49 +12,41 @@ It combines a personal game journal with a closed social layer for your group, e
 
 ### Library
 - Track every game with statuses: **Playing, Beaten, Wishlist, Abandoned, On Hold**
-- Auto-populated covers, release dates and genres from IGDB
-- HowLongToBeat times injected automatically when you add a game
+- Auto-populated covers, release dates, completion times, and genres from **IGDB**
 - Saga progress tracker grouped by IGDB collection
 
-### Reviews
+### Reviews & Social
 - Overall score + per-category breakdown (Gameplay, Soundtrack, …)
-- Free-text comments and attached photos
+- Free-text comments with attached photos (via Supabase Storage)
+- Like and comment on your friends' reviews
 - Co-op partner linking: record who you played it with
-
-### Social (your group)
-- Real-time activity feed via Supabase Realtime
 - **"Who has it?"** — see instantly which friends own or have played a game
-- **Playing now** indicator: shows when someone in the group is actively playing
-- Hall of Fame: pin up to 5 games to your profile
+- Real-time activity feed via **Supabase Realtime**
 
-### Profile
-- Custom avatar and banner
-- Genre map: visual breakdown of your library by genre
-- Full achievement panel: game milestones + meta achievements (app usage)
+### Gamification & Achievements
+- Robust XP and level system calculated securely on the database level via PostgreSQL Triggers.
+- Meta achievements (app usage) and game milestones.
+- **42 Franchises and Sagas Tracked:** Achievements based on the number of games you have completed from franchises and series such as *Kojima Productions, FromSoftware, Nintendo, Rockstar, Yakuza, Persona, Xenoblade, Zelda*, etc.
 
-### Gamification
-- XP and level system triggered on game completion
-- Game achievements: "Beat 10 games", "First review", …
-- Meta achievements: "6 months active", "50 reviews written", "Never abandoned a 20h+ game"
-
-### Community data
-- Stash reviews synced automatically via Edge Function (public HTML scraping)
-- Community tab in every game page showing external opinions alongside your own
+### Community & Discovery
+- **Stash Reviews:** Synced automatically in the background via Edge Functions and `pg_cron` to show external community opinions.
+- **Active Bundles:** Integrates with Barter/IGDB to show active game bundles automatically synced every 4 hours.
+- Hall of Fame (pin up to 5 games) and visual Genre Map.
 
 ---
 
-## Stack
+## Stack & Architecture
 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | Flutter (Dart) |
-| Backend / DB | Supabase (PostgreSQL + Realtime + Storage) |
+| Backend / DB | Supabase (PostgreSQL + Realtime + Storage + pg_cron) |
+| DevOps & Schema | Supabase CLI Migrations & Modular SQL Schema |
 | Cloud logic | Supabase Edge Functions (Deno / TypeScript) |
-| Local cache | Hive / Drift (SQLite) |
+| Local storage | `shared_preferences` |
 | Game metadata | IGDB API |
-| Completion times | `howlongtobeat` npm wrapper |
-| Community reviews | Stash (public HTML scraping) |
-| Web hosting (later) | Vercel |
+| Community reviews | Stash (public HTML scraping via pg_cron) |
+| Bundles Sync | Barter API (via pg_cron) |
 
 **Cost: $0.** Everything runs on free tiers sized for small personal projects.
 
@@ -62,51 +54,48 @@ It combines a personal game journal with a closed social layer for your group, e
 
 ## Roadmap
 
-| Phase | Name | Goal |
-|-------|------|------|
-| 0 | Foundation | Supabase project, core DB schema (users, games), Flutter app boots and authenticates |
-| 1 | Core library | Full game CRUD, status management, local cache — usable offline |
-| 2 | Real metadata | IGDB search + covers + genres, HLTB times on add |
-| 3 | Reviews | Scores, category breakdown, comments, photo upload |
-| 4 | Profile | Avatar, banner, Hall of Fame, basic stats |
-| 5 | Social | Friend groups, activity feed, "Who has it?", playing now |
-| 6 | Community | Stash scraper Edge Function, community tab, co-op partner |
-| 7 | Discovery | Saga tracker, genre map |
-| 8 | Gamification | XP/levels, game achievements, meta achievements |
-| 9 | Web & desktop | `flutter build web` → Vercel, Windows build |
-
-> Each phase ships something usable before moving on. Phases 0–2 are the foundation; everything after builds on stable ground.
+| Phase | Name | Status |
+|-------|------|--------|
+| 0 | Foundation | ✅ Completed |
+| 1 | Core library | ✅ Completed |
+| 2 | Real metadata (IGDB) | ✅ Completed |
+| 3 | Reviews (Scores, photos, comments) | ✅ Completed |
+| 4 | Profile (Avatar, Hall of Fame) | ✅ Completed |
+| 5 | Social (Friends, Activity Feed, Likes) | ✅ Completed |
+| 6 | Community (Stash scraper) | ✅ Completed |
+| 7 | Discovery (Active Bundles, Genre Map) | ✅ Completed |
+| 8 | Gamification (42 Sagas, XP, Triggers) | ✅ Completed |
+| 9 | Web & desktop builds | ⏳ Pending |
 
 ---
 
 ## Database schema (overview)
 
+```text
+users                      id, username, avatar_url, banner_url, xp, level
+games                      igdb_id (PK), title, cover_url, release_date, genres, hltb_time
+user_games                 user_id, game_id, status, updated_at
+reviews                    id, user_id, game_id, rating, rating_*, comment, image_urls
+review_comments            id, review_id, user_id, comment, image_url
+review_likes               review_id, user_id
+social_friends             user_id_1, user_id_2, status
+activity_feed              id, user_id, action_type, game_id, metadata
+stash_community_reviews    game_id, user_name_original, review_text, rating
+active_bundles             id, title, store_name, url, end_date, tiers
+achievements               id, name, category, xp_reward, rarity
+user_achievements          user_id, achievement_id
 ```
-users             id, username, avatar_url, banner_url
-games             igdb_id (PK), title, cover_url, release_date, genres, hltb_time
-user_games        user_id, game_id, status, rating, rating_gameplay,
-                  rating_soundtrack, comment, partner_id, updated_at
-hall_of_fame      user_id, game_id, pin_order (1–5)
-community_reviews game_id, user_name_original, review_text, rating, source
-user_stats        user_id, total_games_played, xp, level
-user_achievements user_id, achievement_id, type (game | meta), unlocked_at
-```
+
+## Infrastructure
+
+Corpus maintains a highly robust Supabase backend. All schema changes, storage buckets (`avatars`, `banners`, `user_uploads`), and background tasks (`pg_cron`) are strictly tracked using **Supabase CLI Migrations** (`supabase/migrations`). The public schema documentation is auto-generated and modularized in `supabase/schema/`.
 
 ---
 
-## External integrations
+## Disclaimer
 
-**IGDB** — official API (Twitch auth). Covers, genres, release dates, saga grouping.
-
-**HowLongToBeat** — via the [`howlongtobeat`](https://www.npmjs.com/package/howlongtobeat) npm wrapper inside an Edge Function. Fires once per new game added.
-
-**Stash** — public HTML scraping of individual review pages (`stash.games/games/{slug}/reviews/{user}`). Runs on a periodic Edge Function with delays. Parser is isolated in its own module for easy maintenance if the HTML structure changes.
-
----
-
-## Project documentation
-
-The full Software Requirements Specification (SRS) following ISO/IEC/IEEE 29148 is in [`docs/SRS_Corpus.md`](docs/SRS_Corpus.md).
+**Educational & Personal Use Only.**  
+The community data features in this application (such as the Stash reviews scraper) are built strictly for academic and personal purposes. Corpus is a private hobby project. There is absolutely no intent to commercialize, monetize, distribute, or promote this application in any way.
 
 ---
 

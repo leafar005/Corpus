@@ -40,7 +40,7 @@ class ReviewRepository {
   final SupabaseClient _client;
 
   ReviewRepository({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+    : _client = client ?? Supabase.instance.client;
 
   /// Acceso al cliente para operaciones de auth (currentUser, etc.)
   SupabaseClient get client => _client;
@@ -112,19 +112,35 @@ class ReviewRepository {
       'user_id': userId,
       'game_id': igdbId,
       'rating': isWishlist ? null : (rating >= 1 ? rating : null),
-      'rating_gameplay': isWishlist ? null : (ratingGameplay >= 1 ? ratingGameplay : null),
-      'rating_narrative': isWishlist ? null : (ratingNarrative >= 1 ? ratingNarrative : null),
-      'rating_soundtrack': isWishlist ? null : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
-      'rating_visuals': isWishlist ? null : (ratingVisuals >= 1 ? ratingVisuals : null),
-      'comment': isWishlist ? null : (comment.trim().isNotEmpty ? comment.trim() : null),
+      'rating_gameplay': isWishlist
+          ? null
+          : (ratingGameplay >= 1 ? ratingGameplay : null),
+      'rating_narrative': isWishlist
+          ? null
+          : (ratingNarrative >= 1 ? ratingNarrative : null),
+      'rating_soundtrack': isWishlist
+          ? null
+          : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
+      'rating_visuals': isWishlist
+          ? null
+          : (ratingVisuals >= 1 ? ratingVisuals : null),
+      'comment': isWishlist
+          ? null
+          : (comment.trim().isNotEmpty ? comment.trim() : null),
       'status': status,
       'completion_type': isWishlist ? 'none' : completionType,
       'is_replay': isWishlist ? false : isReplay,
       'replay_number': isWishlist ? null : (isReplay ? replayNumber : null),
       'platform': isWishlist ? null : platform,
-      'play_time_hours': isWishlist ? null : (playTimeHours != null && playTimeHours > 0 ? playTimeHours : null),
-      'played_from': isWishlist ? null : playedFrom?.toIso8601String().split('T')[0],
-      'played_until': isWishlist ? null : playedUntil?.toIso8601String().split('T')[0],
+      'play_time_hours': isWishlist
+          ? null
+          : (playTimeHours != null && playTimeHours > 0 ? playTimeHours : null),
+      'played_from': isWishlist
+          ? null
+          : playedFrom?.toIso8601String().split('T')[0],
+      'played_until': isWishlist
+          ? null
+          : playedUntil?.toIso8601String().split('T')[0],
       'progress_percent': isWishlist ? null : progressPercent,
       'image_urls': isWishlist ? <String>[] : imageUrls,
     };
@@ -146,76 +162,105 @@ class ReviewRepository {
     required Map<String, dynamic> enrichedData,
   }) async {
     try {
-      await _client.from('games').upsert({
-        'igdb_id': igdbId,
-        'title': gameData['title'],
-        'cover_url': gameData['cover_url'],
-        'release_date': gameData['release_date']?.toString().split('T')[0],
-        'genres': gameData['genres'] ?? enrichedData['genres'],
-        'category': () {
-          final dynamic rawCat = gameData['category'] ??
-              gameData['game_type'] ??
-              enrichedData['category'] ??
-              enrichedData['game_type'];
-          final int? catId = (rawCat is num)
-              ? rawCat.toInt()
-              : int.tryParse(rawCat?.toString() ?? '');
-          final String title = gameData['title'] ?? 'Desconocido';
-          final bool hasParent = gameData['parent_game'] != null ||
-              enrichedData['parent_game'] != null ||
-              gameData['version_parent'] != null ||
-              enrichedData['version_parent'] != null ||
-              gameData['remake_of'] != null ||
-              enrichedData['remake_of'] != null ||
-              gameData['remaster_of'] != null ||
-              enrichedData['remaster_of'] != null;
-          return IgdbConstants.resolveCategory(catId, title,
-                  hasParentGame: hasParent,
-                  summary: gameData['summary']?.toString() ??
-                      enrichedData['summary']?.toString()) ??
-              0;
-        }(),
-        'parent_game': () {
-          final pg = gameData['parent_game'] ??
-              enrichedData['parent_game'] ??
-              gameData['version_parent'] ??
-              enrichedData['version_parent'] ??
-              gameData['remake_of'] ??
-              enrichedData['remake_of'] ??
-              gameData['remaster_of'] ??
-              enrichedData['remaster_of'];
-          if (pg is Map) return pg['id'] ?? pg['igdb_id'];
-          return pg;
-        }(),
-        'themes': gameData['themes'] ?? enrichedData['themes'],
-        'game_modes': gameData['game_modes'] ?? enrichedData['game_modes'],
-        'player_perspectives': gameData['player_perspectives'] ?? enrichedData['player_perspectives'],
-        'platforms': gameData['platforms'] ?? enrichedData['platforms'],
-        'summary': gameData['summary'] ?? enrichedData['summary'],
-        'developer': () {
-          final dev = gameData['developer'];
-          if (dev != null && dev != 'Desconocido' && dev != 'Desarrollador desconocido') return dev;
-          return enrichedData['developer'];
-        }(),
-        'collection': () {
-          final col = gameData['collection'] ?? enrichedData['collection'];
-          if (col is Map && col['id'] != null) return col;
-          if (col is String && col != 'null' && col.isNotEmpty) return {'name': col};
-          return null;
-        }(),
-        'franchises': () {
-          final frs = gameData['franchises'] ?? enrichedData['franchises'];
-          if (frs is List && frs.isNotEmpty) {
-            return frs
-                .map((f) => f is Map
-                    ? {'id': f['id'], 'name': f['name']}
-                    : {'name': f.toString()})
-                .toList();
-          }
-          return [];
-        }(),
-        'game_engines': gameData['game_engines'] ?? enrichedData['game_engines'],
-      }, onConflict: 'igdb_id', ignoreDuplicates: false);
+      await _client
+          .from('games')
+          .upsert(
+            {
+              'igdb_id': igdbId,
+              'title': gameData['title'],
+              'cover_url': gameData['cover_url'],
+              'release_date': gameData['release_date']?.toString().split(
+                'T',
+              )[0],
+              'genres': gameData['genres'] ?? enrichedData['genres'],
+              'category': () {
+                final dynamic rawCat =
+                    gameData['category'] ??
+                    gameData['game_type'] ??
+                    enrichedData['category'] ??
+                    enrichedData['game_type'];
+                final int? catId = (rawCat is num)
+                    ? rawCat.toInt()
+                    : int.tryParse(rawCat?.toString() ?? '');
+                final String title = gameData['title'] ?? 'Desconocido';
+                final bool hasParent =
+                    gameData['parent_game'] != null ||
+                    enrichedData['parent_game'] != null ||
+                    gameData['version_parent'] != null ||
+                    enrichedData['version_parent'] != null ||
+                    gameData['remake_of'] != null ||
+                    enrichedData['remake_of'] != null ||
+                    gameData['remaster_of'] != null ||
+                    enrichedData['remaster_of'] != null;
+                return IgdbConstants.resolveCategory(
+                      catId,
+                      title,
+                      hasParentGame: hasParent,
+                      summary:
+                          gameData['summary']?.toString() ??
+                          enrichedData['summary']?.toString(),
+                    ) ??
+                    0;
+              }(),
+              'parent_game': () {
+                final pg =
+                    gameData['parent_game'] ??
+                    enrichedData['parent_game'] ??
+                    gameData['version_parent'] ??
+                    enrichedData['version_parent'] ??
+                    gameData['remake_of'] ??
+                    enrichedData['remake_of'] ??
+                    gameData['remaster_of'] ??
+                    enrichedData['remaster_of'];
+                if (pg is Map) return pg['id'] ?? pg['igdb_id'];
+                return pg;
+              }(),
+              'themes': gameData['themes'] ?? enrichedData['themes'],
+              'game_modes':
+                  gameData['game_modes'] ?? enrichedData['game_modes'],
+              'player_perspectives':
+                  gameData['player_perspectives'] ??
+                  enrichedData['player_perspectives'],
+              'platforms': gameData['platforms'] ?? enrichedData['platforms'],
+              'summary': gameData['summary'] ?? enrichedData['summary'],
+              'developer': () {
+                final dev = gameData['developer'];
+                if (dev != null &&
+                    dev != 'Desconocido' &&
+                    dev != 'Desarrollador desconocido') {
+                  return dev;
+                }
+                return enrichedData['developer'];
+              }(),
+              'collection': () {
+                final col =
+                    gameData['collection'] ?? enrichedData['collection'];
+                if (col is Map && col['id'] != null) return col;
+                if (col is String && col != 'null' && col.isNotEmpty) {
+                  return {'name': col};
+                }
+                return null;
+              }(),
+              'franchises': () {
+                final frs =
+                    gameData['franchises'] ?? enrichedData['franchises'];
+                if (frs is List && frs.isNotEmpty) {
+                  return frs
+                      .map(
+                        (f) => f is Map
+                            ? {'id': f['id'], 'name': f['name']}
+                            : {'name': f.toString()},
+                      )
+                      .toList();
+                }
+                return [];
+              }(),
+              'game_engines':
+                  gameData['game_engines'] ?? enrichedData['game_engines'],
+            },
+            onConflict: 'igdb_id',
+            ignoreDuplicates: false,
+          );
     } catch (e) {
       debugPrint('[ReviewRepository] Game catalog upsert error: $e');
     }
@@ -277,8 +322,9 @@ class ReviewRepository {
           .from('user_achievements')
           .select('achievement_id')
           .eq('user_id', userId);
-      beforeAchievements =
-          beforeRes.map((e) => e['achievement_id'] as String).toSet();
+      beforeAchievements = beforeRes
+          .map((e) => e['achievement_id'] as String)
+          .toSet();
     } catch (_) {}
 
     // Upsert del juego en el catálogo
@@ -291,8 +337,9 @@ class ReviewRepository {
     final isWishlist = status == 'wishlist';
 
     // Subir imágenes nuevas
-    final List<String> finalImageUrls =
-        isWishlist ? [] : List<String>.from(existingImages);
+    final List<String> finalImageUrls = isWishlist
+        ? []
+        : List<String>.from(existingImages);
     if (!isWishlist && newImages.isNotEmpty) {
       final uploaded = await uploadImages(userId: userId, files: newImages);
       finalImageUrls.addAll(uploaded);
@@ -337,11 +384,15 @@ class ReviewRepository {
               .toList();
           if (removedUrls.isNotEmpty) {
             await StorageUtils.deleteImagesFromUrls(removedUrls);
-            debugPrint('[ReviewRepository] Eliminadas ${removedUrls.length} imágenes quitadas en la edición de la reseña.');
+            debugPrint(
+              '[ReviewRepository] Eliminadas ${removedUrls.length} imágenes quitadas en la edición de la reseña.',
+            );
           }
         }
       } catch (e) {
-        debugPrint('[ReviewRepository] Error al limpiar imágenes en edición: $e');
+        debugPrint(
+          '[ReviewRepository] Error al limpiar imágenes en edición: $e',
+        );
       }
 
       await _client.from('reviews').update(reviewData).eq('id', reviewId);
@@ -355,11 +406,21 @@ class ReviewRepository {
       'game_id': igdbId,
       'status': status,
       'rating': isWishlist ? null : (rating >= 1 ? rating : null),
-      'rating_gameplay': isWishlist ? null : (ratingGameplay >= 1 ? ratingGameplay : null),
-      'rating_narrative': isWishlist ? null : (ratingNarrative >= 1 ? ratingNarrative : null),
-      'rating_soundtrack': isWishlist ? null : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
-      'rating_visuals': isWishlist ? null : (ratingVisuals >= 1 ? ratingVisuals : null),
-      'comment': isWishlist ? null : (comment.trim().isNotEmpty ? comment.trim() : null),
+      'rating_gameplay': isWishlist
+          ? null
+          : (ratingGameplay >= 1 ? ratingGameplay : null),
+      'rating_narrative': isWishlist
+          ? null
+          : (ratingNarrative >= 1 ? ratingNarrative : null),
+      'rating_soundtrack': isWishlist
+          ? null
+          : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
+      'rating_visuals': isWishlist
+          ? null
+          : (ratingVisuals >= 1 ? ratingVisuals : null),
+      'comment': isWishlist
+          ? null
+          : (comment.trim().isNotEmpty ? comment.trim() : null),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'user_id, game_id');
 
@@ -371,9 +432,13 @@ class ReviewRepository {
           .from('user_achievements')
           .select('achievement_id')
           .eq('user_id', userId);
-      final afterAchievements =
-          afterRes.map((e) => e['achievement_id'] as String).toSet();
-      newlyUnlocked = computeUnlockedAchievements(beforeAchievements, afterAchievements);
+      final afterAchievements = afterRes
+          .map((e) => e['achievement_id'] as String)
+          .toSet();
+      newlyUnlocked = computeUnlockedAchievements(
+        beforeAchievements,
+        afterAchievements,
+      );
 
       if (newlyUnlocked.isNotEmpty) {
         final detailsRes = await _client
@@ -467,7 +532,9 @@ class ReviewRepository {
           .eq('id', reviewId)
           .maybeSingle();
       if (dbReview != null && dbReview['image_urls'] != null) {
-        urlsToDelete.addAll((dbReview['image_urls'] as List).map((e) => e.toString()));
+        urlsToDelete.addAll(
+          (dbReview['image_urls'] as List).map((e) => e.toString()),
+        );
       }
     } catch (_) {}
 
@@ -492,7 +559,9 @@ class ReviewRepository {
 
     if (urlsToDelete.isNotEmpty) {
       await StorageUtils.deleteImagesFromUrls(urlsToDelete);
-      debugPrint('[ReviewRepository] Eliminadas ${urlsToDelete.length} imágenes al borrar la reseña.');
+      debugPrint(
+        '[ReviewRepository] Eliminadas ${urlsToDelete.length} imágenes al borrar la reseña.',
+      );
     }
 
     await _client.from('reviews').delete().eq('id', reviewId);
@@ -540,8 +609,9 @@ class ReviewRepository {
     required String myId,
     required dynamic gameId,
   }) async {
-    final int parsedGameId =
-        gameId is int ? gameId : int.parse(gameId.toString());
+    final int parsedGameId = gameId is int
+        ? gameId
+        : int.parse(gameId.toString());
 
     List<String> friendIds;
 
@@ -552,9 +622,9 @@ class ReviewRepository {
           .select('friend_id')
           .eq('user_id', myId);
 
-      friendIds = List<Map<String, dynamic>>.from(pairsResult)
-          .map((r) => r['friend_id'] as String)
-          .toList();
+      friendIds = List<Map<String, dynamic>>.from(
+        pairsResult,
+      ).map((r) => r['friend_id'] as String).toList();
     } catch (_) {
       // Fallback: vista no aplicada todavía — usa el método original con 3 queries
       final sentFriends = await _client
@@ -568,10 +638,12 @@ class ReviewRepository {
           .eq('addressee_id', myId)
           .eq('status', 'accepted');
       friendIds = <String>[
-        ...List<Map<String, dynamic>>.from(sentFriends)
-            .map((f) => f['addressee_id'] as String),
-        ...List<Map<String, dynamic>>.from(receivedFriends)
-            .map((f) => f['requester_id'] as String),
+        ...List<Map<String, dynamic>>.from(
+          sentFriends,
+        ).map((f) => f['addressee_id'] as String),
+        ...List<Map<String, dynamic>>.from(
+          receivedFriends,
+        ).map((f) => f['requester_id'] as String),
       ];
     }
 
@@ -580,7 +652,8 @@ class ReviewRepository {
     final result = await _client
         .from('user_games')
         .select(
-            'status, users!user_games_user_id_fkey(id, username, display_name, avatar_url)')
+          'status, users!user_games_user_id_fkey(id, username, display_name, avatar_url)',
+        )
         .eq('game_id', parsedGameId)
         .inFilter('user_id', friendIds);
 
@@ -589,13 +662,16 @@ class ReviewRepository {
 
   /// Devuelve la actividad del feed de un amigo para un juego concreto,
   /// incluyendo la reseña completa si existe.
-  Future<({List<Map<String, dynamic>> activities, Map<String, dynamic>? review})>
-      fetchFriendActivityForGame({
+  Future<
+    ({List<Map<String, dynamic>> activities, Map<String, dynamic>? review})
+  >
+  fetchFriendActivityForGame({
     required String userId,
     required dynamic gameId,
   }) async {
-    final int parsedGameId =
-        gameId is int ? gameId : int.parse(gameId.toString());
+    final int parsedGameId = gameId is int
+        ? gameId
+        : int.parse(gameId.toString());
 
     final rawActivities = await _client
         .from('activity_feed')
@@ -613,16 +689,14 @@ class ReviewRepository {
         (act) =>
             act['action_type'] == 'reviewed' ||
             act['rating'] != null ||
-            (act['content'] != null &&
-                act['content'].toString().isNotEmpty),
+            (act['content'] != null && act['content'].toString().isNotEmpty),
         orElse: () => activities.first,
       );
     }
 
     Map<String, dynamic>? review;
     if (bestActivity != null) {
-      final metadata =
-          bestActivity['metadata'] as Map<String, dynamic>? ?? {};
+      final metadata = bestActivity['metadata'] as Map<String, dynamic>? ?? {};
       final reviewId = metadata['review_id'];
       if (reviewId != null) {
         try {
@@ -649,7 +723,7 @@ class ReviewRepository {
 
   /// Devuelve las reseñas locales de Stash y si se necesita refrescar.
   Future<({List<Map<String, dynamic>> reviews, bool needsFetch})>
-      fetchStashReviewsLocal(dynamic gameId) async {
+  fetchStashReviewsLocal(dynamic gameId) async {
     final localResp = await _client
         .from('stash_community_reviews')
         .select()
@@ -678,7 +752,9 @@ class ReviewRepository {
 
   /// Llama a la Edge Function `fetch-stash-reviews` y retorna las reseñas
   /// actualizadas. Devuelve `null` si la función falla.
-  Future<List<Map<String, dynamic>>?> refreshStashReviews(dynamic gameId) async {
+  Future<List<Map<String, dynamic>>?> refreshStashReviews(
+    dynamic gameId,
+  ) async {
     final functionResponse = await _client.functions.invoke(
       'fetch-stash-reviews',
       body: {'igdb_id': gameId},
@@ -710,15 +786,22 @@ class ReviewRepository {
     }
 
     final checkedAtRaw = row['last_stats_checked_at'] as String?;
-    final checkedAt = checkedAtRaw != null ? DateTime.tryParse(checkedAtRaw) : null;
-    final isStale = checkedAt == null || DateTime.now().toUtc().difference(checkedAt.toUtc()) > _statsMaxAge;
+    final checkedAt = checkedAtRaw != null
+        ? DateTime.tryParse(checkedAtRaw)
+        : null;
+    final isStale =
+        checkedAt == null ||
+        DateTime.now().toUtc().difference(checkedAt.toUtc()) > _statsMaxAge;
 
     return StashStatsResult(stats: row, needsFetch: isStale);
   }
 
   Future<Map<String, dynamic>?> refreshStashStats(dynamic igdbId) async {
     try {
-      await _client.functions.invoke('fetch-stash-game-stats', body: {'igdb_id': igdbId});
+      await _client.functions.invoke(
+        'fetch-stash-game-stats',
+        body: {'igdb_id': igdbId},
+      );
     } catch (e) {
       debugPrint('[CORPUS] Error invocando fetch-stash-game-stats: $e');
       return null;

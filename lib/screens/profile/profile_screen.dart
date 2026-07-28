@@ -57,7 +57,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchProfileData() async {
-    final userId = widget.userId ?? Supabase.instance.client.auth.currentUser!.id;
+    final userId =
+        widget.userId ?? Supabase.instance.client.auth.currentUser!.id;
 
     // 1. Perfil de usuario (va primero porque puede necesitar auto-crearse)
     var userResp = await Supabase.instance.client
@@ -68,7 +69,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (userResp == null && widget.userId == null) {
       // Solo auto-creamos el perfil del usuario actual
-      final email = Supabase.instance.client.auth.currentUser!.email ?? 'jugador';
+      final email =
+          Supabase.instance.client.auth.currentUser!.email ?? 'jugador';
       final defaultUsername = email.split('@')[0];
 
       try {
@@ -430,7 +432,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   Text(
-                    LevelCalculator.getProgressString((_userProfile?['xp'] as num?)?.toInt() ?? 0),
+                    LevelCalculator.getProgressString(
+                      (_userProfile?['xp'] as num?)?.toInt() ?? 0,
+                    ),
                     style: TextStyle(
                       fontSize: 14,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -553,7 +557,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildReviewsTab(),
                 ] else if (_selectedTab == 3) ...[
                   ProfileAchievementsTab(
-                    userId: _userProfile?['id'] ??
+                    userId:
+                        _userProfile?['id'] ??
                         widget.userId ??
                         Supabase.instance.client.auth.currentUser!.id,
                     isOwnProfile: _isOwnProfile,
@@ -596,7 +601,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ProfileAchievementsTab(
-              userId: _userProfile?['id'] ??
+              userId:
+                  _userProfile?['id'] ??
                   widget.userId ??
                   Supabase.instance.client.auth.currentUser!.id,
               isOwnProfile: _isOwnProfile,
@@ -994,7 +1000,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   size: 26,
                                   shadows: [
                                     Shadow(
-                                      color: Colors.black.withValues(alpha: 0.6),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.6,
+                                      ),
                                       offset: const Offset(0, 2),
                                       blurRadius: 4,
                                     ),
@@ -1675,4 +1683,3 @@ class _FriendsBadgeButtonState extends State<_FriendsBadgeButton> {
     );
   }
 }
-

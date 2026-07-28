@@ -14,7 +14,11 @@ class MilestoneProgressBar extends StatelessWidget {
     required this.backgroundColor,
   });
 
-  static Color getSegmentColor(int index, int totalMilestones, Color fallbackColor) {
+  static Color getSegmentColor(
+    int index,
+    int totalMilestones,
+    Color fallbackColor,
+  ) {
     if (totalMilestones <= 1) return fallbackColor;
 
     int tier = index + 1; // 1=Bronce, 2=Plata, 3=Oro
@@ -59,7 +63,9 @@ class MilestoneProgressBar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: current >= target ? segmentColor : Colors.grey.withValues(alpha: 0.8),
+                color: current >= target
+                    ? segmentColor
+                    : Colors.grey.withValues(alpha: 0.8),
               ),
             ),
           ),
@@ -73,14 +79,14 @@ class MilestoneProgressBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: textSegments,
-        ),
+        Row(children: textSegments),
         const SizedBox(height: 6),
         SizedBox(
           height: 10, // Thicker bar
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(5), // Redondea solo los extremos de la barra entera
+            borderRadius: BorderRadius.circular(
+              5,
+            ), // Redondea solo los extremos de la barra entera
             child: CustomPaint(
               painter: _MilestoneBarPainter(
                 current: current,
@@ -112,7 +118,7 @@ class _MilestoneBarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (milestones.isEmpty) return;
-    
+
     final maxTarget = milestones.last['target'] as int;
     if (maxTarget <= 0) return;
 
@@ -133,7 +139,11 @@ class _MilestoneBarPainter extends CustomPainter {
       final bool isFirst = i == 0;
       final bool isLast = i == milestones.length - 1;
 
-      final Color segmentColor = MilestoneProgressBar.getSegmentColor(i, milestones.length, color);
+      final Color segmentColor = MilestoneProgressBar.getSegmentColor(
+        i,
+        milestones.length,
+        color,
+      );
       final fillPaint = Paint()..color = segmentColor;
 
       // Calculate progress in this segment
@@ -176,7 +186,7 @@ class _MilestoneBarPainter extends CustomPainter {
       }
 
       bgPath.close();
-      
+
       // Draw segment background
       canvas.drawPath(bgPath, bgPaint);
 
@@ -186,27 +196,27 @@ class _MilestoneBarPainter extends CustomPainter {
           canvas.drawPath(bgPath, fillPaint);
         } else {
           double currentX = startX + (endX - startX) * segmentProgress;
-          
+
           Path fillPath = Path();
-          
+
           // Top-left
           if (isFirst) {
             fillPath.moveTo(0, 0);
           } else {
             fillPath.moveTo(startX + g2 + h2, 0);
           }
-          
+
           // Slanted right edge for the fill
           fillPath.lineTo(currentX + h2, 0);
           fillPath.lineTo(currentX - h2, h);
-          
+
           // Bottom-left
           if (isFirst) {
             fillPath.lineTo(0, h);
           } else {
             fillPath.lineTo(startX + g2 - h2, h);
           }
-          
+
           fillPath.close();
 
           canvas.save();
@@ -222,8 +232,8 @@ class _MilestoneBarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MilestoneBarPainter oldDelegate) {
-    return oldDelegate.current != current || 
-           oldDelegate.color != color || 
-           oldDelegate.backgroundColor != backgroundColor;
+    return oldDelegate.current != current ||
+        oldDelegate.color != color ||
+        oldDelegate.backgroundColor != backgroundColor;
   }
 }

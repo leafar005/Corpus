@@ -27,9 +27,9 @@ class LevelCalculator {
     int currentLevel = getLevel(xp);
     int xpBaseForCurrentLevel = getXpForLevel(currentLevel);
     int xpRequiredForNext = getXpRequiredForNextLevel(currentLevel);
-    
+
     int xpIntoCurrentLevel = xp - xpBaseForCurrentLevel;
-    
+
     if (xpRequiredForNext <= 0) return 0.0;
     return (xpIntoCurrentLevel / xpRequiredForNext).clamp(0.0, 1.0);
   }
@@ -39,7 +39,7 @@ class LevelCalculator {
     int currentLevel = getLevel(xp);
     int xpBaseForCurrentLevel = getXpForLevel(currentLevel);
     int xpRequiredForNext = getXpRequiredForNextLevel(currentLevel);
-    
+
     int xpIntoCurrentLevel = xp - xpBaseForCurrentLevel;
     return '$xpIntoCurrentLevel / $xpRequiredForNext';
   }

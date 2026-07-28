@@ -49,7 +49,8 @@ class _AnimatedAchievementToast extends StatefulWidget {
   });
 
   @override
-  State<_AnimatedAchievementToast> createState() => _AnimatedAchievementToastState();
+  State<_AnimatedAchievementToast> createState() =>
+      _AnimatedAchievementToastState();
 }
 
 class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
@@ -71,14 +72,12 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1.5),
       end: const Offset(0, 0),
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutBack,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _controller.forward();
 
@@ -113,7 +112,10 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
                 color: Colors.transparent,
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 450),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1E1E24), // Fondo gris oscuro consola
                     borderRadius: BorderRadius.circular(50),
@@ -150,11 +152,7 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
                             color: widget.color.withValues(alpha: 0.5),
                           ),
                         ),
-                        child: Icon(
-                          widget.icon,
-                          color: widget.color,
-                          size: 24,
-                        ),
+                        child: Icon(widget.icon, color: widget.color, size: 24),
                       ),
                       const SizedBox(width: 14),
                       // Textos del logro

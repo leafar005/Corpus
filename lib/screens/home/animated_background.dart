@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
-import '../library/game_details_screen.dart'; 
+import '../library/game_details_screen.dart';
 
 class HeroShowcase extends StatefulWidget {
   final List<Map<String, dynamic>> playingGames;
@@ -20,17 +20,18 @@ class HeroShowcase extends StatefulWidget {
   State<HeroShowcase> createState() => _HeroShowcaseState();
 }
 
-class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMixin {
+class _HeroShowcaseState extends State<HeroShowcase>
+    with TickerProviderStateMixin {
   Timer? _timer;
   int _currentGameIndex = 0;
-  
+
   Map<String, dynamic>? _previousGame;
   String? _previousScreenshotUrl;
   double _previousPanValue = 1.0;
-  
+
   Map<String, dynamic>? _currentGame;
   String? _currentScreenshotUrl;
-  
+
   final Random _random = Random();
 
   late AnimationController _panController;
@@ -38,7 +39,7 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
   late AnimationController _initialFadeController;
 
   late String _randomPrefix;
-  
+
   static const List<String> _prefixes = [
     '¿Qué tal con ',
     '¿Cómo llevas ',
@@ -65,7 +66,7 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
       CurvedAnimation(
         parent: _panController,
         // Crossfade during the first 20% of the duration (2 seconds)
-        curve: const Interval(0.0, 0.2, curve: Curves.easeInOut), 
+        curve: const Interval(0.0, 0.2, curve: Curves.easeInOut),
       ),
     );
 
@@ -97,7 +98,7 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
         });
       }
     }
-    
+
     final nextGame = widget.playingGames[_currentGameIndex];
     final nextScreenshotUrl = _getRandomScreenshot(nextGame);
 
@@ -105,7 +106,7 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
       _previousGame = _currentGame;
       _previousScreenshotUrl = _currentScreenshotUrl;
       _previousPanValue = _panController.value;
-      
+
       _currentGame = nextGame;
       _currentScreenshotUrl = nextScreenshotUrl;
     });
@@ -128,10 +129,14 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
     // The one before that is (_currentGameIndex - 2)
     // We want the new playing index to be (_currentGameIndex - 2)
     // Which means the *next* index (_currentGameIndex) should become (_currentGameIndex - 1)
-    
-    final currentPlayingIndex = (_currentGameIndex - 1 + widget.playingGames.length) % widget.playingGames.length;
-    final previousPlayingIndex = (currentPlayingIndex - 1 + widget.playingGames.length) % widget.playingGames.length;
-    
+
+    final currentPlayingIndex =
+        (_currentGameIndex - 1 + widget.playingGames.length) %
+        widget.playingGames.length;
+    final previousPlayingIndex =
+        (currentPlayingIndex - 1 + widget.playingGames.length) %
+        widget.playingGames.length;
+
     final prevGame = widget.playingGames[previousPlayingIndex];
     final prevScreenshotUrl = _getRandomScreenshot(prevGame);
 
@@ -139,7 +144,7 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
       _previousGame = _currentGame;
       _previousScreenshotUrl = _currentScreenshotUrl;
       _previousPanValue = _panController.value;
-      
+
       _currentGame = prevGame;
       _currentScreenshotUrl = prevScreenshotUrl;
     });
@@ -157,17 +162,25 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
     super.dispose();
   }
 
-  void _navigateToGameDetails(Map<String, dynamic> gameData, String coverUrl, bool autoOpenReview) {
+  void _navigateToGameDetails(
+    Map<String, dynamic> gameData,
+    String coverUrl,
+    bool autoOpenReview,
+  ) {
     final cleanData = Map<String, dynamic>.from(gameData);
     cleanData['cover_url'] = coverUrl;
-    
+
     // Fallback release_date parsing just in case, similar to GameCard
     if (gameData['first_release_date'] != null) {
-      cleanData['release_date'] = DateTime.fromMillisecondsSinceEpoch(gameData['first_release_date'] * 1000).toIso8601String();
+      cleanData['release_date'] = DateTime.fromMillisecondsSinceEpoch(
+        gameData['first_release_date'] * 1000,
+      ).toIso8601String();
     }
-    
+
     if (gameData['genres'] != null && gameData['genres'] is List) {
-      cleanData['genres'] = (gameData['genres'] as List).map((g) => g is Map ? g['name'] : g).toList();
+      cleanData['genres'] = (gameData['genres'] as List)
+          .map((g) => g is Map ? g['name'] : g)
+          .toList();
     } else if (gameData['genres'] == null) {
       cleanData['genres'] = [];
     }
@@ -176,10 +189,12 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
     if (isDesktop) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => GameDetailsScreen(
-          gameData: cleanData, 
-          autoOpenReview: autoOpenReview
-        )),
+        MaterialPageRoute(
+          builder: (context) => GameDetailsScreen(
+            gameData: cleanData,
+            autoOpenReview: autoOpenReview,
+          ),
+        ),
       );
     } else {
       showModalBottomSheet(
@@ -211,7 +226,7 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
         final screenWidth = constraints.maxWidth;
         // Paneo súper lento
         final offsetX = (1.0 - (panValue * 2)) * (screenWidth * 0.04);
-        
+
         return Transform.translate(
           offset: Offset(offsetX, 0),
           child: Transform.scale(
@@ -236,7 +251,12 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
       },
     );
   }
-  Widget _buildShowcaseLayer(Map<String, dynamic> game, String? screenshotUrl, double panValue) {
+
+  Widget _buildShowcaseLayer(
+    Map<String, dynamic> game,
+    String? screenshotUrl,
+    double panValue,
+  ) {
     final gameData = game['games'] ?? {};
     final coverUrl = gameData['cover_url'] as String? ?? '';
     final title = gameData['title'] as String? ?? 'Desconocido';
@@ -248,10 +268,8 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
           _buildPanningImage(screenshotUrl, panValue)
         else
           Container(color: Colors.black),
-          
-        Container(
-          color: Colors.black.withValues(alpha: 0.7),
-        ),
+
+        Container(color: Colors.black.withValues(alpha: 0.7)),
 
         // Tap zones for previous and next game
         Row(
@@ -277,11 +295,12 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isPortrait = constraints.maxHeight > constraints.maxWidth;
-              
+
               final textSection = Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min, // El texto ocupa solo lo que necesita hacia abajo
+                mainAxisSize: MainAxisSize
+                    .min, // El texto ocupa solo lo que necesita hacia abajo
                 children: [
                   RichText(
                     text: TextSpan(
@@ -299,7 +318,9 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
                         ),
                         TextSpan(
                           text: widget.userName,
-                          style: TextStyle(color: Theme.of(context).primaryColor),
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                          ),
                         ),
                       ],
                     ),
@@ -312,7 +333,8 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
                       child: MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: GestureDetector(
-                          onTap: () => _navigateToGameDetails(gameData, coverUrl, false),
+                          onTap: () =>
+                              _navigateToGameDetails(gameData, coverUrl, false),
                           child: RichText(
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -347,13 +369,17 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
-                    onPressed: () => _navigateToGameDetails(gameData, coverUrl, true),
+                    onPressed: () =>
+                        _navigateToGameDetails(gameData, coverUrl, true),
                     icon: const Icon(Icons.edit, size: 20),
                     label: const Text('Editar reseña'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
@@ -365,7 +391,8 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
               final coverSection = MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: GestureDetector(
-                  onTap: () => _navigateToGameDetails(gameData, coverUrl, false),
+                  onTap: () =>
+                      _navigateToGameDetails(gameData, coverUrl, false),
                   child: Container(
                     decoration: BoxDecoration(
                       boxShadow: [
@@ -379,16 +406,22 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: coverUrl.isNotEmpty
-                        ? Image.network(
-                            coverUrl,
-                            fit: BoxFit.cover,
-                            width: isPortrait ? constraints.maxWidth * 0.5 : 240,
-                          )
-                        : Container(
-                            width: isPortrait ? constraints.maxWidth * 0.5 : 240, 
-                            height: isPortrait ? (constraints.maxWidth * 0.5) * 1.4 : 340, 
-                            color: Colors.grey
-                          ),
+                          ? Image.network(
+                              coverUrl,
+                              fit: BoxFit.cover,
+                              width: isPortrait
+                                  ? constraints.maxWidth * 0.5
+                                  : 240,
+                            )
+                          : Container(
+                              width: isPortrait
+                                  ? constraints.maxWidth * 0.5
+                                  : 240,
+                              height: isPortrait
+                                  ? (constraints.maxWidth * 0.5) * 1.4
+                                  : 340,
+                              color: Colors.grey,
+                            ),
                     ),
                   ),
                 ),
@@ -414,7 +447,10 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
               } else {
                 // Layout de escritorio
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 48.0, vertical: 32.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 48.0,
+                    vertical: 32.0,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -502,18 +538,29 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
             fit: StackFit.expand,
             children: [
               if (_previousGame != null)
-                _buildShowcaseLayer(_previousGame!, _previousScreenshotUrl, _previousPanValue),
-                
+                _buildShowcaseLayer(
+                  _previousGame!,
+                  _previousScreenshotUrl,
+                  _previousPanValue,
+                ),
+
               Opacity(
                 opacity: _fadeAnimation.value,
-                child: _buildShowcaseLayer(_currentGame!, _currentScreenshotUrl, _panController.value),
+                child: _buildShowcaseLayer(
+                  _currentGame!,
+                  _currentScreenshotUrl,
+                  _panController.value,
+                ),
               ),
-              
+
               SafeArea(
                 child: Align(
                   alignment: Alignment.topCenter,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 8.0,
+                    ),
                     child: _buildProgressBars(),
                   ),
                 ),

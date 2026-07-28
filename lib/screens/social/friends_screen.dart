@@ -59,7 +59,9 @@ class _FriendsScreenState extends State<FriendsScreen>
     try {
       final data = await _supabase
           .from('friendships')
-          .select('*, requester:requester_id(id, username, avatar_url, display_name)')
+          .select(
+            '*, requester:requester_id(id, username, avatar_url, display_name)',
+          )
           .eq('addressee_id', _myId)
           .eq('status', 'pending');
       if (mounted) {
@@ -79,13 +81,17 @@ class _FriendsScreenState extends State<FriendsScreen>
       // Los amigos pueden estar en cualquiera de los dos campos
       final asSender = await _supabase
           .from('friendships')
-          .select('*, friend:addressee_id(id, username, avatar_url, display_name)')
+          .select(
+            '*, friend:addressee_id(id, username, avatar_url, display_name)',
+          )
           .eq('requester_id', _myId)
           .eq('status', 'accepted');
 
       final asReceiver = await _supabase
           .from('friendships')
-          .select('*, friend:requester_id(id, username, avatar_url, display_name)')
+          .select(
+            '*, friend:requester_id(id, username, avatar_url, display_name)',
+          )
           .eq('addressee_id', _myId)
           .eq('status', 'accepted');
 
@@ -217,7 +223,10 @@ class _FriendsScreenState extends State<FriendsScreen>
           '¿Quieres eliminar a @${friendship['friend']['username']} de tu lista de amigos?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
@@ -233,7 +242,9 @@ class _FriendsScreenState extends State<FriendsScreen>
       await _supabase
           .from('friendships')
           .delete()
-          .or('and(requester_id.eq.$_myId,addressee_id.eq.$friendId),and(requester_id.eq.$friendId,addressee_id.eq.$_myId)');
+          .or(
+            'and(requester_id.eq.$_myId,addressee_id.eq.$friendId),and(requester_id.eq.$friendId,addressee_id.eq.$_myId)',
+          );
       _showSnack('Amigo eliminado');
       await _loadFriends();
     } catch (e) {
@@ -280,7 +291,9 @@ class _FriendsScreenState extends State<FriendsScreen>
                       },
                     )
                   : null,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               filled: true,
             ),
             onChanged: _searchUsers,
@@ -294,7 +307,10 @@ class _FriendsScreenState extends State<FriendsScreen>
         else if (_searchError != null)
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(_searchError!, style: const TextStyle(color: Colors.red)),
+            child: Text(
+              _searchError!,
+              style: const TextStyle(color: Colors.red),
+            ),
           )
         else
           Expanded(
@@ -305,16 +321,38 @@ class _FriendsScreenState extends State<FriendsScreen>
                     itemBuilder: (ctx, i) {
                       final user = _searchResults[i];
                       final userId = user['id'] as String;
-                      final alreadySentOrFriend = _sentOrAccepted.contains(userId);
-                      final displayName = user['display_name'] as String? ?? user['username'] as String? ?? 'Usuario';
+                      final alreadySentOrFriend = _sentOrAccepted.contains(
+                        userId,
+                      );
+                      final displayName =
+                          user['display_name'] as String? ??
+                          user['username'] as String? ??
+                          'Usuario';
                       return ListTile(
-                        leading: _buildUserAvatar(user['avatar_url'] as String?),
-                        title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('@${user['username']}', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        leading: _buildUserAvatar(
+                          user['avatar_url'] as String?,
+                        ),
+                        title: Text(
+                          displayName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          '@${user['username']}',
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                         trailing: alreadySentOrFriend
                             ? Chip(
-                                label: const Text('Enviado', style: TextStyle(fontSize: 12)),
-                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                label: const Text(
+                                  'Enviado',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
                               )
                             : FilledButton.icon(
                                 icon: const Icon(Icons.person_add, size: 18),
@@ -338,9 +376,18 @@ class _FriendsScreenState extends State<FriendsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.inbox_rounded,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 16),
-            Text('Sin solicitudes pendientes', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              'Sin solicitudes pendientes',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       );
@@ -355,21 +402,35 @@ class _FriendsScreenState extends State<FriendsScreen>
           final req = _pendingRequests[i];
           final requester = req['requester'] as Map<String, dynamic>? ?? {};
           final requesterId = requester['id'] as String? ?? '';
-          final displayName = requester['display_name'] as String? ?? requester['username'] as String? ?? 'Usuario';
+          final displayName =
+              requester['display_name'] as String? ??
+              requester['username'] as String? ??
+              'Usuario';
           return ListTile(
             leading: _buildUserAvatar(requester['avatar_url'] as String?),
-            title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              displayName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             subtitle: Text('@${requester['username'] ?? ''}'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 30),
+                  icon: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.green,
+                    size: 30,
+                  ),
                   tooltip: 'Aceptar',
                   onPressed: () => _acceptRequest(requesterId),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.cancel_rounded, color: Colors.red, size: 30),
+                  icon: const Icon(
+                    Icons.cancel_rounded,
+                    color: Colors.red,
+                    size: 30,
+                  ),
                   tooltip: 'Rechazar',
                   onPressed: () => _rejectRequest(requesterId),
                 ),
@@ -390,11 +451,26 @@ class _FriendsScreenState extends State<FriendsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.group_rounded, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.group_rounded,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 16),
-            Text('Todavía no tienes amigos en Corpus.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              'Todavía no tienes amigos en Corpus.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('¡Búscalos por su nombre de usuario!', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
+            Text(
+              '¡Búscalos por su nombre de usuario!',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 13,
+              ),
+            ),
           ],
         ),
       );
@@ -408,10 +484,16 @@ class _FriendsScreenState extends State<FriendsScreen>
         itemBuilder: (ctx, i) {
           final friendship = _friends[i];
           final friend = friendship['friend'] as Map<String, dynamic>? ?? {};
-          final displayName = friend['display_name'] as String? ?? friend['username'] as String? ?? 'Usuario';
+          final displayName =
+              friend['display_name'] as String? ??
+              friend['username'] as String? ??
+              'Usuario';
           return ListTile(
             leading: _buildUserAvatar(friend['avatar_url'] as String?),
-            title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              displayName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             subtitle: Text('@${friend['username'] ?? ''}'),
             onTap: () {
               final friendId = friend['id'] as String?;
@@ -424,7 +506,10 @@ class _FriendsScreenState extends State<FriendsScreen>
               );
             },
             trailing: IconButton(
-              icon: Icon(Icons.person_remove_outlined, color: Theme.of(context).colorScheme.error),
+              icon: Icon(
+                Icons.person_remove_outlined,
+                color: Theme.of(context).colorScheme.error,
+              ),
               tooltip: 'Eliminar amigo',
               onPressed: () => _removeFriend(friendship),
             ),
@@ -464,11 +549,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildSearchTab(),
-          _buildRequestsTab(),
-          _buildFriendsTab(),
-        ],
+        children: [_buildSearchTab(), _buildRequestsTab(), _buildFriendsTab()],
       ),
     );
   }

@@ -38,19 +38,28 @@ class GameFilters {
       genres: genres ?? List.from(this.genres),
       themes: themes ?? List.from(this.themes),
       gameModes: gameModes ?? List.from(this.gameModes),
-      playerPerspectives: playerPerspectives ?? List.from(this.playerPerspectives),
+      playerPerspectives:
+          playerPerspectives ?? List.from(this.playerPerspectives),
       platforms: platforms ?? List.from(this.platforms),
       categories: categories ?? List.from(this.categories),
     );
   }
 
   bool get hasFilters =>
-      genres.isNotEmpty || themes.isNotEmpty || gameModes.isNotEmpty ||
-      playerPerspectives.isNotEmpty || platforms.isNotEmpty || categories.isNotEmpty;
+      genres.isNotEmpty ||
+      themes.isNotEmpty ||
+      gameModes.isNotEmpty ||
+      playerPerspectives.isNotEmpty ||
+      platforms.isNotEmpty ||
+      categories.isNotEmpty;
 
   int get filterCount =>
-      genres.length + themes.length + gameModes.length +
-      playerPerspectives.length + platforms.length + categories.length;
+      genres.length +
+      themes.length +
+      gameModes.length +
+      playerPerspectives.length +
+      platforms.length +
+      categories.length;
 }
 
 class FilterBottomSheet extends StatefulWidget {
@@ -136,7 +145,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
   void _handleClear() {
     setState(() {
-      _filters = GameFilters(sortBy: _filters.sortBy, sortAscending: _filters.sortAscending);
+      _filters = GameFilters(
+        sortBy: _filters.sortBy,
+        sortAscending: _filters.sortAscending,
+      );
       _resetKey++;
       _rebuildFilterSectionWidgets();
     });
@@ -164,7 +176,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   onPressed: _handleClear,
                   child: const Text('Limpiar'),
                 ),
-                const Text('Filtros', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Filtros',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, _filters),
                   style: ElevatedButton.styleFrom(
@@ -184,16 +199,31 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               padding: const EdgeInsets.all(16.0),
               children: [
                 if (widget.showSort) ...[
-                  const Text('Ordenar por', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Text(
+                    'Ordenar por',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: _filters.sortBy,
-                    decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12)),
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    ),
                     items: const [
-                      DropdownMenuItem(value: 'total_rating_count', child: Text('Popularidad')),
-                      DropdownMenuItem(value: 'first_release_date', child: Text('Fecha de Lanzamiento')),
+                      DropdownMenuItem(
+                        value: 'total_rating_count',
+                        child: Text('Popularidad'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'first_release_date',
+                        child: Text('Fecha de Lanzamiento'),
+                      ),
                       DropdownMenuItem(value: 'rating', child: Text('Nota')),
-                      DropdownMenuItem(value: 'name', child: Text('Alfabético')),
+                      DropdownMenuItem(
+                        value: 'name',
+                        child: Text('Alfabético'),
+                      ),
                     ],
                     // OJO: este setState solo reconstruye el Column de arriba (sort/orden).
                     // Las secciones de chips vienen de _filterSectionWidgets, que son las
@@ -212,22 +242,35 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.arrow_downward, 
-                              size: 16, 
-                              color: !_filters.sortAscending ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8)
+                              Icons.arrow_downward,
+                              size: 16,
+                              color: !_filters.sortAscending
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withValues(alpha: 0.8),
                             ),
                             const SizedBox(width: 4),
                             Text(
                               'Descendente',
                               style: TextStyle(
-                                color: !_filters.sortAscending ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                                color: !_filters.sortAscending
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.color
+                                          ?.withValues(alpha: 0.8),
                               ),
                             ),
                           ],
                         ),
                         selected: !_filters.sortAscending,
                         showCheckmark: false,
-                        onSelected: (val) => setState(() => _filters.sortAscending = !val),
+                        onSelected: (val) =>
+                            setState(() => _filters.sortAscending = !val),
                       ),
                       const SizedBox(width: 8),
                       ChoiceChip(
@@ -235,22 +278,35 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.arrow_upward, 
-                              size: 16, 
-                              color: _filters.sortAscending ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8)
+                              Icons.arrow_upward,
+                              size: 16,
+                              color: _filters.sortAscending
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withValues(alpha: 0.8),
                             ),
                             const SizedBox(width: 4),
                             Text(
                               'Ascendente',
                               style: TextStyle(
-                                color: _filters.sortAscending ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                                color: _filters.sortAscending
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.color
+                                          ?.withValues(alpha: 0.8),
                               ),
                             ),
                           ],
                         ),
                         selected: _filters.sortAscending,
                         showCheckmark: false,
-                        onSelected: (val) => setState(() => _filters.sortAscending = val),
+                        onSelected: (val) =>
+                            setState(() => _filters.sortAscending = val),
                       ),
                     ],
                   ),
@@ -307,7 +363,11 @@ class _FilterSectionState extends State<_FilterSection> {
     _selected = List.from(widget.initialSelected);
 
     _labels = widget.items
-        .map((item) => widget.labelFormatter?.call(item['name'] as String) ?? item['name'] as String)
+        .map(
+          (item) =>
+              widget.labelFormatter?.call(item['name'] as String) ??
+              item['name'] as String,
+        )
         .toList();
 
     if (widget.isPlatform) {
@@ -338,7 +398,10 @@ class _FilterSectionState extends State<_FilterSection> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          child: Text(
+            widget.title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
         ),
         Wrap(
           spacing: 8,
@@ -353,12 +416,25 @@ class _FilterSectionState extends State<_FilterSection> {
                   ? null
                   : ColorFiltered(
                       colorFilter: ColorFilter.mode(
-                        isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        isSelected
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : Theme.of(context).colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.5),
                         BlendMode.srcIn,
                       ),
                       child: baseAvatar,
                     ),
-              label: Text(_labels[i], style: TextStyle(fontSize: 13, color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8))),
+              label: Text(
+                _labels[i],
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                ),
+              ),
               selected: isSelected,
               selectedColor: primary,
               checkmarkColor: Theme.of(context).colorScheme.onPrimary,

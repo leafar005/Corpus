@@ -33,12 +33,12 @@ class InfoScreen extends StatelessWidget {
                 color: Theme.of(context).primaryColorDark,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.library_books, size: 60, ),
+              child: const Icon(Icons.library_books, size: 60),
             ),
             const SizedBox(height: 16),
             const Text(
               'Corpus',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, ),
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -46,7 +46,7 @@ class InfoScreen extends StatelessWidget {
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
             const SizedBox(height: 24),
-            
+
             const Text(
               'Tu biblioteca personal de videojuegos. Gestiona tus colecciones, descubre nuevos títulos y comparte reseñas con la comunidad.',
               textAlign: TextAlign.center,
@@ -59,26 +59,43 @@ class InfoScreen extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 'DESARROLLO',
-                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.2),
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 1.2,
+                ),
               ),
             ),
             const SizedBox(height: 8),
             Card(
               color: Theme.of(context).colorScheme.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   child: const Icon(Icons.person),
                 ),
-                title: const Text('leafar005', style: TextStyle(fontWeight: FontWeight.bold, )),
-                subtitle: const Text('Creador y Desarrollador', style: TextStyle(color: Colors.grey)),
-                trailing: const Icon(Icons.open_in_new, color: Colors.grey, size: 20),
+                title: const Text(
+                  'leafar005',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text(
+                  'Creador y Desarrollador',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                trailing: const Icon(
+                  Icons.open_in_new,
+                  color: Colors.grey,
+                  size: 20,
+                ),
                 onTap: () => _launchUrl('https://github.com/leafar005'),
               ),
             ),
-            
+
             const SizedBox(height: 32),
 
             // Tecnologías
@@ -86,13 +103,20 @@ class InfoScreen extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 'TECNOLOGÍAS UTILIZADAS',
-                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.2),
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 1.2,
+                ),
               ),
             ),
             const SizedBox(height: 8),
             Card(
               color: Theme.of(context).colorScheme.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Column(
                 children: [
                   _buildToolLink(
@@ -102,7 +126,10 @@ class InfoScreen extends StatelessWidget {
                     icon: Icons.flutter_dash,
                     url: 'https://flutter.dev/',
                   ),
-                  Divider(color: Theme.of(context).scaffoldBackgroundColor, height: 1),
+                  Divider(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    height: 1,
+                  ),
                   _buildToolLink(
                     context: context,
                     title: 'Supabase',
@@ -110,7 +137,10 @@ class InfoScreen extends StatelessWidget {
                     icon: Icons.storage,
                     url: 'https://supabase.com/',
                   ),
-                  Divider(color: Theme.of(context).scaffoldBackgroundColor, height: 1),
+                  Divider(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    height: 1,
+                  ),
                   _buildToolLink(
                     context: context,
                     title: 'IGDB API',
@@ -137,7 +167,7 @@ class InfoScreen extends StatelessWidget {
   }) {
     return ListTile(
       leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, )),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey)),
       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: () => _launchUrl(url),

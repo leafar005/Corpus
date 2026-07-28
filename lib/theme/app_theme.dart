@@ -20,7 +20,7 @@ class ThemeNotifier extends ChangeNotifier {
       (e) => e.toString().split('.').last == modeStr,
       orElse: () => ThemeMode.system,
     );
-    
+
     final colorVal = prefs.getInt('theme_color');
     if (colorVal != null) {
       _seedColor = Color(colorVal);
@@ -54,22 +54,22 @@ class AppColors {
 
 /// Definición de los distintos temas de la aplicación (Modo Oscuro, Claro, etc.)
 class AppTheme {
-  
   // TEMA OSCURO
   static ThemeData getDarkTheme(Color seedColor) {
     const bgColor = Colors.black;
     final surfaceColor = Colors.grey.shade900;
-    
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: seedColor,
-      brightness: Brightness.dark,
-    ).copyWith(
-      primary: seedColor,
-      secondary: AppColors.accent,
-      surface: surfaceColor,
-      error: AppColors.danger,
-      onSurfaceVariant: Colors.grey, // Usado para textSecondary
-    );
+
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: seedColor,
+          brightness: Brightness.dark,
+        ).copyWith(
+          primary: seedColor,
+          secondary: AppColors.accent,
+          surface: surfaceColor,
+          error: AppColors.danger,
+          onSurfaceVariant: Colors.grey, // Usado para textSecondary
+        );
 
     return ThemeData(
       brightness: Brightness.dark,
@@ -105,7 +105,9 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 16),
           textStyle: const TextStyle(fontWeight: FontWeight.bold),
         ),
@@ -120,10 +122,7 @@ class AppTheme {
         hintStyle: const TextStyle(color: Colors.grey),
         prefixIconColor: Colors.grey,
       ),
-      dividerTheme: const DividerThemeData(
-        color: Colors.white24,
-        thickness: 1,
-      ),
+      dividerTheme: const DividerThemeData(color: Colors.white24, thickness: 1),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: bgColor,
         selectedItemColor: colorScheme.primary,
@@ -138,16 +137,17 @@ class AppTheme {
     const bgColor = Color(0xFFF5F5F5);
     const surfaceColor = Colors.white;
 
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: seedColor,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: seedColor,
-      secondary: AppColors.accent,
-      surface: surfaceColor,
-      error: AppColors.danger,
-      onSurfaceVariant: Colors.grey.shade700, // Usado para textSecondary
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: seedColor,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: seedColor,
+          secondary: AppColors.accent,
+          surface: surfaceColor,
+          error: AppColors.danger,
+          onSurfaceVariant: Colors.grey.shade700, // Usado para textSecondary
+        );
 
     return ThemeData(
       brightness: Brightness.light,
@@ -163,7 +163,8 @@ class AppTheme {
         surfaceTintColor: colorScheme.primary,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: bgColor, // Usamos bgColor en lugar de primary para modo claro
+        backgroundColor:
+            bgColor, // Usamos bgColor en lugar de primary para modo claro
         elevation: 0,
         centerTitle: false,
         iconTheme: IconThemeData(color: colorScheme.onSurface),
@@ -184,7 +185,9 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 16),
           textStyle: const TextStyle(fontWeight: FontWeight.bold),
         ),
@@ -207,14 +210,13 @@ class AppTheme {
         hintStyle: TextStyle(color: Colors.grey.shade500),
         prefixIconColor: Colors.grey.shade600,
       ),
-      dividerTheme: DividerThemeData(
-        color: Colors.grey.shade300,
-        thickness: 1,
-      ),
+      dividerTheme: DividerThemeData(color: Colors.grey.shade300, thickness: 1),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surfaceColor,
         selectedItemColor: colorScheme.primary,
-        unselectedItemColor: Colors.grey.shade600, // Oscurecemos un poco los iconos no seleccionados
+        unselectedItemColor: Colors
+            .grey
+            .shade600, // Oscurecemos un poco los iconos no seleccionados
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
