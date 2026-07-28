@@ -4,7 +4,6 @@ import '../../globals.dart';
 import '../activity/review_details_screen.dart';
 import '../profile/profile_screen.dart';
 
-
 /// Feed de actividad social en tiempo real.
 /// Muestra la actividad del usuario actual y la de sus amigos aceptados.
 /// La tabla `activity_feed` se puebla automáticamente mediante triggers
@@ -102,26 +101,35 @@ class _ActivityScreenState extends State<ActivityScreen> {
         final gameId = item['game_id'];
         final type = item['action_type'];
         final dateStr = item['created_at'];
-        
+
         if (userId != null && gameId != null && dateStr != null) {
           final date = DateTime.parse(dateStr);
-          for (int i = mergedActivities.length - 1; i >= 0 && i >= mergedActivities.length - 4; i--) {
+          for (
+            int i = mergedActivities.length - 1;
+            i >= 0 && i >= mergedActivities.length - 4;
+            i--
+          ) {
             final prev = mergedActivities[i];
             if (prev['user_id'] == userId && prev['game_id'] == gameId) {
               final prevDate = DateTime.parse(prev['created_at']);
               if (date.difference(prevDate).abs().inHours < 24) {
-                if (type == 'status_change' && prev['action_type'] == 'reviewed') {
+                if (type == 'status_change' &&
+                    prev['action_type'] == 'reviewed') {
                   prev['action_type'] = 'status_change';
-                  if (prev['metadata'] == null) prev['metadata'] = <String, dynamic>{};
+                  if (prev['metadata'] == null) {
+                    prev['metadata'] = <String, dynamic>{};
+                  }
                   final itemMeta = item['metadata'] as Map? ?? {};
                   (prev['metadata'] as Map)['status'] = itemMeta['status'];
                   merged = true;
                   break;
-                } else if (type == 'reviewed' && prev['action_type'] == 'status_change') {
+                } else if (type == 'reviewed' &&
+                    prev['action_type'] == 'status_change') {
                   prev['_review'] = item['_review'];
                   merged = true;
                   break;
-                } else if (type == 'status_change' && prev['action_type'] == 'status_change') {
+                } else if (type == 'status_change' &&
+                    prev['action_type'] == 'status_change') {
                   merged = true;
                   break;
                 }
@@ -196,7 +204,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
           'review_game_id': review['game_id'],
         });
       } else {
-        await _supabase.from('review_likes').delete().match({'user_id': currentUserId, 'review_id': reviewId});
+        await _supabase.from('review_likes').delete().match({
+          'user_id': currentUserId,
+          'review_id': reviewId,
+        });
       }
     } catch (_) {
       // Revertir
@@ -218,7 +229,20 @@ class _ActivityScreenState extends State<ActivityScreen> {
   String _formatDate(String isoString) {
     try {
       final date = DateTime.parse(isoString).toLocal();
-      const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const months = [
+        'Ene',
+        'Feb',
+        'Mar',
+        'Abr',
+        'May',
+        'Jun',
+        'Jul',
+        'Ago',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dic',
+      ];
       final now = DateTime.now();
       final diff = now.difference(date);
       if (diff.inMinutes < 1) return 'Ahora mismo';
@@ -232,23 +256,35 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   String _getStatusText(String status) {
     switch (status) {
-      case 'beaten': return 'Terminado';
-      case 'playing': return 'Jugando';
-      case 'wishlist': return 'En wishlist';
-      case 'abandoned': return 'Abandonado';
-      case 'on_hold': return 'En Pausa';
-      default: return 'Actualizado';
+      case 'beaten':
+        return 'Terminado';
+      case 'playing':
+        return 'Jugando';
+      case 'wishlist':
+        return 'En wishlist';
+      case 'abandoned':
+        return 'Abandonado';
+      case 'on_hold':
+        return 'En Pausa';
+      default:
+        return 'Actualizado';
     }
   }
 
   IconData _getStatusIcon(String status) {
     switch (status) {
-      case 'beaten': return Icons.emoji_events;
-      case 'playing': return Icons.sports_esports;
-      case 'wishlist': return Icons.bookmark;
-      case 'abandoned': return Icons.cancel;
-      case 'on_hold': return Icons.pause_circle;
-      default: return Icons.flag;
+      case 'beaten':
+        return Icons.emoji_events;
+      case 'playing':
+        return Icons.sports_esports;
+      case 'wishlist':
+        return Icons.bookmark;
+      case 'abandoned':
+        return Icons.cancel;
+      case 'on_hold':
+        return Icons.pause_circle;
+      default:
+        return Icons.flag;
     }
   }
 
@@ -256,16 +292,25 @@ class _ActivityScreenState extends State<ActivityScreen> {
     switch (actionType) {
       case 'status_change':
         switch (status) {
-          case 'playing': return 'está jugando a';
-          case 'beaten': return 'ha completado';
-          case 'wishlist': return 'quiere jugar a';
-          case 'abandoned': return 'ha abandonado';
-          case 'on_hold': return 'ha pausado';
-          default: return 'actualizó';
+          case 'playing':
+            return 'está jugando a';
+          case 'beaten':
+            return 'ha completado';
+          case 'wishlist':
+            return 'quiere jugar a';
+          case 'abandoned':
+            return 'ha abandonado';
+          case 'on_hold':
+            return 'ha pausado';
+          default:
+            return 'actualizó';
         }
-      case 'reviewed': return 'ha reseñado';
-      case 'achievement': return 'ha desbloqueado un logro en';
-      default: return 'hizo algo con';
+      case 'reviewed':
+        return 'ha reseñado';
+      case 'achievement':
+        return 'ha desbloqueado un logro en';
+      default:
+        return 'hizo algo con';
     }
   }
 
@@ -273,12 +318,18 @@ class _ActivityScreenState extends State<ActivityScreen> {
     if (actionType == 'reviewed') return Icons.rate_review_rounded;
     if (actionType == 'achievement') return Icons.emoji_events_rounded;
     switch (status) {
-      case 'beaten': return Icons.emoji_events;
-      case 'playing': return Icons.sports_esports;
-      case 'wishlist': return Icons.bookmark;
-      case 'abandoned': return Icons.cancel;
-      case 'on_hold': return Icons.pause_circle;
-      default: return Icons.flag;
+      case 'beaten':
+        return Icons.emoji_events;
+      case 'playing':
+        return Icons.sports_esports;
+      case 'wishlist':
+        return Icons.bookmark;
+      case 'abandoned':
+        return Icons.cancel;
+      case 'on_hold':
+        return Icons.pause_circle;
+      default:
+        return Icons.flag;
     }
   }
 
@@ -286,10 +337,14 @@ class _ActivityScreenState extends State<ActivityScreen> {
     if (actionType == 'reviewed') return Theme.of(ctx).colorScheme.secondary;
     if (actionType == 'achievement') return Colors.amber;
     switch (status) {
-      case 'beaten': return Colors.green;
-      case 'playing': return Theme.of(ctx).colorScheme.primary;
-      case 'abandoned': return Colors.red;
-      default: return Theme.of(ctx).colorScheme.onSurfaceVariant;
+      case 'beaten':
+        return Colors.green;
+      case 'playing':
+        return Theme.of(ctx).colorScheme.primary;
+      case 'abandoned':
+        return Colors.red;
+      default:
+        return Theme.of(ctx).colorScheme.onSurfaceVariant;
     }
   }
 
@@ -303,8 +358,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final meta = activity['metadata'] as Map<String, dynamic>? ?? {};
     final review = activity['_review'] as Map<String, dynamic>?;
 
-    final displayName = userData['display_name'] as String? ??
-        userData['username'] as String? ?? 'Usuario';
+    final displayName =
+        userData['display_name'] as String? ??
+        userData['username'] as String? ??
+        'Usuario';
     final avatarUrl = userData['avatar_url'] as String?;
     final gameTitle = gameData['title'] as String? ?? 'Juego desconocido';
     final coverUrl = gameData['cover_url'] as String?;
@@ -322,11 +379,16 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final isOwnActivity = myId == activityUserId;
 
     // Datos de la reseña enriquecida
-    final rating = review != null ? (review['rating'] as num?)?.toDouble() : (meta['rating'] as num?)?.toDouble();
-    final comment = review?['comment'] as String? ?? meta['comment'] as String? ?? '';
+    final rating = review != null
+        ? (review['rating'] as num?)?.toDouble()
+        : (meta['rating'] as num?)?.toDouble();
+    final comment =
+        review?['comment'] as String? ?? meta['comment'] as String? ?? '';
     final List<dynamic> imageUrls = review?['image_urls'] ?? [];
     final likes = review != null ? (review['review_likes'] as List?) ?? [] : [];
-    final comments = review != null ? (review['review_comments'] as List?) ?? [] : [];
+    final comments = review != null
+        ? (review['review_comments'] as List?) ?? []
+        : [];
     final replayCount = review?['replay_count'] ?? 0;
     final hasLiked = likes.any((l) => l['user_id'] == myId);
     final isReview = review != null;
@@ -380,16 +442,27 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 GestureDetector(
                   onTap: () {
                     if (activityUserId != null) {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: activityUserId)));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProfileScreen(userId: activityUserId),
+                        ),
+                      );
                     }
                   },
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                        child: avatarUrl == null ? const Icon(Icons.person, size: 24) : null,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        backgroundImage: avatarUrl != null
+                            ? NetworkImage(avatarUrl)
+                            : null,
+                        child: avatarUrl == null
+                            ? const Icon(Icons.person, size: 24)
+                            : null,
                       ),
                       const SizedBox(width: 12),
                     ],
@@ -399,12 +472,20 @@ class _ActivityScreenState extends State<ActivityScreen> {
                   child: GestureDetector(
                     onTap: () {
                       if (activityUserId != null) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: activityUserId)));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ProfileScreen(userId: activityUserId),
+                          ),
+                        );
                       }
                     },
                     child: RichText(
                       text: TextSpan(
-                        style: DefaultTextStyle.of(context).style.copyWith(fontSize: 15),
+                        style: DefaultTextStyle.of(
+                          context,
+                        ).style.copyWith(fontSize: 15),
                         children: [
                           TextSpan(
                             text: isOwnActivity ? 'Tú' : displayName,
@@ -428,7 +509,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
                 const SizedBox(width: 4),
                 Text(
                   dateStr,
-                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -445,11 +529,18 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     height: 140,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      image: DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      image: DecorationImage(
+                        image: NetworkImage(coverUrl),
+                        fit: BoxFit.cover,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Theme.of(context).shadowColor.withValues(alpha: 0.4),
+                          color: Theme.of(
+                            context,
+                          ).shadowColor.withValues(alpha: 0.4),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -463,53 +554,93 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     children: [
                       Text(
                         gameTitle,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       // Estado del juego
                       if (status != null)
                         Row(
                           children: [
-                            Icon(_getStatusIcon(status), size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            Icon(
+                              _getStatusIcon(status),
+                              size: 18,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               _getStatusText(status),
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontSize: 16,
                               ),
                             ),
                           ],
                         ),
                       // Nota + tiempo de juego
-                      if (rating != null && rating > 0 || (review?['play_time_hours'] ?? 0) > 0) ...[
+                      if (rating != null && rating > 0 ||
+                          (review?['play_time_hours'] ?? 0) > 0) ...[
                         const SizedBox(height: 8),
                         Row(
                           children: [
                             if (rating != null && rating > 0) ...[
-                              Icon(Icons.star, color: Theme.of(context).colorScheme.secondary, size: 18),
+                              Icon(
+                                Icons.star,
+                                color: Theme.of(context).colorScheme.secondary,
+                                size: 18,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 rating.toStringAsFixed(1),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(width: 16),
                             ],
                             if ((review?['play_time_hours'] ?? 0) > 0) ...[
-                              Icon(Icons.access_time, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 18),
+                              Icon(
+                                Icons.access_time,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                                size: 18,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 '${(review!['play_time_hours'] as num).toDouble().toStringAsFixed(1)} h',
-                                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                  fontSize: 16,
+                                ),
                               ),
                             ],
                             if (replayCount > 0) ...[
                               const SizedBox(width: 12),
-                              Icon(Icons.replay, size: 16, color: Theme.of(context).colorScheme.secondary),
+                              Icon(
+                                Icons.replay,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 replayCount.toString(),
-                                style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontWeight: FontWeight.bold, fontSize: 14),
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.secondary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                             ],
                           ],
@@ -544,10 +675,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: GestureDetector(
-                        onTap: () => _showImageFullScreen(imageUrls[idx] as String),
+                        onTap: () =>
+                            _showImageFullScreen(imageUrls[idx] as String),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(imageUrls[idx] as String, height: 120, fit: BoxFit.fitHeight),
+                          child: Image.network(
+                            imageUrls[idx] as String,
+                            height: 120,
+                            fit: BoxFit.fitHeight,
+                          ),
                         ),
                       ),
                     );
@@ -565,15 +701,22 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     onTap: () => _toggleLike(index),
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 4,
+                        horizontal: 8,
+                      ),
                       child: Row(
                         children: [
                           Icon(
-                            hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                            hasLiked
+                                ? Icons.thumb_up
+                                : Icons.thumb_up_alt_outlined,
                             size: 20,
                             color: hasLiked
                                 ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -581,9 +724,13 @@ class _ActivityScreenState extends State<ActivityScreen> {
                             style: TextStyle(
                               color: hasLiked
                                   ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                               fontSize: 16,
-                              fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: hasLiked
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                         ],
@@ -595,14 +742,28 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     onTap: openReviewComments,
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 4,
+                        horizontal: 8,
+                      ),
                       child: Row(
                         children: [
-                          Icon(Icons.chat_bubble_outline, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 20,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             comments.length.toString(),
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                              fontSize: 16,
+                            ),
                           ),
                         ],
                       ),
@@ -629,7 +790,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              InteractiveViewer(child: Image.network(imageUrl, fit: BoxFit.contain)),
+              InteractiveViewer(
+                child: Image.network(imageUrl, fit: BoxFit.contain),
+              ),
               Positioned(
                 top: 16,
                 right: 16,
@@ -650,17 +813,27 @@ class _ActivityScreenState extends State<ActivityScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline_rounded, size: 72, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            Icons.people_outline_rounded,
+            size: 72,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 16),
           Text(
             'Aquí verás tu actividad y la de tus amigos',
-            style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
             '¡Añade juegos a tu biblioteca o invita a amigos para empezar!',
-            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -684,14 +857,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _activities.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _fetchActivity,
-                  child: ListView.builder(
-                    itemCount: _activities.length,
-                    itemBuilder: (context, index) => _buildActivityCard(_activities[index], index),
-                  ),
-                ),
+          ? _buildEmptyState()
+          : RefreshIndicator(
+              onRefresh: _fetchActivity,
+              child: ListView.builder(
+                itemCount: _activities.length,
+                itemBuilder: (context, index) =>
+                    _buildActivityCard(_activities[index], index),
+              ),
+            ),
     );
   }
 }

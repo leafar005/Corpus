@@ -12,13 +12,13 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   // Lista de colores base disponibles
   final List<Color> _availableColors = const [
     Colors.deepPurpleAccent, // Morado (Default)
-    Colors.blueAccent,       // Azul
-    Colors.teal,             // Turquesa
-    Colors.green,            // Verde
-    Colors.amber,            // Ámbar
-    Colors.orange,           // Naranja
-    Colors.redAccent,        // Rojo
-    Colors.pinkAccent,       // Rosa
+    Colors.blueAccent, // Azul
+    Colors.teal, // Turquesa
+    Colors.green, // Verde
+    Colors.amber, // Ámbar
+    Colors.orange, // Naranja
+    Colors.redAccent, // Rojo
+    Colors.pinkAccent, // Rosa
   ];
 
   @override
@@ -35,13 +35,22 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         children: [
           const SizedBox(height: 16),
-          const Text('Tema de la aplicación', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Tema de la aplicación',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           _buildThemeOptions(),
           const SizedBox(height: 32),
-          const Text('Color principal', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Color principal',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
-          const Text('Elige el tono que dominará los elementos visuales de Corpus.', style: TextStyle(color: Colors.grey)),
+          const Text(
+            'Elige el tono que dominará los elementos visuales de Corpus.',
+            style: TextStyle(color: Colors.grey),
+          ),
           const SizedBox(height: 24),
           _buildColorPicker(),
         ],
@@ -86,9 +95,22 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   }) {
     final isSelected = themeNotifier.currentMode == mode;
     return ListTile(
-      leading: Icon(icon, color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey),
-      title: Text(title, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-      trailing: isSelected ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
+      leading: Icon(
+        icon,
+        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      trailing: isSelected
+          ? Icon(
+              Icons.check_circle,
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       onTap: () {
         themeNotifier.setTheme(mode);
@@ -117,7 +139,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
               color: color,
               shape: BoxShape.circle,
               border: Border.all(
-                color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.transparent,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Colors.transparent,
                 width: 3,
               ),
               boxShadow: [

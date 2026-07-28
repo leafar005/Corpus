@@ -67,7 +67,9 @@ class _MainScreenState extends State<MainScreen> {
     } else {
       setState(() => _currentIndex = index);
       if (_shouldPersistTab) {
-        SharedPreferences.getInstance().then((prefs) => prefs.setInt('main_tab_index', index));
+        SharedPreferences.getInstance().then(
+          (prefs) => prefs.setInt('main_tab_index', index),
+        );
       }
     }
   }
@@ -78,9 +80,7 @@ class _MainScreenState extends State<MainScreen> {
       child: Navigator(
         key: _navigatorKeys[index],
         onGenerateRoute: (settings) {
-          return MaterialPageRoute(
-            builder: (context) => _screens[index],
-          );
+          return MaterialPageRoute(builder: (context) => _screens[index]);
         },
       ),
     );
@@ -88,8 +88,10 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildTopNavItem(int index, String label, IconData icon) {
     final isSelected = _currentIndex == index;
-    final color = isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade400;
-    
+    final color = isSelected
+        ? Theme.of(context).colorScheme.primary
+        : Colors.grey.shade400;
+
     return InkWell(
       onTap: () => _onTabTapped(index),
       borderRadius: BorderRadius.circular(8),
@@ -118,7 +120,11 @@ class _MainScreenState extends State<MainScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 40),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.1))),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -126,7 +132,15 @@ class _MainScreenState extends State<MainScreen> {
             children: [
               Icon(Icons.gamepad, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 12),
-              Text('CORPUS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, letterSpacing: 2, color: Theme.of(context).colorScheme.primary)),
+              Text(
+                'CORPUS',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  letterSpacing: 2,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
             ],
           ),
           const Spacer(),
@@ -153,7 +167,8 @@ class _MainScreenState extends State<MainScreen> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
 
-        final NavigatorState navigator = _navigatorKeys[_currentIndex].currentState!;
+        final NavigatorState navigator =
+            _navigatorKeys[_currentIndex].currentState!;
         if (navigator.canPop()) {
           navigator.pop();
         } else {
@@ -183,21 +198,38 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
         ),
-        bottomNavigationBar: isDesktop ? null : BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _onTabTapped,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: Theme.of(context).colorScheme.primary,
-          unselectedItemColor: Colors.grey.shade600,
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-            BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
-            BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Actividad'),
-            BottomNavigationBarItem(icon: Icon(Icons.local_offer), label: 'Bundles'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-          ],
-        ),
+        bottomNavigationBar: isDesktop
+            ? null
+            : BottomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: _onTabTapped,
+                type: BottomNavigationBarType.fixed,
+                selectedItemColor: Theme.of(context).colorScheme.primary,
+                unselectedItemColor: Colors.grey.shade600,
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home),
+                    label: 'Inicio',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.search),
+                    label: 'Buscar',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.group),
+                    label: 'Actividad',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.local_offer),
+                    label: 'Bundles',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person),
+                    label: 'Perfil',
+                  ),
+                ],
+              ),
       ),
     );
   }

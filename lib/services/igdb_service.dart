@@ -14,15 +14,19 @@ class IGDBService {
   static Future<void> _authenticate() async {
     // Reutilizamos el token si existe Y no ha expirado (con 5 min de margen)
     final now = DateTime.now();
-    if (_accessToken != null && _tokenExpiresAt != null && now.isBefore(_tokenExpiresAt!)) {
+    if (_accessToken != null &&
+        _tokenExpiresAt != null &&
+        now.isBefore(_tokenExpiresAt!)) {
       return;
     }
 
-    final url = kIsWeb 
+    final url = kIsWeb
         ? 'https://corsproxy.io/?https://id.twitch.tv/oauth2/token?client_id=${Env.igdbClientId}&client_secret=${Env.igdbClientSecret}&grant_type=client_credentials'
         : 'https://id.twitch.tv/oauth2/token?client_id=${Env.igdbClientId}&client_secret=${Env.igdbClientSecret}&grant_type=client_credentials';
 
-    final response = await http.post(Uri.parse(url)).timeout(const Duration(seconds: 10));
+    final response = await http
+        .post(Uri.parse(url))
+        .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -40,10 +44,9 @@ class IGDBService {
   static Future<http.Response> _postQuery(String endpoint, String query) async {
     debugPrint('[IGDB] Intentando Edge Function igdb-proxy...');
     try {
-      final res = await Supabase.instance.client.functions.invoke(
-        'igdb-proxy',
-        body: {'endpoint': endpoint, 'query': query},
-      ).timeout(const Duration(seconds: 10));
+      final res = await Supabase.instance.client.functions
+          .invoke('igdb-proxy', body: {'endpoint': endpoint, 'query': query})
+          .timeout(const Duration(seconds: 10));
       debugPrint('[IGDB] Edge Function respondió: status=${res.status}');
       if (res.status == 200 && res.data != null) {
         final bodyString = res.data is String ? res.data : jsonEncode(res.data);
@@ -63,21 +66,22 @@ class IGDBService {
         ? 'https://corsproxy.io/?https://api.igdb.com/v4/$endpoint'
         : 'https://api.igdb.com/v4/$endpoint';
 
-    final resp = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Client-ID': Env.igdbClientId,
-        'Authorization': 'Bearer $_accessToken',
-        'Accept': 'application/json',
-      },
-      body: query,
-    ).timeout(const Duration(seconds: 15));
+    final resp = await http
+        .post(
+          Uri.parse(url),
+          headers: {
+            'Client-ID': Env.igdbClientId,
+            'Authorization': 'Bearer $_accessToken',
+            'Accept': 'application/json',
+          },
+          body: query,
+        )
+        .timeout(const Duration(seconds: 15));
     debugPrint('[IGDB] Fallback directo respondió: status=${resp.statusCode}');
     return resp;
   }
 
   static Future<List<dynamic>> searchGames(
-
     String query, {
     int offset = 0,
     int limit = 35,
@@ -109,7 +113,7 @@ class IGDBService {
     final String cleanQuery = query.trim();
     String whereConditions = 'cover != null';
     String sortClause = 'sort total_rating_count desc;';
-    
+
     if (sortBy != null) {
       final direction = sortAscending ? 'asc' : 'desc';
       sortClause = 'sort $sortBy $direction;';
@@ -117,13 +121,19 @@ class IGDBService {
 
     // CORRECCIÓN NULLS FIRST: Solo aplicar cuando hay búsqueda de texto libre,
     // no en búsquedas por logros (compañía/saga) donde los juegos sin votos son válidos.
-    final bool isTextSearch = cleanQuery.isNotEmpty && involvedCompanies == null && collections == null && franchises == null;
+    final bool isTextSearch =
+        cleanQuery.isNotEmpty &&
+        involvedCompanies == null &&
+        collections == null &&
+        franchises == null;
     if (isTextSearch) {
-      if (sortClause.contains('total_rating_count') && sortClause.contains('desc')) {
+      if (sortClause.contains('total_rating_count') &&
+          sortClause.contains('desc')) {
         // Truco de IGDB: Si ordenamos por un campo, IGDB excluye automáticamente los nulos.
         // Añadiendo esta condición OR explícita evitamos que los excluya,
         // ordenando primero los populares y dejando los juegos indie sin votos (null) al final.
-        whereConditions += ' & (total_rating_count != null | total_rating_count = null)';
+        whereConditions +=
+            ' & (total_rating_count != null | total_rating_count = null)';
       } else if (sortClause.contains('rating') && sortClause.contains('desc')) {
         whereConditions += ' & (rating != null | rating = null)';
       }
@@ -132,14 +142,34 @@ class IGDBService {
     if (cleanQuery.isNotEmpty) {
       // Diccionario de conversión mutua entre números árabes y romanos (del 1 al 10)
       const romanMap = {
-        '1': 'i', '2': 'ii', '3': 'iii', '4': 'iv', '5': 'v',
-        '6': 'vi', '7': 'vii', '8': 'viii', '9': 'ix', '10': 'x',
-        'i': '1', 'ii': '2', 'iii': '3', 'iv': '4', 'v': '5',
-        'vi': '6', 'vii': '7', 'viii': '8', 'ix': '9', 'x': '10'
+        '1': 'i',
+        '2': 'ii',
+        '3': 'iii',
+        '4': 'iv',
+        '5': 'v',
+        '6': 'vi',
+        '7': 'vii',
+        '8': 'viii',
+        '9': 'ix',
+        '10': 'x',
+        'i': '1',
+        'ii': '2',
+        'iii': '3',
+        'iv': '4',
+        'v': '5',
+        'vi': '6',
+        'vii': '7',
+        'viii': '8',
+        'ix': '9',
+        'x': '10',
       };
 
-      final words = cleanQuery.toLowerCase().split(' ').where((w) => w.isNotEmpty).toList();
-      
+      final words = cleanQuery
+          .toLowerCase()
+          .split(' ')
+          .where((w) => w.isNotEmpty)
+          .toList();
+
       final wordConditions = words.map((w) {
         final romanEquivalent = romanMap[w];
         if (romanEquivalent != null) {
@@ -151,7 +181,7 @@ class IGDBService {
 
       whereConditions += ' & ${wordConditions.join(' & ')}';
     }
-    
+
     if (genres != null && genres.isNotEmpty) {
       whereConditions += ' & genres = (${genres.join(',')})';
     }
@@ -162,14 +192,17 @@ class IGDBService {
       whereConditions += ' & game_modes = (${gameModes.join(',')})';
     }
     if (playerPerspectives != null && playerPerspectives.isNotEmpty) {
-      whereConditions += ' & player_perspectives = (${playerPerspectives.join(',')})';
+      whereConditions +=
+          ' & player_perspectives = (${playerPerspectives.join(',')})';
     }
     if (platforms != null && platforms.isNotEmpty) {
       whereConditions += ' & platforms = (${platforms.join(',')})';
     }
     if (categories != null && categories.isNotEmpty) {
       whereConditions += ' & game_type = (${categories.join(',')})';
-    } else if (involvedCompanies != null || collections != null || franchises != null) {
+    } else if (involvedCompanies != null ||
+        collections != null ||
+        franchises != null) {
       // Si estamos buscando por logro temático (estudio o saga), excluimos DLCs, mods, y hardware
       whereConditions += ' & game_type = (0, 8, 9, 10, 11)';
       // Y también excluimos juegos que aún no han salido
@@ -178,7 +211,8 @@ class IGDBService {
     }
 
     if (involvedCompanies != null && involvedCompanies.isNotEmpty) {
-      whereConditions += ' & involved_companies.company = (${involvedCompanies.join(',')})';
+      whereConditions +=
+          ' & involved_companies.company = (${involvedCompanies.join(',')})';
     }
     if (collections != null && collections.isNotEmpty) {
       final ids = collections.join(',');
@@ -201,7 +235,10 @@ class IGDBService {
   }
 
   // 3. Obtener los juegos más esperados o populares (Tendencias)
-  static Future<List<dynamic>> getPopularGames({int offset = 0, int limit = 35}) async {
+  static Future<List<dynamic>> getPopularGames({
+    int offset = 0,
+    int limit = 35,
+  }) async {
     final response = await _postQuery(
       'games',
       'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name; where cover != null & total_rating_count > 10; sort first_release_date desc; limit $limit; offset $offset;',
@@ -252,18 +289,19 @@ class IGDBService {
       );
 
       if (response.statusCode == 200) {
-
         final List<dynamic> data = json.decode(response.body);
         if (data.isNotEmpty && data.first['game'] != null) {
-          final int igdbId = data.first['game'] is Map 
-              ? data.first['game']['id'] 
+          final int igdbId = data.first['game'] is Map
+              ? data.first['game']['id']
               : data.first['game'];
           return await getGameById(igdbId);
         }
       }
       return null;
     } catch (e) {
-      if (kDebugMode) print('[IGDB ERROR] Fallo al convertir SteamID $steamAppId: $e');
+      if (kDebugMode) {
+        print('[IGDB ERROR] Fallo al convertir SteamID $steamAppId: $e');
+      }
       return null;
     }
   }
@@ -322,7 +360,6 @@ class IGDBService {
     }
   }
 
-
   // 11. Obtener contenido relacionado (DLCs, remakes, ports, etc.) de un juego
   static Future<List<dynamic>> getRelatedGames(int igdbId) async {
     try {
@@ -341,7 +378,6 @@ class IGDBService {
     }
   }
 
-
   // 12. Obtener juegos de una Colección, Franquicia o Compañía para la pantalla de logros
   // Usa paginación para cargar todos los juegos disponibles.
   // Ordena: primero por popularidad (total_rating_count desc).
@@ -350,7 +386,8 @@ class IGDBService {
     int? companyId,
     int? collectionId,
     int? franchiseId,
-    int? collectionId2, // ID alternativo (colección Y franquicia para el mismo logro)
+    int?
+    collectionId2, // ID alternativo (colección Y franquicia para el mismo logro)
     int? franchiseId2,
     int offset = 0,
     int limit = 35,
@@ -358,29 +395,47 @@ class IGDBService {
     try {
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-      
       // Construir la condición principal del logro (compañía OR saga)
       List<String> mainConditions = [];
       if (companyId != null) {
-        if ([37, 129, 1012, 26, 56, 305, 401, 908, 170, 769].contains(companyId)) {
-          mainConditions.add('(involved_companies.company = ($companyId) & involved_companies.developer = true)');
+        if ([
+          37,
+          129,
+          1012,
+          26,
+          56,
+          305,
+          401,
+          908,
+          170,
+          769,
+        ].contains(companyId)) {
+          mainConditions.add(
+            '(involved_companies.company = ($companyId) & involved_companies.developer = true)',
+          );
         } else {
           mainConditions.add('involved_companies.company = ($companyId)');
         }
       }
       if (collectionId != null && franchiseId != null) {
         // Si tenemos AMBOS (colección Y franquicia del mismo logro), los unimos con OR
-        mainConditions.add('((collection = ($collectionId)) | (collections = ($collectionId)) | (franchises = ($franchiseId)))');
+        mainConditions.add(
+          '((collection = ($collectionId)) | (collections = ($collectionId)) | (franchises = ($franchiseId)))',
+        );
       } else {
         if (collectionId != null) {
-          mainConditions.add('((collection = ($collectionId)) | (collections = ($collectionId)))');
+          mainConditions.add(
+            '((collection = ($collectionId)) | (collections = ($collectionId)))',
+          );
         }
         if (franchiseId != null) {
           mainConditions.add('franchises = ($franchiseId)');
         }
       }
       if (collectionId2 != null) {
-        mainConditions.add('((collection = ($collectionId2)) | (collections = ($collectionId2)))');
+        mainConditions.add(
+          '((collection = ($collectionId2)) | (collections = ($collectionId2)))',
+        );
       }
       if (franchiseId2 != null) {
         mainConditions.add('franchises = ($franchiseId2)');
@@ -393,7 +448,8 @@ class IGDBService {
           ? mainConditions.first
           : '(${mainConditions.join(' | ')})';
 
-      final body = 'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, total_rating_count, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.id, collection.name, franchises.id, franchises.name, game_engines.name; where $mainWhere & cover != null & game_type = (0, 8, 9, 10, 11) & first_release_date <= $now; sort total_rating_count desc; limit $limit; offset $offset;';
+      final body =
+          'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, total_rating_count, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.id, collection.name, franchises.id, franchises.name, game_engines.name; where $mainWhere & cover != null & game_type = (0, 8, 9, 10, 11) & first_release_date <= $now; sort total_rating_count desc; limit $limit; offset $offset;';
 
       final response = await _postQuery('games', body);
 
@@ -408,10 +464,13 @@ class IGDBService {
   }
 
   // 13. Obtener juegos de una Colección o Franquicia (método legacy)
-  static Future<List<dynamic>> getGamesByCollection(int collectionId, {bool isFranchise = false}) async {
+  static Future<List<dynamic>> getGamesByCollection(
+    int collectionId, {
+    bool isFranchise = false,
+  }) async {
     try {
-      final String filterCondition = isFranchise 
-          ? 'franchises = ($collectionId)' 
+      final String filterCondition = isFranchise
+          ? 'franchises = ($collectionId)'
           : '((collection = ($collectionId)) | (collections = ($collectionId)))';
 
       final response = await _postQuery(
@@ -429,7 +488,6 @@ class IGDBService {
     }
   }
 
-
   /// Decodifica entidades HTML (&amp;, &#039;, &quot;, etc.) que a veces
   /// vienen crudas desde fuentes externas como barter.vg
   static String decodeHtmlEntities(String text) {
@@ -442,9 +500,14 @@ class IGDBService {
     final query = decodeHtmlEntities(rawQuery).trim();
     if (query.isEmpty) return [];
 
-    final words = query.toLowerCase().split(' ').where((w) => w.isNotEmpty).toList();
-    final wordConditions = words.map((w) =>
-        '(name ~ *"$w"* | alternative_names.name ~ *"$w"*)').join(' & ');
+    final words = query
+        .toLowerCase()
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .toList();
+    final wordConditions = words
+        .map((w) => '(name ~ *"$w"* | alternative_names.name ~ *"$w"*)')
+        .join(' & ');
 
     // Sin exigir cover != null ni total_rating_count != null.
     // Ordenamos por total_rating_count desc pero sin filtrarlo.
@@ -489,9 +552,11 @@ class IGDBService {
             final uid = int.tryParse(uidStr ?? '');
             final rawGame = entry['game'];
             final gameId = rawGame is Map ? rawGame['id'] : rawGame;
-            
+
             if (uid != null && gameId != null) {
-              steamIdToIgdbId[uid] = gameId is int ? gameId : int.parse(gameId.toString());
+              steamIdToIgdbId[uid] = gameId is int
+                  ? gameId
+                  : int.parse(gameId.toString());
             }
           }
         }
@@ -501,22 +566,33 @@ class IGDBService {
 
       // Notificamos el progreso a la barra (del 0% al 100% de esta fase)
       if (onProgress != null) {
-        final current = (i + chunk.length < steamAppIds.length) ? i + chunk.length : steamAppIds.length;
-        onProgress(current, steamAppIds.length, 'Identificando juegos en IGDB ($current de ${steamAppIds.length})...');
+        final current = (i + chunk.length < steamAppIds.length)
+            ? i + chunk.length
+            : steamAppIds.length;
+        onProgress(
+          current,
+          steamAppIds.length,
+          'Identificando juegos en IGDB ($current de ${steamAppIds.length})...',
+        );
       }
     }
 
     if (steamIdToIgdbId.isEmpty) return {};
 
     if (onProgress != null) {
-      onProgress(steamAppIds.length, steamAppIds.length, 'Descargando portadas en alta resolución...');
+      onProgress(
+        steamAppIds.length,
+        steamAppIds.length,
+        'Descargando portadas en alta resolución...',
+      );
     }
 
     final igdbIds = steamIdToIgdbId.values.toSet().toList();
     final games = await getGamesByIdsFull(igdbIds);
 
     final Map<int, Map<String, dynamic>> gamesById = {
-      for (final g in games) (g['id'] as num).toInt(): g as Map<String, dynamic>,
+      for (final g in games)
+        (g['id'] as num).toInt(): g as Map<String, dynamic>,
     };
 
     final Map<String, Map<String, dynamic>> result = {};
@@ -527,7 +603,6 @@ class IGDBService {
 
     return result;
   }
-
 
   /// Datos completos (con cover, para GameCard) de una lista de IGDB IDs,
   /// en lotes para no exceder los límites de IGDB.
@@ -540,15 +615,17 @@ class IGDBService {
     for (var i = 0; i < igdbIds.length; i += chunkSize) {
       final chunk = igdbIds.skip(i).take(chunkSize).toList();
       final idsString = chunk.join(',');
-      final body = 'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name; where id = ($idsString); limit ${chunk.length};';
+      final body =
+          'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name; where id = ($idsString); limit ${chunk.length};';
 
       final response = await _postQuery('games', body);
-
 
       if (kDebugMode) {
         print('[IGDB BATCH getGamesByIdsFull] status=${response.statusCode}');
         if (response.statusCode != 200) {
-          print('[IGDB BATCH getGamesByIdsFull] Error response: ${response.body}');
+          print(
+            '[IGDB BATCH getGamesByIdsFull] Error response: ${response.body}',
+          );
         }
       }
 

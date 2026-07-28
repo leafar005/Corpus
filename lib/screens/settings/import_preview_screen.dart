@@ -12,12 +12,17 @@ class ImportPreviewScreen extends StatefulWidget {
   State<ImportPreviewScreen> createState() => _ImportPreviewScreenState();
 }
 
-class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTickerProviderStateMixin {
+class _ImportPreviewScreenState extends State<ImportPreviewScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  List<CsvGameRow> get matchedRows => widget.rows.where((r) => r.matchStatus == 'matched' && r.igdbData != null).toList();
-  List<CsvGameRow> get ambiguousRows => widget.rows.where((r) => r.matchStatus == 'ambiguous').toList();
-  List<CsvGameRow> get notFoundRows => widget.rows.where((r) => r.matchStatus == 'notFound').toList();
+  List<CsvGameRow> get matchedRows => widget.rows
+      .where((r) => r.matchStatus == 'matched' && r.igdbData != null)
+      .toList();
+  List<CsvGameRow> get ambiguousRows =>
+      widget.rows.where((r) => r.matchStatus == 'ambiguous').toList();
+  List<CsvGameRow> get notFoundRows =>
+      widget.rows.where((r) => r.matchStatus == 'notFound').toList();
 
   @override
   void initState() {
@@ -55,18 +60,32 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
       );
 
       if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop(); // Destruye el spinner de carga siempre
+        Navigator.of(
+          context,
+          rootNavigator: true,
+        ).pop(); // Destruye el spinner de carga siempre
         libraryUpdateNotifier.value++; // Refresca biblioteca y feed
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('¡Importación completada con éxito! (${readyRows.length} juegos)')),
+          SnackBar(
+            content: Text(
+              '¡Importación completada con éxito! (${readyRows.length} juegos)',
+            ),
+          ),
         );
         Navigator.pop(context); // Cierra la pantalla de revisión
       }
     } catch (e) {
       if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop(); // Destruye el spinner en caso de error
+        Navigator.of(
+          context,
+          rootNavigator: true,
+        ).pop(); // Destruye el spinner en caso de error
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al guardar en base de datos: $e'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)),
+          SnackBar(
+            content: Text('Error al guardar en base de datos: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     }
@@ -100,10 +119,15 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
           child: ElevatedButton.icon(
             onPressed: matchedRows.isEmpty ? null : _importData,
             icon: const Icon(Icons.cloud_upload),
-            label: Text('Importar ${matchedRows.length} juegos a mi biblioteca'),
+            label: Text(
+              'Importar ${matchedRows.length} juegos a mi biblioteca',
+            ),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),
@@ -121,10 +145,15 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
       itemBuilder: (context, index) {
         final row = rows[index];
         final game = row.igdbData!;
-        final coverId = (game['cover'] is Map) ? game['cover']['image_id'] : null;
-        String coverUrl = game['cover_url'] ?? IGDBService.getCoverUrl(coverId as String?);
+        final coverId = (game['cover'] is Map)
+            ? game['cover']['image_id']
+            : null;
+        String coverUrl =
+            game['cover_url'] ?? IGDBService.getCoverUrl(coverId as String?);
         if (coverUrl.isNotEmpty) {
-          coverUrl = coverUrl.replaceAll('t_cover_big', 't_1080p').replaceAll('t_thumb', 't_1080p');
+          coverUrl = coverUrl
+              .replaceAll('t_cover_big', 't_1080p')
+              .replaceAll('t_thumb', 't_1080p');
         }
 
         return Card(
@@ -133,11 +162,21 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: coverUrl.isNotEmpty
-                  ? Image.network(coverUrl, width: 45, height: 60, fit: BoxFit.cover)
+                  ? Image.network(
+                      coverUrl,
+                      width: 45,
+                      height: 60,
+                      fit: BoxFit.cover,
+                    )
                   : Container(width: 45, height: 60, color: Colors.grey),
             ),
-            title: Text(game['name'] ?? row.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Estado: ${row.status.toUpperCase()} ${row.rating != null ? "• Nota: ${row.rating}" : ""}'),
+            title: Text(
+              game['name'] ?? row.title,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              'Estado: ${row.status.toUpperCase()} ${row.rating != null ? "• Nota: ${row.rating}" : ""}',
+            ),
             trailing: const Icon(Icons.check_circle, color: Colors.green),
           ),
         );
@@ -161,9 +200,18 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('CSV: "${row.title}"', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  'CSV: "${row.title}"',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                const Text('Selecciona la opción correcta de IGDB:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const Text(
+                  'Selecciona la opción correcta de IGDB:',
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
                 const SizedBox(height: 12),
                 SizedBox(
                   height: 160,
@@ -172,14 +220,22 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
                     itemCount: row.candidates.length,
                     itemBuilder: (context, cIdx) {
                       final cand = row.candidates[cIdx] as Map<String, dynamic>;
-                      final coverId = (cand['cover'] is Map) ? cand['cover']['image_id'] : null;
-                      String coverUrl = cand['cover_url'] ?? IGDBService.getCoverUrl(coverId as String?);
+                      final coverId = (cand['cover'] is Map)
+                          ? cand['cover']['image_id']
+                          : null;
+                      String coverUrl =
+                          cand['cover_url'] ??
+                          IGDBService.getCoverUrl(coverId as String?);
                       if (coverUrl.isNotEmpty) {
-                        coverUrl = coverUrl.replaceAll('t_cover_big', 't_1080p').replaceAll('t_thumb', 't_1080p');
+                        coverUrl = coverUrl
+                            .replaceAll('t_cover_big', 't_1080p')
+                            .replaceAll('t_thumb', 't_1080p');
                       }
                       int? year;
                       if (cand['first_release_date'] != null) {
-                        year = DateTime.fromMillisecondsSinceEpoch((cand['first_release_date'] as int) * 1000).year;
+                        year = DateTime.fromMillisecondsSinceEpoch(
+                          (cand['first_release_date'] as int) * 1000,
+                        ).year;
                       }
 
                       return GestureDetector(
@@ -198,7 +254,11 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
                                   child: coverUrl.isNotEmpty
-                                      ? Image.network(coverUrl, fit: BoxFit.cover, width: double.infinity)
+                                      ? Image.network(
+                                          coverUrl,
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                        )
                                       : Container(color: Colors.grey),
                                 ),
                               ),
@@ -208,7 +268,10 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
@@ -216,7 +279,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
                       );
                     },
                   ),
-                 ),
+                ),
               ],
             ),
           ),
@@ -238,7 +301,10 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen> with SingleTi
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
             leading: const Icon(Icons.error_outline, color: Colors.redAccent),
-            title: Text(row.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              row.title,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             subtitle: const Text('No se encontró coincidencia en Twitch/IGDB.'),
           ),
         );

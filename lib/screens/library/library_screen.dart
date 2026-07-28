@@ -32,7 +32,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
             icon: const Icon(Icons.search),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Buscar en tu biblioteca (Próximamente)')),
+                const SnackBar(
+                  content: Text('Buscar en tu biblioteca (Próximamente)'),
+                ),
               );
             },
           ),
@@ -57,11 +59,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
               child: Text(
                 'Oops, no hemos podido cargar tu biblioteca.\nRevisa tu conexión a internet.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 16),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 16,
+                ),
               ),
             );
           }
-          
+
           final myGames = snapshot.data ?? [];
 
           // 3. Estado vacío (cuando la nube dice que tienes 0 juegos)
@@ -70,7 +75,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.videogame_asset_off, size: 80, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.videogame_asset_off,
+                    size: 80,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Tu biblioteca está vacía',
@@ -79,7 +88,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Pulsa el botón + para añadir\ntus primeros juegos.',
-                    style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -92,7 +104,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             padding: const EdgeInsets.all(8.0),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 150, // Anchura máxima ideal de cada carátula
-              childAspectRatio: 0.7, 
+              childAspectRatio: 0.7,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
             ),
@@ -100,7 +112,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             itemBuilder: (context, index) {
               final userGame = myGames[index];
               // gameData contiene los datos que cruzamos de la tabla 'games'
-              final gameData = userGame['games']; 
+              final gameData = userGame['games'];
               final rating = (userGame['rating'] ?? 0).toDouble();
 
               return GameCard(

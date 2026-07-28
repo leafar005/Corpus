@@ -7,7 +7,8 @@ class HallOfFameSelectorScreen extends StatefulWidget {
   const HallOfFameSelectorScreen({super.key, required this.pinOrder});
 
   @override
-  State<HallOfFameSelectorScreen> createState() => _HallOfFameSelectorScreenState();
+  State<HallOfFameSelectorScreen> createState() =>
+      _HallOfFameSelectorScreenState();
 }
 
 class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
@@ -47,18 +48,20 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
   Future<void> _selectGame(int gameId) async {
     setState(() => _isLoading = true);
     final userId = Supabase.instance.client.auth.currentUser!.id;
-    
+
     try {
       await Supabase.instance.client.from('hall_of_fame').upsert({
         'user_id': userId,
         'game_id': gameId,
         'pin_order': widget.pinOrder,
       }, onConflict: 'user_id, pin_order');
-      
+
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
         setState(() => _isLoading = false);
       }
     }
@@ -67,16 +70,20 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
   Future<void> _removeGame() async {
     setState(() => _isLoading = true);
     final userId = Supabase.instance.client.auth.currentUser!.id;
-    
+
     try {
-      await Supabase.instance.client.from('hall_of_fame').delete()
-        .eq('user_id', userId)
-        .eq('pin_order', widget.pinOrder);
-      
+      await Supabase.instance.client
+          .from('hall_of_fame')
+          .delete()
+          .eq('user_id', userId)
+          .eq('pin_order', widget.pinOrder);
+
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
         setState(() => _isLoading = false);
       }
     }
@@ -87,20 +94,25 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Pin #${widget.pinOrder}', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Pin #${widget.pinOrder}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Theme.of(context).colorScheme.surface,
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red),
             tooltip: 'Vaciar hueco',
             onPressed: _removeGame,
-          )
+          ),
         ],
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : _beatenGames.isEmpty 
-          ? const Center(child: Text('No tienes juegos completados para destacar.'))
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _beatenGames.isEmpty
+          ? const Center(
+              child: Text('No tienes juegos completados para destacar.'),
+            )
           : GridView.builder(
               padding: const EdgeInsets.all(16),
               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -112,15 +124,17 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
               itemCount: _beatenGames.length,
               itemBuilder: (context, index) {
                 final game = _beatenGames[index];
-                final coverUrl = game['cover_url']?.replaceAll('t_cover_big', 't_1080p') ?? '';
-                
+                final coverUrl =
+                    game['cover_url']?.replaceAll('t_cover_big', 't_1080p') ??
+                    '';
+
                 return GestureDetector(
                   onTap: () => _selectGame(game['igdb_id'] ?? game['id']),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: coverUrl.isNotEmpty
-                      ? Image.network(coverUrl, fit: BoxFit.cover)
-                      : Container(color: Theme.of(context).primaryColorDark),
+                        ? Image.network(coverUrl, fit: BoxFit.cover)
+                        : Container(color: Theme.of(context).primaryColorDark),
                   ),
                 );
               },

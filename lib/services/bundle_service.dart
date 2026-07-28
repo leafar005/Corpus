@@ -65,14 +65,13 @@ class BundleGame {
 
   BundleGame({required this.title, this.steamAppId});
 
-  Map<String, dynamic> toJson() => {
-    'title': title,
-    'steamAppId': steamAppId,
-  };
+  Map<String, dynamic> toJson() => {'title': title, 'steamAppId': steamAppId};
 
   factory BundleGame.fromJson(Map<String, dynamic> json) => BundleGame(
     title: json['title'],
-    steamAppId: json['steamAppId'] != null ? (json['steamAppId'] as num).toInt() : null,
+    steamAppId: json['steamAppId'] != null
+        ? (json['steamAppId'] as num).toInt()
+        : null,
   );
 }
 
@@ -104,16 +103,38 @@ class BundleService {
   /// Extrae el Steam AppID real de una entrada de juego de barter.vg.
   /// Para "paquetes" (type == 2, p.ej. Ediciones Deluxe), el campo 'id' es un ID de paquete de Steam
   /// que NO existe en IGDB. El AppID real del juego base está dentro de 'included'.
-  static double? _readPrice(Map<String, dynamic> t, Map<String, dynamic> bundleMap) {
-    final raw = t['price_eur'] ?? t['price_usd'] ?? t['price'] ?? t['cost'] ?? t['min_price'] ??
-                bundleMap['price_eur'] ?? bundleMap['price_usd'] ?? bundleMap['price'] ?? bundleMap['cost'];
+  static double? _readPrice(
+    Map<String, dynamic> t,
+    Map<String, dynamic> bundleMap,
+  ) {
+    final raw =
+        t['price_eur'] ??
+        t['price_usd'] ??
+        t['price'] ??
+        t['cost'] ??
+        t['min_price'] ??
+        bundleMap['price_eur'] ??
+        bundleMap['price_usd'] ??
+        bundleMap['price'] ??
+        bundleMap['cost'];
     if (raw != null) {
-      final s = raw.toString().replaceAll('\$', '').replaceAll('€', '').replaceAll('£', '').replaceAll('USD', '').replaceAll('EUR', '').trim().replaceAll(',', '.');
+      final s = raw
+          .toString()
+          .replaceAll('\$', '')
+          .replaceAll('€', '')
+          .replaceAll('£', '')
+          .replaceAll('USD', '')
+          .replaceAll('EUR', '')
+          .trim()
+          .replaceAll(',', '.');
       final val = double.tryParse(s);
       if (val != null && val > 0) return val;
     }
     // Rescate por si el precio viene escrito dentro del propio nombre del nivel
-    final match = RegExp(r'(\d+(?:\.\d+)?)\s*(?:€|\$|USD|EUR)|(?:€|\$|USD|EUR)\s*(\d+(?:\.\d+)?)', caseSensitive: false).firstMatch(t['name']?.toString() ?? '');
+    final match = RegExp(
+      r'(\d+(?:\.\d+)?)\s*(?:€|\$|USD|EUR)|(?:€|\$|USD|EUR)\s*(\d+(?:\.\d+)?)',
+      caseSensitive: false,
+    ).firstMatch(t['name']?.toString() ?? '');
     if (match != null) {
       final strNum = match.group(1) ?? match.group(2);
       if (strNum != null) return double.tryParse(strNum.replaceAll(',', '.'));
@@ -131,7 +152,11 @@ class BundleService {
       final included = Map<String, dynamic>.from(gMap['included']);
       if (included.isNotEmpty) {
         final sortedKeys = included.keys.toList()
-          ..sort((a, b) => (int.tryParse(a) ?? 999999).compareTo(int.tryParse(b) ?? 999999));
+          ..sort(
+            (a, b) => (int.tryParse(a) ?? 999999).compareTo(
+              int.tryParse(b) ?? 999999,
+            ),
+          );
         final baseId = included[sortedKeys.first];
         final parsed = int.tryParse(baseId?.toString() ?? '');
         if (parsed != null && parsed > 0) return parsed;
@@ -140,26 +165,31 @@ class BundleService {
 
     return int.tryParse(
       gMap['id']?.toString() ??
-      gMap['steam_app_id']?.toString() ??
-      gMap['appid']?.toString() ??
-      gMap['steam_id']?.toString() ??
-      '',
+          gMap['steam_app_id']?.toString() ??
+          gMap['appid']?.toString() ??
+          gMap['steam_id']?.toString() ??
+          '',
     );
   }
 
   /// Motor de lectura restaurado al 100% a la versión que resolvió los 428 juegos
   static Future<List<GameBundle>> getActiveBundles() async {
     try {
-      final response = await http.get(
-        Uri.parse(_endpoint),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse(_endpoint),
+            headers: {
+              'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) {
-        if (kDebugMode) print('[BUNDLE SERVICE] Error HTTP: ${response.statusCode}');
+        if (kDebugMode) {
+          print('[BUNDLE SERVICE] Error HTTP: ${response.statusCode}');
+        }
         return [];
       }
 
@@ -188,9 +218,19 @@ class BundleService {
 
         final String storeName = isHumble ? 'Humble Bundle' : 'Fanatical';
 
-        final meta = bundleMap['meta'] is Map ? Map<String, dynamic>.from(bundleMap['meta']) : <String, dynamic>{};
-        final String title = meta['title']?.toString() ?? bundleMap['title']?.toString() ?? bundleMap['name']?.toString() ?? 'Bundle sin título';
-        final String url = meta['url']?.toString() ?? bundleMap['url']?.toString() ?? bundleMap['bundle_url']?.toString() ?? 'https://barter.vg/bundle/$key/';
+        final meta = bundleMap['meta'] is Map
+            ? Map<String, dynamic>.from(bundleMap['meta'])
+            : <String, dynamic>{};
+        final String title =
+            meta['title']?.toString() ??
+            bundleMap['title']?.toString() ??
+            bundleMap['name']?.toString() ??
+            'Bundle sin título';
+        final String url =
+            meta['url']?.toString() ??
+            bundleMap['url']?.toString() ??
+            bundleMap['bundle_url']?.toString() ??
+            'https://barter.vg/bundle/$key/';
 
         DateTime? endDate;
         final endRaw = meta['end'] ?? bundleMap['end'];
@@ -201,14 +241,20 @@ class BundleService {
               final int endTimestamp = int.parse(endStr);
               if (endTimestamp > 0) {
                 final isSeconds = endStr.length <= 10;
-                endDate = DateTime.fromMillisecondsSinceEpoch(isSeconds ? endTimestamp * 1000 : endTimestamp, isUtc: true);
-                if (endDate.isBefore(now.subtract(const Duration(days: 1)))) return;
+                endDate = DateTime.fromMillisecondsSinceEpoch(
+                  isSeconds ? endTimestamp * 1000 : endTimestamp,
+                  isUtc: true,
+                );
+                if (endDate.isBefore(now.subtract(const Duration(days: 1)))) {
+                  return;
+                }
               }
             }
           } catch (e) {
-            if (kDebugMode) print('[BundleService] Error parseando timestamp "$endRaw": $e');
+            if (kDebugMode) {
+              print('[BundleService] Error parseando timestamp "$endRaw": $e');
+            }
           }
-
         }
 
         final Map<int, List<BundleGame>> gamesByTier = {};
@@ -218,7 +264,7 @@ class BundleService {
           rawGames.forEach((gameKey, gameVal) {
             if (gameVal is Map) {
               final gMap = Map<String, dynamic>.from(gameVal);
-              
+
               // El campo 'tier' solo representa niveles de precio reales en Humble Bundle.
               // En Fanatical es un campo interno, lo ignoramos y agrupamos en un único tier.
               final int tier = isHumble
@@ -228,10 +274,18 @@ class BundleService {
               final steamId = _extractSteamAppId(gMap);
 
               if (steamId != null && steamId > 0) {
-                gamesByTier.putIfAbsent(tier, () => []).add(BundleGame(
-                  title: gMap['title']?.toString() ?? gMap['name']?.toString() ?? gMap['game_title']?.toString() ?? 'Juego Desconocido',
-                  steamAppId: steamId,
-                ));
+                gamesByTier
+                    .putIfAbsent(tier, () => [])
+                    .add(
+                      BundleGame(
+                        title:
+                            gMap['title']?.toString() ??
+                            gMap['name']?.toString() ??
+                            gMap['game_title']?.toString() ??
+                            'Juego Desconocido',
+                        steamAppId: steamId,
+                      ),
+                    );
               }
             }
           });
@@ -243,23 +297,27 @@ class BundleService {
         for (final tierNum in sortedTiers) {
           final gamesList = gamesByTier[tierNum]!;
           if (gamesList.isNotEmpty) {
-            tiersList.add(BundleTier(
-              name: 'Tier $tierNum',
-              price: _readPrice({}, bundleMap),
-              games: gamesList,
-            ));
+            tiersList.add(
+              BundleTier(
+                name: 'Tier $tierNum',
+                price: _readPrice({}, bundleMap),
+                games: gamesList,
+              ),
+            );
           }
         }
 
         if (tiersList.isNotEmpty) {
-          activeBundles.add(GameBundle(
-            id: key,
-            title: title,
-            storeName: storeName,
-            url: url,
-            endDate: endDate,
-            tiers: tiersList,
-          ));
+          activeBundles.add(
+            GameBundle(
+              id: key,
+              title: title,
+              storeName: storeName,
+              url: url,
+              endDate: endDate,
+              tiers: tiersList,
+            ),
+          );
         }
       });
 
@@ -287,7 +345,11 @@ class BundleService {
         if (kDebugMode) print('[BUNDLE SERVICE] Error guardando caché: $e');
       }
 
-      if (kDebugMode) print('[BUNDLE SERVICE] Encontrados ${activeBundles.length} bundles activos.');
+      if (kDebugMode) {
+        print(
+          '[BUNDLE SERVICE] Encontrados ${activeBundles.length} bundles activos.',
+        );
+      }
       return activeBundles;
     } catch (e) {
       if (kDebugMode) print('[BUNDLE SERVICE ERROR CRÍTICO]: $e');

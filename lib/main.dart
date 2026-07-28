@@ -36,7 +36,7 @@ class CorpusApp extends StatelessWidget {
           theme: AppTheme.getLightTheme(themeNotifier.seedColor),
           darkTheme: AppTheme.getDarkTheme(themeNotifier.seedColor),
           themeMode: themeNotifier.currentMode,
-          home: kIsWeb 
+          home: kIsWeb
               ? const SelectionArea(child: AuthGate())
               : const AuthGate(),
         );
@@ -58,16 +58,18 @@ class AuthGate extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           // Mientras comprueba si hay sesión guardada, muestra un circulito de carga
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
-        
+
         final session = snapshot.hasData ? snapshot.data!.session : null;
-        
+
         if (session != null) {
           // Si hay sesión, dejamos pasar al usuario a la app principal.
           return const MainScreen();
         }
-        
+
         // Si no hay sesión, al Login de cabeza
         return const LoginScreen();
       },

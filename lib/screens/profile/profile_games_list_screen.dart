@@ -22,7 +22,10 @@ class ProfileGamesListScreen extends StatelessWidget {
       ),
       body: games.isEmpty
           ? const Center(
-              child: Text('No hay juegos.', style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'No hay juegos.',
+                style: TextStyle(color: Colors.grey),
+              ),
             )
           : GridView.builder(
               padding: const EdgeInsets.all(16.0),
