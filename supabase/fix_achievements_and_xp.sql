@@ -279,28 +279,25 @@ DECLARE
     achievements_xp integer := 0;
     total_xp integer := 0;
 BEGIN
-    -- XP por juegos y reviews (Ajustado a los valores del UI Dialog)
+    -- XP por juegos en biblioteca y reseñas (Ajustado a la guía "¿Cómo ganar XP?")
     SELECT COALESCE(SUM(
         CASE 
-            WHEN status = 'wishlist' THEN 5
-            WHEN status = 'playing' THEN 10
-            WHEN status = 'beaten' THEN 20
-            WHEN status = 'dropped' THEN 10
-            ELSE 0
+            WHEN status = 'beaten' THEN 20  -- Completar (Terminar) un juego: 20 XP
+            ELSE 5                          -- Añadir un juego a tu biblioteca (wishlist, playing, dropped, abandoned...): 5 XP
         END
-        + CASE WHEN length(comment) > 10 THEN 10 ELSE 0 END -- Reseña escrita: 10XP
-        + CASE WHEN completion_type = '100%' THEN 50 ELSE 0 END
+        + CASE WHEN comment IS NOT NULL AND length(trim(comment)) > 0 THEN 10 ELSE 0 END -- Escribir una reseña: 10 XP
+        + CASE WHEN completion_type = '100%' THEN 50 ELSE 0 END                          -- Bonus por 100%: 50 XP
     ), 0) INTO reviews_xp
     FROM public.reviews
     WHERE user_id = uid;
 
-    -- XP por logros desbloqueados
+    -- XP por logros desbloqueados (Variable según suma de xp_reward)
     SELECT COALESCE(SUM(a.xp_reward), 0) INTO achievements_xp
     FROM public.user_achievements ua
     JOIN public.achievements a ON ua.achievement_id = a.id
     WHERE ua.user_id = uid;
     
-    -- Añadimos 50 XP base por crear la cuenta (siempre)
+    -- 50 XP base por crear la cuenta (siempre presentes)
     total_xp := reviews_xp + achievements_xp + 50;
 
     UPDATE public.users SET xp = total_xp WHERE id = uid;
