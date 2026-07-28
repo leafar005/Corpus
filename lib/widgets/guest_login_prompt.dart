@@ -65,16 +65,20 @@ class GuestLoginPrompt extends StatelessWidget {
 /// Abre la pantalla de login por encima de todo (rootNavigator), para que
 /// funcione igual sin importar desde qué pestaña/tab-navigator se llame.
 void openLoginScreen(BuildContext context) {
-  Navigator.of(context, rootNavigator: true).push(
-    MaterialPageRoute(builder: (_) => const LoginScreen()),
-  );
+  Navigator.of(
+    context,
+    rootNavigator: true,
+  ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
 }
 
 /// Botón compacto en línea (para sustituir "Añadir a biblioteca" en la
 /// ficha de juego). Mismo destino, distinta presentación visual.
 class GuestLoginButton extends StatelessWidget {
   final String label;
-  const GuestLoginButton({super.key, this.label = 'Iniciar sesión para registrar'});
+  const GuestLoginButton({
+    super.key,
+    this.label = 'Iniciar sesión para registrar',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -84,16 +88,11 @@ class GuestLoginButton extends StatelessWidget {
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(fontSize: 18),
       ),
       icon: const Icon(Icons.login),
-      label: Text(
-        label,
-        textAlign: TextAlign.center,
-      ),
+      label: Text(label, textAlign: TextAlign.center),
     );
   }
 }

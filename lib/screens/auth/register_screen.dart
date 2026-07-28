@@ -28,7 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('main_tab_index', 0);
-      
+
       await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),

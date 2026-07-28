@@ -114,24 +114,22 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
     return platform[0].toUpperCase() + platform.substring(1);
   }
 
-  Widget _buildStarRow(double rating10) {
-    // Convertimos la nota de 1-10 a 5 estrellas (con medias).
-    final rating5 = rating10 / 2;
-    final stars = <Widget>[];
-    for (int i = 1; i <= 5; i++) {
-      IconData icon;
-      if (rating5 >= i) {
-        icon = Icons.star;
-      } else if (rating5 >= i - 0.5) {
-        icon = Icons.star_half;
-      } else {
-        icon = Icons.star_border;
-      }
-      stars.add(
-        Icon(icon, size: 14, color: Theme.of(context).colorScheme.secondary),
-      );
-    }
-    return Row(mainAxisSize: MainAxisSize.min, children: stars);
+  Widget _buildStarRow(double rating) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.star,
+          color: Theme.of(context).colorScheme.secondary,
+          size: 16,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          rating.toStringAsFixed(1),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+      ],
+    );
   }
 
   void _openReview(Map<String, dynamic> review) {
@@ -239,7 +237,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
         ),
         Divider(
           height: 1,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.12),
         ),
         ...entries.map(_buildJournalRow),
       ],
@@ -261,7 +261,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
     return InkWell(
       onTap: () => _openReview(review),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -274,13 +274,12 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Día
             SizedBox(
-              width: 28,
+              width: 32,
               child: Text(
                 date.day.toString().padLeft(2, '0'),
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.primary,
                 ),
@@ -288,20 +287,19 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
             ),
             Container(
               width: 1,
-              height: 44,
-              margin: const EdgeInsets.symmetric(horizontal: 12),
+              height: 56,
+              margin: const EdgeInsets.symmetric(horizontal: 14),
               color: Theme.of(
                 context,
               ).colorScheme.onSurface.withValues(alpha: 0.12),
             ),
-            // Portada
             GestureDetector(
               onTap: () => _openGame(review),
               child: Container(
-                width: 40,
-                height: 56,
+                width: 56,
+                height: 78,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(6),
                   color: Theme.of(context).primaryColorDark,
                   image: coverUrl.isNotEmpty
                       ? DecorationImage(
@@ -313,7 +311,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
                 child: coverUrl.isEmpty
                     ? Icon(
                         Icons.videogame_asset,
-                        size: 16,
+                        size: 20,
                         color: Theme.of(
                           context,
                         ).colorScheme.onSurface.withValues(alpha: 0.4),
@@ -321,8 +319,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
                     : null,
               ),
             ),
-            const SizedBox(width: 12),
-            // Título + rating
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,7 +331,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
                           title,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontSize: 17,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -343,45 +340,44 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
                         const SizedBox(width: 6),
                         Icon(
                           Icons.replay,
-                          size: 14,
+                          size: 16,
                           color: Colors.orangeAccent.shade200,
                         ),
                       ],
                     ],
                   ),
                   if (rating > 0) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 6),
                     _buildStarRow(rating),
                   ],
                 ],
               ),
             ),
-            // Plataforma + estado (se oculta en pantallas estrechas)
             if (MediaQuery.of(context).size.width > 600) ...[
               SizedBox(
-                width: 120,
+                width: 130,
                 child: Text(
                   _platformLabel(platform),
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 13,
+                    fontSize: 14,
                   ),
                 ),
               ),
               SizedBox(
-                width: 100,
+                width: 110,
                 child: Text(
                   _getStatusText(status),
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 13,
+                    fontSize: 14,
                   ),
                 ),
               ),
             ],
             Icon(
               Icons.arrow_forward,
-              size: 16,
+              size: 18,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ],

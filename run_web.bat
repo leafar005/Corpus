@@ -1,3 +1,0 @@
-@echo off
-echo Ejecutando Corpus en puerto fijo 8080...
-flutter run -d edge --web-port=8080

@@ -139,7 +139,9 @@ class _HomeScreenState extends State<HomeScreen> {
             game['screenshots_list'] = screenshotsMap[id] ?? [];
           }
         } catch (e) {
-          debugPrint('Error obteniendo capturas para la pantalla de inicio: $e');
+          debugPrint(
+            'Error obteniendo capturas para la pantalla de inicio: $e',
+          );
         }
       }
     }
@@ -204,301 +206,310 @@ class _HomeScreenState extends State<HomeScreen> {
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: (playingGames.isEmpty && !_isGuest)
-                      ? 200
-                      : MediaQuery.of(context).size.height * 0.75,
-                  child: Stack(
-                    children: [
-                      _isGuest
-                          ? const GuestHeroShowcase()
-                          : playingGames.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'No estás jugando a nada ahora mismo.\n¡Busca un juego para empezar!',
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                          : HeroShowcase(
-                              playingGames: playingGames,
-                              userName: displayName,
-                            ),
-
-                    ],
-                  ),
-                ),
-              ),
-              if (latestReviews.isNotEmpty)
                 SliverToBoxAdapter(
-                  child: Container(
-                    color: Colors
-                        .black, // Color sólido, ya que el degradado está encima
-                    padding: const EdgeInsets.fromLTRB(
-                      16.0,
-                      48.0,
-                      16.0,
-                      100.0,
-                    ), // Más espacio arriba (48)
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  child: SizedBox(
+                    height: (playingGames.isEmpty && !_isGuest)
+                        ? 200
+                        : MediaQuery.of(context).size.height * 0.75,
+                    child: Stack(
                       children: [
-                        const Text(
-                          'Actividad Global de Stash',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          height: 180,
-                          child: Stack(
-                            children: [
-                              ListView.builder(
-                                controller: _latestReviewsScrollController,
-                                scrollDirection: Axis.horizontal,
-                                itemCount: latestReviews.length,
-                                itemBuilder: (context, index) {
-                                  final review = latestReviews[index];
-                                  final game = review['games'];
-
-                                  return Container(
-                                    width: 280,
-                                    margin: const EdgeInsets.only(right: 16),
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.05,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            if (game?['cover_url'] != null)
-                                              InkWell(
-                                                onTap: () {
-                                                  if (review['game_id'] !=
-                                                      null) {
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder: (context) => GameDetailsScreen(
-                                                          gameData: {
-                                                            'id':
-                                                                review['game_id'],
-                                                            if (game?['title'] !=
-                                                                null)
-                                                              'title':
-                                                                  game!['title'],
-                                                            if (game?['cover_url'] !=
-                                                                null)
-                                                              'cover_url':
-                                                                  game!['cover_url'],
-                                                          },
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                },
-                                                child: ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  child: Image.network(
-                                                    game['cover_url'],
-                                                    width: 40,
-                                                    height: 50,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (_, _, _) =>
-                                                        const Icon(
-                                                          Icons.videogame_asset,
-                                                        ),
-                                                  ),
-                                                ),
-                                              ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    game?['title'] ??
-                                                        'Juego Desconocido',
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                  Row(
-                                                    children: [
-                                                      if (review['stash_user_avatar_url'] !=
-                                                          null)
-                                                        CircleAvatar(
-                                                          radius: 8,
-                                                          backgroundImage:
-                                                              NetworkImage(
-                                                                review['stash_user_avatar_url'],
-                                                              ),
-                                                          onBackgroundImageError:
-                                                              (_, _) {},
-                                                        )
-                                                      else
-                                                        const Icon(
-                                                          Icons.person,
-                                                          size: 16,
-                                                        ),
-                                                      const SizedBox(width: 4),
-                                                      Expanded(
-                                                        child: Text(
-                                                          review['stash_user_display_name'] ??
-                                                              'Usuario',
-                                                          style: TextStyle(
-                                                            fontSize: 12,
-                                                            color: Colors.white
-                                                                .withValues(
-                                                                  alpha: 0.7,
-                                                                ),
-                                                          ),
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            if (review['rating'] != null)
-                                              Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  const Icon(
-                                                    Icons.star,
-                                                    size: 14,
-                                                    color: Colors.amber,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    review['rating'].toString(),
-                                                    style: const TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Expanded(
-                                          child: Text(
-                                            review['comment'] ?? '',
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                            ),
-                                            maxLines: 4,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                        _isGuest
+                            ? const GuestHeroShowcase()
+                            : playingGames.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No estás jugando a nada ahora mismo.\n¡Busca un juego para empezar!',
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            : HeroShowcase(
+                                playingGames: playingGames,
+                                userName: displayName,
                               ),
-                              // Flecha Izquierda
-                              if (_isDesktop && _canScrollLeft)
-                                Positioned(
-                                  left: 0,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Center(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: IconButton(
-                                        icon: const Icon(
-                                          Icons.chevron_left,
-                                          color: Colors.white,
-                                        ),
-                                        onPressed: () {
-                                          _latestReviewsScrollController
-                                              .animateTo(
-                                                _latestReviewsScrollController
-                                                        .offset -
-                                                    500,
-                                                duration: const Duration(
-                                                  milliseconds: 500,
-                                                ),
-                                                curve: Curves.easeInOut,
-                                              );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              // Flecha Derecha
-                              if (_isDesktop && _canScrollRight)
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Center(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: IconButton(
-                                        icon: const Icon(
-                                          Icons.chevron_right,
-                                          color: Colors.white,
-                                        ),
-                                        onPressed: () {
-                                          _latestReviewsScrollController
-                                              .animateTo(
-                                                _latestReviewsScrollController
-                                                        .offset +
-                                                    500,
-                                                duration: const Duration(
-                                                  milliseconds: 500,
-                                                ),
-                                                curve: Curves.easeInOut,
-                                              );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),
-                ), // Cierra SliverToBoxAdapter
-            ],
-          ));
+                ),
+                if (latestReviews.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      color: Colors
+                          .black, // Color sólido, ya que el degradado está encima
+                      padding: const EdgeInsets.fromLTRB(
+                        16.0,
+                        48.0,
+                        16.0,
+                        100.0,
+                      ), // Más espacio arriba (48)
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Actividad Global de Stash',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 180,
+                            child: Stack(
+                              children: [
+                                ListView.builder(
+                                  controller: _latestReviewsScrollController,
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: latestReviews.length,
+                                  itemBuilder: (context, index) {
+                                    final review = latestReviews[index];
+                                    final game = review['games'];
+
+                                    return Container(
+                                      width: 280,
+                                      margin: const EdgeInsets.only(right: 16),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.05,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              if (game?['cover_url'] != null)
+                                                InkWell(
+                                                  onTap: () {
+                                                    if (review['game_id'] !=
+                                                        null) {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) => GameDetailsScreen(
+                                                            gameData: {
+                                                              'id':
+                                                                  review['game_id'],
+                                                              if (game?['title'] !=
+                                                                  null)
+                                                                'title':
+                                                                    game!['title'],
+                                                              if (game?['cover_url'] !=
+                                                                  null)
+                                                                'cover_url':
+                                                                    game!['cover_url'],
+                                                            },
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  },
+                                                  child: ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                    child: Image.network(
+                                                      game['cover_url'],
+                                                      width: 40,
+                                                      height: 50,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder: (_, _, _) =>
+                                                          const Icon(
+                                                            Icons
+                                                                .videogame_asset,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      game?['title'] ??
+                                                          'Juego Desconocido',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                    Row(
+                                                      children: [
+                                                        if (review['stash_user_avatar_url'] !=
+                                                            null)
+                                                          CircleAvatar(
+                                                            radius: 8,
+                                                            backgroundImage:
+                                                                NetworkImage(
+                                                                  review['stash_user_avatar_url'],
+                                                                ),
+                                                            onBackgroundImageError:
+                                                                (_, _) {},
+                                                          )
+                                                        else
+                                                          const Icon(
+                                                            Icons.person,
+                                                            size: 16,
+                                                          ),
+                                                        const SizedBox(
+                                                          width: 4,
+                                                        ),
+                                                        Expanded(
+                                                          child: Text(
+                                                            review['stash_user_display_name'] ??
+                                                                'Usuario',
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: Colors
+                                                                  .white
+                                                                  .withValues(
+                                                                    alpha: 0.7,
+                                                                  ),
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              if (review['rating'] != null)
+                                                Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.star,
+                                                      size: 14,
+                                                      color: Colors.amber,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      review['rating']
+                                                          .toString(),
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Expanded(
+                                            child: Text(
+                                              review['comment'] ?? '',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                              maxLines: 4,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                                // Flecha Izquierda
+                                if (_isDesktop && _canScrollLeft)
+                                  Positioned(
+                                    left: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(
+                                            Icons.chevron_left,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            _latestReviewsScrollController
+                                                .animateTo(
+                                                  _latestReviewsScrollController
+                                                          .offset -
+                                                      500,
+                                                  duration: const Duration(
+                                                    milliseconds: 500,
+                                                  ),
+                                                  curve: Curves.easeInOut,
+                                                );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                // Flecha Derecha
+                                if (_isDesktop && _canScrollRight)
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(
+                                            Icons.chevron_right,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            _latestReviewsScrollController
+                                                .animateTo(
+                                                  _latestReviewsScrollController
+                                                          .offset +
+                                                      500,
+                                                  duration: const Duration(
+                                                    milliseconds: 500,
+                                                  ),
+                                                  curve: Curves.easeInOut,
+                                                );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ), // Cierra SliverToBoxAdapter
+              ],
+            ),
+          );
         },
       ),
     );

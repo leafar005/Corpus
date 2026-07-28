@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Callback invocado cuando el usuario pulsa "Guardar/Publicar Reseña".
 /// Firma idéntica a [_GameDetailsScreenState._saveReview].
@@ -25,6 +26,7 @@ typedef OnSaveReview =
       required int? progressPercent,
       required List<XFile> newImages,
       required List<String> existingImages,
+      required String? partnerId,
     });
 
 /// Modal bottom sheet de creación/edición de reseña.
@@ -49,11 +51,64 @@ typedef OnSaveReview =
 class ReviewModal {
   ReviewModal._();
 
+  static Future<List<Map<String, dynamic>>> _fetchFriends() async {
+    final client = Supabase.instance.client;
+    final myId = client.auth.currentUser?.id;
+    if (myId == null) return [];
+
+    List<String> friendIds = [];
+
+    try {
+      // v_friend_pairs es una vista: solo trae la columna, sin embed.
+      final pairs = await client
+          .from('v_friend_pairs')
+          .select('friend_id')
+          .eq('user_id', myId);
+      friendIds = List<Map<String, dynamic>>.from(
+        pairs,
+      ).map((r) => r['friend_id'] as String).toList();
+    } catch (_) {
+      // Fallback si la vista no existe: usar friendships directamente.
+      try {
+        final sent = await client
+            .from('friendships')
+            .select('addressee_id')
+            .eq('requester_id', myId)
+            .eq('status', 'accepted');
+        final received = await client
+            .from('friendships')
+            .select('requester_id')
+            .eq('addressee_id', myId)
+            .eq('status', 'accepted');
+        friendIds = [
+          ...List<Map<String, dynamic>>.from(
+            sent,
+          ).map((f) => f['addressee_id'] as String),
+          ...List<Map<String, dynamic>>.from(
+            received,
+          ).map((f) => f['requester_id'] as String),
+        ];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    if (friendIds.isEmpty) return [];
+
+    final users = await client
+        .from('users')
+        .select('id, username, avatar_url')
+        .inFilter('id', friendIds);
+
+    return List<Map<String, dynamic>>.from(users);
+  }
+
   static void show({
     required BuildContext context,
     required Map<String, dynamic> gameData,
     required Map<String, dynamic> enrichedData,
     Map<String, dynamic>? existingReview,
+    String? currentPartnerId,
     required bool isSaving,
     required double currentRating,
     required double currentRatingGameplay,
@@ -108,6 +163,8 @@ class ReviewModal {
       text: hasReview ? (r!['comment'] ?? '') : commentController.text,
     );
     final String? reviewId = hasReview ? r!['id'] : null;
+    String? reviewPartnerId = currentPartnerId;
+    final Future<List<Map<String, dynamic>>> friendsFuture = _fetchFriends();
 
     List<XFile> newImages = [];
     List<String> existingImages = hasReview
@@ -729,6 +786,91 @@ class ReviewModal {
                             style: TextStyle(fontSize: 14),
                           ),
                           children: [
+                            FutureBuilder<List<Map<String, dynamic>>>(
+                              future: friendsFuture,
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
+                                final friends = snapshot.data ?? [];
+                                if (friends.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Compañero (Cooperativo)',
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String?>(
+                                      initialValue: reviewPartnerId,
+                                      decoration: const InputDecoration(
+                                        border: OutlineInputBorder(),
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                      hint: const Text('Jugué en solitario'),
+                                      isExpanded: true,
+                                      items: [
+                                        const DropdownMenuItem<String?>(
+                                          value: null,
+                                          child: Text('Jugué en solitario'),
+                                        ),
+                                        ...friends.map((f) {
+                                          return DropdownMenuItem<String?>(
+                                            value: f['id'] as String,
+                                            child: Row(
+                                              children: [
+                                                CircleAvatar(
+                                                  radius: 12,
+                                                  backgroundImage:
+                                                      f['avatar_url'] != null
+                                                      ? NetworkImage(
+                                                          f['avatar_url'],
+                                                        )
+                                                      : null,
+                                                  child: f['avatar_url'] == null
+                                                      ? const Icon(
+                                                          Icons.person,
+                                                          size: 16,
+                                                        )
+                                                      : null,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  f['username'] ?? 'Usuario',
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }),
+                                      ],
+                                      onChanged: (val) {
+                                        setModalState(() {
+                                          reviewPartnerId = val;
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                );
+                              },
+                            ),
                             if (platforms.isNotEmpty) ...[
                               Text(
                                 'Plataforma',
@@ -961,6 +1103,7 @@ class ReviewModal {
                                     : null,
                                 newImages: newImages,
                                 existingImages: existingImages,
+                                partnerId: reviewPartnerId,
                               ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(

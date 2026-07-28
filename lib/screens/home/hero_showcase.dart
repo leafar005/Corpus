@@ -221,8 +221,6 @@ class _HeroShowcaseState extends State<HeroShowcase>
     }
   }
 
-
-
   Widget _buildShowcaseLayer(
     Map<String, dynamic> game,
     String? screenshotUrl,
@@ -412,7 +410,8 @@ class _HeroShowcaseState extends State<HeroShowcase>
                       child: textSection,
                     ),
                     Positioned(
-                      bottom: 32, // Bajamos la carátula para que no colisione con el texto
+                      bottom:
+                          32, // Bajamos la carátula para que no colisione con el texto
                       right: 16,
                       child: coverSection,
                     ),
@@ -579,7 +578,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
     'assets/guest_showcase/ghostoftsushima01.jpg',
     'assets/guest_showcase/deathstranding01.jpg',
     'assets/guest_showcase/godofwar01.jpg',
-    
+
     'assets/guest_showcase/cyberpunk02.jpg',
     'assets/guest_showcase/rdr202.jpg',
     'assets/guest_showcase/eldenring02.jpg',
@@ -631,9 +630,9 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
       _currentScreenshotUrl = _hardcodedImages[startIndex];
       _nextIndex = (startIndex + 1) % _hardcodedImages.length;
     });
-    
+
     _panController.forward(from: 0.0);
-    
+
     if (!kDisableCarouselForTests) {
       _timer = Timer.periodic(widget.switchDuration, (timer) {
         _pickNextScreenshot();
@@ -643,13 +642,13 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
 
   void _pickNextScreenshot() {
     if (_hardcodedImages.isEmpty) return;
-    
+
     setState(() {
       _previousScreenshotUrl = _currentScreenshotUrl;
       _previousPanValue = _panController.value;
       _currentScreenshotUrl = _hardcodedImages[_nextIndex];
     });
-    
+
     _nextIndex = (_nextIndex + 1) % _hardcodedImages.length;
     _panController.forward(from: 0.0);
   }
@@ -661,53 +660,51 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
     super.dispose();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-          // Fondo negro permanente para que el primer frameBuilder haga el fade de negro a la imagen
-          Container(color: Colors.black),
-          
-          if (_currentScreenshotUrl != null)
-            AnimatedBuilder(
-              animation: _panController,
-              builder: (context, child) {
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (_previousScreenshotUrl != null)
-                          _buildPanningImageLayer(
-                            AssetImage(_previousScreenshotUrl!),
-                            _previousPanValue,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(color: Colors.black),
-                          ),
-                        Opacity(
-                          opacity: _previousScreenshotUrl == null
-                              ? 1.0
-                              : _fadeAnimation.value,
-                          child: _buildPanningImageLayer(
-                            AssetImage(_currentScreenshotUrl!),
-                            _panController.value,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(color: Colors.black),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+        // Fondo negro permanente para que el primer frameBuilder haga el fade de negro a la imagen
+        Container(color: Colors.black),
 
-          // Mismo oscurecido que usa el hero real para que el texto se lea bien.
-          Container(color: Colors.black.withValues(alpha: 0.7)),
+        if (_currentScreenshotUrl != null)
+          AnimatedBuilder(
+            animation: _panController,
+            builder: (context, child) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (_previousScreenshotUrl != null)
+                    _buildPanningImageLayer(
+                      AssetImage(_previousScreenshotUrl!),
+                      _previousPanValue,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Container(color: Colors.black),
+                    ),
+                  Opacity(
+                    opacity: _previousScreenshotUrl == null
+                        ? 1.0
+                        : _fadeAnimation.value,
+                    child: _buildPanningImageLayer(
+                      AssetImage(_currentScreenshotUrl!),
+                      _panController.value,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Container(color: Colors.black),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
 
-          // Degradado inferior para fundir a negro suavemente
-          const _BottomFadeGradient(),
+        // Mismo oscurecido que usa el hero real para que el texto se lea bien.
+        Container(color: Colors.black.withValues(alpha: 0.7)),
 
-          SafeArea(
+        // Degradado inferior para fundir a negro suavemente
+        const _BottomFadeGradient(),
+
+        SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isPortrait = constraints.maxHeight > constraints.maxWidth;
@@ -737,9 +734,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                             color: Theme.of(context).primaryColor,
                           ),
                         ),
-                        const TextSpan(
-                          text: '.',
-                        ),
+                        const TextSpan(text: '.'),
                       ],
                     ),
                   ),
@@ -790,10 +785,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                           child: textSection,
                         ),
                       ),
-                      Expanded(
-                        flex: 2,
-                        child: Container(),
-                      ),
+                      Expanded(flex: 2, child: Container()),
                     ],
                   ),
                 );

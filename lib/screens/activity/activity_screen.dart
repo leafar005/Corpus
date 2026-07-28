@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../widgets/coop_badge.dart';
 import '../activity/review_details_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -100,7 +101,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
         try {
           final reviewsResp = await _supabase
               .from('reviews')
-              .select('*, review_likes(user_id), review_comments(id)')
+              .select(
+                '*, review_likes(user_id), review_comments(id), users!reviews_partner_id_fkey(id, username, avatar_url)',
+              )
               .inFilter('id', reviewIds);
           for (final r in List<Map<String, dynamic>>.from(reviewsResp)) {
             reviewsById[r['id'] as String] = r;
@@ -108,9 +111,46 @@ class _ActivityScreenState extends State<ActivityScreen> {
         } catch (_) {}
       }
 
+      // 3.5. Query batch para el partner (user_games)
+      final Map<String, Map<String, dynamic>> partnerByUserGame = {};
+      final userIds = feedItems
+          .map((e) => e['user_id'] as String?)
+          .whereType<String>()
+          .toSet()
+          .toList();
+      final gameIds = feedItems
+          .map((e) => e['game_id'])
+          .where((e) => e != null)
+          .toSet()
+          .toList();
+      if (userIds.isNotEmpty && gameIds.isNotEmpty) {
+        try {
+          final ugResp = await _supabase
+              .from('user_games')
+              .select(
+                'user_id, game_id, partner:users!user_games_partner_id_fkey(id, username, avatar_url)',
+              )
+              .inFilter('user_id', userIds)
+              .inFilter('game_id', gameIds);
+          for (final ug in List<Map<String, dynamic>>.from(ugResp)) {
+            final partner = ug['partner'];
+            if (partner != null) {
+              partnerByUserGame['${ug['user_id']}_${ug['game_id']}'] =
+                  partner as Map<String, dynamic>;
+            }
+          }
+        } catch (_) {}
+      }
+
       // 4. Enriquecer items y agrupar eventos relacionados (lógica de merge sin queries)
       final mergedActivities = <Map<String, dynamic>>[];
       for (var item in feedItems) {
+        final uId = item['user_id'];
+        final gId = item['game_id'];
+        if (uId != null && gId != null) {
+          item['_partner'] = partnerByUserGame['${uId}_$gId'];
+        }
+
         if (item['action_type'] == 'reviewed') {
           final reviewId = (item['metadata'] as Map?)?['review_id'] as String?;
           if (reviewId != null && reviewsById.containsKey(reviewId)) {
@@ -381,6 +421,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final gameData = activity['games'] as Map<String, dynamic>? ?? {};
     final meta = activity['metadata'] as Map<String, dynamic>? ?? {};
     final review = activity['_review'] as Map<String, dynamic>?;
+    final partner = activity['_partner'] as Map<String, dynamic>?;
 
     final displayName =
         userData['display_name'] as String? ??
@@ -668,6 +709,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
                               ),
                             ],
                           ],
+                        ),
+                      ],
+                      if (partner != null) ...[
+                        const SizedBox(height: 8),
+                        CoopBadge(
+                          username: partner['username'] ?? 'Usuario',
+                          avatarUrl: partner['avatar_url'],
+                          size: 20,
+                          status: status,
                         ),
                       ],
                     ],
