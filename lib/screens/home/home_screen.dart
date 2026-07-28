@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // Añadido para kIsWeb
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
 import '../../services/igdb_service.dart';
 import '../library/game_details_screen.dart';
-import 'animated_background.dart';
+import 'hero_showcase.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
       kIsWeb;
 
   late Future<Map<String, dynamic>> _homeDataFuture;
+  StreamSubscription<AuthState>? _authSub;
+
+  bool get _isGuest => Supabase.instance.client.auth.currentUser == null;
 
   @override
   void initState() {
@@ -36,6 +40,14 @@ class _HomeScreenState extends State<HomeScreen> {
     // Al cargar los datos, comprobamos si podemos hacer scroll a la derecha
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateScrollArrows();
+    });
+
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      if (mounted) {
+        setState(() {
+          _homeDataFuture = _fetchHomeData();
+        });
+      }
     });
   }
 
@@ -53,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _latestReviewsScrollController.removeListener(_updateScrollArrows);
     _latestReviewsScrollController.dispose();
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
+    _authSub?.cancel();
     super.dispose();
   }
 
@@ -74,70 +87,77 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchHomeData() async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final currentUser = Supabase.instance.client.auth.currentUser;
 
-    // Obtener display_name
-    final userResp = await Supabase.instance.client
-        .from('users')
-        .select('display_name, username')
-        .eq('id', userId)
-        .maybeSingle();
-    final displayName =
-        (userResp?['display_name'] as String?)?.isNotEmpty == true
-        ? userResp!['display_name'] as String
-        : (userResp?['username'] as String?)?.isNotEmpty == true
-        ? userResp!['username'] as String
-        : (Supabase.instance.client.auth.currentUser?.email?.split('@').first ??
-              'tú');
+    String displayName = '';
+    List<Map<String, dynamic>> games = [];
 
-    // Obtener juegos
-    final response = await Supabase.instance.client
-        .from('user_games')
-        .select('*, games(*)')
-        .eq('user_id', userId)
-        .eq('status', 'playing');
+    if (currentUser != null) {
+      final userId = currentUser.id;
 
-    final games = List<Map<String, dynamic>>.from(response);
+      // Obtener display_name
+      final userResp = await Supabase.instance.client
+          .from('users')
+          .select('display_name, username')
+          .eq('id', userId)
+          .maybeSingle();
+      displayName = (userResp?['display_name'] as String?)?.isNotEmpty == true
+          ? userResp!['display_name'] as String
+          : (userResp?['username'] as String?)?.isNotEmpty == true
+          ? userResp!['username'] as String
+          : (currentUser.email?.split('@').first ?? 'tú');
 
-    // Obtener capturas
-    final igdbIds = games.map((g) => g['game_id'] as int).toList();
-    if (igdbIds.isNotEmpty) {
-      try {
-        final igdbData = await IGDBService.getGamesByIds(igdbIds);
+      // Obtener juegos
+      final response = await Supabase.instance.client
+          .from('user_games')
+          .select('*, games(*)')
+          .eq('user_id', userId)
+          .eq('status', 'playing');
 
-        final screenshotsMap = <int, List<String>>{};
-        for (var item in igdbData) {
-          final id = item['id'] as int;
-          final screenshots = item['screenshots'] as List<dynamic>? ?? [];
-          screenshotsMap[id] = screenshots
-              .map(
-                (s) => IGDBService.getScreenshotUrl(s['image_id'] as String?),
-              )
-              .where((url) => url.isNotEmpty)
-              .toList();
+      games = List<Map<String, dynamic>>.from(response);
+
+      // Obtener capturas
+      final igdbIds = games.map((g) => g['game_id'] as int).toList();
+      if (igdbIds.isNotEmpty) {
+        try {
+          final igdbData = await IGDBService.getGamesByIds(igdbIds);
+
+          final screenshotsMap = <int, List<String>>{};
+          for (var item in igdbData) {
+            final id = item['id'] as int;
+            final screenshots = item['screenshots'] as List<dynamic>? ?? [];
+            screenshotsMap[id] = screenshots
+                .map(
+                  (s) => IGDBService.getScreenshotUrl(s['image_id'] as String?),
+                )
+                .where((url) => url.isNotEmpty)
+                .toList();
+          }
+
+          for (var game in games) {
+            final id = game['game_id'] as int;
+            game['screenshots_list'] = screenshotsMap[id] ?? [];
+          }
+        } catch (e) {
+          debugPrint('Error obteniendo capturas para la pantalla de inicio: $e');
         }
-
-        for (var game in games) {
-          final id = game['game_id'] as int;
-          game['screenshots_list'] = screenshotsMap[id] ?? [];
-        }
-      } catch (e) {
-        debugPrint('Error obteniendo capturas para la pantalla de inicio: $e');
       }
     }
 
     // Obtener las últimas 25 reseñas globales
     List<Map<String, dynamic>> latestReviews = [];
-    try {
-      final reviewsResp = await Supabase.instance.client
-          .from('stash_community_reviews')
-          .select('*, games(title, cover_url)')
-          .eq('source_context', 'recent_activity_feed')
-          .order('stash_created_at', ascending: false)
-          .limit(25);
-      latestReviews = List<Map<String, dynamic>>.from(reviewsResp);
-    } catch (e) {
-      debugPrint('Error obteniendo ultimas reseñas globales: $e');
+    if (currentUser != null) {
+      try {
+        final reviewsResp = await Supabase.instance.client
+            .from('stash_community_reviews')
+            .select('*, games(title, cover_url)')
+            .eq('source_context', 'recent_activity_feed')
+            .order('stash_created_at', ascending: false)
+            .limit(25);
+        latestReviews = List<Map<String, dynamic>>.from(reviewsResp);
+      } catch (e) {
+        debugPrint('Error obteniendo ultimas reseñas globales: $e');
+      }
     }
 
     return {
@@ -186,12 +206,14 @@ class _HomeScreenState extends State<HomeScreen> {
               slivers: [
               SliverToBoxAdapter(
                 child: SizedBox(
-                  height: playingGames.isEmpty
+                  height: (playingGames.isEmpty && !_isGuest)
                       ? 200
                       : MediaQuery.of(context).size.height * 0.75,
                   child: Stack(
                     children: [
-                      playingGames.isEmpty
+                      _isGuest
+                          ? const GuestHeroShowcase()
+                          : playingGames.isEmpty
                           ? const Center(
                               child: Text(
                                 'No estás jugando a nada ahora mismo.\n¡Busca un juego para empezar!',
@@ -202,32 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               playingGames: playingGames,
                               userName: displayName,
                             ),
-                      // Degradado inferior para fundir a negro suavemente
-                      if (latestReviews.isNotEmpty)
-                        Positioned(
-                          bottom:
-                              -1, // Un píxel extra para evitar cualquier línea blanca/corte
-                          left: 0,
-                          right: 0,
-                          height:
-                              250, // Más alto para que el degradado sea más suave
-                          child: IgnorePointer(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withValues(alpha: 0.8),
-                                    Colors.black,
-                                  ],
-                                  stops: const [0.0, 0.7, 1.0],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+
                     ],
                   ),
                 ),

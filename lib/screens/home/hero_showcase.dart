@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
+import '../../widgets/guest_login_prompt.dart';
 import '../library/game_details_screen.dart';
 
 class HeroShowcase extends StatefulWidget {
@@ -220,37 +221,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
     }
   }
 
-  Widget _buildPanningImage(String url, double panValue) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        // Paneo súper lento
-        final offsetX = (1.0 - (panValue * 2)) * (screenWidth * 0.04);
 
-        return Transform.translate(
-          offset: Offset(offsetX, 0),
-          child: Transform.scale(
-            scale: 1.08,
-            child: Image.network(
-              url,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                if (wasSynchronouslyLoaded) return child;
-                return AnimatedOpacity(
-                  opacity: frame == null ? 0 : 1,
-                  duration: const Duration(seconds: 1),
-                  curve: Curves.easeOut,
-                  child: child,
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildShowcaseLayer(
     Map<String, dynamic> game,
@@ -265,7 +236,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
       fit: StackFit.expand,
       children: [
         if (screenshotUrl != null)
-          _buildPanningImage(screenshotUrl, panValue)
+          _buildPanningImageLayer(NetworkImage(screenshotUrl), panValue)
         else
           Container(color: Colors.black),
 
@@ -290,6 +261,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
             ),
           ],
         ),
+
+        // Degradado inferior para fundir a negro suavemente
+        const _BottomFadeGradient(),
 
         SafeArea(
           child: LayoutBuilder(
@@ -568,6 +542,332 @@ class _HeroShowcaseState extends State<HeroShowcase>
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Versión del hero para la pantalla de Inicio en modo invitado.
+///
+/// Visualmente casi idéntica al HeroShowcase real (mismo crossfade + paneo
+/// lento de fondo), pero:
+/// - No es interactiva: sin zonas táctiles para pasar de captura, sin carátula.
+/// - Sin barra de progreso arriba.
+/// - Las capturas son fijas, de un puñado de juegos conocidos (no dependen
+///   de la biblioteca del usuario, porque no hay usuario).
+/// - En vez del "Bienvenido, X" muestra el mensaje + botón de login.
+class GuestHeroShowcase extends StatefulWidget {
+  final Duration switchDuration;
+
+  const GuestHeroShowcase({
+    super.key,
+    this.switchDuration = const Duration(seconds: 10),
+  });
+
+  @override
+  State<GuestHeroShowcase> createState() => _GuestHeroShowcaseState();
+}
+
+class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
+    with TickerProviderStateMixin {
+  // Capturas en alta resolución fijas (assets) para el fondo del modo invitado.
+  static const List<String> _hardcodedImages = [
+    'assets/guest_showcase/cyberpunk01.jpg',
+    'assets/guest_showcase/rdr201.jpg',
+    'assets/guest_showcase/eldenring01.jpg',
+    'assets/guest_showcase/tlou201.jpg',
+    'assets/guest_showcase/ghostoftsushima01.jpg',
+    'assets/guest_showcase/deathstranding01.jpg',
+    'assets/guest_showcase/godofwar01.jpg',
+    
+    'assets/guest_showcase/cyberpunk02.jpg',
+    'assets/guest_showcase/rdr202.jpg',
+    'assets/guest_showcase/eldenring02.jpg',
+    'assets/guest_showcase/tlou202.jpg',
+    'assets/guest_showcase/ghostoftsushima02.jpg',
+    'assets/guest_showcase/deathstranding02.jpg',
+    'assets/guest_showcase/godofwar02.jpg',
+
+    'assets/guest_showcase/cyberpunk03.jpg',
+    'assets/guest_showcase/rdr203.jpg',
+    'assets/guest_showcase/eldenring03.jpg',
+    'assets/guest_showcase/tlou203.jpg',
+    'assets/guest_showcase/ghostoftsushima03.jpg',
+    'assets/guest_showcase/deathstranding03.jpg',
+    'assets/guest_showcase/godofwar03.jpg',
+  ];
+
+  Timer? _timer;
+  int _nextIndex = 0;
+
+  String? _previousScreenshotUrl;
+  double _previousPanValue = 1.0;
+  String? _currentScreenshotUrl;
+
+  final Random _random = Random();
+
+  late AnimationController _panController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _panController = AnimationController(
+      vsync: this,
+      duration: widget.switchDuration,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _panController,
+        curve: const Interval(0.0, 0.2, curve: Curves.easeInOut),
+      ),
+    );
+    _loadShowcaseScreenshots();
+  }
+
+  void _loadShowcaseScreenshots() {
+    final startIndex = _random.nextInt(_hardcodedImages.length);
+    setState(() {
+      _currentScreenshotUrl = _hardcodedImages[startIndex];
+      _nextIndex = (startIndex + 1) % _hardcodedImages.length;
+    });
+    
+    _panController.forward(from: 0.0);
+    
+    if (!kDisableCarouselForTests) {
+      _timer = Timer.periodic(widget.switchDuration, (timer) {
+        _pickNextScreenshot();
+      });
+    }
+  }
+
+  void _pickNextScreenshot() {
+    if (_hardcodedImages.isEmpty) return;
+    
+    setState(() {
+      _previousScreenshotUrl = _currentScreenshotUrl;
+      _previousPanValue = _panController.value;
+      _currentScreenshotUrl = _hardcodedImages[_nextIndex];
+    });
+    
+    _nextIndex = (_nextIndex + 1) % _hardcodedImages.length;
+    _panController.forward(from: 0.0);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _panController.dispose();
+    super.dispose();
+  }
+
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+          // Fondo negro permanente para que el primer frameBuilder haga el fade de negro a la imagen
+          Container(color: Colors.black),
+          
+          if (_currentScreenshotUrl != null)
+            AnimatedBuilder(
+              animation: _panController,
+              builder: (context, child) {
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (_previousScreenshotUrl != null)
+                          _buildPanningImageLayer(
+                            AssetImage(_previousScreenshotUrl!),
+                            _previousPanValue,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(color: Colors.black),
+                          ),
+                        Opacity(
+                          opacity: _previousScreenshotUrl == null
+                              ? 1.0
+                              : _fadeAnimation.value,
+                          child: _buildPanningImageLayer(
+                            AssetImage(_currentScreenshotUrl!),
+                            _panController.value,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(color: Colors.black),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+          // Mismo oscurecido que usa el hero real para que el texto se lea bien.
+          Container(color: Colors.black.withValues(alpha: 0.7)),
+
+          // Degradado inferior para fundir a negro suavemente
+          const _BottomFadeGradient(),
+
+          SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isPortrait = constraints.maxHeight > constraints.maxWidth;
+
+              final textSection = Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontFamily: 'Helvetica',
+                        fontSize: isPortrait ? 42 : 48,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                        letterSpacing: -1,
+                        color: Colors.white,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: 'Comienza a registrar\ntus juegos ',
+                        ),
+                        TextSpan(
+                          text: 'ahora',
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        const TextSpan(
+                          text: '.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () => openLoginScreen(context),
+                    icon: const Icon(Icons.login, size: 20),
+                    label: const Text('Iniciar sesión'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: const TextStyle(fontSize: 18),
+                    ),
+                  ),
+                ],
+              );
+
+              if (isPortrait) {
+                return Stack(
+                  children: [
+                    Positioned(
+                      top: constraints.maxHeight * 0.10,
+                      left: 24,
+                      right: 24,
+                      child: textSection,
+                    ),
+                  ],
+                );
+              } else {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 48.0,
+                    vertical: 32.0,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: textSection,
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Container(),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Widget _buildPanningImageLayer(
+  ImageProvider provider,
+  double panValue, {
+  Widget Function(BuildContext, Object, StackTrace?)? errorBuilder,
+}) {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final screenWidth = constraints.maxWidth;
+      // Paneo súper lento
+      final offsetX = (1.0 - (panValue * 2)) * (screenWidth * 0.04);
+
+      return Transform.translate(
+        offset: Offset(offsetX, 0),
+        child: Transform.scale(
+          scale: 1.08,
+          child: Image(
+            image: provider,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+              if (wasSynchronouslyLoaded) return child;
+              return AnimatedOpacity(
+                opacity: frame == null ? 0 : 1,
+                duration: const Duration(seconds: 1),
+                curve: Curves.easeOut,
+                child: child,
+              );
+            },
+            errorBuilder: errorBuilder,
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _BottomFadeGradient extends StatelessWidget {
+  const _BottomFadeGradient();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      bottom: -1,
+      left: 0,
+      right: 0,
+      height: 250,
+      child: IgnorePointer(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                Colors.black.withValues(alpha: 0.8),
+                Colors.black,
+              ],
+              stops: const [0.0, 0.7, 1.0],
+            ),
+          ),
+        ),
       ),
     );
   }

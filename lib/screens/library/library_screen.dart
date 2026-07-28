@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'search_screen.dart';
 import 'package:corpus/widgets/game_card.dart';
 
@@ -40,8 +41,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              Supabase.instance.client.auth.signOut();
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setInt('main_tab_index', 0);
+              await Supabase.instance.client.auth.signOut();
             },
           ),
         ],

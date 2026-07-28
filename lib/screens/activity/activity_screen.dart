@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
+import '../../widgets/guest_login_prompt.dart';
 import '../activity/review_details_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -20,19 +22,41 @@ class _ActivityScreenState extends State<ActivityScreen> {
   List<Map<String, dynamic>> _activities = [];
   bool _isLoading = true;
   RealtimeChannel? _realtimeChannel;
+  StreamSubscription<AuthState>? _authSub;
+
+  bool get _isGuest => _supabase.auth.currentUser == null;
 
   @override
   void initState() {
     super.initState();
-    _fetchActivity();
-    _subscribeRealtime();
-    libraryUpdateNotifier.addListener(_onLibraryUpdated);
+    if (_isGuest) {
+      // Invitado: nada de feed ni de suscripción realtime (sin sesión no
+      // hay "actividad de tus amigos" que mostrar, y así evitamos abrir
+      // un canal realtime y consultas que no llevan a ningún sitio).
+      _isLoading = false;
+    } else {
+      _fetchActivity();
+      _subscribeRealtime();
+      libraryUpdateNotifier.addListener(_onLibraryUpdated);
+    }
+
+    // Si el invitado inicia sesión desde el botón de esta pantalla,
+    // cargamos el feed real y activamos el realtime en ese momento.
+    _authSub = _supabase.auth.onAuthStateChange.listen((_) {
+      if (!mounted || _supabase.auth.currentUser == null) return;
+      if (_realtimeChannel != null) return; // Ya activo tras un login anterior.
+      setState(() => _isLoading = true);
+      _fetchActivity();
+      _subscribeRealtime();
+      libraryUpdateNotifier.addListener(_onLibraryUpdated);
+    });
   }
 
   @override
   void dispose() {
     _realtimeChannel?.unsubscribe();
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
+    _authSub?.cancel();
     super.dispose();
   }
 
@@ -843,6 +867,18 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isGuest) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Actividad')),
+        body: Center(
+          child: GuestLoginPrompt(
+            icon: Icons.people_outline_rounded,
+            message: 'Inicia sesión para ver la actividad de tus amigos.',
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Actividad'),
