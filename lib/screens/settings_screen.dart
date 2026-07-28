@@ -302,6 +302,8 @@ class SettingsScreen extends StatelessWidget {
             title: Text('Cerrar sesión', style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.bold)),
             onTap: () async {
               Navigator.pop(context); // Cierra los ajustes
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setInt('main_tab_index', 0);
               await Supabase.instance.client.auth.signOut();
             },
           ),

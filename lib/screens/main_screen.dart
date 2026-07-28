@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'home/home_screen.dart';
@@ -39,7 +41,17 @@ class _MainScreenState extends State<MainScreen> {
     _loadSavedTab();
   }
 
+  bool get _shouldPersistTab {
+    if (kIsWeb) return true;
+    try {
+      return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _loadSavedTab() async {
+    if (!_shouldPersistTab) return;
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
@@ -54,7 +66,9 @@ class _MainScreenState extends State<MainScreen> {
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
     } else {
       setState(() => _currentIndex = index);
-      SharedPreferences.getInstance().then((prefs) => prefs.setInt('main_tab_index', index));
+      if (_shouldPersistTab) {
+        SharedPreferences.getInstance().then((prefs) => prefs.setInt('main_tab_index', index));
+      }
     }
   }
 

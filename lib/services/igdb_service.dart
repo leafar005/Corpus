@@ -22,7 +22,7 @@ class IGDBService {
         ? 'https://corsproxy.io/?https://id.twitch.tv/oauth2/token?client_id=${Env.igdbClientId}&client_secret=${Env.igdbClientSecret}&grant_type=client_credentials'
         : 'https://id.twitch.tv/oauth2/token?client_id=${Env.igdbClientId}&client_secret=${Env.igdbClientSecret}&grant_type=client_credentials';
 
-    final response = await http.post(Uri.parse(url));
+    final response = await http.post(Uri.parse(url)).timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -38,11 +38,13 @@ class IGDBService {
   // 1b. Helper centralizado: Intenta usar la Edge Function igdb-proxy de Supabase,
   // y hace fallback transparente a llamada directa con Twitch API si el proxy falla.
   static Future<http.Response> _postQuery(String endpoint, String query) async {
+    debugPrint('[IGDB] Intentando Edge Function igdb-proxy...');
     try {
       final res = await Supabase.instance.client.functions.invoke(
         'igdb-proxy',
         body: {'endpoint': endpoint, 'query': query},
-      );
+      ).timeout(const Duration(seconds: 10));
+      debugPrint('[IGDB] Edge Function respondió: status=${res.status}');
       if (res.status == 200 && res.data != null) {
         final bodyString = res.data is String ? res.data : jsonEncode(res.data);
         return http.Response.bytes(
@@ -52,20 +54,16 @@ class IGDBService {
         );
       }
     } catch (e) {
-      if (kDebugMode) {
-        final msg = e.toString();
-        final shortMsg = msg.length > 120 ? '${msg.substring(0, 120)}...' : msg;
-        print('[IGDB Proxy Fallback] Edge function no disponible o error: $shortMsg');
-      }
+      debugPrint('[IGDB Proxy Fallback] Error: $e');
     }
 
-
+    debugPrint('[IGDB] Cayendo al fallback directo (Twitch/IGDB)...');
     await _authenticate();
     final String url = kIsWeb
         ? 'https://corsproxy.io/?https://api.igdb.com/v4/$endpoint'
         : 'https://api.igdb.com/v4/$endpoint';
 
-    return await http.post(
+    final resp = await http.post(
       Uri.parse(url),
       headers: {
         'Client-ID': Env.igdbClientId,
@@ -73,7 +71,9 @@ class IGDBService {
         'Accept': 'application/json',
       },
       body: query,
-    );
+    ).timeout(const Duration(seconds: 15));
+    debugPrint('[IGDB] Fallback directo respondió: status=${resp.statusCode}');
+    return resp;
   }
 
   static Future<List<dynamic>> searchGames(

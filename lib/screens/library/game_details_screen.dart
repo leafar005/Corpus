@@ -73,6 +73,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   bool _isLoadingStashReviews = true;
   int _stashReviewLimit = 5;
 
+  // Stash Game Stats (Críticas, Quiero, Jugado, Reseñas)
+  Map<String, dynamic>? _stashStats;
+  bool _isLoadingStashStats = true;
+
   // ¿Quién lo tiene? - amigos con este juego en la biblioteca
   List<Map<String, dynamic>> _friendsWithGame = [];
   bool _localizeLinks = true;
@@ -90,6 +94,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     _enrichGameData();
     _fetchReviews();
     _fetchStashReviews();
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) _fetchStashStats();
+    });
     _fetchTimeToBeat();
     _fetchRelatedGames();
     _fetchFriendsWithGame();
@@ -331,6 +338,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (forceInitialSwap) {
         _selectRandomScreenshot(screenshotsData);
       }
+      if (kDisableCarouselForTests) return; // Evitar que pumpAndSettle quede esperando frames infinitos
       if (screenshotsData.length > 1) {
         _carouselTimer?.cancel();
         _carouselTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
@@ -710,6 +718,34 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     } catch (e) {
       debugPrint('[CORPUS DEBUG] Error fetching stash reviews: $e');
       if (mounted) setState(() => _isLoadingStashReviews = false);
+    }
+  }
+
+  Future<void> _fetchStashStats() async {
+    final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+    if (igdbId == null) return;
+
+    try {
+      final local = await _repo.fetchStashStatsLocal(igdbId);
+      if (mounted) {
+        setState(() {
+          _stashStats = local.stats;
+          _isLoadingStashStats = local.needsFetch;
+        });
+      }
+
+      if (local.needsFetch) {
+        final updated = await _repo.refreshStashStats(igdbId);
+        if (mounted) {
+          setState(() {
+            if (updated != null) _stashStats = updated;
+            _isLoadingStashStats = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[CORPUS DEBUG] Error fetching stash stats: $e');
+      if (mounted) setState(() => _isLoadingStashStats = false);
     }
   }
 
@@ -1186,6 +1222,89 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildStashStatsSection() {
+    if (_isLoadingStashStats && _stashStats == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_stashStats == null) return const SizedBox.shrink();
+
+    final rating = (_stashStats!['stash_rating'] as num?)?.toDouble();
+    final want = _stashStats!['want_count'] as int?;
+    final playing = _stashStats!['playing_count'] as int?;
+    final played = _stashStats!['played_count'] as int?;
+    final reviewsTotal = _stashStats!['reviews_count'] as int?;
+
+    if (rating == null && want == null && playing == null && played == null && reviewsTotal == null) {
+      return const SizedBox.shrink();
+    }
+
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+
+    Widget statCard(IconData icon, String value, String label, Color color) {
+      return Container(
+        constraints: BoxConstraints(
+          minWidth: isDesktop ? 88 : 72,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: isDesktop ? 18 : 16, color: color),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isDesktop ? 15 : 14,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Estadísticas de la Comunidad (Stash)',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (rating != null) statCard(Icons.emoji_events, rating.toStringAsFixed(1), 'Críticas', Colors.amber),
+            if (want != null) statCard(Icons.favorite, want.toString(), 'Quiero', Theme.of(context).colorScheme.primary),
+            if (playing != null) statCard(Icons.gamepad, playing.toString(), 'Jugando', Colors.green),
+            if (played != null) statCard(Icons.videogame_asset, played.toString(), 'Jugado', Colors.blueAccent),
+            if (reviewsTotal != null) statCard(Icons.forum, reviewsTotal.toString(), 'Reseñas', Colors.purpleAccent),
+          ],
+        ),
+        const SizedBox(height: 28),
       ],
     );
   }
@@ -1732,8 +1851,36 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   } catch (_) {}
                 }
             }
+            // 1. Helper local para blindar la extracción del dominio incluso si falta "https://"
+            String extractDomain(String rawUrl) {
+              String url = rawUrl.trim();
+              if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://$url';
+              }
+              return Uri.tryParse(url)?.host ?? '';
+            }
+
+            final domain = extractDomain(link['url'].toString());
+
             return ListTile(
-              leading: Icon(itemIcon),
+              leading: Container(
+                width: 32,
+                height: 32,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.network(
+                    // 2. Usamos Google Favicons en PNG (100% compatible con Flutter y sin fallos CORS)
+                    'https://www.google.com/s2/favicons?domain=$domain&sz=64',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Icon(itemIcon, size: 18),
+                  ),
+                ),
+              ),
               title: Text(name),
               subtitle: Text(_localizeUrlToSpain(link['url'].toString()), maxLines: 1, overflow: TextOverflow.ellipsis),
               trailing: const Icon(Icons.open_in_new, size: 16),
@@ -1870,6 +2017,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
           const SizedBox(height: 28),
         ],
+        _buildStashStatsSection(),
         if (summary != null) ...[
           const Text('Sinopsis', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),

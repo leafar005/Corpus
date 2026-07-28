@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../globals.dart';
 import '../library/game_details_screen.dart'; 
 
 class HeroShowcase extends StatefulWidget {
@@ -71,9 +72,11 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
     if (widget.playingGames.isNotEmpty) {
       _pickNextGame();
       _initialFadeController.forward();
-      _timer = Timer.periodic(widget.switchDuration, (timer) {
-        _pickNextGame();
-      });
+      if (!kDisableCarouselForTests) {
+        _timer = Timer.periodic(widget.switchDuration, (timer) {
+          _pickNextGame();
+        });
+      }
     }
   }
 
@@ -88,9 +91,11 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
 
     if (manual) {
       _timer?.cancel();
-      _timer = Timer.periodic(widget.switchDuration, (timer) {
-        _pickNextGame();
-      });
+      if (!kDisableCarouselForTests) {
+        _timer = Timer.periodic(widget.switchDuration, (timer) {
+          _pickNextGame();
+        });
+      }
     }
     
     final nextGame = widget.playingGames[_currentGameIndex];
@@ -113,9 +118,11 @@ class _HeroShowcaseState extends State<HeroShowcase> with TickerProviderStateMix
     if (widget.playingGames.isEmpty) return;
 
     _timer?.cancel();
-    _timer = Timer.periodic(widget.switchDuration, (timer) {
-      _pickNextGame();
-    });
+    if (!kDisableCarouselForTests) {
+      _timer = Timer.periodic(widget.switchDuration, (timer) {
+        _pickNextGame();
+      });
+    }
 
     // The current playing index is (_currentGameIndex - 1)
     // The one before that is (_currentGameIndex - 2)

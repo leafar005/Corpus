@@ -77,6 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextField(
+                key: const Key('register_username_field'),
                 controller: _usernameController,
                 decoration: InputDecoration(
                   labelText: 'Nombre de usuario (ej: MasterChief99)',
@@ -87,6 +88,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
               TextField(
+                key: const Key('register_email_field'),
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: 'Correo electrónico',
@@ -98,6 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
               TextField(
+                key: const Key('register_password_field'),
                 controller: _passwordController,
                 decoration: InputDecoration(
                   labelText: 'Contraseña (mínimo 6 caracteres)',

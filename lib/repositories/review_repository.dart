@@ -20,6 +20,12 @@ class SaveReviewResult {
   });
 }
 
+class StashStatsResult {
+  final Map<String, dynamic>? stats;
+  final bool needsFetch;
+  StashStatsResult({required this.stats, required this.needsFetch});
+}
+
 /// Acceso a datos para reseñas y biblioteca del usuario.
 ///
 /// Extrae toda la lógica Supabase de [GameDetailsScreen] para que
@@ -688,5 +694,41 @@ class ReviewRepository {
         .limit(20);
 
     return List<Map<String, dynamic>>.from(newResponse);
+  }
+
+  static const Duration _statsMaxAge = Duration(hours: 6);
+
+  Future<StashStatsResult> fetchStashStatsLocal(dynamic igdbId) async {
+    final row = await _client
+        .from('stash_game_stats')
+        .select()
+        .eq('game_id', igdbId)
+        .maybeSingle();
+
+    if (row == null) {
+      return StashStatsResult(stats: null, needsFetch: true);
+    }
+
+    final checkedAtRaw = row['last_stats_checked_at'] as String?;
+    final checkedAt = checkedAtRaw != null ? DateTime.tryParse(checkedAtRaw) : null;
+    final isStale = checkedAt == null || DateTime.now().toUtc().difference(checkedAt.toUtc()) > _statsMaxAge;
+
+    return StashStatsResult(stats: row, needsFetch: isStale);
+  }
+
+  Future<Map<String, dynamic>?> refreshStashStats(dynamic igdbId) async {
+    try {
+      await _client.functions.invoke('fetch-stash-game-stats', body: {'igdb_id': igdbId});
+    } catch (e) {
+      debugPrint('[CORPUS] Error invocando fetch-stash-game-stats: $e');
+      return null;
+    }
+    // Releer de local tras la sincronización
+    final row = await _client
+        .from('stash_game_stats')
+        .select()
+        .eq('game_id', igdbId)
+        .maybeSingle();
+    return row;
   }
 }
