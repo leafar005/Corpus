@@ -1,4 +1,4 @@
-﻿-- =====================================================================
+-- =====================================================================
 -- CORPUS: FASE 3 - BASE DE DATOS
 -- Mejoras: vista v_friend_pairs, RLS en games, columnas zombie
 -- Ejecutar en: Supabase Dashboard > SQL Editor
@@ -16,7 +16,9 @@
 --      SELECT friend_id FROM v_friend_pairs WHERE user_id = $me
 -- ---------------------------------------------------------------------
 
-CREATE OR REPLACE VIEW public.v_friend_pairs AS
+CREATE OR REPLACE VIEW public.v_friend_pairs
+WITH (security_invoker = true)
+AS
   SELECT requester_id AS user_id, addressee_id AS friend_id
   FROM public.friendships WHERE status = 'accepted'
   UNION ALL
