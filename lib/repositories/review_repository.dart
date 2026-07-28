@@ -57,7 +57,10 @@ class ReviewRepository {
   }) async {
     return await _client
         .from('user_games')
-        .select('*, users!user_games_user_id_fkey(*)')
+        .select(
+          '*, users!user_games_user_id_fkey(*), '
+          'partner:users!user_games_partner_id_fkey(id, username, avatar_url)',
+        )
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .maybeSingle();
@@ -75,7 +78,9 @@ class ReviewRepository {
   }) async {
     final response = await _client
         .from('reviews')
-        .select('*, review_likes(user_id), review_comments(id)')
+        .select(
+          '*, review_likes(user_id), review_comments(id), users!reviews_partner_id_fkey(id, username, avatar_url)',
+        )
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .order('created_at', ascending: false);
@@ -106,6 +111,7 @@ class ReviewRepository {
     required DateTime? playedUntil,
     required int? progressPercent,
     required List<String> imageUrls,
+    required String? partnerId,
   }) {
     final isWishlist = status == 'wishlist';
     return <String, dynamic>{
@@ -143,6 +149,7 @@ class ReviewRepository {
           : playedUntil?.toIso8601String().split('T')[0],
       'progress_percent': isWishlist ? null : progressPercent,
       'image_urls': isWishlist ? <String>[] : imageUrls,
+      'partner_id': isWishlist ? null : partnerId,
     };
   }
 
@@ -314,6 +321,7 @@ class ReviewRepository {
     required int? progressPercent,
     required List<XFile> newImages,
     required List<String> existingImages,
+    required String? partnerId,
   }) async {
     // Snapshot de logros antes de la operación
     Set<String> beforeAchievements = {};
@@ -365,6 +373,7 @@ class ReviewRepository {
       playedUntil: playedUntil,
       progressPercent: progressPercent,
       imageUrls: finalImageUrls,
+      partnerId: partnerId,
     );
 
     // Insert o update según si ya existe la reseña
@@ -421,6 +430,7 @@ class ReviewRepository {
       'comment': isWishlist
           ? null
           : (comment.trim().isNotEmpty ? comment.trim() : null),
+      'partner_id': partnerId,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'user_id, game_id');
 

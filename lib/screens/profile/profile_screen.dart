@@ -44,7 +44,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Verdadero cuando se pide el perfil propio (userId == null) y no hay
   /// sesión iniciada: aquí no hay nada que cargar, solo un aviso de login.
   bool get _isGuestProfile =>
-      widget.userId == null && Supabase.instance.client.auth.currentUser == null;
+      widget.userId == null &&
+      Supabase.instance.client.auth.currentUser == null;
 
   @override
   void initState() {
@@ -718,7 +719,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     double sum = 0;
     for (var r in ratings) {
       sum += r;
-      int bucketIndex = (r.round() - 1).clamp(0, 9);
+      int bucketIndex = (r.floor() - 1).clamp(0, 9);
       buckets[bucketIndex]++;
     }
 

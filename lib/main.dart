@@ -66,9 +66,7 @@ class AuthGate extends StatelessWidget {
         // Las pantallas que necesitan cuenta (Perfil, Actividad, añadir a
         // biblioteca...) detectan el modo invitado por su cuenta y
         // muestran un aviso con botón de "Iniciar sesión" en su lugar.
-        return MainScreen(
-          key: ValueKey(snapshot.data?.session?.user.id),
-        );
+        return MainScreen(key: ValueKey(snapshot.data?.session?.user.id));
       },
     );
   }

@@ -13,6 +13,7 @@ import '../../utils/storage_utils.dart';
 import '../profile/profile_screen.dart';
 import '../library/search_screen.dart';
 import '../../services/igdb_service.dart';
+import '../../widgets/coop_badge.dart';
 
 class ReviewDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -43,12 +44,14 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   bool _isSubmitting = false;
   XFile? _commentImage;
   Map<String, dynamic>? _selectedGameForComment;
+  Map<String, dynamic>? _partnerData;
 
   @override
   void initState() {
     super.initState();
     _currentReviewData = Map<String, dynamic>.from(widget.reviewData);
     _fetchInteractions();
+    _fetchPartner();
     if (widget.focusComment) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _commentFocusNode.requestFocus();
@@ -61,6 +64,25 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     _commentController.dispose();
     _commentFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchPartner() async {
+    final userId = _currentReviewData['user_id'];
+    final gameId = _currentReviewData['game_id'];
+    if (userId == null || gameId == null) return;
+    try {
+      final row = await Supabase.instance.client
+          .from('user_games')
+          .select(
+            'partner:users!user_games_partner_id_fkey(id, username, avatar_url)',
+          )
+          .eq('user_id', userId)
+          .eq('game_id', gameId)
+          .maybeSingle();
+      if (mounted) {
+        setState(() => _partnerData = row?['partner']);
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchInteractions() async {
@@ -418,6 +440,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       gameData: widget.gameData,
       enrichedData: widget.gameData,
       existingReview: _currentReviewData,
+      currentPartnerId: _partnerData?['id'],
       isSaving: _isSubmitting,
       currentRating: rating,
       currentRatingGameplay: ratingGameplay,
@@ -454,6 +477,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     required int? progressPercent,
     required List<XFile> newImages,
     required List<String> existingImages,
+    required String? partnerId,
   }) async {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
@@ -489,6 +513,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         progressPercent: progressPercent,
         newImages: newImages,
         existingImages: existingImages,
+        partnerId: partnerId,
       );
 
       // Mostrar toasts de logros si se han desbloqueado al editar
@@ -565,6 +590,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
           _currentReviewData = newReview;
         });
       }
+
+      await _fetchPartner();
 
       if (mounted) {
         Navigator.pop(context); // Cierra el modal de reseña
@@ -1113,6 +1140,16 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         ),
                                       ],
                                     ),
+                                    if (_partnerData != null) ...[
+                                      const SizedBox(height: 12),
+                                      CoopBadge(
+                                        username:
+                                            _partnerData!['username'] ??
+                                            'Usuario',
+                                        avatarUrl: _partnerData!['avatar_url'],
+                                        status: status,
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

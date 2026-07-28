@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'search_screen.dart';
 import 'group_games_screen.dart';
 import '../../widgets/achievement_toast.dart';
+import '../../widgets/coop_badge.dart';
 import 'review_modal.dart';
 import '../../repositories/review_repository.dart';
 import '../../widgets/guest_login_prompt.dart';
@@ -51,6 +52,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   double _ratingSoundtrack = 0;
   double _ratingVisuals = 0;
   Map<String, dynamic>? _userData;
+  Map<String, dynamic>? _partnerData;
 
   // Datos enriquecidos desde IGDB (para cuando venimos de la biblioteca y faltan summary/developer)
   Map<String, dynamic> _enrichedData = {};
@@ -427,7 +429,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        final PageController pageController = PageController(initialPage: initialIndex);
+        final PageController pageController = PageController(
+          initialPage: initialIndex,
+        );
         int currentIndex = initialIndex;
 
         return Dialog(
@@ -451,7 +455,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                       },
                       itemBuilder: (context, index) {
                         return InteractiveViewer(
-                          child: Image.network(imageUrls[index], fit: BoxFit.contain),
+                          child: Image.network(
+                            imageUrls[index],
+                            fit: BoxFit.contain,
+                          ),
                         );
                       },
                     ),
@@ -460,11 +467,16 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     top: 16,
                     right: 16,
                     child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 32,
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
-                  if (MediaQuery.of(context).size.width > 800 && imageUrls.length > 1) ...[
+                  if (MediaQuery.of(context).size.width > 800 &&
+                      imageUrls.length > 1) ...[
                     if (currentIndex > 0)
                       Positioned(
                         left: 16,
@@ -477,7 +489,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
-                              icon: const Icon(Icons.chevron_left, color: Colors.white, size: 36),
+                              icon: const Icon(
+                                Icons.chevron_left,
+                                color: Colors.white,
+                                size: 36,
+                              ),
                               onPressed: () {
                                 pageController.previousPage(
                                   duration: const Duration(milliseconds: 300),
@@ -500,7 +516,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
-                              icon: const Icon(Icons.chevron_right, color: Colors.white, size: 36),
+                              icon: const Icon(
+                                Icons.chevron_right,
+                                color: Colors.white,
+                                size: 36,
+                              ),
                               onPressed: () {
                                 pageController.nextPage(
                                   duration: const Duration(milliseconds: 300),
@@ -914,6 +934,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           _ratingVisuals = (response['rating_visuals'] ?? 0).toDouble();
           _commentController.text = response['comment'] ?? '';
           _userData = response['users'];
+          _partnerData = response['partner'];
           if (_rating > 0) _ratingController.text = _rating.toStringAsFixed(1);
         });
       } else {
@@ -1221,6 +1242,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       gameData: widget.gameData,
       enrichedData: _enrichedData,
       existingReview: existingReview,
+      currentPartnerId: _partnerData?['id'],
       isSaving: _isSaving,
       currentRating: _rating,
       currentRatingGameplay: _ratingGameplay,
@@ -1252,6 +1274,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     required int? progressPercent,
     required List<XFile> newImages,
     required List<String> existingImages,
+    required String? partnerId,
   }) async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
@@ -1283,6 +1306,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         progressPercent: progressPercent,
         newImages: newImages,
         existingImages: existingImages,
+        partnerId: partnerId,
       );
 
       // Mostrar toasts de logros recién desbloqueados
@@ -1974,6 +1998,18 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   ],
                 ),
                 const Divider(height: 24),
+                if (_partnerData != null) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: CoopBadge(
+                      username: _partnerData!['username'] ?? 'Usuario',
+                      avatarUrl: _partnerData!['avatar_url'],
+                      size: 20,
+                      status: rStatus,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 if (rating > 0) ...[
                   Row(
                     children: [
@@ -2032,7 +2068,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: GestureDetector(
-                            onTap: () => _showImageGallery(List<String>.from(imageUrls), idx),
+                            onTap: () => _showImageGallery(
+                              List<String>.from(imageUrls),
+                              idx,
+                            ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Image.network(
@@ -3119,7 +3158,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               );
               return InkWell(
                 onTap: () {
-                  final List<String> urls = screenshotsList.map((id) => IGDBService.getScreenshotUrl(id.toString())).toList();
+                  final List<String> urls = screenshotsList
+                      .map((id) => IGDBService.getScreenshotUrl(id.toString()))
+                      .toList();
                   _showImageGallery(urls, index);
                 },
                 borderRadius: BorderRadius.circular(12),
@@ -3193,7 +3234,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               );
               return InkWell(
                 onTap: () {
-                  final List<String> urls = artworksList.map((id) => IGDBService.getArtworkUrl(id.toString())).toList();
+                  final List<String> urls = artworksList
+                      .map((id) => IGDBService.getArtworkUrl(id.toString()))
+                      .toList();
                   _showImageGallery(urls, index);
                 },
                 borderRadius: BorderRadius.circular(12),

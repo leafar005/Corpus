@@ -130,7 +130,7 @@ class _SearchScreenState extends State<SearchScreen> {
       }
       return;
     }
-    
+
     final userId = user.id;
     final response = await Supabase.instance.client
         .from('user_games')
