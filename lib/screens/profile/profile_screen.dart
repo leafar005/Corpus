@@ -13,6 +13,7 @@ import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/widgets/filter_bottom_sheet.dart';
 import '../social/friends_screen.dart';
 import 'profile_achievements_tab.dart';
+import 'profile_journal_tab.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -521,8 +522,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           _buildNavTab('Perfil', 0),
           _buildNavTab('Juegos', 1),
-          _buildNavTab('Reseñas', 2),
-          _buildNavTab('Logros', 3),
+          _buildNavTab('Diario', 2),
+          _buildNavTab('Reseñas', 3),
+          _buildNavTab('Logros', 4),
         ],
       ),
     );
@@ -593,8 +595,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ] else if (_selectedTab == 1) ...[
                   _buildAllGamesTab(),
                 ] else if (_selectedTab == 2) ...[
-                  _buildReviewsTab(),
+                  ProfileJournalTab(
+                    reviews: _userReviews,
+                    userData: _userProfile,
+                    onReturn: _fetchProfileData,
+                  ),
                 ] else if (_selectedTab == 3) ...[
+                  _buildReviewsTab(),
+                ] else if (_selectedTab == 4) ...[
                   ProfileAchievementsTab(
                     userId:
                         _userProfile?['id'] ??
@@ -635,8 +643,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ] else if (_selectedTab == 1) ...[
           _buildAllGamesTab(),
         ] else if (_selectedTab == 2) ...[
-          _buildReviewsTab(),
+          ProfileJournalTab(
+            reviews: _userReviews,
+            userData: _userProfile,
+            onReturn: _fetchProfileData,
+          ),
         ] else if (_selectedTab == 3) ...[
+          _buildReviewsTab(),
+        ] else if (_selectedTab == 4) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ProfileAchievementsTab(
