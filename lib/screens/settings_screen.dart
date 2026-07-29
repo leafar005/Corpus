@@ -77,12 +77,22 @@ class SettingsScreen extends StatelessWidget {
             context: context,
             icon: Icons.file_upload_outlined,
             title: 'Importar Biblioteca',
-            subtitle: 'Migrar desde CSV',
+            subtitle: 'Migrar desde Stash (JSON/HAR/CSV)',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.help_outline),
+                  onPressed: () => _showStashMigrationHelp(context),
+                ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
             onTap: () async {
               try {
                 final result = await FilePicker.pickFiles(
                   type: FileType.custom,
-                  allowedExtensions: ['csv'],
+                  allowedExtensions: ['csv', 'json', 'har'],
                 );
 
                 if (result != null) {
@@ -156,7 +166,10 @@ class SettingsScreen extends StatelessWidget {
                       );
                     }
 
-                    final rows = ImportService.parseCsv(fileBytes);
+                    final fileName = result.files.single.name.toLowerCase();
+                    final rows = fileName.endsWith('.csv')
+                        ? ImportService.parseCsv(fileBytes)
+                        : ImportService.parseStashJson(fileBytes);
 
                     await ImportService.matchGamesWithIGDB(rows, (p, t) {
                       if (t > 0) {
@@ -289,18 +302,49 @@ class SettingsScreen extends StatelessWidget {
                 );
 
                 try {
-                  final userId = Supabase.instance.client.auth.currentUser!.id;
-                  // Eliminar primero las reseñas por dependencia de FK
-                  await Supabase.instance.client
-                      .from('reviews')
-                      .delete()
-                      .eq('user_id', userId);
-                  // Luego los juegos de la biblioteca
-                  await Supabase.instance.client
-                      .from('user_games')
-                      .delete()
-                      .eq('user_id', userId);
+                  final supabase = Supabase.instance.client;
+                  final userId = supabase.auth.currentUser!.id;
 
+                  Future<void> batchDelete(String table) async {
+                    while (true) {
+                      final response = await supabase
+                          .from(table)
+                          .select('id')
+                          .eq('user_id', userId)
+                          .limit(50);
+                      if (response.isEmpty) break;
+
+                      final ids = (response as List)
+                          .map((e) => e['id'])
+                          .toList();
+                      await supabase.from(table).delete().inFilter('id', ids);
+                    }
+                  }
+
+                  // Eliminar en lotes para evitar statement timeout por los triggers de XP
+                  await batchDelete('reviews');
+
+                  Future<void> batchDeleteUserGames() async {
+                    while (true) {
+                      final response = await supabase
+                          .from('user_games')
+                          .select('game_id')
+                          .eq('user_id', userId)
+                          .limit(50);
+                      if (response.isEmpty) break;
+
+                      final gameIds = (response as List)
+                          .map((e) => e['game_id'])
+                          .toList();
+                      await supabase
+                          .from('user_games')
+                          .delete()
+                          .eq('user_id', userId)
+                          .inFilter('game_id', gameIds);
+                    }
+                  }
+
+                  await batchDeleteUserGames();
                   libraryUpdateNotifier.value++; // Refrescar biblioteca
 
                   if (context.mounted) {
@@ -399,6 +443,7 @@ class SettingsScreen extends StatelessWidget {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    Widget? trailing,
   }) {
     return ListTile(
       leading: Container(
@@ -411,8 +456,159 @@ class SettingsScreen extends StatelessWidget {
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(subtitle, style: const TextStyle()),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: trailing ?? const Icon(Icons.chevron_right),
       onTap: onTap,
+    );
+  }
+
+  void _showStashMigrationHelp(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.8,
+          maxChildSize: 0.95,
+          minChildSize: 0.5,
+          builder: (context, scrollController) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 32,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Migrar tu biblioteca desde Stash',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Actualmente, Stash no tiene un botón oficial para exportar tus juegos, pero puedes extraerlos capturando el tráfico de la app desde tu móvil. Es más fácil de lo que parece:',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    _buildHelpStep(
+                      context: context,
+                      number: '1',
+                      title: 'Captura tus datos',
+                      content:
+                          'Descarga una aplicación gratuita para capturar tráfico en tu móvil. Si usas iOS te recomendamos Proxyman. Si usas Android, las mejores opciones son PCAPdroid o HTTP Toolkit.\n\n'
+                          'Abre la aplicación que acabas de descargar e inicia la captura de red.\n\n'
+                          'Abre tu app de Stash y haz scroll lentamente por toda tu biblioteca (y la pestaña de reseñas) para asegurarte de que todos tus juegos cargan en pantalla.\n\n'
+                          'Vuelve a la app de captura, detén el proceso y exporta el registro generado. Guárdalo o compártelo eligiendo el formato .har.',
+                    ),
+                    const SizedBox(height: 24),
+                    _buildHelpStep(
+                      context: context,
+                      number: '2',
+                      title: '¡Sube tu archivo a Corpus!',
+                      content:
+                          'Vuelve a esta pantalla y sube directamente el archivo .har o .json que has exportado (también soportamos .csv). Corpus hará la magia: lo leerá automáticamente, buscará las carátulas en alta calidad, vinculará las franquicias y recuperará tus estados, reseñas y horas jugadas. ¡Bienvenido a tu nueva casa!',
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          '¡Entendido!',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildHelpStep({
+    required BuildContext context,
+    required String number,
+    required String title,
+    required String content,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                content,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

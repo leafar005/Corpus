@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:csv/csv.dart';
 import 'package:corpus/services/igdb_service.dart';
+import 'package:corpus/utils/stash_json_to_csv_converter.dart';
 
 class CsvGameRow {
   String title;
@@ -40,22 +41,14 @@ class CsvGameRow {
 class ImportService {
   /// Repara caracteres UTF-8 rotos (mojibake) típicos de exportaciones de Excel/web
   static String fixEncoding(String text) {
-    if (!text.contains('Ã')) return text;
-    return text
-        .replaceAll('Ã¡', 'á')
-        .replaceAll('Ã©', 'é')
-        .replaceAll('Ã-', 'í')
-        .replaceAll('Ã³', 'ó')
-        .replaceAll('Ãº', 'ú')
-        .replaceAll('Ã±', 'ñ')
-        .replaceAll('Ã ', 'à')
-        .replaceAll('Ã¨', 'è')
-        .replaceAll('Ã¬', 'ì')
-        .replaceAll('Ã²', 'ò')
-        .replaceAll('Ã¹', 'ù')
-        .replaceAll('Ã¼', 'ü')
-        .replaceAll('Ã', 'í') // Fallback para í solas
-        .replaceAll('Ã±', 'ñ');
+    if (text.isEmpty || !RegExp(r'[ÃÂ][\u0080-\u00BF]').hasMatch(text)) {
+      return text;
+    }
+    try {
+      return utf8.decode(latin1.encode(text));
+    } catch (_) {
+      return text;
+    }
   }
 
   static List<dynamic> getNames(dynamic field) {
@@ -66,6 +59,103 @@ class ImportService {
           .toList();
     }
     return [field.toString()];
+  }
+
+  
+  static CsvGameRow? _buildRow({
+    required String rawTitle,
+    String? rawIgdbId,
+    String? rawReleaseYear,
+    String? rawStatus,
+    String? rawRating,
+    String? rawComment,
+    String? rawPlatform,
+    String? rawPlayTimeHours,
+    String? rawCompletionType,
+    String? rawDateAdded,
+  }) {
+    final title = fixEncoding(rawTitle.trim());
+    if (title.isEmpty) return null;
+
+    int? igdbId;
+    if (rawIgdbId != null && rawIgdbId.isNotEmpty) {
+      igdbId = int.tryParse(rawIgdbId.split('.').first);
+    }
+
+    int? releaseYear;
+    if (rawReleaseYear != null && rawReleaseYear.isNotEmpty) {
+      releaseYear = int.tryParse(rawReleaseYear.split('.').first);
+    }
+
+    final rawStatusClean = (rawStatus ?? 'wishlist').toLowerCase().trim();
+    String cleanStatus = 'wishlist';
+    if (rawStatusClean == 'beaten' || rawStatusClean == 'completed' ||
+        rawStatusClean == 'finished' || rawStatusClean == 'terminado') {
+      cleanStatus = 'beaten';
+    } else if (rawStatusClean == 'playing' || rawStatusClean == 'jugando' ||
+        rawStatusClean == 'in progress') {
+      cleanStatus = 'playing';
+    } else if (rawStatusClean == 'want' || rawStatusClean == 'wishlist' ||
+        rawStatusClean == 'backlog' || rawStatusClean == 'quiero') {
+      cleanStatus = 'wishlist';
+    } else if (rawStatusClean == 'archived' || rawStatusClean == 'abandoned' ||
+        rawStatusClean == 'dropped' || rawStatusClean == 'abandonado') {
+      cleanStatus = 'abandoned';
+    } else if (rawStatusClean == 'on_hold' || rawStatusClean == 'on hold' ||
+        rawStatusClean == 'paused' || rawStatusClean == 'pausado') {
+      cleanStatus = 'on_hold';
+    }
+
+    double? cleanRating;
+    if (rawRating != null && rawRating.isNotEmpty) {
+      final parsed = double.tryParse(rawRating);
+      if (parsed != null && parsed >= 1.0 && parsed <= 10.0) {
+        cleanRating = parsed;
+      }
+    }
+
+    String? comment;
+    if (rawComment != null) {
+      final c = fixEncoding(rawComment.trim());
+      if (c.isNotEmpty && c != 'nan' && c != 'null') comment = c;
+    }
+
+    String? platform;
+    if (rawPlatform != null) {
+      final p = rawPlatform.trim().toLowerCase();
+      if (p.isNotEmpty && p != 'nan' && p != 'null') platform = p;
+    }
+
+    double? playTimeHours;
+    if (rawPlayTimeHours != null && rawPlayTimeHours.isNotEmpty) {
+      final t = double.tryParse(rawPlayTimeHours);
+      if (t != null && t > 0) playTimeHours = t;
+    }
+
+    String? completionType;
+    if (rawCompletionType != null) {
+      final ct = rawCompletionType.trim().toLowerCase();
+      if (ct.isNotEmpty && ct != 'nan' && ct != 'null') completionType = ct;
+    }
+
+    String? dateAdded;
+    if (rawDateAdded != null) {
+      final d = rawDateAdded.trim();
+      if (d.isNotEmpty && d != 'nan' && d != 'null') dateAdded = d;
+    }
+
+    return CsvGameRow(
+      title: title,
+      igdbId: igdbId,
+      releaseYear: releaseYear,
+      status: cleanStatus,
+      rating: cleanRating,
+      comment: comment,
+      platform: platform,
+      playTimeHours: playTimeHours,
+      completionType: completionType,
+      dateAdded: dateAdded,
+    );
   }
 
   static List<CsvGameRow> parseCsv(Uint8List fileBytes) {
@@ -79,167 +169,86 @@ class ImportService {
     ).convert(content);
     if (rows.isEmpty) return [];
 
-    final List<String> headers = rows.first
-        .map((e) => e.toString().toLowerCase().trim())
-        .toList();
+    final List<String> headers = rows.first.map((e) => e.toString().toLowerCase().trim()).toList();
 
     int titleIdx = headers.indexOf('title');
     if (titleIdx == -1) titleIdx = headers.indexOf('name');
     if (titleIdx == -1) titleIdx = 0;
-
     int idIdx = headers.indexOf('igdb_id');
     if (idIdx == -1) idIdx = headers.indexOf('id');
-
     int yearIdx = headers.indexOf('release_year');
     if (yearIdx == -1) yearIdx = headers.indexOf('year');
-
     int statusIdx = headers.indexOf('status');
     if (statusIdx == -1) statusIdx = headers.indexOf('estado');
-
     int ratingIdx = headers.indexOf('rating');
     if (ratingIdx == -1) ratingIdx = headers.indexOf('nota');
     if (ratingIdx == -1) ratingIdx = headers.indexOf('score');
-
     int commentIdx = headers.indexOf('comment');
     if (commentIdx == -1) commentIdx = headers.indexOf('review');
     if (commentIdx == -1) commentIdx = headers.indexOf('reseña');
-
     int platformIdx = headers.indexOf('platform');
     if (platformIdx == -1) platformIdx = headers.indexOf('plataforma');
-
     int timeIdx = headers.indexOf('play_time_hours');
     if (timeIdx == -1) timeIdx = headers.indexOf('hours');
     if (timeIdx == -1) timeIdx = headers.indexOf('time');
     if (timeIdx == -1) timeIdx = headers.indexOf('horas');
-
     int completionIdx = headers.indexOf('completion_type');
     if (completionIdx == -1) completionIdx = headers.indexOf('completion');
-
     int dateIdx = headers.indexOf('date_added');
     if (dateIdx == -1) dateIdx = headers.indexOf('created_at');
     if (dateIdx == -1) dateIdx = headers.indexOf('date');
 
-    final List<CsvGameRow> parsedRows = [];
+    String? cell(List<dynamic> row, int idx) =>
+        (idx != -1 && idx < row.length && row[idx] != null) ? row[idx].toString() : null;
 
+    final List<CsvGameRow> parsedRows = [];
     for (int i = 1; i < rows.length; i++) {
       final row = rows[i];
       if (row.isEmpty || row.length <= titleIdx) continue;
 
-      final title = fixEncoding(row[titleIdx].toString().trim());
-      if (title.isEmpty) continue;
-
-      int? igdbId;
-      if (idIdx != -1 && idIdx < row.length && row[idIdx] != null) {
-        igdbId = int.tryParse(row[idIdx].toString().split('.').first);
-      }
-
-      int? releaseYear;
-      if (yearIdx != -1 && yearIdx < row.length && row[yearIdx] != null) {
-        releaseYear = int.tryParse(row[yearIdx].toString().split('.').first);
-      }
-
-      String rawStatus = statusIdx != -1 && statusIdx < row.length
-          ? row[statusIdx].toString().toLowerCase().trim()
-          : 'wishlist';
-      String cleanStatus = 'wishlist';
-
-      if (rawStatus == 'beaten' ||
-          rawStatus == 'completed' ||
-          rawStatus == 'finished' ||
-          rawStatus == 'terminado') {
-        cleanStatus = 'beaten';
-      } else if (rawStatus == 'playing' ||
-          rawStatus == 'jugando' ||
-          rawStatus == 'in progress') {
-        cleanStatus = 'playing';
-      } else if (rawStatus == 'want' ||
-          rawStatus == 'wishlist' ||
-          rawStatus == 'backlog' ||
-          rawStatus == 'quiero') {
-        cleanStatus = 'wishlist';
-      } else if (rawStatus == 'archived' ||
-          rawStatus == 'abandoned' ||
-          rawStatus == 'dropped' ||
-          rawStatus == 'abandonado') {
-        cleanStatus = 'abandoned';
-      } else if (rawStatus == 'on_hold' ||
-          rawStatus == 'on hold' ||
-          rawStatus == 'paused' ||
-          rawStatus == 'pausado') {
-        cleanStatus = 'on_hold';
-      }
-      double? cleanRating;
-      if (ratingIdx != -1 && ratingIdx < row.length && row[ratingIdx] != null) {
-        final double rawRating =
-            double.tryParse(row[ratingIdx].toString()) ?? 0.0;
-        if (rawRating >= 1.0) {
-          if (rawRating <= 5.0) {
-            cleanRating = rawRating * 2.0;
-          } else if (rawRating > 10.0) {
-            cleanRating = rawRating / 10.0;
-          } else {
-            cleanRating = rawRating;
-          }
-          if (cleanRating < 1.0) cleanRating = null;
-        }
-      }
-
-      String? comment;
-      if (commentIdx != -1 &&
-          commentIdx < row.length &&
-          row[commentIdx] != null) {
-        final c = fixEncoding(row[commentIdx].toString().trim());
-        if (c.isNotEmpty && c != 'nan' && c != 'null') comment = c;
-      }
-
-      String? platform;
-      if (platformIdx != -1 &&
-          platformIdx < row.length &&
-          row[platformIdx] != null) {
-        final p = row[platformIdx].toString().trim().toLowerCase();
-        if (p.isNotEmpty && p != 'nan' && p != 'null') platform = p;
-      }
-
-      double? playTimeHours;
-      if (timeIdx != -1 && timeIdx < row.length && row[timeIdx] != null) {
-        final t = double.tryParse(row[timeIdx].toString());
-        if (t != null && t > 0) playTimeHours = t;
-      }
-
-      String? completionType;
-      if (completionIdx != -1 &&
-          completionIdx < row.length &&
-          row[completionIdx] != null) {
-        final ct = row[completionIdx].toString().trim().toLowerCase();
-        if (ct.isNotEmpty && ct != 'nan' && ct != 'null') completionType = ct;
-      }
-
-      String? dateAdded;
-      if (dateIdx != -1 && dateIdx < row.length && row[dateIdx] != null) {
-        final d = row[dateIdx].toString().trim();
-        if (d.isNotEmpty && d != 'nan' && d != 'null') dateAdded = d;
-      }
-
-      parsedRows.add(
-        CsvGameRow(
-          title: title,
-          igdbId: igdbId,
-          releaseYear: releaseYear,
-          status: cleanStatus,
-          rating: cleanRating,
-          comment: comment,
-          platform: platform,
-          playTimeHours: playTimeHours,
-          completionType: completionType,
-          dateAdded: dateAdded,
-        ),
+      final built = _buildRow(
+        rawTitle: row[titleIdx].toString(),
+        rawIgdbId: cell(row, idIdx),
+        rawReleaseYear: cell(row, yearIdx),
+        rawStatus: cell(row, statusIdx),
+        rawRating: cell(row, ratingIdx),
+        rawComment: cell(row, commentIdx),
+        rawPlatform: cell(row, platformIdx),
+        rawPlayTimeHours: cell(row, timeIdx),
+        rawCompletionType: cell(row, completionIdx),
+        rawDateAdded: cell(row, dateIdx),
       );
+      if (built != null) parsedRows.add(built);
     }
 
     return parsedRows;
   }
 
-  static Future<void> matchGamesWithIGDB(
+  static List<CsvGameRow> parseStashJson(Uint8List fileBytes) {
+    final String jsonString = utf8.decode(fileBytes, allowMalformed: true);
+    final dynamic data = jsonDecode(jsonString);
+    final extracted = StashJsonToCsvConverter.extractRows(data);
+
+    final List<CsvGameRow> parsedRows = [];
+    for (final e in extracted) {
+      final built = _buildRow(
+        rawTitle: e.title,
+        rawIgdbId: e.igdbId,
+        rawReleaseYear: e.releaseYear,
+        rawStatus: e.status,
+        rawRating: e.rating,
+        rawComment: e.comment,
+        rawPlatform: e.platform,
+        rawPlayTimeHours: e.playTimeHours,
+        rawCompletionType: e.completionType,
+        rawDateAdded: e.dateAdded,
+      );
+      if (built != null) parsedRows.add(built);
+    }
+    return parsedRows;
+  }
+
+static Future<void> matchGamesWithIGDB(
     List<CsvGameRow> rows,
     Function(int processed, int total) onProgress, {
     bool Function()? isCancelled,
@@ -313,7 +322,7 @@ class ImportService {
     final userId = supabase.auth.currentUser!.id;
     final int total = matchedRows.length;
 
-    const int batchSize = 100;
+    const int batchSize = 25;
 
     for (int i = 0; i < total; i += batchSize) {
       final int end = (i + batchSize < total) ? i + batchSize : total;
@@ -427,26 +436,22 @@ class ImportService {
           'updated_at': dateAddedStr,
         });
 
-        if (cleanRating != null ||
-            (row.comment?.isNotEmpty == true) ||
-            row.status == 'beaten') {
-          reviewsPayload.add({
-            'user_id': userId,
-            'game_id': igdbId,
-            'rating': cleanRating,
-            'comment': row.comment?.isNotEmpty == true ? row.comment : null,
-            'status': row.status,
-            'completion_type':
-                row.completionType ??
-                (row.status == 'beaten' ? 'story' : 'none'),
-            'platform': row.platform,
-            'play_time_hours': (row.playTimeHours ?? 0) > 0
-                ? row.playTimeHours
-                : null,
-            'is_replay': false,
-            'created_at': dateAddedStr,
-          });
-        }
+        reviewsPayload.add({
+          'user_id': userId,
+          'game_id': igdbId,
+          'rating': cleanRating,
+          'comment': row.comment?.isNotEmpty == true ? row.comment : null,
+          'status': row.status,
+          'completion_type':
+              row.completionType ??
+              (row.status == 'beaten' ? 'story' : 'none'),
+          'platform': row.platform,
+          'play_time_hours': (row.playTimeHours ?? 0) > 0
+              ? row.playTimeHours
+              : null,
+          'is_replay': false,
+          'created_at': dateAddedStr,
+        });
       }
 
       try {
