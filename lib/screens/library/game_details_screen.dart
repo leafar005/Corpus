@@ -3666,9 +3666,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   centerTitle: false,
                   automaticallyImplyLeading: false,
                   backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  surfaceTintColor: Colors.transparent,
+                  scrolledUnderElevation: 0,
                   flexibleSpace: FlexibleSpaceBar(
                     background: highResCoverUrl.isNotEmpty
                         ? Stack(
+                            clipBehavior: Clip.none,
                             fit: StackFit.expand,
                             children: [
                               AnimatedSwitcher(
@@ -3704,19 +3707,57 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                               Container(
                                 color: Colors.black.withValues(alpha: 0.3),
                               ),
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                    colors: [
-                                      Theme.of(context).scaffoldBackgroundColor,
-                                      Colors.transparent,
-                                    ],
-                                    stops: const [0.0, 1.0],
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom:
+                                    -2, // Se extiende 2px por debajo para tapar la costura
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      stops: const [
+                                        0.0,
+                                        0.12,
+                                        0.22,
+                                        0.35,
+                                        0.5,
+                                        0.65,
+                                        0.8,
+                                        1.0,
+                                      ],
+                                      colors: [
+                                        Theme.of(
+                                          context,
+                                        ).scaffoldBackgroundColor,
+                                        Theme.of(context)
+                                            .scaffoldBackgroundColor
+                                            .withValues(alpha: 0.9),
+                                        Theme.of(context)
+                                            .scaffoldBackgroundColor
+                                            .withValues(alpha: 0.7),
+                                        Theme.of(context)
+                                            .scaffoldBackgroundColor
+                                            .withValues(alpha: 0.45),
+                                        Theme.of(context)
+                                            .scaffoldBackgroundColor
+                                            .withValues(alpha: 0.25),
+                                        Theme.of(context)
+                                            .scaffoldBackgroundColor
+                                            .withValues(alpha: 0.1),
+                                        Theme.of(context)
+                                            .scaffoldBackgroundColor
+                                            .withValues(alpha: 0.03),
+                                        Theme.of(context)
+                                            .scaffoldBackgroundColor
+                                            .withValues(alpha: 0.0),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ), // Close Positioned
                             ],
                           )
                         : Container(color: Theme.of(context).primaryColorDark),
