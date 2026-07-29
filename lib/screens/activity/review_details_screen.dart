@@ -14,6 +14,7 @@ import '../profile/profile_screen.dart';
 import '../library/search_screen.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/coop_badge.dart';
+import '../../utils/image_compressor.dart';
 
 class ReviewDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -138,8 +139,6 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         await Supabase.instance.client.from('review_likes').insert({
           'user_id': currentUserId,
           'review_id': reviewId,
-          'review_user_id': _currentReviewData['user_id'],
-          'review_game_id': _currentReviewData['game_id'],
         });
       } else {
         await Supabase.instance.client
@@ -177,7 +176,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     try {
       String? imageUrl;
       if (_commentImage != null) {
-        final bytes = await _commentImage!.readAsBytes();
+        final bytes = await ImageCompressor.compressImage(_commentImage!);
+        if (bytes == null) throw Exception('Image compression failed');
         final ext = _commentImage!.name.split('.').last;
         final fileName =
             '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}.$ext';
@@ -195,8 +195,6 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       await Supabase.instance.client.from('review_comments').insert({
         'user_id': currentUserId,
         'review_id': reviewId,
-        'review_user_id': _currentReviewData['user_id'],
-        'review_game_id': _currentReviewData['game_id'],
         'content': content.isNotEmpty ? content : null,
         'image_url': imageUrl,
         'attached_game': _selectedGameForComment,

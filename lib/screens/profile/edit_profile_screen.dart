@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'hall_of_fame_selector_screen.dart';
+import '../../utils/image_compressor.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userProfile;
@@ -124,7 +125,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image != null) {
-      final bytes = await image.readAsBytes();
+      final bytes = await ImageCompressor.compressImage(image);
+      if (bytes == null) return;
       final ext = image.name.split('.').last;
 
       setState(() {

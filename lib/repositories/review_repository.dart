@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/storage_utils.dart';
 import '../utils/igdb_constants.dart';
+import '../utils/image_compressor.dart';
 
 /// Resultado de una operación de guardado de reseña.
 /// Separa los datos puros del manejo de UI en el screen.
@@ -281,7 +282,8 @@ class ReviewRepository {
     final List<String> urls = [];
     for (final file in files) {
       try {
-        final bytes = await file.readAsBytes();
+        final bytes = await ImageCompressor.compressImage(file);
+        if (bytes == null) continue;
         final ext = file.name.split('.').last;
         final fileName =
             '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}.$ext';

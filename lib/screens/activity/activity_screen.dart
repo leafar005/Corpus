@@ -301,8 +301,6 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
         await _supabase.from('review_likes').insert({
           'user_id': currentUserId,
           'review_id': reviewId,
-          'review_user_id': review['user_id'],
-          'review_game_id': review['game_id'],
         });
       } else {
         await _supabase.from('review_likes').delete().match({
