@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../library/game_details_screen.dart';
@@ -40,33 +41,86 @@ class ProfileJournalTab extends StatefulWidget {
 class _ProfileJournalTabState extends State<ProfileJournalTab>
     with PaginatedScrollMixin {
   static const int _pageSize = 25;
-  static const String _orderColumn = 'created_at'; // Changed from effective_date as it requires SQL updates
+  static const String _orderColumn =
+      'created_at'; // Changed from effective_date as it requires SQL updates
 
   final List<Map<String, dynamic>> _reviews = [];
   int _page = 0;
   bool _isInitialLoading = true;
   String? _error;
 
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  int? _selectedYear;
+  List<int> _availableYears = [];
+
   static const List<String> _monthNames = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
   ];
 
   @override
   void initState() {
     super.initState();
     initPagination();
+    _fetchAvailableYears();
     loadMore();
+  }
+
+  Future<void> _fetchAvailableYears() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('reviews')
+          .select(_orderColumn)
+          .eq('user_id', widget.userId);
+
+      final Set<int> years = {};
+      for (final r in res) {
+        final dateStr = r[_orderColumn];
+        if (dateStr != null) {
+          try {
+            final date = DateTime.parse(dateStr.toString());
+            years.add(date.year);
+          } catch (_) {}
+        }
+      }
+
+      final sortedYears = years.toList()..sort((a, b) => b.compareTo(a));
+      if (mounted) {
+        setState(() {
+          _availableYears = sortedYears;
+        });
+      }
+    } catch (e) {
+      debugPrint('[CORPUS] Error cargando años: $e');
+    }
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
     disposePagination();
     super.dispose();
   }
 
   DateTime? _effectiveDate(Map<String, dynamic> r) {
-    final raw = r['effective_date'] ?? r['played_until'] ?? r['played_from'] ?? r['created_at'];
+    final raw =
+        r['effective_date'] ??
+        r['played_until'] ??
+        r['played_from'] ??
+        r['created_at'];
     if (raw == null) return null;
     try {
       return DateTime.parse(raw.toString());
@@ -84,16 +138,28 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       final from = _page * _pageSize;
       final to = from + _pageSize - 1;
 
-      final res = await Supabase.instance.client
+      var query = Supabase.instance.client
           .from('reviews')
-          .select('*, games(*)')
-          .eq('user_id', widget.userId)
+          .select('*, games!inner(*)')
+          .eq('user_id', widget.userId);
+
+      if (_searchQuery.isNotEmpty) {
+        query = query.ilike('games.title', '%$_searchQuery%');
+      }
+
+      if (_selectedYear != null) {
+        query = query
+            .gte(_orderColumn, '$_selectedYear-01-01T00:00:00.000Z')
+            .lte(_orderColumn, '$_selectedYear-12-31T23:59:59.999Z');
+      }
+
+      final res = await query
           .order(_orderColumn, ascending: false)
           .range(from, to);
 
-      final newItems = List<Map<String, dynamic>>.from(res)
-          .where((r) => r['games'] != null)
-          .toList();
+      final newItems = List<Map<String, dynamic>>.from(
+        res,
+      ).where((r) => r['games'] != null).toList();
 
       if (mounted) {
         setState(() {
@@ -165,10 +231,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
         const SizedBox(width: 4),
         Text(
           rating.toStringAsFixed(1),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ],
     );
@@ -205,7 +268,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       final d = _effectiveDate(r);
       final key = d == null ? 'sin-fecha' : '${d.year}-${d.month}';
       if (key != lastKey) {
-        final label = d == null ? 'Sin fecha' : '${_monthNames[d.month - 1]}, ${d.year}';
+        final label = d == null
+            ? 'Sin fecha'
+            : '${_monthNames[d.month - 1]}, ${d.year}';
         rows.add(_JournalRow.header(label));
         lastKey = key;
       }
@@ -216,6 +281,92 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar juego...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                              _refresh();
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                  ),
+                  onChanged: (value) {
+                    if (_debounce?.isActive ?? false) _debounce!.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 500), () {
+                      setState(() => _searchQuery = value.trim());
+                      _refresh();
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 1,
+                child: DropdownButtonFormField<int?>(
+                  value: _selectedYear,
+                  hint: const Text('Año'),
+                  isExpanded: true,
+                  icon: const Icon(Icons.arrow_drop_down),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('Todos'),
+                    ),
+                    ..._availableYears.map(
+                      (year) => DropdownMenuItem<int?>(
+                        value: year,
+                        child: Text(year.toString()),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _selectedYear = value);
+                    _refresh();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: _buildBody()),
+      ],
+    );
+  }
+
+  Widget _buildBody() {
     if (_isInitialLoading) {
       return const Padding(
         padding: EdgeInsets.all(48.0),
@@ -232,7 +383,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                 'Aún no hay nada en tu diario. En cuanto marques una fecha\n'
                     'de juego en una reseña, aparecerá aquí.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       );
@@ -257,7 +410,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
             );
           }
           final row = rows[index];
-          return row.isHeader ? _buildMonthHeader(row.label!) : _buildJournalRow(row.review!);
+          return row.isHeader
+              ? _buildMonthHeader(row.label!)
+              : _buildJournalRow(row.review!);
         },
       ),
     );
@@ -269,11 +424,16 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           Divider(
             height: 1,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.12),
           ),
         ],
       ),
@@ -316,7 +476,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.08),
             ),
           ),
         ),
@@ -338,7 +500,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
               width: 1,
               height: 56,
               margin: const EdgeInsets.symmetric(horizontal: 14),
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.12),
             ),
             GestureDetector(
               onTap: () => _openGame(review),
@@ -359,7 +523,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                     ? Icon(
                         Icons.videogame_asset,
                         size: 20,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.4),
                       )
                     : null,
               ),
@@ -403,11 +569,14 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                 width: 140,
                 child: Row(
                   children: [
-                    if (platform != null && IgdbConstants.getPlatformStyle(platform)['icon'] != null)
+                    if (platform != null &&
+                        IgdbConstants.getPlatformStyle(platform)['icon'] !=
+                            null)
                       Padding(
                         padding: const EdgeInsets.only(right: 6.0),
                         child: Image.asset(
-                          IgdbConstants.getPlatformStyle(platform)['icon'] as String,
+                          IgdbConstants.getPlatformStyle(platform)['icon']
+                              as String,
                           width: 16,
                           height: 16,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
