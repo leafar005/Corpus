@@ -327,7 +327,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
               Expanded(
                 flex: 1,
                 child: DropdownButtonFormField<int?>(
-                  value: _selectedYear,
+                  initialValue: _selectedYear,
                   hint: const Text('Año'),
                   isExpanded: true,
                   icon: const Icon(Icons.arrow_drop_down),
