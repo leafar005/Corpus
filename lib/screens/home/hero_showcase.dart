@@ -242,6 +242,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
 
         // Tap zones for previous and next game
         Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               child: GestureDetector(
@@ -851,16 +852,244 @@ class _BottomFadeGradient extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
+              stops: const [0.0, 0.3, 0.5, 0.65, 0.78, 0.88, 0.95, 1.0],
               colors: [
-                Colors.transparent,
-                Colors.black.withValues(alpha: 0.8),
+                Colors.black.withValues(alpha: 0.0),
+                Colors.black.withValues(alpha: 0.03),
+                Colors.black.withValues(alpha: 0.1),
+                Colors.black.withValues(alpha: 0.25),
+                Colors.black.withValues(alpha: 0.45),
+                Colors.black.withValues(alpha: 0.7),
+                Colors.black.withValues(alpha: 0.9),
                 Colors.black,
               ],
-              stops: const [0.0, 0.7, 1.0],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Hero para usuario logueado sin juegos en "Jugando".
+/// Mismo lenguaje visual que GuestHeroShowcase (carrusel de fondo,
+/// crossfade, degradado inferior) pero con mensaje y CTA de "añade
+/// tu primer juego" en vez de login.
+class EmptyPlayingHero extends StatefulWidget {
+  final String userName;
+  final VoidCallback onSearchPressed;
+  final Duration switchDuration;
+
+  const EmptyPlayingHero({
+    super.key,
+    required this.userName,
+    required this.onSearchPressed,
+    this.switchDuration = const Duration(seconds: 10),
+  });
+
+  @override
+  State<EmptyPlayingHero> createState() => _EmptyPlayingHeroState();
+}
+
+class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
+    with TickerProviderStateMixin {
+  static const List<String> _hardcodedImages = [
+    'assets/guest_showcase/cyberpunk01.jpg',
+    'assets/guest_showcase/rdr201.jpg',
+    'assets/guest_showcase/eldenring01.jpg',
+    'assets/guest_showcase/tlou201.jpg',
+    'assets/guest_showcase/ghostoftsushima01.jpg',
+    'assets/guest_showcase/deathstranding01.jpg',
+    'assets/guest_showcase/godofwar01.jpg',
+  ];
+
+  Timer? _timer;
+  int _nextIndex = 0;
+  String? _previousScreenshotUrl;
+  double _previousPanValue = 1.0;
+  String? _currentScreenshotUrl;
+  final Random _random = Random();
+
+  late AnimationController _panController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _panController = AnimationController(
+      vsync: this,
+      duration: widget.switchDuration,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _panController,
+        curve: const Interval(0.0, 0.2, curve: Curves.easeInOut),
+      ),
+    );
+
+    final startIndex = _random.nextInt(_hardcodedImages.length);
+    _currentScreenshotUrl = _hardcodedImages[startIndex];
+    _nextIndex = (startIndex + 1) % _hardcodedImages.length;
+    _panController.forward(from: 0.0);
+
+    if (!kDisableCarouselForTests) {
+      _timer = Timer.periodic(widget.switchDuration, (_) => _pickNext());
+    }
+  }
+
+  void _pickNext() {
+    setState(() {
+      _previousScreenshotUrl = _currentScreenshotUrl;
+      _previousPanValue = _panController.value;
+      _currentScreenshotUrl = _hardcodedImages[_nextIndex];
+    });
+    _nextIndex = (_nextIndex + 1) % _hardcodedImages.length;
+    _panController.forward(from: 0.0);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _panController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(color: Colors.black),
+        if (_currentScreenshotUrl != null)
+          AnimatedBuilder(
+            animation: _panController,
+            builder: (context, child) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (_previousScreenshotUrl != null)
+                    _buildPanningImageLayer(
+                      AssetImage(_previousScreenshotUrl!),
+                      _previousPanValue,
+                      errorBuilder: (_, _, _) =>
+                          Container(color: Colors.black),
+                    ),
+                  Opacity(
+                    opacity: _previousScreenshotUrl == null
+                        ? 1.0
+                        : _fadeAnimation.value,
+                    child: _buildPanningImageLayer(
+                      AssetImage(_currentScreenshotUrl!),
+                      _panController.value,
+                      errorBuilder: (_, _, _) =>
+                          Container(color: Colors.black),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        Container(
+          color: Colors.black.withValues(alpha: 0.75),
+        ), // un pelín más oscuro que el guest hero, aquí no hay foco en la imagen
+        const _BottomFadeGradient(),
+        SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isPortrait = constraints.maxHeight > constraints.maxWidth;
+
+              final textSection = Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontFamily: 'Helvetica',
+                        fontSize: isPortrait ? 42 : 48,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                        letterSpacing: -1,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: 'Bienvenido,\n',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        TextSpan(
+                          text: widget.userName,
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '¿Qué vas a jugar hoy?',
+                    style: TextStyle(
+                      fontFamily: 'Helvetica',
+                      fontSize: isPortrait ? 20 : 22,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: widget.onSearchPressed,
+                    icon: const Icon(Icons.search, size: 20),
+                    label: const Text('Buscar un juego'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+
+              if (isPortrait) {
+                return Stack(
+                  children: [
+                    Positioned(
+                      top: constraints.maxHeight * 0.10,
+                      left: 24,
+                      right: 24,
+                      child: textSection,
+                    ),
+                  ],
+                );
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 48.0,
+                  vertical: 32.0,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: textSection,
+                      ),
+                    ),
+                    const Expanded(flex: 2, child: SizedBox.shrink()),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
