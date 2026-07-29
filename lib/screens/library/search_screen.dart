@@ -5,6 +5,8 @@ import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
 import '../../widgets/filter_bottom_sheet.dart';
 
+import '../../widgets/paginated_scroll_mixin.dart';
+
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
   final bool isSelectionMode;
@@ -18,20 +20,18 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   final TextEditingController _searchController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
 
-  bool _isLoading = false;
+  bool _isInitialSearchLoading = false;
   List<dynamic> _results = [];
-  bool _hasMoreSearchResults = true;
   int _searchOffset = 0;
 
   final List<dynamic> _popularGames = [];
   String _popularGamesError = '';
-  bool _isLoadingPopular = false;
-  bool _hasMorePopularGames = true;
+  bool _isInitialPopularLoading = false;
+  bool _hasMorePopularGamesCache = true;
   int _popularOffset = 0;
 
   GameFilters _filters = GameFilters();
@@ -42,6 +42,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    initPagination();
     _fetchUserGamesCache();
     if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
       _searchController.text = widget.initialQuery!;
@@ -49,72 +50,73 @@ class _SearchScreenState extends State<SearchScreen> {
     } else {
       _fetchPopularGames(isInitial: true);
     }
+  }
 
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200) {
-        if (_searchController.text.trim().isEmpty && !_filters.hasFilters) {
-          _fetchPopularGames(isInitial: false);
-        } else {
-          _performSearch(isInitial: false);
-        }
-      }
-    });
+  @override
+  Future<void> loadMore() async {
+    if (_searchController.text.trim().isEmpty && !_filters.hasFilters) {
+      await _fetchPopularGames(isInitial: false);
+    } else {
+      await _performSearch(isInitial: false);
+    }
   }
 
   @override
   void dispose() {
+    disposePagination();
     _searchController.dispose();
-    _scrollController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
 
   Future<void> _fetchPopularGames({required bool isInitial}) async {
-    if (_isLoadingPopular || !_hasMorePopularGames) return;
+    if (!isInitial && (isLoadingMore || !hasMore)) return;
 
     if (isInitial) {
       _popularOffset = 0;
       _popularGames.clear();
-      _hasMorePopularGames = true;
+      hasMore = true;
       _popularGamesError = '';
+      setState(() {
+        _isInitialPopularLoading = true;
+      });
+    } else {
+      setState(() {
+        isLoadingMore = true;
+      });
     }
-
-    setState(() {
-      _isLoadingPopular = true;
-    });
 
     try {
       final games = await IGDBService.getPopularGames(offset: _popularOffset);
       if (mounted) {
         setState(() {
           if (games.isEmpty) {
-            _hasMorePopularGames = false;
+            hasMore = false;
+            _hasMorePopularGamesCache = false;
           } else {
             _popularGames.addAll(games);
             _popularOffset += 35;
           }
           _popularGamesError = '';
+          isLoadingMore = false;
         });
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients &&
-              _scrollController.position.maxScrollExtent == 0 &&
-              _hasMorePopularGames) {
-            _fetchPopularGames(isInitial: false);
-          }
-        });
+        if (hasMore) {
+          triggerScrollCheck();
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _popularGamesError = e.toString();
+          hasMore = false;
+          _hasMorePopularGamesCache = false;
         });
       }
     } finally {
       if (mounted) {
         setState(() {
-          _isLoadingPopular = false;
+          if (isInitial) _isInitialPopularLoading = false;
+          isLoadingMore = false;
         });
       }
     }
@@ -157,7 +159,8 @@ class _SearchScreenState extends State<SearchScreen> {
       if (query.trim().isEmpty && !_filters.hasFilters) {
         setState(() {
           _results = [];
-          _isLoading = false;
+          _isInitialSearchLoading = false;
+          hasMore = _hasMorePopularGamesCache;
         });
       } else {
         _performSearch(isInitial: true);
@@ -184,17 +187,18 @@ class _SearchScreenState extends State<SearchScreen> {
   int _searchVersion = 0;
 
   Future<void> _performSearch({required bool isInitial}) async {
-    if (!isInitial && (_isLoading || !_hasMoreSearchResults)) return;
+    if (!isInitial && (isLoadingMore || !hasMore)) return;
 
     if (isInitial) {
       _searchOffset = 0;
       _results.clear();
-      _hasMoreSearchResults = true;
+      hasMore = true;
     }
 
     final int version = ++_searchVersion;
     setState(() {
-      _isLoading = true;
+      if (isInitial) _isInitialSearchLoading = true;
+      else isLoadingMore = true;
     });
 
     try {
@@ -215,42 +219,33 @@ class _SearchScreenState extends State<SearchScreen> {
       );
 
       debugPrint('[DEBUG] searchGames devolvió ${games.length} resultados');
-      if (games.isNotEmpty) {
-        debugPrint(
-          '[DEBUG] Primeros nombres: ${games.take(3).map((g) => g['name']).toList()}',
-        );
-      }
 
       if (mounted && version == _searchVersion) {
         setState(() {
           if (games.isEmpty) {
-            _hasMoreSearchResults = false;
+            hasMore = false;
           } else {
             _results.addAll(games);
             _searchOffset += 35;
           }
         });
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients &&
-              _scrollController.position.maxScrollExtent == 0 &&
-              _hasMoreSearchResults) {
-            _performSearch(isInitial: false);
-          }
-        });
       }
     } catch (e, st) {
       debugPrint('[SearchScreen] Error en searchGames: $e\n$st');
-      if (mounted) {
+      if (mounted && version == _searchVersion) {
         setState(() {
-          _hasMoreSearchResults = false;
+          hasMore = false;
         });
       }
     } finally {
       if (mounted && version == _searchVersion) {
         setState(() {
-          _isLoading = false;
+          if (isInitial) _isInitialSearchLoading = false;
+          isLoadingMore = false;
         });
+        if (hasMore) {
+          triggerScrollCheck();
+        }
       }
     }
   }
@@ -341,7 +336,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         );
       }
-      if (_popularGames.isEmpty && _isLoadingPopular) {
+      if (_popularGames.isEmpty && _isInitialPopularLoading) {
         return Center(child: CircularProgressIndicator());
       }
       return Column(
@@ -358,16 +353,16 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
-          Expanded(child: _buildGrid(_popularGames, _isLoadingPopular)),
+          Expanded(child: _buildGrid(_popularGames)),
         ],
       );
     }
 
-    if (_results.isEmpty && _isLoading) {
+    if (_results.isEmpty && _isInitialSearchLoading) {
       return Center(child: CircularProgressIndicator());
     }
 
-    if (_results.isEmpty && !_isLoading) {
+    if (_results.isEmpty && !_isInitialSearchLoading) {
       return Center(
         child: Text(
           'No se encontraron resultados...',
@@ -378,48 +373,46 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
 
-    return _buildGrid(_results, _isLoading);
+    return _buildGrid(_results);
   }
 
-  Widget _buildGrid(List<dynamic> gamesList, bool isLoadingMore) {
-    return Column(
-      children: [
-        Expanded(
-          child: GridView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(8.0),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 150,
-              childAspectRatio: 0.7,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
+  Widget _buildGrid(List<dynamic> gamesList) {
+    return GridView.builder(
+      controller: scrollController,
+      padding: const EdgeInsets.all(8.0),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 150,
+        childAspectRatio: 0.7,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: gamesList.length + (hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index >= gamesList.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            itemCount: gamesList.length,
-            itemBuilder: (context, index) {
-              final game = gamesList[index];
-              final bool isInLibrary = _userGamesCache.containsKey(game['id']);
-              final double userRating = isInLibrary
-                  ? _userGamesCache[game['id']]!
-                  : 0.0;
+          );
+        }
 
-              return GameCard(
-                game: game,
-                isInLibrary: isInLibrary,
-                userRating: userRating,
-                onReturn: _fetchUserGamesCache,
-                onTap: widget.isSelectionMode
-                    ? (cleanData) => Navigator.pop(context, cleanData)
-                    : null,
-              );
-            },
-          ),
-        ),
-        if (isLoadingMore)
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: CircularProgressIndicator(),
-          ),
-      ],
+        final game = gamesList[index];
+        final bool isInLibrary = _userGamesCache.containsKey(game['id']);
+        final double userRating = isInLibrary
+            ? _userGamesCache[game['id']]!
+            : 0.0;
+
+        return GameCard(
+          game: game,
+          isInLibrary: isInLibrary,
+          userRating: userRating,
+          onReturn: _fetchUserGamesCache,
+          onTap: widget.isSelectionMode
+              ? (cleanData) => Navigator.pop(context, cleanData)
+              : null,
+        );
+      },
     );
   }
 }

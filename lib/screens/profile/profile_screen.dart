@@ -5,15 +5,15 @@ import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../library/game_details_screen.dart';
 import 'profile_games_list_screen.dart';
-import '../activity/review_details_screen.dart';
 import '../settings_screen.dart';
 import 'achievements_screen.dart';
 import '../../utils/level_calculator.dart';
 import 'package:corpus/widgets/game_card.dart';
-import 'package:corpus/widgets/filter_bottom_sheet.dart';
 import '../social/friends_screen.dart';
 import 'profile_achievements_tab.dart';
 import 'profile_journal_tab.dart';
+import 'profile_reviews_tab.dart';
+import 'profile_games_grid_tab.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -33,7 +33,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _userReviews = [];
   int _selectedTab = 0;
   List<Map<String, dynamic>?> _hallOfFame = List.filled(5, null);
-  GameFilters _filters = GameFilters();
   StreamSubscription<AuthState>? _authSub;
 
   bool get _isOwnProfile {
@@ -211,18 +210,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(isDesktop),
-            _buildLevelProgressBar(isDesktop),
-            _buildNavBar(isDesktop),
-            const SizedBox(height: 24),
-            if (isDesktop) _buildDesktopLayout() else _buildMobileLayout(),
-            const SizedBox(height: 40),
-          ],
-        ),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(isDesktop),
+                  _buildLevelProgressBar(isDesktop),
+                  _buildNavBar(isDesktop),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ];
+        },
+        body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
       ),
     );
   }
@@ -443,9 +447,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(8),
         onTap: _isOwnProfile
             ? () {
-                final userId =
-                    _userProfile?['id'] ??
-                    Supabase.instance.client.auth.currentUser!.id;
+                final userId = _userProfile?['id'] ?? Supabase.instance.client.auth.currentUser!.id;
                 final xp = (_userProfile?['xp'] as num?)?.toInt() ?? 0;
                 Navigator.push(
                   context,
@@ -519,14 +521,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          _buildNavTab('Perfil', 0),
-          _buildNavTab('Juegos', 1),
-          _buildNavTab('Diario', 2),
-          _buildNavTab('Reseñas', 3),
-          _buildNavTab('Logros', 4),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildNavTab('Perfil', 0),
+            _buildNavTab('Juegos', 1),
+            _buildNavTab('Diario', 2),
+            _buildNavTab('Reseñas', 3),
+            _buildNavTab('Logros', 4),
+          ],
+        ),
       ),
     );
   }
@@ -575,45 +580,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Columna Izquierda (Sidebar)
           SizedBox(
             width: 300,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [_buildSidebarInfo()],
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [_buildSidebarInfo()],
+              ),
             ),
           ),
           const SizedBox(width: 40),
           // Columna Derecha (Contenido Principal)
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_selectedTab == 0) ...[
-                  _buildHallOfFame(),
-                  const SizedBox(height: 32),
-                  _buildGiantStatsRow(),
-                  const SizedBox(height: 32),
-                  // Si no hay contenido principal en 'Perfil', podríamos poner los juegos recientes
-                  _buildGamesTab(),
-                ] else if (_selectedTab == 1) ...[
-                  _buildAllGamesTab(),
-                ] else if (_selectedTab == 2) ...[
-                  ProfileJournalTab(
-                    reviews: _userReviews,
-                    userData: _userProfile,
-                    onReturn: _fetchProfileData,
-                  ),
-                ] else if (_selectedTab == 3) ...[
-                  _buildReviewsTab(),
-                ] else if (_selectedTab == 4) ...[
-                  ProfileAchievementsTab(
-                    userId:
-                        _userProfile?['id'] ??
-                        widget.userId ??
-                        Supabase.instance.client.auth.currentUser!.id,
-                    isOwnProfile: _isOwnProfile,
-                  ),
-                ],
-              ],
-            ),
+            child: _buildCurrentTabContent(),
           ),
         ],
       ),
@@ -630,41 +607,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: _buildSidebarInfo(isMobile: true),
           ),
           const SizedBox(height: 24),
-          _buildHallOfFame(),
-          const SizedBox(height: 32),
-          _buildGiantStatsRow(isMobile: true),
-          const SizedBox(height: 32),
-          _buildGamesTab(),
-          const SizedBox(height: 32),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildRatingsHistogram(),
-          ),
-          const SizedBox(height: 32),
-        ] else if (_selectedTab == 1) ...[
-          _buildAllGamesTab(),
-        ] else if (_selectedTab == 2) ...[
-          ProfileJournalTab(
-            reviews: _userReviews,
-            userData: _userProfile,
-            onReturn: _fetchProfileData,
-          ),
-        ] else if (_selectedTab == 3) ...[
-          _buildReviewsTab(),
-        ] else if (_selectedTab == 4) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ProfileAchievementsTab(
-              userId:
-                  _userProfile?['id'] ??
-                  widget.userId ??
-                  Supabase.instance.client.auth.currentUser!.id,
-              isOwnProfile: _isOwnProfile,
-            ),
-          ),
         ],
+        Expanded(
+          child: _buildCurrentTabContent(isMobile: true),
+        ),
       ],
     );
+  }
+
+  Widget _buildCurrentTabContent({bool isMobile = false}) {
+    final userId = _userProfile?['id'] ?? widget.userId ?? Supabase.instance.client.auth.currentUser!.id;
+
+    if (_selectedTab == 0) {
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHallOfFame(),
+            const SizedBox(height: 32),
+            _buildGiantStatsRow(isMobile: isMobile),
+            const SizedBox(height: 32),
+            _buildGamesTab(),
+            if (isMobile) ...[
+              const SizedBox(height: 32),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildRatingsHistogram(),
+              ),
+            ],
+            const SizedBox(height: 40),
+          ],
+        ),
+      );
+    } else if (_selectedTab == 1) {
+      // Juegos
+      return ProfileGamesGridTab(
+        userId: userId,
+        onReturn: _fetchProfileData,
+      );
+    } else if (_selectedTab == 2) {
+      // Diario
+      return ProfileJournalTab(
+        userId: userId,
+        userData: _userProfile,
+      );
+    } else if (_selectedTab == 3) {
+      // Reseñas
+      return ProfileReviewsTab(
+        userId: userId,
+        userData: _userProfile,
+      );
+    } else if (_selectedTab == 4) {
+      // Logros
+      return SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0),
+          child: ProfileAchievementsTab(
+            userId: userId,
+            isOwnProfile: _isOwnProfile,
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildSidebarInfo({bool isMobile = false}) {
@@ -834,7 +839,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   MaterialPageRoute(
                     builder: (context) => ProfileGamesListScreen(
                       title: 'Completados',
-                      games: _allGames,
+                      userId: _userProfile?['id'] ?? '',
+                      status: 'beaten',
                     ),
                   ),
                 ).then((_) => _fetchProfileData());
@@ -851,7 +857,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   MaterialPageRoute(
                     builder: (context) => ProfileGamesListScreen(
                       title: 'Jugando',
-                      games: _playingGames,
+                      userId: _userProfile?['id'] ?? '',
+                      status: 'playing',
                     ),
                   ),
                 ).then((_) => _fetchProfileData());
@@ -868,7 +875,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   MaterialPageRoute(
                     builder: (context) => ProfileGamesListScreen(
                       title: 'Quiero',
-                      games: _wishlistGames,
+                      userId: _userProfile?['id'] ?? '',
+                      status: 'wishlist',
                     ),
                   ),
                 ).then((_) => _fetchProfileData());
@@ -1080,7 +1088,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSectionTitle(
     String title,
     int count,
-    List<Map<String, dynamic>> games,
+    String? status,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -1112,8 +1120,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        ProfileGamesListScreen(title: title, games: games),
+                    builder: (context) => ProfileGamesListScreen(
+                      title: title,
+                      userId: _userProfile?['id'] ?? '',
+                      status: status,
+                    ),
                   ),
                 ).then((_) => _fetchProfileData());
               },
@@ -1147,29 +1158,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.only(right: 12.0),
             child: SizedBox(width: 110, child: _buildGameCard(game)),
           );
-        },
-      ),
-    );
-  }
-
-  Widget _buildGrid(List<Map<String, dynamic>> games) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: GridView.builder(
-        padding: EdgeInsets.zero,
-        physics:
-            const NeverScrollableScrollPhysics(), // Scroll lo maneja la página
-        shrinkWrap: true, // Para que el Grid se adapte al contenido
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 120,
-          childAspectRatio: 0.7,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: games.length,
-        itemBuilder: (context, index) {
-          final game = games[index];
-          return _buildGameCard(game);
         },
       ),
     );
@@ -1248,17 +1236,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_wishlistGames.isNotEmpty) ...[
-          _buildSectionTitle('Quiero', _wishlistGames.length, _wishlistGames),
+          _buildSectionTitle('Quiero', _wishlistGames.length, 'wishlist'),
           _buildCarousel(_wishlistGames),
           const SizedBox(height: 24),
         ],
         if (_playingGames.isNotEmpty) ...[
-          _buildSectionTitle('Jugando', _playingGames.length, _playingGames),
+          _buildSectionTitle('Jugando', _playingGames.length, 'playing'),
           _buildCarousel(_playingGames),
           const SizedBox(height: 24),
         ],
         if (_allGames.isNotEmpty) ...[
-          _buildSectionTitle('Completados', _allGames.length, _allGames),
+          _buildSectionTitle('Completados', _allGames.length, 'beaten'),
           _buildCarousel(_allGames),
         ] else ...[
           Center(
@@ -1274,412 +1262,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ],
-    );
-  }
-
-  void _openFilters() async {
-    final result = await showModalBottomSheet<GameFilters>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => FilterBottomSheet(initialFilters: _filters),
-    );
-
-    if (result != null) {
-      setState(() {
-        _filters = result;
-      });
-    }
-  }
-
-  List<Map<String, dynamic>> _getFilteredGames() {
-    final allGamesList = [..._allGames, ..._playingGames, ..._wishlistGames];
-
-    var filtered = allGamesList.where((game) {
-      final gameData = game['games'] ?? game;
-
-      bool matchesGenres = true;
-      if (_filters.genres.isNotEmpty) {
-        final gameGenres =
-            (gameData['genres'] as List?)
-                ?.map((e) => e is int ? e : (e['id'] ?? -1))
-                .toList() ??
-            [];
-        matchesGenres = _filters.genres.any((id) => gameGenres.contains(id));
-      }
-
-      bool matchesThemes = true;
-      if (_filters.themes.isNotEmpty) {
-        final gameThemes =
-            (gameData['themes'] as List?)
-                ?.map((e) => e is int ? e : (e['id'] ?? -1))
-                .toList() ??
-            [];
-        matchesThemes = _filters.themes.any((id) => gameThemes.contains(id));
-      }
-
-      bool matchesGameModes = true;
-      if (_filters.gameModes.isNotEmpty) {
-        final gameModesList =
-            (gameData['game_modes'] as List?)
-                ?.map((e) => e is int ? e : (e['id'] ?? -1))
-                .toList() ??
-            [];
-        matchesGameModes = _filters.gameModes.any(
-          (id) => gameModesList.contains(id),
-        );
-      }
-
-      bool matchesPerspectives = true;
-      if (_filters.playerPerspectives.isNotEmpty) {
-        final gamePerspectives =
-            (gameData['player_perspectives'] as List?)
-                ?.map((e) => e is int ? e : (e['id'] ?? -1))
-                .toList() ??
-            [];
-        matchesPerspectives = _filters.playerPerspectives.any(
-          (id) => gamePerspectives.contains(id),
-        );
-      }
-
-      bool matchesPlatforms = true;
-
-      bool matchesCategories = true;
-      if (_filters.categories.isNotEmpty) {
-        matchesCategories = _filters.categories.contains(gameData['category']);
-      }
-
-      return matchesGenres &&
-          matchesThemes &&
-          matchesGameModes &&
-          matchesPerspectives &&
-          matchesPlatforms &&
-          matchesCategories;
-    }).toList();
-
-    filtered.sort((a, b) {
-      final gameA = a['games'] ?? a;
-      final gameB = b['games'] ?? b;
-
-      int comparison = 0;
-      if (_filters.sortBy == 'name') {
-        comparison = (gameA['title'] ?? '').toString().compareTo(
-          (gameB['title'] ?? '').toString(),
-        );
-      } else if (_filters.sortBy == 'first_release_date') {
-        final dateA = gameA['release_date'] ?? '9999-12-31';
-        final dateB = gameB['release_date'] ?? '9999-12-31';
-        comparison = dateA.compareTo(dateB);
-      } else if (_filters.sortBy == 'rating') {
-        final ratingA = (a['rating'] ?? 0).toDouble();
-        final ratingB = (b['rating'] ?? 0).toDouble();
-        comparison = ratingA.compareTo(ratingB);
-      } else {
-        final ratingA = (a['rating'] ?? 0).toDouble();
-        final ratingB = (b['rating'] ?? 0).toDouble();
-        comparison = ratingA.compareTo(ratingB);
-      }
-
-      return _filters.sortAscending ? comparison : -comparison;
-    });
-
-    return filtered;
-  }
-
-  Widget _buildAllGamesTab() {
-    final filteredGames = _getFilteredGames();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: TextButton.icon(
-            icon: const Icon(Icons.tune, size: 20),
-            label: Text(
-              'Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}',
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: _filters.hasFilters
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            onPressed: _openFilters,
-          ),
-        ),
-        if (filteredGames.isNotEmpty)
-          _buildGrid(filteredGames)
-        else
-          Center(
-            child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: Text(
-                'Aún no tienes juegos en tu biblioteca o ninguno coincide con los filtros.',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildReviewsTab() {
-    final textReviews = _userReviews.where((r) {
-      final comment = r['comment'] as String?;
-      return comment != null && comment.trim().isNotEmpty;
-    }).toList();
-
-    if (textReviews.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(32.0),
-          child: Text(
-            'Aún no has escrito ninguna reseña.',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: textReviews.map((r) => _buildReviewCard(r)).toList(),
-    );
-  }
-
-  String _formatDate(String isoString) {
-    try {
-      final date = DateTime.parse(isoString).toLocal();
-      const months = [
-        'Ene',
-        'Feb',
-        'Mar',
-        'Abr',
-        'May',
-        'Jun',
-        'Jul',
-        'Ago',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dic',
-      ];
-      return "${date.day} ${months[date.month - 1]}. ${date.year}";
-    } catch (e) {
-      return '';
-    }
-  }
-
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'beaten':
-        return 'Terminado';
-      case 'playing':
-        return 'Jugando';
-      case 'wishlist':
-        return 'Quiero';
-      case 'abandoned':
-        return 'Abandonado';
-      case 'on_hold':
-        return 'En Pausa';
-      default:
-        return 'Desconocido';
-    }
-  }
-
-  Widget _buildReviewCard(Map<String, dynamic> activity) {
-    final gameData = activity['games'] ?? {};
-    final userData = activity['users'] ?? _userProfile ?? {};
-
-    final title = gameData['title'] ?? 'Juego Desconocido';
-    final coverUrl = gameData['cover_url'] ?? '';
-
-    final rating = (activity['rating'] ?? 0).toDouble();
-    final comment = activity['comment'] ?? '';
-    final status = activity['status'] ?? 'unknown';
-    final dateStr = activity['created_at'] != null
-        ? _formatDate(activity['created_at'])
-        : '';
-
-    final likes = (activity['review_likes'] as List?) ?? [];
-    final comments = (activity['review_comments'] as List?) ?? [];
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    final hasLiked = likes.any((l) => l['user_id'] == currentUserId);
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ReviewDetailsScreen(
-              gameData: gameData,
-              userData: userData,
-              reviewData: activity,
-            ),
-          ),
-        ).then((_) => _fetchProfileData());
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  dateStr,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 50,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: Theme.of(context).primaryColorDark,
-                    image: coverUrl.isNotEmpty
-                        ? DecorationImage(
-                            image: NetworkImage(coverUrl),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.flag,
-                            size: 14,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _getStatusText(status),
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (rating > 0) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.star,
-                              color: Theme.of(context).colorScheme.secondary,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              rating.toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            if (comment.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                comment,
-                style: const TextStyle(fontSize: 14, height: 1.4),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-
-            const SizedBox(height: 12),
-            Divider(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.24),
-              height: 1,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-                  size: 16,
-                  color: hasLiked
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  likes.length.toString(),
-                  style: TextStyle(
-                    color: hasLiked
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 13,
-                    fontWeight: hasLiked ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.chat_bubble_outline,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  comments.length.toString(),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

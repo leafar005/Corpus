@@ -7,6 +7,8 @@ import '../../widgets/coop_badge.dart';
 import '../activity/review_details_screen.dart';
 import '../profile/profile_screen.dart';
 
+import '../../widgets/paginated_scroll_mixin.dart';
+
 /// Feed de actividad social en tiempo real.
 /// Muestra la actividad del usuario actual y la de sus amigos aceptados.
 /// La tabla `activity_feed` se puebla automáticamente mediante triggers
@@ -18,10 +20,11 @@ class ActivityScreen extends StatefulWidget {
   State<ActivityScreen> createState() => _ActivityScreenState();
 }
 
-class _ActivityScreenState extends State<ActivityScreen> {
+class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMixin {
   final _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _activities = [];
   bool _isLoading = true;
+  int _offset = 0;
   RealtimeChannel? _realtimeChannel;
   StreamSubscription<AuthState>? _authSub;
 
@@ -30,13 +33,14 @@ class _ActivityScreenState extends State<ActivityScreen> {
   @override
   void initState() {
     super.initState();
+    initPagination();
     if (_isGuest) {
       // Invitado: nada de feed ni de suscripción realtime (sin sesión no
       // hay "actividad de tus amigos" que mostrar, y así evitamos abrir
       // un canal realtime y consultas que no llevan a ningún sitio).
       _isLoading = false;
     } else {
-      _fetchActivity();
+      _fetchActivity(isRefresh: true);
       _subscribeRealtime();
       libraryUpdateNotifier.addListener(_onLibraryUpdated);
     }
@@ -47,7 +51,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       if (!mounted || _supabase.auth.currentUser == null) return;
       if (_realtimeChannel != null) return; // Ya activo tras un login anterior.
       setState(() => _isLoading = true);
-      _fetchActivity();
+      _fetchActivity(isRefresh: true);
       _subscribeRealtime();
       libraryUpdateNotifier.addListener(_onLibraryUpdated);
     });
@@ -55,6 +59,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   @override
   void dispose() {
+    disposePagination();
     _realtimeChannel?.unsubscribe();
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
     _authSub?.cancel();
@@ -62,18 +67,34 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   void _onLibraryUpdated() {
-    if (mounted) _fetchActivity();
+    if (mounted) _fetchActivity(isRefresh: true, silent: true);
+  }
+
+  @override
+  Future<void> loadMore() async {
+    await _fetchActivity(isRefresh: false);
   }
 
   // ──────────────────────────────────────────
   // DATOS
   // ──────────────────────────────────────────
 
-  Future<void> _fetchActivity({bool silent = false}) async {
-    if (!silent && _activities.isEmpty) {
-      setState(() => _isLoading = true);
+  Future<void> _fetchActivity({bool isRefresh = false, bool silent = false}) async {
+    if (isRefresh) {
+      _offset = 0;
+      hasMore = true;
+      if (!silent && _activities.isEmpty) {
+        setState(() => _isLoading = true);
+      }
+    } else {
+      if (isLoadingMore || !hasMore) return;
+      setState(() => isLoadingMore = true);
     }
+
     try {
+      final from = _offset;
+      final to = _offset + 29;
+
       // 1. Una sola query para el feed completo
       final response = await _supabase
           .from('activity_feed')
@@ -83,7 +104,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
             games!activity_feed_game_id_fkey(igdb_id, title, cover_url)
           ''')
           .order('created_at', ascending: false)
-          .limit(60);
+          .range(from, to);
 
       final feedItems = List<Map<String, dynamic>>.from(response);
 
@@ -209,13 +230,29 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
       if (mounted) {
         setState(() {
-          _activities = mergedActivities;
+          if (isRefresh) {
+            _activities = mergedActivities;
+          } else {
+            _activities.addAll(mergedActivities);
+          }
+          _offset += 30;
+          hasMore = feedItems.length == 30;
           _isLoading = false;
+          isLoadingMore = false;
         });
+        if (hasMore) {
+          triggerScrollCheck();
+        }
       }
     } catch (e) {
       debugPrint('[ActivityScreen] Error cargando actividad: $e');
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          isLoadingMore = false;
+          hasMore = false;
+        });
+      }
     }
   }
 
@@ -228,7 +265,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           schema: 'public',
           table: 'activity_feed',
           callback: (payload) {
-            if (mounted) _fetchActivity();
+            if (mounted) _fetchActivity(isRefresh: true, silent: true);
           },
         )
         .subscribe();
@@ -469,7 +506,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
             reviewData: review,
           ),
         ),
-      ).then((_) => _fetchActivity(silent: true));
+      ).then((_) => _fetchActivity(isRefresh: true, silent: true));
     }
 
     void openReviewComments() {
@@ -484,7 +521,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
             focusComment: true,
           ),
         ),
-      ).then((_) => _fetchActivity(silent: true));
+      ).then((_) => _fetchActivity(isRefresh: true, silent: true));
     }
 
     return GestureDetector(
@@ -945,11 +982,21 @@ class _ActivityScreenState extends State<ActivityScreen> {
           : _activities.isEmpty
           ? _buildEmptyState()
           : RefreshIndicator(
-              onRefresh: _fetchActivity,
+              onRefresh: () => _fetchActivity(isRefresh: true),
               child: ListView.builder(
-                itemCount: _activities.length,
-                itemBuilder: (context, index) =>
-                    _buildActivityCard(_activities[index], index),
+                controller: scrollController,
+                itemCount: _activities.length + (hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index >= _activities.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
+                  return _buildActivityCard(_activities[index], index);
+                },
               ),
             ),
     );
