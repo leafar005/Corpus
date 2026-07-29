@@ -283,420 +283,433 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800),
-                child: SingleChildScrollView(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
+          : SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    // BANNER & AVATAR EDIT
+                    Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.bottomCenter,
                       children: [
-                        // BANNER & AVATAR EDIT
-                        Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.bottomCenter,
-                          children: [
-                            // BANNER
-                            GestureDetector(
-                              onTap: () => _pickImage(false),
-                              child: Container(
-                                height: 180,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
-                                  gradient:
-                                      _bannerUrl == null &&
-                                          _newBannerBytes == null
-                                      ? LinearGradient(
-                                          colors: [
-                                            Colors.deepPurple.shade800,
-                                            Colors.red.shade900,
-                                          ],
-                                        )
-                                      : null,
-                                  image: _newBannerBytes != null
-                                      ? DecorationImage(
-                                          image: MemoryImage(_newBannerBytes!),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : _bannerUrl != null
-                                      ? DecorationImage(
-                                          image: NetworkImage(_bannerUrl!),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-                                ),
-                                child: Stack(
-                                  children: [
-                                    // Degradado oscuro para que resalte la cámara y se funda bien
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.bottomCenter,
-                                          end: Alignment.topCenter,
-                                          colors: [
-                                            Theme.of(context)
-                                                .scaffoldBackgroundColor
-                                                .withValues(alpha: 0.54),
-                                            Colors.transparent,
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    // Icono de la cámara elevado (alineado más arriba del centro)
-                                    Align(
-                                      alignment: const Alignment(
-                                        0,
-                                        -0.4,
-                                      ), // Elevado respecto al centro
-                                      child: CircleAvatar(
-                                        backgroundColor: Theme.of(context)
+                        // BANNER
+                        GestureDetector(
+                          onTap: () => _pickImage(false),
+                          child: Container(
+                            height: 180,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              gradient:
+                                  _bannerUrl == null && _newBannerBytes == null
+                                  ? LinearGradient(
+                                      colors: [
+                                        Colors.deepPurple.shade800,
+                                        Colors.red.shade900,
+                                      ],
+                                    )
+                                  : null,
+                              image: _newBannerBytes != null
+                                  ? DecorationImage(
+                                      image: MemoryImage(_newBannerBytes!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : _bannerUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(_bannerUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: Stack(
+                              children: [
+                                // Degradado oscuro para que resalte la cámara y se funda bien
+                                Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors: [
+                                        Theme.of(context)
                                             .scaffoldBackgroundColor
                                             .withValues(alpha: 0.54),
-                                        radius: 24,
-                                        child: Icon(Icons.camera_alt, size: 24),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            // AVATAR
-                            Positioned(
-                              bottom: -40,
-                              child: GestureDetector(
-                                onTap: () => _pickImage(true),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Theme.of(
-                                        context,
-                                      ).scaffoldBackgroundColor,
-                                      width: 4,
+                                        Colors.transparent,
+                                      ],
                                     ),
                                   ),
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 50,
-                                        backgroundColor: Theme.of(
-                                          context,
-                                        ).colorScheme.surfaceContainerHighest,
-                                        backgroundImage: _newAvatarBytes != null
-                                            ? MemoryImage(_newAvatarBytes!)
-                                                  as ImageProvider
-                                            : _avatarUrl != null
-                                            ? NetworkImage(_avatarUrl!)
-                                            : null,
-                                        onBackgroundImageError: (e, s) {
-                                          debugPrint(
-                                            '[CORPUS] Error cargando preview de avatar: $e',
-                                          );
-                                        },
-                                        child:
-                                            _newAvatarBytes == null &&
-                                                _avatarUrl == null
-                                            ? const Icon(Icons.person, size: 50)
-                                            : null,
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .scaffoldBackgroundColor
-                                              .withValues(alpha: 0.54),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.camera_alt,
-                                          size: 24,
-                                        ),
-                                      ),
-                                    ],
+                                ),
+                                // Icono de la cámara elevado (alineado más arriba del centro)
+                                Align(
+                                  alignment: const Alignment(
+                                    0,
+                                    -0.4,
+                                  ), // Elevado respecto al centro
+                                  child: CircleAvatar(
+                                    backgroundColor: Theme.of(context)
+                                        .scaffoldBackgroundColor
+                                        .withValues(alpha: 0.54),
+                                    radius: 24,
+                                    child: Icon(Icons.camera_alt, size: 24),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
 
-                        const SizedBox(height: 60),
-
-                        _buildHallOfFameEditor(),
-                        const SizedBox(height: 40),
-
-                        // USERNAME FIELD
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Nombre a mostrar (Público)',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _displayNameController,
-
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Theme.of(
+                        // AVATAR
+                        Positioned(
+                          bottom: -40,
+                          child: GestureDetector(
+                            onTap: () => _pickImage(true),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Theme.of(
                                     context,
-                                  ).colorScheme.surface,
-                                  prefixIcon: const Icon(
-                                    Icons.person,
-                                    color: Colors.grey,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
+                                  ).scaffoldBackgroundColor,
+                                  width: 4,
                                 ),
                               ),
-                              const SizedBox(height: 24),
-
-                              const Text(
-                                'Nombre de usuario (Único)',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _usernameController,
-
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surface,
-                                  prefixIcon: const Icon(
-                                    Icons.alternate_email,
-                                    color: Colors.grey,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'El nombre de usuario no puede estar vacío';
-                                  }
-                                  if (value.trim().length < 3) {
-                                    return 'El nombre de usuario es muy corto';
-                                  }
-                                  if (value.contains(' ')) {
-                                    return 'No puede contener espacios';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 24),
-
-                              const Text(
-                                'Correo Electrónico (Inicio de sesión)',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _emailController,
-
-                                keyboardType: TextInputType.emailAddress,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surface,
-                                  prefixIcon: const Icon(
-                                    Icons.email,
-                                    color: Colors.grey,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                                validator: (value) {
-                                  if (value == null ||
-                                      value.trim().isEmpty ||
-                                      !value.contains('@')) {
-                                    return 'Introduce un correo válido';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 24),
-
-                              const Text(
-                                'Biografía',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _bioController,
-
-                                maxLines: 3,
-                                maxLength: 150,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surface,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-
-                              const Text(
-                                'Plataformas (Mantén pulsado para ordenar)',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                height: 60,
-                                child: ReorderableListView(
-                                  scrollDirection: Axis.horizontal,
-                                  buildDefaultDragHandles: true,
-                                  onReorderItem: (oldIndex, newIndex) {
-                                    setState(() {
-                                      if (oldIndex < newIndex) {
-                                        newIndex -= 1;
-                                      }
-                                      final String item = _allPlatforms
-                                          .removeAt(oldIndex);
-                                      _allPlatforms.insert(newIndex, item);
-
-                                      // Reordenar también la lista de seleccionados basándose en este nuevo orden general
-                                      _selectedPlatforms.sort(
-                                        (a, b) => _allPlatforms
-                                            .indexOf(a)
-                                            .compareTo(
-                                              _allPlatforms.indexOf(b),
-                                            ),
-                                      );
-                                    });
-                                  },
-                                  children: _allPlatforms.map((p) {
-                                    switch (p) {
-                                      case 'pc':
-                                        return _buildPlatformBadge(
-                                          'pc',
-                                          Colors.grey.shade300,
-                                          icon: Icons.computer,
-                                          key: const ValueKey('pc'),
-                                        );
-                                      case 'linux':
-                                        return _buildPlatformBadge(
-                                          'linux',
-                                          Colors.orangeAccent.shade700,
-                                          imagePath: 'assets/images/linux.png',
-                                          key: const ValueKey('linux'),
-                                        );
-                                      case 'playstation':
-                                        return _buildPlatformBadge(
-                                          'playstation',
-                                          Colors.blue,
-                                          imagePath:
-                                              'assets/images/playstation.png',
-                                          key: const ValueKey('playstation'),
-                                        );
-                                      case 'xbox':
-                                        return _buildPlatformBadge(
-                                          'xbox',
-                                          Colors.green,
-                                          imagePath: 'assets/images/xbox.png',
-                                          key: const ValueKey('xbox'),
-                                        );
-                                      case 'switch':
-                                        return _buildPlatformBadge(
-                                          'switch',
-                                          Colors.red,
-                                          imagePath: 'assets/images/switch.png',
-                                          key: const ValueKey('switch'),
-                                        );
-                                      case 'wii':
-                                        return _buildPlatformBadge(
-                                          'wii',
-                                          Colors.grey.shade400,
-                                          imagePath: 'assets/images/wii.png',
-                                          key: const ValueKey('wii'),
-                                        );
-                                      case 'mac':
-                                        return _buildPlatformBadge(
-                                          'mac',
-                                          Colors.grey.shade800,
-                                          imagePath: 'assets/images/mac.png',
-                                          key: const ValueKey('mac'),
-                                        );
-                                      case 'android':
-                                        return _buildPlatformBadge(
-                                          'android',
-                                          const Color(0xFF3DDC84),
-                                          imagePath:
-                                              'assets/images/android.png',
-                                          key: const ValueKey('android'),
-                                        );
-                                      default:
-                                        return Container(key: ValueKey(p));
-                                    }
-                                  }).toList(),
-                                ),
-                              ),
-
-                              const SizedBox(height: 40),
-
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: _saveProfile,
-                                  style: ElevatedButton.styleFrom(
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 50,
                                     backgroundColor: Theme.of(
                                       context,
-                                    ).colorScheme.primary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
+                                    ).colorScheme.surfaceContainerHighest,
+                                    backgroundImage: _newAvatarBytes != null
+                                        ? MemoryImage(_newAvatarBytes!)
+                                              as ImageProvider
+                                        : _avatarUrl != null
+                                        ? NetworkImage(_avatarUrl!)
+                                        : null,
+                                    onBackgroundImageError: (e, s) {
+                                      debugPrint(
+                                        '[CORPUS] Error cargando preview de avatar: $e',
+                                      );
+                                    },
+                                    child:
+                                        _newAvatarBytes == null &&
+                                            _avatarUrl == null
+                                        ? const Icon(Icons.person, size: 50)
+                                        : null,
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .scaffoldBackgroundColor
+                                          .withValues(alpha: 0.54),
+                                      shape: BoxShape.circle,
                                     ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      size: 24,
                                     ),
                                   ),
-                                  child: const Text(
-                                    'Guardar Cambios',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
+
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 800),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 60),
+
+                            _buildHallOfFameEditor(),
+                            const SizedBox(height: 40),
+
+                            // USERNAME FIELD
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Nombre a mostrar (Público)',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextFormField(
+                                    controller: _displayNameController,
+
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: Theme.of(
+                                        context,
+                                      ).colorScheme.surface,
+                                      prefixIcon: const Icon(
+                                        Icons.person,
+                                        color: Colors.grey,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  const Text(
+                                    'Nombre de usuario (Único)',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextFormField(
+                                    controller: _usernameController,
+
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: Theme.of(
+                                        context,
+                                      ).colorScheme.surface,
+                                      prefixIcon: const Icon(
+                                        Icons.alternate_email,
+                                        color: Colors.grey,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                    validator: (value) {
+                                      if (value == null ||
+                                          value.trim().isEmpty) {
+                                        return 'El nombre de usuario no puede estar vacío';
+                                      }
+                                      if (value.trim().length < 3) {
+                                        return 'El nombre de usuario es muy corto';
+                                      }
+                                      if (value.contains(' ')) {
+                                        return 'No puede contener espacios';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  const Text(
+                                    'Correo Electrónico (Inicio de sesión)',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextFormField(
+                                    controller: _emailController,
+
+                                    keyboardType: TextInputType.emailAddress,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: Theme.of(
+                                        context,
+                                      ).colorScheme.surface,
+                                      prefixIcon: const Icon(
+                                        Icons.email,
+                                        color: Colors.grey,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                    validator: (value) {
+                                      if (value == null ||
+                                          value.trim().isEmpty ||
+                                          !value.contains('@')) {
+                                        return 'Introduce un correo válido';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  const Text(
+                                    'Biografía',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextFormField(
+                                    controller: _bioController,
+
+                                    maxLines: 3,
+                                    maxLength: 150,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: Theme.of(
+                                        context,
+                                      ).colorScheme.surface,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  const Text(
+                                    'Plataformas (Mantén pulsado para ordenar)',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    height: 60,
+                                    child: ReorderableListView(
+                                      scrollDirection: Axis.horizontal,
+                                      buildDefaultDragHandles: true,
+                                      onReorderItem: (oldIndex, newIndex) {
+                                        setState(() {
+                                          if (oldIndex < newIndex) {
+                                            newIndex -= 1;
+                                          }
+                                          final String item = _allPlatforms
+                                              .removeAt(oldIndex);
+                                          _allPlatforms.insert(newIndex, item);
+
+                                          // Reordenar también la lista de seleccionados basándose en este nuevo orden general
+                                          _selectedPlatforms.sort(
+                                            (a, b) => _allPlatforms
+                                                .indexOf(a)
+                                                .compareTo(
+                                                  _allPlatforms.indexOf(b),
+                                                ),
+                                          );
+                                        });
+                                      },
+                                      children: _allPlatforms.map((p) {
+                                        switch (p) {
+                                          case 'pc':
+                                            return _buildPlatformBadge(
+                                              'pc',
+                                              Colors.grey.shade300,
+                                              icon: Icons.computer,
+                                              key: const ValueKey('pc'),
+                                            );
+                                          case 'linux':
+                                            return _buildPlatformBadge(
+                                              'linux',
+                                              Colors.orangeAccent.shade700,
+                                              imagePath:
+                                                  'assets/images/linux.png',
+                                              key: const ValueKey('linux'),
+                                            );
+                                          case 'playstation':
+                                            return _buildPlatformBadge(
+                                              'playstation',
+                                              Colors.blue,
+                                              imagePath:
+                                                  'assets/images/playstation.png',
+                                              key: const ValueKey(
+                                                'playstation',
+                                              ),
+                                            );
+                                          case 'xbox':
+                                            return _buildPlatformBadge(
+                                              'xbox',
+                                              Colors.green,
+                                              imagePath:
+                                                  'assets/images/xbox.png',
+                                              key: const ValueKey('xbox'),
+                                            );
+                                          case 'switch':
+                                            return _buildPlatformBadge(
+                                              'switch',
+                                              Colors.red,
+                                              imagePath:
+                                                  'assets/images/switch.png',
+                                              key: const ValueKey('switch'),
+                                            );
+                                          case 'wii':
+                                            return _buildPlatformBadge(
+                                              'wii',
+                                              Colors.grey.shade400,
+                                              imagePath:
+                                                  'assets/images/wii.png',
+                                              key: const ValueKey('wii'),
+                                            );
+                                          case 'mac':
+                                            return _buildPlatformBadge(
+                                              'mac',
+                                              Colors.grey.shade800,
+                                              imagePath:
+                                                  'assets/images/mac.png',
+                                              key: const ValueKey('mac'),
+                                            );
+                                          case 'android':
+                                            return _buildPlatformBadge(
+                                              'android',
+                                              const Color(0xFF3DDC84),
+                                              imagePath:
+                                                  'assets/images/android.png',
+                                              key: const ValueKey('android'),
+                                            );
+                                          default:
+                                            return Container(key: ValueKey(p));
+                                        }
+                                      }).toList(),
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 40),
+
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _saveProfile,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Guardar Cambios',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
