@@ -35,6 +35,7 @@ class CorpusApp extends StatelessWidget {
           theme: AppTheme.getLightTheme(themeNotifier.seedColor),
           darkTheme: AppTheme.getDarkTheme(themeNotifier.seedColor),
           themeMode: themeNotifier.currentMode,
+          scrollBehavior: const AlwaysScrollbarBehavior(),
           home: kIsWeb
               ? const SelectionArea(child: AuthGate())
               : const AuthGate(),
@@ -69,5 +70,21 @@ class AuthGate extends StatelessWidget {
         return MainScreen(key: ValueKey(snapshot.data?.session?.user.id));
       },
     );
+  }
+}
+
+/// Fuerzas a que la app pinte barras de scroll en cualquier plataforma,
+/// incluyendo iOS y Android (ya sea nativo o web en móvil), en los listados
+/// que lo permitan.
+class AlwaysScrollbarBehavior extends MaterialScrollBehavior {
+  const AlwaysScrollbarBehavior();
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return Scrollbar(controller: details.controller, child: child);
   }
 }

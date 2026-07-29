@@ -477,7 +477,6 @@ class _BundleCardState extends State<_BundleCard> {
             const Divider(height: 24),
 
             ...tiers.asMap().entries.map((entry) {
-              final tIndex = entry.key;
               final tierMap = entry.value;
               final tier = tierMap as Map<String, dynamic>;
               final List validGames = tier['games'] ?? [];
