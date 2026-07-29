@@ -239,200 +239,244 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isMe =
         _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
 
+    // Altura de LAYOUT: la misma de siempre. De esto depende dónde
+    // empieza todo lo que viene después (avatar, barra de nivel, etc.)
+    // — no la tocamos para que nada se mueva de su sitio.
     final bannerHeight = isDesktop ? 240.0 : 180.0;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Banner
-        Container(
-          height: bannerHeight,
-          width: double.infinity,
-          decoration: bannerUrl == null
-              ? BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.deepPurple.shade800, Colors.red.shade900],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                )
-              : null,
-          child: bannerUrl != null
-              ? Image.network(
-                  bannerUrl.replaceAll(
-                    't_cover_big',
-                    't_1080p',
-                  ), // Mejor resolución
-                  fit: BoxFit.cover,
-                  alignment: Alignment.center,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.deepPurple.shade800,
-                            Colors.red.shade900,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                    );
-                  },
-                )
-              : null,
-        ),
+    // Altura VISUAL de la imagen + degradado: puede ser mucho mayor.
+    // Se pinta por fuera de la caja de arriba (gracias a Clip.none),
+    // así que "se asoma" hacia abajo sin empujar nada.
+    final bannerImageHeight = isDesktop ? 340.0 : 180.0;
 
-        // Degradado inferior
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Theme.of(context).scaffoldBackgroundColor,
-                  Colors.transparent,
+    return SizedBox(
+      height: bannerHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Banner — ahora Positioned con su propia altura, mayor que
+          // la del SizedBox que lo contiene. El sobrante se pinta por
+          // debajo, detrás del avatar y de la barra de nivel.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: bannerImageHeight,
+            child: bannerUrl == null
+                ? Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.deepPurple.shade800,
+                          Colors.red.shade900,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  )
+                : Image.network(
+                    bannerUrl.replaceAll(
+                      't_cover_big',
+                      't_1080p',
+                    ), // Mejor resolución
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.deepPurple.shade800,
+                              Colors.red.shade900,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+
+          // Degradado inferior — misma altura que la imagen, para que
+          // el fundido recorra todo el tramo añadido y llegue negro
+          // del todo justo por la zona de la barra de nivel.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height:
+                bannerImageHeight +
+                2, // Se extiende 2px por debajo para tapar la costura
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.0, 0.5, 0.62, 0.72, 0.81, 0.89, 0.96, 1.0],
+                    colors: [
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.0),
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.0),
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.08),
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.22),
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.42),
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.65),
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.85),
+                      Theme.of(context).scaffoldBackgroundColor,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Back Button (if navigated from another screen)
+          if (Navigator.canPop(context))
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 16,
+              left: 16,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+
+          // Buttons: Friends + Settings
+          if (isMe)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 16,
+              right: 16,
+              child: Row(
+                children: [
+                  _FriendsBadgeButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FriendsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.settings,
+                      color: Colors.white,
+                      shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SettingsScreen(
+                            userProfile: _userProfile!,
+                            hallOfFame: _hallOfFame,
+                          ),
+                        ),
+                      ).then((_) => _fetchProfileData());
+                    },
+                  ),
                 ],
               ),
             ),
-          ),
-        ),
 
-        // Back Button (if navigated from another screen)
-        if (Navigator.canPop(context))
+          // Avatar y Nombres (Alineados a la izquierda y sobresaliendo un poco abajo)
           Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            left: 16,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.black.withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-
-        // Buttons: Friends + Settings
-        if (isMe)
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            right: 16,
+            bottom: -40,
+            left: isDesktop ? 40 : 16,
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _FriendsBadgeButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const FriendsScreen(),
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      width: 4,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 8,
                       ),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.settings,
-                    color: Colors.white,
-                    shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                    ],
                   ),
-                  onPressed: () {
-                    Navigator.push(
+                  child: CircleAvatar(
+                    radius: isDesktop ? 60 : 45,
+                    backgroundColor: Theme.of(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => SettingsScreen(
-                          userProfile: _userProfile!,
-                          hallOfFame: _hallOfFame,
+                    ).colorScheme.surfaceContainerHighest,
+                    backgroundImage: avatarUrl != null
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    child: avatarUrl == null
+                        ? Icon(Icons.person, size: isDesktop ? 60 : 40)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: 40,
+                  ), // Para que quede sobre el banner
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: TextStyle(
+                          fontSize: isDesktop ? 32 : 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: const [
+                            Shadow(offset: Offset(-1, -1), color: Colors.black),
+                            Shadow(offset: Offset(1, -1), color: Colors.black),
+                            Shadow(offset: Offset(1, 1), color: Colors.black),
+                            Shadow(offset: Offset(-1, 1), color: Colors.black),
+                          ],
                         ),
                       ),
-                    ).then((_) => _fetchProfileData());
-                  },
+                      const SizedBox(height: 4),
+                      Text(
+                        '@$username',
+                        style: TextStyle(
+                          fontSize: isDesktop ? 18 : 14,
+                          color: Colors.white,
+                          shadows: const [
+                            Shadow(offset: Offset(-1, -1), color: Colors.black),
+                            Shadow(offset: Offset(1, -1), color: Colors.black),
+                            Shadow(offset: Offset(1, 1), color: Colors.black),
+                            Shadow(offset: Offset(-1, 1), color: Colors.black),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-
-        // Avatar y Nombres (Alineados a la izquierda y sobresaliendo un poco abajo)
-        Positioned(
-          bottom: -40,
-          left: isDesktop ? 40 : 16,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    width: 4,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: isDesktop ? 60 : 45,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest,
-                  backgroundImage: avatarUrl != null
-                      ? NetworkImage(avatarUrl)
-                      : null,
-                  child: avatarUrl == null
-                      ? Icon(Icons.person, size: isDesktop ? 60 : 40)
-                      : null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Padding(
-                padding: const EdgeInsets.only(
-                  bottom: 40,
-                ), // Para que quede sobre el banner
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayName,
-                      style: TextStyle(
-                        fontSize: isDesktop ? 32 : 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: const [
-                          Shadow(offset: Offset(-1, -1), color: Colors.black),
-                          Shadow(offset: Offset(1, -1), color: Colors.black),
-                          Shadow(offset: Offset(1, 1), color: Colors.black),
-                          Shadow(offset: Offset(-1, 1), color: Colors.black),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '@$username',
-                      style: TextStyle(
-                        fontSize: isDesktop ? 18 : 14,
-                        color: Colors.white,
-                        shadows: const [
-                          Shadow(offset: Offset(-1, -1), color: Colors.black),
-                          Shadow(offset: Offset(1, -1), color: Colors.black),
-                          Shadow(offset: Offset(1, 1), color: Colors.black),
-                          Shadow(offset: Offset(-1, 1), color: Colors.black),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -447,7 +491,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(8),
         onTap: _isOwnProfile
             ? () {
-                final userId = _userProfile?['id'] ?? Supabase.instance.client.auth.currentUser!.id;
+                final userId =
+                    _userProfile?['id'] ??
+                    Supabase.instance.client.auth.currentUser!.id;
                 final xp = (_userProfile?['xp'] as num?)?.toInt() ?? 0;
                 Navigator.push(
                   context,
@@ -589,9 +635,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(width: 40),
           // Columna Derecha (Contenido Principal)
-          Expanded(
-            child: _buildCurrentTabContent(),
-          ),
+          Expanded(child: _buildCurrentTabContent()),
         ],
       ),
     );
@@ -608,15 +652,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 24),
         ],
-        Expanded(
-          child: _buildCurrentTabContent(isMobile: true),
-        ),
+        Expanded(child: _buildCurrentTabContent(isMobile: true)),
       ],
     );
   }
 
   Widget _buildCurrentTabContent({bool isMobile = false}) {
-    final userId = _userProfile?['id'] ?? widget.userId ?? Supabase.instance.client.auth.currentUser!.id;
+    final userId =
+        _userProfile?['id'] ??
+        widget.userId ??
+        Supabase.instance.client.auth.currentUser!.id;
 
     if (_selectedTab == 0) {
       return SingleChildScrollView(
@@ -641,22 +686,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } else if (_selectedTab == 1) {
       // Juegos
-      return ProfileGamesGridTab(
-        userId: userId,
-        onReturn: _fetchProfileData,
-      );
+      return ProfileGamesGridTab(userId: userId, onReturn: _fetchProfileData);
     } else if (_selectedTab == 2) {
       // Diario
-      return ProfileJournalTab(
-        userId: userId,
-        userData: _userProfile,
-      );
+      return ProfileJournalTab(userId: userId, userData: _userProfile);
     } else if (_selectedTab == 3) {
       // Reseñas
-      return ProfileReviewsTab(
-        userId: userId,
-        userData: _userProfile,
-      );
+      return ProfileReviewsTab(userId: userId, userData: _userProfile);
     } else if (_selectedTab == 4) {
       // Logros
       return SingleChildScrollView(
@@ -1085,11 +1121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSectionTitle(
-    String title,
-    int count,
-    String? status,
-  ) {
+  Widget _buildSectionTitle(String title, int count, String? status) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
