@@ -1,63 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../library/game_details_screen.dart';
 import '../activity/review_details_screen.dart';
+import '../../widgets/paginated_scroll_mixin.dart';
+import '../../utils/igdb_constants.dart';
 
 /// Pestaña "Diario" del perfil: timeline cronológico de las reseñas del
-/// usuario, agrupadas por mes, inspirado en el Journal de Letterboxd /
-/// Backloggd pero con la estética propia de Corpus.
+/// usuario, agrupadas por mes, con scroll infinito.
 ///
-/// Recibe las reseñas ya cargadas por [ProfileScreen] (no hace queries
-/// propias) para no duplicar la carga de datos que ya hace
-/// `_fetchProfileData()`.
+/// A diferencia de la v1, este widget NO recibe la lista de reseñas ya
+/// cargada por [ProfileScreen] — hace sus propias queries paginadas a
+/// Supabase, así que nunca carga en memoria más de lo que el usuario ha
+/// llegado a ver en pantalla.
+///
+/// Requiere que exista la columna generada `effective_date` en `reviews`
+/// (ver `journal_tab_integration.md` para el SQL). Si no quieres tocar la
+/// BD todavía, cambia `_orderColumn` por `'created_at'` — funciona igual,
+/// solo que la agrupación por mes puede no ser 100% exacta si registras
+/// reseñas mucho después de haber jugado.
 ///
 /// Uso:
 /// ```dart
-/// ProfileJournalTab(
-///   reviews: _userReviews,
-///   userData: _userProfile,
-///   onReturn: _fetchProfileData,
-/// )
+/// ProfileJournalTab(userId: profileUserId, userData: _userProfile)
 /// ```
 class ProfileJournalTab extends StatefulWidget {
-  final List<Map<String, dynamic>> reviews;
+  final String userId;
   final Map<String, dynamic>? userData;
-  final VoidCallback? onReturn;
 
   const ProfileJournalTab({
     super.key,
-    required this.reviews,
+    required this.userId,
     required this.userData,
-    this.onReturn,
   });
 
   @override
   State<ProfileJournalTab> createState() => _ProfileJournalTabState();
 }
 
-class _ProfileJournalTabState extends State<ProfileJournalTab> {
-  int? _selectedYear;
+class _ProfileJournalTabState extends State<ProfileJournalTab>
+    with PaginatedScrollMixin {
+  static const int _pageSize = 25;
+  static const String _orderColumn = 'created_at'; // Changed from effective_date as it requires SQL updates
+
+  final List<Map<String, dynamic>> _reviews = [];
+  int _page = 0;
+  bool _isInitialLoading = true;
+  String? _error;
 
   static const List<String> _monthNames = [
-    'Enero',
-    'Febrero',
-    'Marzo',
-    'Abril',
-    'Mayo',
-    'Junio',
-    'Julio',
-    'Agosto',
-    'Septiembre',
-    'Octubre',
-    'Noviembre',
-    'Diciembre',
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
 
-  /// Fecha que representa la entrada en el diario: preferimos la fecha en
-  /// la que se terminó/dejó de jugar, si no la de inicio, y si no hay
-  /// ninguna, cuándo se creó la reseña.
-  DateTime? _effectiveDate(Map<String, dynamic> review) {
-    final raw =
-        review['played_until'] ?? review['played_from'] ?? review['created_at'];
+  @override
+  void initState() {
+    super.initState();
+    initPagination();
+    loadMore();
+  }
+
+  @override
+  void dispose() {
+    disposePagination();
+    super.dispose();
+  }
+
+  DateTime? _effectiveDate(Map<String, dynamic> r) {
+    final raw = r['effective_date'] ?? r['played_until'] ?? r['played_from'] ?? r['created_at'];
     if (raw == null) return null;
     try {
       return DateTime.parse(raw.toString());
@@ -66,30 +75,60 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
     }
   }
 
-  List<int> _availableYears(List<Map<String, dynamic>> entries) {
-    final years = entries
-        .map((r) => _effectiveDate(r)?.year)
-        .whereType<int>()
-        .toSet()
-        .toList();
-    years.sort((a, b) => b.compareTo(a));
-    return years;
+  @override
+  Future<void> loadMore() async {
+    if (isLoadingMore || !hasMore) return;
+    setState(() => isLoadingMore = true);
+
+    try {
+      final from = _page * _pageSize;
+      final to = from + _pageSize - 1;
+
+      final res = await Supabase.instance.client
+          .from('reviews')
+          .select('*, games(*)')
+          .eq('user_id', widget.userId)
+          .order(_orderColumn, ascending: false)
+          .range(from, to);
+
+      final newItems = List<Map<String, dynamic>>.from(res)
+          .where((r) => r['games'] != null)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _reviews.addAll(newItems);
+          _page++;
+          hasMore = newItems.length == _pageSize;
+          isLoadingMore = false;
+          _isInitialLoading = false;
+        });
+        if (hasMore) {
+          triggerScrollCheck();
+        }
+      }
+    } catch (e) {
+      debugPrint('[CORPUS] Error cargando diario: $e');
+      if (mounted) {
+        setState(() {
+          _error = 'No se pudo cargar el diario.';
+          isLoadingMore = false;
+          _isInitialLoading = false;
+          hasMore = false;
+        });
+      }
+    }
   }
 
-  /// Agrupa por "año-mes" preservando el orden (más reciente primero).
-  Map<String, List<Map<String, dynamic>>> _groupByMonth(
-    List<Map<String, dynamic>> entries,
-  ) {
-    final dated = entries.where((r) => _effectiveDate(r) != null).toList()
-      ..sort((a, b) => _effectiveDate(b)!.compareTo(_effectiveDate(a)!));
-
-    final Map<String, List<Map<String, dynamic>>> grouped = {};
-    for (final r in dated) {
-      final d = _effectiveDate(r)!;
-      final key = '${d.year}-${d.month.toString().padLeft(2, '0')}';
-      grouped.putIfAbsent(key, () => []).add(r);
-    }
-    return grouped;
+  Future<void> _refresh() async {
+    setState(() {
+      _reviews.clear();
+      _page = 0;
+      hasMore = true;
+      _isInitialLoading = true;
+      _error = null;
+    });
+    await loadMore();
   }
 
   String _getStatusText(String status) {
@@ -126,124 +165,136 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
         const SizedBox(width: 4),
         Text(
           rating.toStringAsFixed(1),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
         ),
       ],
     );
   }
 
   void _openReview(Map<String, dynamic> review) {
-    final gameData = review['games'];
-    if (gameData == null) return;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ReviewDetailsScreen(
-          gameData: gameData,
+          gameData: review['games'],
           userData: widget.userData,
           reviewData: review,
         ),
       ),
-    ).then((_) => widget.onReturn?.call());
+    ).then((_) => _refresh());
   }
 
   void _openGame(Map<String, dynamic> review) {
-    final gameData = review['games'];
-    if (gameData == null) return;
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => GameDetailsScreen(gameData: gameData),
+        builder: (context) => GameDetailsScreen(gameData: review['games']),
       ),
-    ).then((_) => widget.onReturn?.call());
+    );
+  }
+
+  /// Aplana [_reviews] en una lista de "filas" (cabecera de mes o entrada)
+  /// para poder pintarlo todo con un único ListView.builder.
+  List<_JournalRow> _flatten() {
+    final rows = <_JournalRow>[];
+    String? lastKey;
+    for (final r in _reviews) {
+      final d = _effectiveDate(r);
+      final key = d == null ? 'sin-fecha' : '${d.year}-${d.month}';
+      if (key != lastKey) {
+        final label = d == null ? 'Sin fecha' : '${_monthNames[d.month - 1]}, ${d.year}';
+        rows.add(_JournalRow.header(label));
+        lastKey = key;
+      }
+      rows.add(_JournalRow.entry(r));
+    }
+    return rows;
   }
 
   @override
   Widget build(BuildContext context) {
-    final years = _availableYears(widget.reviews);
+    if (_isInitialLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(48.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-    final filteredReviews = _selectedYear == null
-        ? widget.reviews
-        : widget.reviews
-              .where((r) => _effectiveDate(r)?.year == _selectedYear)
-              .toList();
-
-    final grouped = _groupByMonth(filteredReviews);
-
-    if (grouped.isEmpty) {
+    if (_reviews.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
           child: Text(
-            'Aún no hay nada en tu diario. En cuanto marques una fecha de\n'
-            'juego en una reseña, aparecerá aquí.',
+            _error ??
+                'Aún no hay nada en tu diario. En cuanto marques una fecha\n'
+                    'de juego en una reseña, aparecerá aquí.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (years.length > 1)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int?>(
-                  value: _selectedYear,
-                  hint: const Text('Año: Todos'),
-                  items: [
-                    const DropdownMenuItem<int?>(
-                      value: null,
-                      child: Text('Todos los años'),
-                    ),
-                    ...years.map(
-                      (y) => DropdownMenuItem<int?>(
-                        value: y,
-                        child: Text(y.toString()),
-                      ),
-                    ),
-                  ],
-                  onChanged: (val) => setState(() => _selectedYear = val),
-                ),
-              ),
-            ),
-          ),
-        ...grouped.entries.map((entry) => _buildMonthGroup(entry.value)),
-        const SizedBox(height: 16),
-      ],
+    final rows = _flatten();
+
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView.builder(
+        controller: scrollController,
+        // Scroll real: NADA de shrinkWrap ni NeverScrollableScrollPhysics.
+        // Esta lista necesita ser la propietaria de su scroll (ver
+        // journal_tab_integration.md para cómo darle espacio en el layout).
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: rows.length + (hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index >= rows.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          }
+          final row = rows[index];
+          return row.isHeader ? _buildMonthHeader(row.label!) : _buildJournalRow(row.review!);
+        },
+      ),
     );
   }
 
-  Widget _buildMonthGroup(List<Map<String, dynamic>> entries) {
-    final firstDate = _effectiveDate(entries.first)!;
-    final monthLabel = '${_monthNames[firstDate.month - 1]}, ${firstDate.year}';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-          child: Text(
-            monthLabel,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+  Widget _buildMonthHeader(String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
           ),
-        ),
-        Divider(
-          height: 1,
-          color: Theme.of(
-            context,
-          ).colorScheme.onSurface.withValues(alpha: 0.12),
-        ),
-        ...entries.map(_buildJournalRow),
-      ],
+        ],
+      ),
     );
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'beaten':
+        return Icons.emoji_events;
+      case 'playing':
+        return Icons.sports_esports;
+      case 'wishlist':
+        return Icons.bookmark;
+      case 'abandoned':
+        return Icons.cancel;
+      case 'on_hold':
+        return Icons.pause_circle;
+      default:
+        return Icons.flag;
+    }
   }
 
   Widget _buildJournalRow(Map<String, dynamic> review) {
@@ -252,7 +303,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
 
     final title = gameData['title'] ?? 'Desconocido';
     final coverUrl = gameData['cover_url'] ?? '';
-    final date = _effectiveDate(review)!;
+    final date = _effectiveDate(review);
     final rating = (review['rating'] ?? 0).toDouble();
     final status = review['status'] ?? 'beaten';
     final platform = review['platform'] as String?;
@@ -265,9 +316,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.08),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
             ),
           ),
         ),
@@ -277,7 +326,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
             SizedBox(
               width: 32,
               child: Text(
-                date.day.toString().padLeft(2, '0'),
+                date != null ? date.day.toString().padLeft(2, '0') : '--',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -289,9 +338,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
               width: 1,
               height: 56,
               margin: const EdgeInsets.symmetric(horizontal: 14),
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.12),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
             ),
             GestureDetector(
               onTap: () => _openGame(review),
@@ -312,9 +359,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
                     ? Icon(
                         Icons.videogame_asset,
                         size: 20,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.4),
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                       )
                     : null,
               ),
@@ -355,23 +400,54 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
             ),
             if (MediaQuery.of(context).size.width > 600) ...[
               SizedBox(
-                width: 130,
-                child: Text(
-                  _platformLabel(platform),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 14,
-                  ),
+                width: 140,
+                child: Row(
+                  children: [
+                    if (platform != null && IgdbConstants.getPlatformStyle(platform)['icon'] != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6.0),
+                        child: Image.asset(
+                          IgdbConstants.getPlatformStyle(platform)['icon'] as String,
+                          width: 16,
+                          height: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    Expanded(
+                      child: Text(
+                        _platformLabel(platform),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 16),
               SizedBox(
                 width: 110,
-                child: Text(
-                  _getStatusText(status),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 14,
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _getStatusIcon(status),
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _getStatusText(status),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -385,4 +461,13 @@ class _ProfileJournalTabState extends State<ProfileJournalTab> {
       ),
     );
   }
+}
+
+class _JournalRow {
+  final bool isHeader;
+  final String? label;
+  final Map<String, dynamic>? review;
+
+  _JournalRow.header(this.label) : isHeader = true, review = null;
+  _JournalRow.entry(this.review) : isHeader = false, label = null;
 }

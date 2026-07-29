@@ -28,10 +28,54 @@ class GameCard extends StatefulWidget {
 class _GameCardState extends State<GameCard> {
   bool _isHovered = false;
 
+  static const List<double> _grayscaleMatrix = <double>[
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0,      0,      0,      1, 0,
+  ];
+
+  Widget _buildPlaceholder(BuildContext context, String title) => Container(
+        color: Theme.of(context).primaryColorDark,
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.videogame_asset,
+              size: 40,
+              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.54),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.54),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _buildCoverImage(BuildContext context, String coverUrl, int? cacheWidth, String title) {
+    final image = Image.network(
+      coverUrl,
+      fit: BoxFit.cover,
+      cacheWidth: cacheWidth,
+      errorBuilder: (context, error, stackTrace) => _buildPlaceholder(context, title),
+    );
+    return widget.isGrayscale
+        ? ColorFiltered(colorFilter: const ColorFilter.matrix(_grayscaleMatrix), child: image)
+        : image;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Para juegos de IGDB (búsqueda/tendencias) puede venir 'cover'
-    // Para juegos de Supabase (biblioteca) puede venir 'cover_url' directamente
     String coverUrl = '';
     if (widget.game['cover_url'] != null) {
       coverUrl = widget.game['cover_url'];
@@ -44,7 +88,6 @@ class _GameCardState extends State<GameCard> {
 
     final String title =
         widget.game['name'] ?? widget.game['title'] ?? 'Desconocido';
-    // Id de IGDB unificado
     final igdbId = widget.game['igdb_id'] ?? widget.game['id'];
 
     return MouseRegion(
@@ -186,199 +229,136 @@ class _GameCardState extends State<GameCard> {
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 4,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              coverUrl.isNotEmpty
-                  ? (widget.isGrayscale
-                        ? ColorFiltered(
-                            colorFilter: const ColorFilter.matrix(<double>[
-                              0.2126,
-                              0.7152,
-                              0.0722,
-                              0,
-                              0,
-                              0.2126,
-                              0.7152,
-                              0.0722,
-                              0,
-                              0,
-                              0.2126,
-                              0.7152,
-                              0.0722,
-                              0,
-                              0,
-                              0,
-                              0,
-                              0,
-                              1,
-                              0,
-                            ]),
-                            child: Image.network(
-                              coverUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Container(
-                                    color: Theme.of(context).primaryColorDark,
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.videogame_asset,
-                                        size: 40,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onPrimary
-                                            .withValues(alpha: 0.54),
-                                      ),
-                                    ),
-                                  ),
-                            ),
-                          )
-                        : Image.network(
-                            coverUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                                  color: Theme.of(context).primaryColorDark,
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.videogame_asset,
-                                      size: 40,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimary
-                                          .withValues(alpha: 0.54),
-                                    ),
-                                  ),
-                                ),
-                          ))
-                  : Container(
-                      color: Theme.of(context).primaryColorDark,
-                      child: Center(
-                        child: Icon(
-                          Icons.videogame_asset,
-                          size: 40,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary.withValues(alpha: 0.54),
-                        ),
-                      ),
-                    ),
+          margin: EdgeInsets.zero,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final dpr = MediaQuery.of(context).devicePixelRatio;
+              final int? cacheWidth = constraints.maxWidth.isFinite
+                  ? (constraints.maxWidth * dpr).round()
+                  : null;
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  coverUrl.isNotEmpty
+                      ? _buildCoverImage(context, coverUrl, cacheWidth, title)
+                      : _buildPlaceholder(context, title),
 
-              if (_isHovered)
-                Positioned.fill(
-                  child: Container(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surface.withValues(alpha: 0.7),
-                    padding: const EdgeInsets.all(8.0),
-                    alignment: Alignment.center,
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-
-              Positioned(
-                bottom: 6,
-                left: 6,
-                child: Builder(
-                  builder: (context) {
-                    // Fix #3: Cast seguro — JSON/Supabase puede devolver num, double o int
-                    final dynamic rawCat =
-                        widget.game['category'] ?? widget.game['game_type'];
-                    final int? categoryId = (rawCat is num)
-                        ? rawCat.toInt()
-                        : int.tryParse(rawCat?.toString() ?? '');
-                    final int? resolved = IgdbConstants.resolveCategory(
-                      categoryId,
-                      title,
-                      hasParentGame: widget.game['parent_game'] != null,
-                      summary: widget.game['summary']?.toString(),
-                    );
-
-                    // No badge for main games
-                    if (IgdbConstants.isMainGame(resolved)) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final String text = IgdbConstants.getCategoryName(
-                      resolved!,
-                    );
-                    final Color color = IgdbConstants.getCategoryColor(
-                      resolved,
-                      themeSecondary: Theme.of(context).colorScheme.secondary,
-                    );
-
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: color.withValues(alpha: 0.5)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(
-                              context,
-                            ).shadowColor.withValues(alpha: 0.54),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                  if (_isHovered)
+                    Positioned.fill(
+                      child: Container(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surface.withValues(alpha: 0.7),
+                        padding: const EdgeInsets.all(8.0),
+                        alignment: Alignment.center,
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
-                        ],
-                      ),
-                      child: Text(
-                        text,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: color,
-                          fontWeight: FontWeight.bold,
+                          textAlign: TextAlign.center,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-
-              if (widget.isInLibrary && widget.userRating > 0)
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(
-                            context,
-                          ).scaffoldBackgroundColor.withValues(alpha: 0.54),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
                     ),
-                    child: Text(
-                      widget.userRating.toStringAsFixed(1),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.surface,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
+
+                  Positioned(
+                    bottom: 6,
+                    left: 6,
+                    child: Builder(
+                      builder: (context) {
+                        final dynamic rawCat =
+                            widget.game['category'] ?? widget.game['game_type'];
+                        final int? categoryId = (rawCat is num)
+                            ? rawCat.toInt()
+                            : int.tryParse(rawCat?.toString() ?? '');
+                        final int? resolved = IgdbConstants.resolveCategory(
+                          categoryId,
+                          title,
+                          hasParentGame: widget.game['parent_game'] != null,
+                          summary: widget.game['summary']?.toString(),
+                        );
+
+                        if (IgdbConstants.isMainGame(resolved)) {
+                          return const SizedBox.shrink();
+                        }
+
+                        final String text = IgdbConstants.getCategoryName(
+                          resolved!,
+                        );
+                        final Color color = IgdbConstants.getCategoryColor(
+                          resolved,
+                          themeSecondary: Theme.of(context).colorScheme.secondary,
+                        );
+
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                                color: color.withValues(alpha: 0.5)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Theme.of(context)
+                                    .shadowColor
+                                    .withValues(alpha: 0.54),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            text,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                ),
-            ],
+
+                  if (widget.isInLibrary && widget.userRating > 0)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context)
+                                  .scaffoldBackgroundColor
+                                  .withValues(alpha: 0.54),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          widget.userRating.toStringAsFixed(1),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.surface,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ),
       ),
