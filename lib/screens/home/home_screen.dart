@@ -8,7 +8,9 @@ import '../library/game_details_screen.dart';
 import 'hero_showcase.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onNavigateToSearch;
+
+  const HomeScreen({super.key, this.onNavigateToSearch});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -116,6 +118,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
       games = List<Map<String, dynamic>>.from(response);
 
+      // Descartar los juegos que el usuario tiene marcados como 'on_hold' en sus reseñas
+      try {
+        final onHoldReviews = await Supabase.instance.client
+            .from('reviews')
+            .select('game_id')
+            .eq('user_id', userId)
+            .eq('completion_type', 'on_hold');
+        
+        if (onHoldReviews.isNotEmpty) {
+          final onHoldGameIds = onHoldReviews.map((r) => r['game_id']).toSet();
+          games.removeWhere((g) => onHoldGameIds.contains(g['game_id']));
+        }
+      } catch (e) {
+        debugPrint('Error obteniendo reseñas on_hold: $e');
+      }
+
       // Obtener capturas
       final igdbIds = games.map((g) => g['game_id'] as int).toList();
       if (igdbIds.isNotEmpty) {
@@ -208,19 +226,16 @@ class _HomeScreenState extends State<HomeScreen> {
               slivers: [
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: (playingGames.isEmpty && !_isGuest)
-                        ? 200
-                        : MediaQuery.of(context).size.height * 0.75,
+                    height: MediaQuery.of(context).size.height * 0.75,
                     child: Stack(
                       children: [
                         _isGuest
                             ? const GuestHeroShowcase()
                             : playingGames.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'No estás jugando a nada ahora mismo.\n¡Busca un juego para empezar!',
-                                  textAlign: TextAlign.center,
-                                ),
+                            ? EmptyPlayingHero(
+                                userName: displayName,
+                                onSearchPressed:
+                                    widget.onNavigateToSearch ?? () {},
                               )
                             : HeroShowcase(
                                 playingGames: playingGames,
