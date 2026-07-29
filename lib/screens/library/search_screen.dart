@@ -197,8 +197,11 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
 
     final int version = ++_searchVersion;
     setState(() {
-      if (isInitial) _isInitialSearchLoading = true;
-      else isLoadingMore = true;
+      if (isInitial) {
+        _isInitialSearchLoading = true;
+      } else {
+        isLoadingMore = true;
+      }
     });
 
     try {
