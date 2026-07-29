@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/game_card.dart';
+import '../../utils/igdb_constants.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
+import '../../widgets/filter_bottom_sheet.dart';
 
 /// Pestaña "Juegos" del perfil: feed de juegos del usuario
 /// con scroll infinito y carga paginada.
@@ -34,6 +37,13 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   int _page = 0;
   bool _isInitialLoading = true;
   String? _error;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  GameFilters _filters = GameFilters(
+    sortBy: 'updated_at',
+    sortAscending: false,
+  );
 
   @override
   void initState() {
@@ -44,8 +54,21 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
     disposePagination();
     super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _games.clear();
+      _page = 0;
+      hasMore = true;
+      _isInitialLoading = true;
+      _error = null;
+    });
+    await loadMore();
   }
 
   @override
@@ -59,25 +82,89 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
 
       var query = Supabase.instance.client
           .from('user_games')
-          .select('*, games(*)')
+          .select('*, games!inner(*)')
           .eq('user_id', widget.userId);
 
-      if (widget.status != null) {
-        query = query.eq('status', widget.status!);
+      if (_searchQuery.isNotEmpty) {
+        query = query.ilike('games.title', '%$_searchQuery%');
       }
 
-      // Ordenar por fecha de actualización
-      final res = await query.order('updated_at', ascending: false).range(from, to);
+      if (_filters.genres.isNotEmpty) {
+        for (var id in _filters.genres) {
+          final name = IgdbConstants.genres.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
+          if (name != '') query = query.contains('games.genres', '["$name"]');
+        }
+      }
+      if (_filters.themes.isNotEmpty) {
+        for (var id in _filters.themes) {
+          final name = IgdbConstants.themes.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
+          if (name != '') query = query.contains('games.themes', '["$name"]');
+        }
+      }
+      if (_filters.gameModes.isNotEmpty) {
+        for (var id in _filters.gameModes) {
+          final name = IgdbConstants.gameModes.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
+          if (name != '') query = query.contains('games.game_modes', '["$name"]');
+        }
+      }
+      if (_filters.playerPerspectives.isNotEmpty) {
+        for (var id in _filters.playerPerspectives) {
+          final name = IgdbConstants.playerPerspectives.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
+          if (name != '') query = query.contains('games.player_perspectives', '["$name"]');
+        }
+      }
+      if (_filters.platforms.isNotEmpty) {
+        for (var id in _filters.platforms) {
+          final name = IgdbConstants.popularPlatforms.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
+          if (name != '') query = query.contains('games.platforms', '["$name"]');
+        }
+      }
 
-      final newItems = List<Map<String, dynamic>>.from(res)
-          .where((r) => r['games'] != null)
-          .toList();
+      query = query.eq('status', widget.status ?? 'beaten');
+
+      // Ordenar según los filtros (usando referencedTable y evitando reasignar el FilterBuilder a TransformBuilder)
+      PostgrestTransformBuilder<List<Map<String, dynamic>>> orderQuery;
+
+      switch (_filters.sortBy) {
+        case 'title':
+          orderQuery = query.order(
+            'title',
+            referencedTable: 'games',
+            ascending: _filters.sortAscending,
+          );
+          break;
+        case 'release_date':
+          orderQuery = query.order(
+            'release_date',
+            referencedTable: 'games',
+            ascending: _filters.sortAscending,
+          );
+          break;
+        case 'rating':
+          orderQuery = query.order('rating', ascending: _filters.sortAscending);
+          break;
+        case 'updated_at':
+        default:
+          orderQuery = query.order(
+            'updated_at',
+            ascending: _filters.sortAscending,
+          );
+          break;
+      }
+
+      final res = await orderQuery.range(from, to);
+
+      final newItems = List<Map<String, dynamic>>.from(
+        res,
+      ).where((r) => r['games'] != null).toList();
 
       if (mounted) {
         setState(() {
           _games.addAll(newItems);
           _page++;
-          hasMore = res.length == _pageSize; // Comparar con los devueltos originalmente
+          hasMore =
+              res.length ==
+              _pageSize; // Comparar con los devueltos originalmente
           isLoadingMore = false;
           _isInitialLoading = false;
         });
@@ -98,24 +185,105 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     }
   }
 
-  Future<void> _refresh() async {
-    setState(() {
-      _games.clear();
-      _page = 0;
-      hasMore = true;
-      _isInitialLoading = true;
-      _error = null;
-    });
-    await loadMore();
+  void _openFilters() async {
+    final result = await showModalBottomSheet<GameFilters>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => FilterBottomSheet(
+        initialFilters: _filters,
+        showSort: true,
+        isProfileMode: true,
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _filters = result;
+      });
+      _refresh();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar juego...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                              _refresh();
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                  ),
+                  onChanged: (value) {
+                    if (_debounce?.isActive ?? false) _debounce!.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 500), () {
+                      setState(() => _searchQuery = value.trim());
+                      _refresh();
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Badge(
+                isLabelVisible: _filters.hasFilters,
+                label: Text(_filters.filterCount.toString()),
+                offset: const Offset(0, 0),
+                child: FilledButton.icon(
+                  onPressed: _openFilters,
+                  icon: const Icon(Icons.tune),
+                  label: const Text('Filtros'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    foregroundColor: Theme.of(context).colorScheme.onSurface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    minimumSize: const Size(
+                      0,
+                      56,
+                    ), // Matches default TextField height
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: _buildBody()),
+      ],
+    );
+  }
+
+  Widget _buildBody() {
     if (_isInitialLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(48.0),
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_games.isEmpty) {
@@ -125,7 +293,9 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           child: Text(
             _error ?? 'No hay juegos para mostrar.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       );

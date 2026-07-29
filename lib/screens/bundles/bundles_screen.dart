@@ -1,9 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/game_card.dart';
 import '../../services/bundle_service.dart';
-import '../../widgets/paginated_scroll_mixin.dart';
 
 class _ListRow {
   final bool isHeader;
@@ -20,73 +20,64 @@ class BundlesScreen extends StatefulWidget {
   State<BundlesScreen> createState() => _BundlesScreenState();
 }
 
-class _BundlesScreenState extends State<BundlesScreen> with PaginatedScrollMixin {
+class _BundlesScreenState extends State<BundlesScreen> {
   final List<Map<String, dynamic>> _bundles = [];
   bool _isInitialLoading = true;
   String? _error;
-  int _page = 0;
-  static const int _pageSize = 10;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    initPagination();
-    loadMore();
+    _fetchBundles();
   }
 
   @override
   void dispose() {
-    disposePagination();
+    _debounce?.cancel();
+    _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _refresh() async {
     setState(() {
       _bundles.clear();
-      _page = 0;
-      hasMore = true;
       _isInitialLoading = true;
       _error = null;
     });
-    await loadMore();
+    await _fetchBundles();
   }
 
-  @override
-  Future<void> loadMore() async {
-    if (isLoadingMore || !hasMore) return;
-    setState(() => isLoadingMore = true);
-
+  Future<void> _fetchBundles() async {
     try {
-      final from = _page * _pageSize;
-      final to = from + _pageSize - 1;
-
-      final response = await Supabase.instance.client
-          .from('active_bundles')
-          .select()
-          .order('end_date', ascending: true)
-          .range(from, to);
+      List<dynamic> response;
+      if (_searchQuery.isEmpty) {
+        response = await Supabase.instance.client
+            .from('active_bundles')
+            .select()
+            .order('end_date', ascending: true);
+      } else {
+        response = await Supabase.instance.client
+            .rpc('search_active_bundles', params: {'search_term': _searchQuery});
+      }
 
       final newBundles = List<Map<String, dynamic>>.from(response);
 
       if (mounted) {
         setState(() {
           _bundles.addAll(newBundles);
-          _page++;
-          hasMore = newBundles.length == _pageSize;
-          isLoadingMore = false;
           _isInitialLoading = false;
         });
-        if (hasMore) {
-          triggerScrollCheck();
-        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _error = 'No se pudieron cargar los bundles.\n$e';
-          isLoadingMore = false;
           _isInitialLoading = false;
-          hasMore = false;
         });
       }
     }
@@ -99,7 +90,11 @@ class _BundlesScreenState extends State<BundlesScreen> with PaginatedScrollMixin
       grouped.putIfAbsent(storeName, () => []).add(b);
     }
     final orderedStores = grouped.keys.toList()
-      ..sort((a, b) => BundleService.storeRankPublic(a).compareTo(BundleService.storeRankPublic(b)));
+      ..sort(
+        (a, b) => BundleService.storeRankPublic(
+          a,
+        ).compareTo(BundleService.storeRankPublic(b)),
+      );
 
     final rows = <_ListRow>[];
     for (final store in orderedStores) {
@@ -145,6 +140,48 @@ class _BundlesScreenState extends State<BundlesScreen> with PaginatedScrollMixin
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60.0),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Buscar bundle o juego...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                          _refresh();
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+              ),
+              onChanged: (value) {
+                if (_debounce?.isActive ?? false) _debounce!.cancel();
+                _debounce = Timer(const Duration(milliseconds: 500), () {
+                  setState(() {
+                    _searchQuery = value.trim();
+                  });
+                  _refresh();
+                });
+              },
+            ),
+          ),
+        ),
       ),
       body: _buildBody(),
     );
@@ -170,10 +207,7 @@ class _BundlesScreenState extends State<BundlesScreen> with PaginatedScrollMixin
               const SizedBox(height: 16),
               const Text(
                 'No se pudieron cargar los bundles',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
@@ -220,18 +254,10 @@ class _BundlesScreenState extends State<BundlesScreen> with PaginatedScrollMixin
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView.builder(
-        controller: scrollController,
+        controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: rows.length + (hasMore ? 1 : 0),
+        itemCount: rows.length,
         itemBuilder: (context, index) {
-          if (index >= rows.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
 
           final row = rows[index];
           if (row.isHeader) {
@@ -239,7 +265,7 @@ class _BundlesScreenState extends State<BundlesScreen> with PaginatedScrollMixin
           }
           final isHumble = row.storeName == 'Humble Bundle';
           final badgeColor = isHumble ? Colors.redAccent : Colors.orangeAccent;
-          
+
           return _BundleCard(
             bundle: row.bundle!,
             storeName: row.storeName!,
@@ -267,8 +293,6 @@ class _BundleCard extends StatefulWidget {
 }
 
 class _BundleCardState extends State<_BundleCard> {
-  final Map<int, int> _tierLimits = {};
-  static const int _initialLimit = 12;
 
   Widget _buildTierHeader(
     BuildContext context,
@@ -388,9 +412,7 @@ class _BundleCardState extends State<_BundleCard> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -424,10 +446,7 @@ class _BundleCardState extends State<_BundleCard> {
             ),
             if (timeRemaining.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(
-                  top: 4,
-                  bottom: 8,
-                ),
+                padding: const EdgeInsets.only(top: 4, bottom: 8),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -436,18 +455,12 @@ class _BundleCardState extends State<_BundleCard> {
                   decoration: BoxDecoration(
                     color: timeColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: timeColor.withValues(alpha: 0.5),
-                    ),
+                    border: Border.all(color: timeColor.withValues(alpha: 0.5)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        timeIcon,
-                        size: 14,
-                        color: timeColor,
-                      ),
+                      Icon(timeIcon, size: 14, color: timeColor),
                       const SizedBox(width: 4),
                       Text(
                         timeRemaining,
@@ -473,56 +486,40 @@ class _BundleCardState extends State<_BundleCard> {
                 return const SizedBox.shrink();
               }
 
-              final limit = _tierLimits[tIndex] ?? _initialLimit;
-              final showMoreButton = validGames.length > limit;
-              final displayedGames = validGames.take(limit).toList();
+              final displayedGames = validGames;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildTierHeader(
-                      context,
-                      tier,
-                      title,
-                      widget.badgeColor,
-                    ),
+                    _buildTierHeader(context, tier, title, widget.badgeColor),
                     const SizedBox(height: 10),
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 140,
-                        childAspectRatio: 0.68,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 140,
+                            childAspectRatio: 0.68,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                          ),
                       itemCount: displayedGames.length,
                       itemBuilder: (context, gIndex) {
-                        final gameData = displayedGames[gIndex] as Map<String, dynamic>;
+                        final gameData =
+                            displayedGames[gIndex] as Map<String, dynamic>;
                         return GameCard(
-                          key: ValueKey(gameData['steamAppId'] ?? gameData['title'] ?? gIndex),
+                          key: ValueKey(
+                            gameData['steamAppId'] ??
+                                gameData['title'] ??
+                                gIndex,
+                          ),
                           game: gameData,
                           onReturn: () {},
                         );
                       },
                     ),
-                    if (showMoreButton)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Center(
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _tierLimits[tIndex] = limit + 12;
-                              });
-                            },
-                            icon: const Icon(Icons.expand_more),
-                            label: Text('Ver más (${validGames.length - limit} restantes)'),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               );

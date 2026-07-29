@@ -65,11 +65,13 @@ class GameFilters {
 class FilterBottomSheet extends StatefulWidget {
   final GameFilters initialFilters;
   final bool showSort;
+  final bool isProfileMode;
 
   const FilterBottomSheet({
     super.key,
     required this.initialFilters,
     this.showSort = true,
+    this.isProfileMode = false,
   });
 
   @override
@@ -210,21 +212,40 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12),
                     ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'total_rating_count',
-                        child: Text('Popularidad'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'first_release_date',
-                        child: Text('Fecha de Lanzamiento'),
-                      ),
-                      DropdownMenuItem(value: 'rating', child: Text('Nota')),
-                      DropdownMenuItem(
-                        value: 'name',
-                        child: Text('Alfabético'),
-                      ),
-                    ],
+                    items: widget.isProfileMode
+                        ? const [
+                            DropdownMenuItem(
+                              value: 'updated_at',
+                              child: Text('Fecha de Añadido'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'rating',
+                              child: Text('Mi Nota'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'release_date',
+                              child: Text('Fecha de Lanzamiento'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'title',
+                              child: Text('Nombre'),
+                            ),
+                          ]
+                        : const [
+                            DropdownMenuItem(
+                              value: 'total_rating_count',
+                              child: Text('Popularidad'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'first_release_date',
+                              child: Text('Fecha de Lanzamiento'),
+                            ),
+                            DropdownMenuItem(value: 'rating', child: Text('Nota IGDB')),
+                            DropdownMenuItem(
+                              value: 'name',
+                              child: Text('Alfabético'),
+                            ),
+                          ],
                     // OJO: este setState solo reconstruye el Column de arriba (sort/orden).
                     // Las secciones de chips vienen de _filterSectionWidgets, que son las
                     // MISMAS instancias que antes -> Flutter las salta (identical widget).

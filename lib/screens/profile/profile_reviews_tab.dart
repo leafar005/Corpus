@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../activity/review_details_screen.dart';
@@ -37,6 +38,9 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
   int _page = 0;
   bool _isInitialLoading = true;
   String? _error;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -47,6 +51,8 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
     disposePagination();
     super.dispose();
   }
@@ -60,18 +66,26 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       final from = _page * _pageSize;
       final to = from + _pageSize - 1;
 
-      final res = await Supabase.instance.client
+      var query = Supabase.instance.client
           .from('reviews')
-          .select('*, games(*), review_likes(user_id), review_comments(id)')
+          .select(
+            '*, games!inner(*), review_likes(user_id), review_comments(id)',
+          )
           .eq('user_id', widget.userId)
           .not('comment', 'is', null)
-          .neq('comment', '')
+          .neq('comment', '');
+
+      if (_searchQuery.isNotEmpty) {
+        query = query.ilike('games.title', '%$_searchQuery%');
+      }
+
+      final res = await query
           .order('created_at', ascending: false)
           .range(from, to);
 
-      final newItems = List<Map<String, dynamic>>.from(res)
-          .where((r) => r['games'] != null)
-          .toList();
+      final newItems = List<Map<String, dynamic>>.from(
+        res,
+      ).where((r) => r['games'] != null).toList();
 
       if (mounted) {
         setState(() {
@@ -114,8 +128,18 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
     try {
       final date = DateTime.parse(isoString).toLocal();
       const months = [
-        'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-        'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+        'ene',
+        'feb',
+        'mar',
+        'abr',
+        'may',
+        'jun',
+        'jul',
+        'ago',
+        'sep',
+        'oct',
+        'nov',
+        'dic',
       ];
       return '${date.day} ${months[date.month - 1]} ${date.year}';
     } catch (_) {
@@ -138,6 +162,47 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar reseña por juego...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                        _refresh();
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            ),
+            onChanged: (value) {
+              if (_debounce?.isActive ?? false) _debounce!.cancel();
+              _debounce = Timer(const Duration(milliseconds: 500), () {
+                setState(() => _searchQuery = value.trim());
+                _refresh();
+              });
+            },
+          ),
+        ),
+        Expanded(child: _buildBody()),
+      ],
+    );
+  }
+
+  Widget _buildBody() {
     if (_isInitialLoading) {
       return const Padding(
         padding: EdgeInsets.all(48.0),
@@ -152,7 +217,9 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
           child: Text(
             _error ?? 'Todavía no hay reseñas escritas.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       );
@@ -198,7 +265,9 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -211,14 +280,19 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                   borderRadius: BorderRadius.circular(6),
                   color: Theme.of(context).primaryColorDark,
                   image: coverUrl.isNotEmpty
-                      ? DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover)
+                      ? DecorationImage(
+                          image: NetworkImage(coverUrl),
+                          fit: BoxFit.cover,
+                        )
                       : null,
                 ),
                 child: coverUrl.isEmpty
                     ? Icon(
                         Icons.videogame_asset,
                         size: 18,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.4),
                       )
                     : null,
               ),
@@ -232,16 +306,26 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                         Expanded(
                           child: Text(
                             title,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (rating > 0) ...[
-                          Icon(Icons.star, size: 14, color: Theme.of(context).colorScheme.secondary),
+                          Icon(
+                            Icons.star,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
                           const SizedBox(width: 2),
                           Text(
                             rating.toStringAsFixed(1),
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ],
@@ -264,17 +348,37 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.thumb_up_alt_outlined,
-                            size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        Icon(
+                          Icons.thumb_up_alt_outlined,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 4),
-                        Text('$likesCount',
-                            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        Text(
+                          '$likesCount',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                         const SizedBox(width: 12),
-                        Icon(Icons.chat_bubble_outline,
-                            size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 4),
-                        Text('$commentsCount',
-                            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        Text(
+                          '$commentsCount',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ],
