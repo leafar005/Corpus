@@ -87,12 +87,16 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   // así que un setState del sort/orden NO reconstruye los ~80 chips.
   int _resetKey = 0;
   late List<Widget> _filterSectionWidgets;
+  bool _contentReady = false;
 
   @override
   void initState() {
     super.initState();
     _filters = widget.initialFilters.copyWith();
     _rebuildFilterSectionWidgets();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _contentReady = true);
+    });
   }
 
   void _rebuildFilterSectionWidgets() {
@@ -240,7 +244,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                               value: 'first_release_date',
                               child: Text('Fecha de Lanzamiento'),
                             ),
-                            DropdownMenuItem(value: 'rating', child: Text('Nota IGDB')),
+                            DropdownMenuItem(
+                              value: 'rating',
+                              child: Text('Nota IGDB'),
+                            ),
                             DropdownMenuItem(
                               value: 'name',
                               child: Text('Alfabético'),
@@ -335,7 +342,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   const Divider(),
                 ],
 
-                ..._filterSectionWidgets,
+                if (_contentReady) ..._filterSectionWidgets,
 
                 const SizedBox(height: 40),
               ],
@@ -377,6 +384,7 @@ class _FilterSectionState extends State<_FilterSection> {
   late List<int> _selected;
   late final List<String> _labels;
   late final List<Widget?> _avatars;
+  late final List<Color?> _brandColors;
 
   @override
   void initState() {
@@ -392,9 +400,11 @@ class _FilterSectionState extends State<_FilterSection> {
         .toList();
 
     if (widget.isPlatform) {
+      _brandColors = _labels
+          .map((l) => IgdbConstants.getPlatformStyle(l)['color'] as Color?)
+          .toList();
       _avatars = _labels.map((label) {
-        final style = IgdbConstants.getPlatformStyle(label);
-        final icon = style['icon'] as String?;
+        final icon = IgdbConstants.getPlatformStyle(label)['icon'] as String?;
         if (icon == null) return null;
         return Image.asset(
           icon,
@@ -406,75 +416,67 @@ class _FilterSectionState extends State<_FilterSection> {
         );
       }).toList();
     } else {
+      _brandColors = List.filled(widget.items.length, null);
       _avatars = List.filled(widget.items.length, null);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final scheme = Theme.of(context).colorScheme;
+    final unselectedTextColor = Theme.of(
+      context,
+    ).textTheme.bodyMedium?.color?.withValues(alpha: 0.8);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-            widget.title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    return RepaintBoundary(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              widget.title,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ),
-        ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: List.generate(widget.items.length, (i) {
-            final id = widget.items[i]['id'] as int;
-            final isSelected = _selected.contains(id);
-            final baseAvatar = _avatars[i];
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(widget.items.length, (i) {
+              final id = widget.items[i]['id'] as int;
+              final isSelected = _selected.contains(id);
+              final baseAvatar = _avatars[i];
+              final brandColor = _brandColors[i];
 
-            return FilterChip(
-              avatar: baseAvatar == null
-                  ? null
-                  : ColorFiltered(
-                      colorFilter: ColorFilter.mode(
-                        isSelected
-                            ? Theme.of(context).colorScheme.onPrimary
-                            : Theme.of(context).colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.5),
-                        BlendMode.srcIn,
-                      ),
-                      child: baseAvatar,
-                    ),
-              label: Text(
-                _labels[i],
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+              return FilterChip(
+                avatar: baseAvatar,
+                label: Text(
+                  _labels[i],
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isSelected ? scheme.onPrimary : unselectedTextColor,
+                  ),
                 ),
-              ),
-              selected: isSelected,
-              selectedColor: primary,
-              checkmarkColor: Theme.of(context).colorScheme.onPrimary,
-              showCheckmark: false,
-              onSelected: (selected) {
-                setState(() {
-                  if (selected) {
-                    _selected.add(id);
-                  } else {
-                    _selected.remove(id);
-                  }
-                });
-                widget.onChanged(_selected);
-              },
-            );
-          }),
-        ),
-        const SizedBox(height: 8),
-      ],
+                selected: isSelected,
+                selectedColor: brandColor ?? scheme.primary,
+                checkmarkColor: scheme.onPrimary,
+                showCheckmark: false,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _selected.add(id);
+                    } else {
+                      _selected.remove(id);
+                    }
+                  });
+                  widget.onChanged(_selected);
+                },
+              );
+            }),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 }
