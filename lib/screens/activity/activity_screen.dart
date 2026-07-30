@@ -6,6 +6,7 @@ import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/coop_badge.dart';
 import '../activity/review_details_screen.dart';
 import '../profile/profile_screen.dart';
+import '../social/friends_screen.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
 
@@ -28,6 +29,11 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
   RealtimeChannel? _realtimeChannel;
   StreamSubscription<AuthState>? _authSub;
 
+  // Franja de amigos (estilo "historias") en la parte superior.
+  List<Map<String, dynamic>> _friendsStrip = [];
+  bool _isLoadingFriendsStrip = true;
+  int _pendingRequestsCount = 0;
+
   bool get _isGuest => _supabase.auth.currentUser == null;
 
   @override
@@ -41,6 +47,7 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
       _isLoading = false;
     } else {
       _fetchActivity(isRefresh: true);
+      _fetchFriendsStrip();
       _subscribeRealtime();
       libraryUpdateNotifier.addListener(_onLibraryUpdated);
     }
@@ -52,6 +59,7 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
       if (_realtimeChannel != null) return; // Ya activo tras un login anterior.
       setState(() => _isLoading = true);
       _fetchActivity(isRefresh: true);
+      _fetchFriendsStrip();
       _subscribeRealtime();
       libraryUpdateNotifier.addListener(_onLibraryUpdated);
     });
@@ -68,6 +76,62 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
 
   void _onLibraryUpdated() {
     if (mounted) _fetchActivity(isRefresh: true, silent: true);
+  }
+
+  Future<void> _fetchFriendsStrip() async {
+    try {
+      final myId = _supabase.auth.currentUser!.id;
+
+      final asSender = await _supabase
+          .from('friendships')
+          .select(
+            'friend:addressee_id(id, username, avatar_url, display_name, currently_playing_appid, currently_playing_name)',
+          )
+          .eq('requester_id', myId)
+          .eq('status', 'accepted');
+
+      final asReceiver = await _supabase
+          .from('friendships')
+          .select(
+            'friend:requester_id(id, username, avatar_url, display_name, currently_playing_appid, currently_playing_name)',
+          )
+          .eq('addressee_id', myId)
+          .eq('status', 'accepted');
+
+      final friends = <Map<String, dynamic>>[
+        ...List<Map<String, dynamic>>.from(
+          asSender,
+        ).map((e) => e['friend'] as Map<String, dynamic>),
+        ...List<Map<String, dynamic>>.from(
+          asReceiver,
+        ).map((e) => e['friend'] as Map<String, dynamic>),
+      ];
+
+      final pending = await _supabase
+          .from('friendships')
+          .select('requester_id')
+          .eq('addressee_id', myId)
+          .eq('status', 'pending');
+
+      if (mounted) {
+        setState(() {
+          _friendsStrip = friends;
+          _pendingRequestsCount = List.from(pending).length;
+          _isLoadingFriendsStrip = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingFriendsStrip = false);
+    }
+  }
+
+  Future<void> _openFriendsScreen() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FriendsScreen()),
+    );
+    // Al volver, refrescamos por si se aceptaron/enviaron solicitudes.
+    if (mounted) _fetchFriendsStrip();
   }
 
   @override
@@ -950,6 +1014,166 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
     );
   }
 
+  // ──────────────────────────────────────────
+  // FRANJA DE AMIGOS
+  // ──────────────────────────────────────────
+
+  Widget _buildFriendsStrip() {
+    return Container(
+      height: 96,
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: _isLoadingFriendsStrip
+          ? const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : _friendsStrip.isEmpty
+          ? Center(
+              child: TextButton.icon(
+                onPressed: _openFriendsScreen,
+                icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                label: const Text('Añade amigos para ver su actividad'),
+              ),
+            )
+          // NUEVO: Escuchamos los cambios en el estado online global
+          : ValueListenableBuilder<Set<String>>(
+              valueListenable: onlineUsersNotifier,
+              builder: (context, onlineUsers, child) {
+                final sortedFriends = List<Map<String, dynamic>>.from(_friendsStrip);
+                sortedFriends.sort((a, b) {
+                  final aPlaying = a['currently_playing_appid'] != null && a['currently_playing_name'] != null;
+                  final bPlaying = b['currently_playing_appid'] != null && b['currently_playing_name'] != null;
+                  
+                  final aId = a['id'] as String?;
+                  final bId = b['id'] as String?;
+                  
+                  final aOnline = aId != null && onlineUsers.contains(aId);
+                  final bOnline = bId != null && onlineUsers.contains(bId);
+                  
+                  final aScore = aPlaying ? 2 : (aOnline ? 1 : 0);
+                  final bScore = bPlaying ? 2 : (bOnline ? 1 : 0);
+                  
+                  if (aScore != bScore) {
+                    return bScore.compareTo(aScore);
+                  }
+                  // En caso de empate, ordenamos alfabéticamente por nombre
+                  final aName = (a['display_name'] as String? ?? a['username'] as String? ?? '').toLowerCase();
+                  final bName = (b['display_name'] as String? ?? b['username'] as String? ?? '').toLowerCase();
+                  return aName.compareTo(bName);
+                });
+
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: sortedFriends.length,
+                  itemBuilder: (context, index) {
+                    final friend = sortedFriends[index];
+                    final friendId = friend['id'] as String?;
+                    final displayName =
+                        friend['display_name'] as String? ??
+                        friend['username'] as String? ??
+                        'Usuario';
+                    final avatarUrl = friend['avatar_url'] as String?;
+                    
+                    // Lógica del juego en curso
+                    final playingGame = friend['currently_playing_name'] as String?;
+                    final isPlaying = friend['currently_playing_appid'] != null && playingGame != null;
+                    
+                    // Lógica de si está online
+                    final isOnline = friendId != null && onlineUsers.contains(friendId);
+                    
+                    final playingColor = Colors.greenAccent[400]!;
+                    final onlineColor = Colors.blueAccent; // Color cuando solo están conectados
+
+                    return GestureDetector(
+                      onTap: () {
+                        if (friendId == null) return;
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProfileScreen(userId: friendId),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: 72,
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CircleAvatar(
+                                  radius: 28,
+                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                                  child: avatarUrl == null ? const Icon(Icons.person, size: 26) : null,
+                                ),
+                                // Dibujamos el punto si están jugando O si están online
+                                if (isPlaying || isOnline)
+                                  Positioned(
+                                    bottom: -1,
+                                    right: -1,
+                                    child: Container(
+                                      width: 15,
+                                      height: 15,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        // Prioridad al color verde si están jugando, azul si solo están en la app
+                                        color: isPlaying ? playingColor : onlineColor,
+                                        border: Border.all(
+                                          color: Theme.of(context).colorScheme.surface,
+                                          width: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            if (isPlaying)
+                              Text(
+                                playingGame,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: playingColor,
+                                ),
+                              )
+                            else
+                              Text(
+                                displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 11),
+                                textAlign: TextAlign.center,
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isGuest) {
@@ -969,34 +1193,50 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
         title: const Text('Actividad'),
         actions: [
           IconButton(
+            icon: Badge(
+              isLabelVisible: _pendingRequestsCount > 0,
+              label: Text(_pendingRequestsCount.toString()),
+              child: const Icon(Icons.person_search_rounded),
+            ),
+            tooltip: 'Buscar amigos y solicitudes',
+            onPressed: _openFriendsScreen,
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Actualizar',
             onPressed: _fetchActivity,
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _activities.isEmpty
-          ? _buildEmptyState()
-          : RefreshIndicator(
-              onRefresh: () => _fetchActivity(isRefresh: true),
-              child: ListView.builder(
-                controller: scrollController,
-                itemCount: _activities.length + (hasMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index >= _activities.length) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-                  return _buildActivityCard(_activities[index], index);
-                },
-              ),
-            ),
+      body: Column(
+        children: [
+          _buildFriendsStrip(),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _activities.isEmpty
+                ? _buildEmptyState()
+                : RefreshIndicator(
+                    onRefresh: () => _fetchActivity(isRefresh: true),
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: _activities.length + (hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= _activities.length) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+                        return _buildActivityCard(_activities[index], index);
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
