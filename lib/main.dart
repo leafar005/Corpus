@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -46,27 +47,100 @@ class CorpusApp extends StatelessWidget {
 }
 
 // El AuthGate es un "vigilante". Comprueba en tiempo real si estás logueado o no.
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   final Stream<AuthState>? authStream;
   const AuthGate({super.key, this.authStream});
 
   @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
+  RealtimeChannel? _presenceChannel;
+  StreamSubscription<AuthState>? _authSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Registramos el observador del ciclo de vida de la app
+    WidgetsBinding.instance.addObserver(this);
+
+    // Escuchamos el estado de autenticación para rastrear o limpiar la presencia
+    _authSub = (widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange).listen((data) {
+      if (data.session?.user != null) {
+        _setupPresence();
+      } else {
+        _cleanupPresence();
+      }
+    });
+  }
+
+  void _setupPresence() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    // Si no hay usuario o el canal ya está configurado, salimos temprano
+    if (userId == null || _presenceChannel != null) return;
+
+    // Inicializamos el canal de presencia en tiempo real
+    _presenceChannel = Supabase.instance.client.channel('online-users');
+    
+    _presenceChannel!.onPresenceSync((_) {
+      final state = _presenceChannel!.presenceState();
+      final onlineIds = <String>{};
+
+      for (final presenceState in state) {
+        for (final presence in presenceState.presences) {
+          if (presence.payload['user_id'] != null) {
+            onlineIds.add(presence.payload['user_id'] as String);
+          }
+        }
+      }
+      
+      // Actualizamos el notificador global con los amigos conectados
+      onlineUsersNotifier.value = onlineIds;
+      
+    }).subscribe((status, [error]) async {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        await _presenceChannel!.track({'user_id': userId});
+      }
+    });
+  }
+
+  void _cleanupPresence() {
+    _presenceChannel?.untrack();
+    _presenceChannel?.unsubscribe();
+    _presenceChannel = null;
+    onlineUsersNotifier.value = {};
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Si la app se vuelve a abrir, reconectamos. Si se minimiza o cierra, nos desconectamos.
+    if (state == AppLifecycleState.resumed) {
+      _setupPresence();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _presenceChannel?.untrack();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _cleanupPresence();
+    _authSub?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // StreamBuilder escucha los cambios de estado de Supabase continuamente
+    // Mantenemos tu UI original mientras verifica la sesión
     return StreamBuilder<AuthState>(
-      stream: authStream ?? Supabase.instance.client.auth.onAuthStateChange,
+      stream: widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // Mientras comprueba si hay sesión guardada, muestra un circulito de carga
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-
-        // Con sesión o sin ella, entramos siempre a MainScreen.
-        // Las pantallas que necesitan cuenta (Perfil, Actividad, añadir a
-        // biblioteca...) detectan el modo invitado por su cuenta y
-        // muestran un aviso con botón de "Iniciar sesión" en su lugar.
         return MainScreen(key: ValueKey(snapshot.data?.session?.user.id));
       },
     );
