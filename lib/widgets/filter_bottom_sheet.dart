@@ -234,6 +234,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                               value: 'title',
                               child: Text('Nombre'),
                             ),
+                            DropdownMenuItem(
+                              value: 'metacritic_score',
+                              child: Text('Metacritic'),
+                            ),
                           ]
                         : const [
                             DropdownMenuItem(
@@ -247,6 +251,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                             DropdownMenuItem(
                               value: 'rating',
                               child: Text('Nota IGDB'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'aggregated_rating',
+                              child: Text('Metacritic'),
                             ),
                             DropdownMenuItem(
                               value: 'name',

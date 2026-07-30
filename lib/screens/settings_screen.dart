@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/import_service.dart';
 import 'settings/import_preview_screen.dart';
+import 'package:corpus/screens/settings/integrations_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Map<String, dynamic> userProfile;
@@ -75,132 +76,17 @@ class SettingsScreen extends StatelessWidget {
           ),
           _buildSettingsTile(
             context: context,
-            icon: Icons.file_upload_outlined,
-            title: 'Importar Biblioteca',
-            subtitle: 'Migrar desde Stash (JSON/HAR/CSV)',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.help_outline),
-                  onPressed: () => _showStashMigrationHelp(context),
+            icon: Icons.integration_instructions,
+            title: 'Integraciones',
+            subtitle: 'Vincular Steam, importar Stash',
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const IntegrationsScreen(),
                 ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
-            onTap: () async {
-              try {
-                final result = await FilePicker.pickFiles(
-                  type: FileType.custom,
-                  allowedExtensions: ['csv', 'json', 'har'],
-                );
-
-                if (result != null) {
-                  final fileBytes = await result.files.single.readAsBytes();
-
-                  if (fileBytes.isNotEmpty) {
-                    bool isCancelled = false;
-                    ValueNotifier<double> progressNotifier = ValueNotifier(0.0);
-                    ValueNotifier<String> statusNotifier = ValueNotifier(
-                      "Preparando datos...",
-                    );
-
-                    if (context.mounted) {
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) {
-                          return AlertDialog(
-                            title: const Text('Procesando juegos'),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ValueListenableBuilder<double>(
-                                  valueListenable: progressNotifier,
-                                  builder: (context, progress, child) {
-                                    return Column(
-                                      children: [
-                                        LinearProgressIndicator(
-                                          value: progress > 0 ? progress : null,
-                                          minHeight: 8,
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          '${(progress * 100).toStringAsFixed(1)}% completado',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                                ValueListenableBuilder<String>(
-                                  valueListenable: statusNotifier,
-                                  builder: (context, status, child) => Text(
-                                    status,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  isCancelled = true;
-                                  Navigator.pop(context);
-                                },
-                                child: const Text('Cancelar'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    }
-
-                    final fileName = result.files.single.name.toLowerCase();
-                    final rows = fileName.endsWith('.csv')
-                        ? ImportService.parseCsv(fileBytes)
-                        : ImportService.parseStashJson(fileBytes);
-
-                    await ImportService.matchGamesWithIGDB(rows, (p, t) {
-                      if (t > 0) {
-                        progressNotifier.value = p / t;
-                        statusNotifier.value =
-                            "Buscando coincidencias ($p de $t)...";
-                      }
-                    }, isCancelled: () => isCancelled);
-
-                    if (!isCancelled && context.mounted) {
-                      Navigator.of(context, rootNavigator: true).pop();
-                    }
-
-                    if (!isCancelled && context.mounted) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ImportPreviewScreen(rows: rows),
-                        ),
-                      );
-                    }
-                  }
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  Navigator.of(context, rootNavigator: true).pop();
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
-              }
+              );
             },
           ),
           _buildSettingsTile(
@@ -215,6 +101,7 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
+
 
           const Divider(color: Colors.white24, height: 32),
           const Padding(

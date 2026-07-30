@@ -433,6 +433,7 @@ class ReviewRepository {
           ? null
           : (comment.trim().isNotEmpty ? comment.trim() : null),
       'partner_id': partnerId,
+      'is_steam_only': false,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'user_id, game_id');
 

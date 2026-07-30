@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../globals.dart';
@@ -59,6 +61,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   // Tiempo de juego estimado (HowLongToBeat)
   Map<String, dynamic>? _timeToBeat;
+
+  // Metacritic (Steam only / fallback)
+  int? _metacriticScore;
+  String? _metacriticUrl;
+  bool _isTrueMetacritic = false;
+  bool _isLoadingMetacritic = false;
 
   // Juegos relacionados (DLCs, remakes, ports, etc.)
   List<dynamic> _relatedGames = [];
@@ -131,9 +139,78 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     _loadPreferences();
     _startCarousel(widget.gameData['screenshots']);
-    _enrichGameData();
+    _enrichGameData().then((_) => _fetchMetacritic());
     _fetchTimeToBeat();
     _fetchRelatedGames();
+  }
+
+  Future<void> _fetchMetacritic() async {
+    // Attempt to read from gameData directly (if backfilled previously)
+    final initialScore = widget.gameData['metacritic_score'] ?? _enrichedData['metacritic_score'] ?? widget.gameData['aggregated_rating'] ?? _enrichedData['aggregated_rating'];
+    
+    // Look for metacritic url in websites
+    String? mcUrl = widget.gameData['metacritic_url'] ?? _enrichedData['metacritic_url'];
+    if (mcUrl == null) {
+      final websites = _enrichedData['websites'] as List<dynamic>? ?? [];
+      for (final w in websites) {
+        if (w['category'] == 14) { // 14 is metacritic in IGDB
+          mcUrl = w['url'];
+          break;
+        }
+      }
+    }
+
+    // Try to get exact Metacritic score & URL from Steam if available
+    String? steamUrl;
+    final websites = _enrichedData['websites'] as List<dynamic>? ?? [];
+    for (final w in websites) {
+      if (w['category'] == 13) { // 13 is Steam
+        steamUrl = w['url'];
+        break;
+      }
+    }
+
+    if (steamUrl != null) {
+      final regex = RegExp(r'app/(\d+)');
+      final match = regex.firstMatch(steamUrl);
+      if (match != null) {
+        final appId = match.group(1);
+        if (appId != null) {
+          try {
+            final res = await http.get(Uri.parse('https://store.steampowered.com/api/appdetails?appids=$appId&l=spanish'));
+            if (res.statusCode == 200) {
+              final json = jsonDecode(res.body);
+              final appData = json[appId];
+              if (appData != null && appData['success'] == true) {
+                final metacritic = appData['data']['metacritic'];
+                if (metacritic != null) {
+                  if (mounted) {
+                    setState(() {
+                      _metacriticScore = metacritic['score'];
+                      _metacriticUrl = metacritic['url'];
+                      _isTrueMetacritic = true;
+                    });
+                  }
+                  return; // Successfully fetched from Steam
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('Error fetching Metacritic from Steam: $e');
+          }
+        }
+      }
+    }
+
+    // Fallback to IGDB / existing data if Steam fetch failed or game is not on Steam
+    if (mounted) {
+      setState(() {
+        _metacriticScore = initialScore is num ? initialScore.toInt() : null;
+        _metacriticUrl = mcUrl;
+        // If it came from our DB's metacritic_score, it's a true Metacritic score
+        _isTrueMetacritic = (widget.gameData['metacritic_score'] != null || _enrichedData['metacritic_score'] != null);
+      });
+    }
   }
 
   Future<void> _loadPreferences() async {
@@ -644,6 +721,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               'version_parent': game['version_parent'],
             if (game['remake_of'] != null) 'remake_of': game['remake_of'],
             if (game['remaster_of'] != null) 'remaster_of': game['remaster_of'],
+            if (game['aggregated_rating'] != null) 'aggregated_rating': game['aggregated_rating'],
             'platforms': game['platforms'] != null
                 ? (game['platforms'] as List).map((p) => p['name']).toList()
                 : [],
@@ -1689,6 +1767,83 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildMetacriticSection() {
+    if (_isLoadingMetacritic && _metacriticScore == null) {
+      return const Padding(
+        padding: EdgeInsets.only(bottom: 16),
+        child: SizedBox(
+          height: 32,
+          width: 32,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    if (_metacriticScore == null) return const SizedBox.shrink();
+
+    final Color scoreColor = _metacriticScore! >= 75
+        ? Colors.green
+        : _metacriticScore! >= 50
+            ? Colors.orange
+            : Colors.red;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _isTrueMetacritic ? 'Metacritic' : 'Nota Crítica (IGDB)',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: _metacriticUrl != null
+                ? () => launchUrl(Uri.parse(_metacriticUrl!))
+                : null,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scoreColor.withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: scoreColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      _metacriticScore.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    _isTrueMetacritic ? 'Metacritic Score' : 'Media de Críticas',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  if (_metacriticUrl != null) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.open_in_new, size: 16, color: Colors.grey),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3030,6 +3185,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
           const SizedBox(height: 28),
         ],
+        _buildMetacriticSection(),
         _buildStashStatsSection(),
         if (summary != null) ...[
           const Text(

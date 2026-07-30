@@ -356,6 +356,32 @@ class _GameCardState extends State<GameCard> {
                         ),
                       ),
                     ),
+
+                  if (widget.game['is_steam_only'] == true)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF171a21).withValues(alpha: 0.9), // Steam dark color
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              blurRadius: 2,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Image.asset(
+                          'assets/images/steam.png',
+                          width: 14,
+                          height: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                 ],
               );
             },
