@@ -14,6 +14,7 @@ import 'profile_achievements_tab.dart';
 import 'profile_journal_tab.dart';
 import 'profile_reviews_tab.dart';
 import 'profile_games_grid_tab.dart';
+import 'currently_playing_badge.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -166,11 +167,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Incluimos la nota dentro del gameData para mostrarla en la UI
       gameData['user_rating'] = rating;
 
-      if (row['status'] == 'wishlist') {
+      if (row['status'] == 'wishlist' && row['is_steam_only'] != true) {
         wishlist.add(gameData);
       } else if (row['status'] == 'playing') {
         playing.add(gameData);
-      } else if (row['status'] == 'beaten' && rating > 0) {
+      } else if (row['status'] == 'beaten') {
         beaten.add(gameData);
       }
     }
@@ -469,6 +470,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                       ),
+                      if (_userProfile != null)
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const SizedBox(height: 0, width: 1),
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              child: CurrentlyPlayingBadge(
+                                userId: _userProfile!['id'],
+                                initialProfile: _userProfile!,
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),

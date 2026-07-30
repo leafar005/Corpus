@@ -121,6 +121,9 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
       }
 
       query = query.eq('status', widget.status ?? 'beaten');
+      if (widget.status == 'wishlist') {
+        query = query.neq('is_steam_only', true);
+      }
 
       // Ordenar según los filtros (usando referencedTable y evitando reasignar el FilterBuilder a TransformBuilder)
       PostgrestTransformBuilder<List<Map<String, dynamic>>> orderQuery;
@@ -142,6 +145,13 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           break;
         case 'rating':
           orderQuery = query.order('rating', ascending: _filters.sortAscending);
+          break;
+        case 'metacritic_score':
+          orderQuery = query.order(
+            'metacritic_score',
+            referencedTable: 'games',
+            ascending: _filters.sortAscending,
+          );
           break;
         case 'updated_at':
         default:
@@ -327,6 +337,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           final gameData = item['games'] as Map<String, dynamic>;
           final rating = (item['rating'] ?? 0).toDouble();
           gameData['user_rating'] = rating;
+          gameData['is_steam_only'] = item['is_steam_only'];
 
           return GameCard(
             game: gameData,

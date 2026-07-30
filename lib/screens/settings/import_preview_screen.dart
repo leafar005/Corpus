@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:corpus/services/import_service.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/globals.dart';
+import 'package:corpus/screens/library/review_modal.dart';
 
 class ImportPreviewScreen extends StatefulWidget {
   final List<CsvGameRow> rows;
@@ -15,14 +16,35 @@ class ImportPreviewScreen extends StatefulWidget {
 class _ImportPreviewScreenState extends State<ImportPreviewScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String _searchQuery = '';
+  String _statusFilter = 'todos';
 
-  List<CsvGameRow> get matchedRows => widget.rows
+  bool _matchesFilters(CsvGameRow r) {
+    if (_statusFilter != 'todos' && r.status.toLowerCase() != _statusFilter) {
+      return false;
+    }
+    if (_searchQuery.isNotEmpty) {
+      final name = r.igdbData?['name']?.toString().toLowerCase() ?? r.title.toLowerCase();
+      if (!name.contains(_searchQuery.toLowerCase())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  List<CsvGameRow> get allMatchedRows => widget.rows
       .where((r) => r.matchStatus == 'matched' && r.igdbData != null)
       .toList();
+      
+  List<CsvGameRow> get matchedRows => allMatchedRows
+      .where(_matchesFilters)
+      .toList();
+      
   List<CsvGameRow> get ambiguousRows =>
-      widget.rows.where((r) => r.matchStatus == 'ambiguous').toList();
+      widget.rows.where((r) => r.matchStatus == 'ambiguous' && _matchesFilters(r)).toList();
+      
   List<CsvGameRow> get notFoundRows =>
-      widget.rows.where((r) => r.matchStatus == 'notFound').toList();
+      widget.rows.where((r) => r.matchStatus == 'notFound' && _matchesFilters(r)).toList();
 
   @override
   void initState() {
@@ -37,7 +59,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
   }
 
   Future<void> _importData() async {
-    final readyRows = matchedRows;
+    final readyRows = allMatchedRows;
     if (readyRows.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No hay juegos listos para importar.')),
@@ -93,42 +115,110 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bool hasTabs = ambiguousRows.isNotEmpty || notFoundRows.isNotEmpty;
+    final totalMatched = allMatchedRows.length;
+    final isSteamImport = widget.rows.any((r) => r.steamOwned);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Revisar Importación'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: 'Listos (${matchedRows.length})'),
-            Tab(text: 'Dudas (${ambiguousRows.length})'),
-            Tab(text: 'No encontrados (${notFoundRows.length})'),
-          ],
-        ),
+        bottom: hasTabs
+            ? TabBar(
+                controller: _tabController,
+                tabs: [
+                  Tab(text: 'Listos ($totalMatched)'),
+                  Tab(text: 'Dudas (${ambiguousRows.length})'),
+                  Tab(text: 'No encontrados (${notFoundRows.length})'),
+                ],
+              )
+            : null,
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildMatchedTab(matchedRows),
-          _buildAmbiguousTab(ambiguousRows),
-          _buildNotFoundTab(notFoundRows),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar juego...',
+                      prefixIcon: Icon(Icons.search),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (val) {
+                      setState(() {
+                        _searchQuery = val;
+                      });
+                    },
+                  ),
+                ),
+                if (!isSteamImport) const SizedBox(width: 8),
+                if (!isSteamImport)
+                  Expanded(
+                    flex: 1,
+                    child: DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _statusFilter,
+                      items: const [
+                        DropdownMenuItem(value: 'todos', child: Text('Todos')),
+                        DropdownMenuItem(value: 'playing', child: Text('Jugando')),
+                        DropdownMenuItem(value: 'beaten', child: Text('Completado')),
+                        DropdownMenuItem(value: 'wishlist', child: Text('Pendiente')),
+                        DropdownMenuItem(value: 'abandoned', child: Text('Abandonado')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _statusFilter = val;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: hasTabs
+                ? TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildMatchedTab(matchedRows),
+                      _buildAmbiguousTab(ambiguousRows),
+                      _buildNotFoundTab(notFoundRows),
+                    ],
+                  )
+                : _buildMatchedTab(matchedRows),
+          ),
         ],
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: ElevatedButton.icon(
-            onPressed: matchedRows.isEmpty ? null : _importData,
-            icon: const Icon(Icons.cloud_upload),
-            label: Text(
-              'Importar ${matchedRows.length} juegos a mi biblioteca',
-            ),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: totalMatched == 0 ? null : _importData,
+                icon: const Icon(Icons.cloud_upload),
+                label: Text(
+                  'Importar $totalMatched juegos a mi biblioteca',
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -159,6 +249,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
+            onTap: () => _editRow(row),
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: coverUrl.isNotEmpty
@@ -175,7 +266,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              'Estado: ${row.status.toUpperCase()} ${row.rating != null ? "• Nota: ${row.rating}" : ""}',
+              'Estado: ${row.status.toUpperCase()} ${row.rating != null ? "• Nota: ${row.rating!.toStringAsFixed(1).replaceAll(RegExp(r'\\.0\$'), '')}" : ""}',
             ),
             trailing: const Icon(Icons.check_circle, color: Colors.green),
           ),
@@ -308,6 +399,53 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
             subtitle: const Text('No se encontró coincidencia en Twitch/IGDB.'),
           ),
         );
+      },
+    );
+  }
+
+  void _editRow(CsvGameRow row) {
+    ReviewModal.show(
+      context: context,
+      gameData: row.igdbData ?? {},
+      enrichedData: const {},
+      isSaving: false,
+      currentRating: row.rating ?? 0.0,
+      currentRatingGameplay: 0.0,
+      currentRatingNarrative: 0.0,
+      currentRatingSoundtrack: 0.0,
+      currentRatingVisuals: 0.0,
+      currentStatus: row.status,
+      commentController: TextEditingController(text: row.comment ?? ''),
+      onSave: ({
+        required rating,
+        required ratingGameplay,
+        required ratingNarrative,
+        required ratingSoundtrack,
+        required ratingVisuals,
+        required comment,
+        required status,
+        required completionType,
+        required isReplay,
+        required replayNumber,
+        required platform,
+        required playTimeHours,
+        required playedFrom,
+        required playedUntil,
+        required progressPercent,
+        required newImages,
+        required existingImages,
+        required partnerId,
+        reviewId,
+      }) async {
+        setState(() {
+          row.rating = rating > 0 ? rating : null;
+          row.comment = comment;
+          row.status = status;
+          row.completionType = completionType;
+          row.platform = platform;
+          row.playTimeHours = playTimeHours;
+        });
+        Navigator.pop(context);
       },
     );
   }

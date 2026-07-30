@@ -21,6 +21,11 @@ class CsvGameRow {
   Map<String, dynamic>? igdbData;
   List<dynamic> candidates;
 
+  bool steamOwned;
+  int? steamPlaytimeMinutes;
+  bool isSteamOnly;
+  String? steamLastPlayedAt;
+
   CsvGameRow({
     required this.title,
     this.igdbId,
@@ -35,6 +40,10 @@ class CsvGameRow {
     this.matchStatus = 'notFound',
     this.igdbData,
     this.candidates = const [],
+    this.steamOwned = false,
+    this.steamPlaytimeMinutes,
+    this.isSteamOnly = false,
+    this.steamLastPlayedAt,
   });
 }
 
@@ -398,7 +407,7 @@ static Future<void> matchGamesWithIGDB(
             ? row.rating
             : null;
         final String dateAddedStr =
-            row.dateAdded ?? DateTime.now().toUtc().toIso8601String();
+            row.steamLastPlayedAt ?? row.dateAdded ?? DateTime.now().toUtc().toIso8601String();
 
         gamesPayload.add({
           'igdb_id': igdbId,
@@ -421,6 +430,10 @@ static Future<void> matchGamesWithIGDB(
               : null,
           'franchises': getNames(gameData['franchises']),
           'game_engines': getNames(gameData['game_engines']),
+          if (gameData['metacritic_score'] != null)
+            'metacritic_score': gameData['metacritic_score'],
+          if (gameData['metacritic_url'] != null)
+            'metacritic_url': gameData['metacritic_url'],
         });
 
         userGamesPayload.add({
@@ -434,6 +447,10 @@ static Future<void> matchGamesWithIGDB(
               : null,
           'last_played_at': dateAddedStr,
           'updated_at': dateAddedStr,
+          if (row.steamOwned) 'steam_owned': true,
+          if (row.steamPlaytimeMinutes != null) 'steam_playtime_minutes': row.steamPlaytimeMinutes,
+          if (row.isSteamOnly) 'is_steam_only': true,
+          if (row.steamLastPlayedAt != null) 'steam_last_played_at': row.steamLastPlayedAt,
         });
 
         reviewsPayload.add({

@@ -136,6 +136,8 @@ class IGDBService {
             ' & (total_rating_count != null | total_rating_count = null)';
       } else if (sortClause.contains('rating') && sortClause.contains('desc')) {
         whereConditions += ' & (rating != null | rating = null)';
+      } else if (sortClause.contains('aggregated_rating') && sortClause.contains('desc')) {
+        whereConditions += ' & (aggregated_rating != null | aggregated_rating = null)';
       }
     }
 
@@ -255,7 +257,7 @@ class IGDBService {
   static Future<Map<String, dynamic>?> getGameById(int igdbId) async {
     final response = await _postQuery(
       'games',
-      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, version_parent, remakes, remasters, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name, websites.url, websites.category, websites.type; where id = $igdbId;',
+      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, version_parent, remakes, remasters, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name, websites.url, websites.category, websites.type, aggregated_rating; where id = $igdbId;',
     );
 
     if (response.statusCode == 200) {
@@ -280,12 +282,42 @@ class IGDBService {
     return [];
   }
 
+  // Cache del ID de "Steam" en external_game_sources (no cambia, se resuelve una sola vez por sesión)
+  static int? _steamSourceId;
+
+  static Future<int?> _getSteamSourceId() async {
+    if (_steamSourceId != null) return _steamSourceId;
+    try {
+      final response = await _postQuery(
+        'external_game_sources',
+        'fields id, name; limit 50;',
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> sources = jsonDecode(response.body);
+        final steamSource = sources.firstWhere(
+          (s) => (s['name'] as String?)?.toLowerCase() == 'steam',
+          orElse: () => null,
+        );
+        if (steamSource != null) {
+          _steamSourceId = steamSource['id'] as int;
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('[IGDB] Error resolviendo Steam source ID: $e');
+    }
+    return _steamSourceId;
+  }
+
   /// Convierte un único Steam App ID en la ficha de IGDB.
   static Future<Map<String, dynamic>?> getGameBySteamId(int steamAppId) async {
     try {
+      final steamSourceId = await _getSteamSourceId();
+      final sourceFilter = steamSourceId != null
+          ? 'external_game_source = $steamSourceId'
+          : 'category = 1';
       final response = await _postQuery(
         'external_games',
-        'fields game; where uid = "$steamAppId"; limit 1;',
+        'fields game; where $sourceFilter & uid = "$steamAppId"; limit 1;',
       );
 
       if (response.statusCode == 200) {
@@ -530,6 +562,11 @@ class IGDBService {
   }) async {
     if (steamAppIds.isEmpty) return {};
 
+    final steamSourceId = await _getSteamSourceId();
+    final sourceFilter = steamSourceId != null
+        ? 'external_game_source = $steamSourceId'
+        : 'category = 1'; // fallback deprecado, solo si no se pudo resolver el ID dinámico
+
     final Map<int, int> steamIdToIgdbId = {};
     const chunkSize = 50;
 
@@ -540,7 +577,7 @@ class IGDBService {
       // varias filas en external_games (duplicados, distintas categorías),
       // así que con limit = chunk.length algunos juegos del lote se quedan
       // fuera de la respuesta sin ningún error. 500 es el máximo por petición.
-      final body = 'fields uid, game; where $orConditions; limit 500;';
+      final body = 'fields uid, game; where $sourceFilter & ($orConditions); limit 500;';
 
       try {
         final response = await _postQuery('external_games', body);
