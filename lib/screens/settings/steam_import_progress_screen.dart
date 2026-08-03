@@ -135,11 +135,12 @@ class _SteamImportProgressScreenState extends State<SteamImportProgressScreen> {
           }
         } else {
           done = true;
-          if (mounted)
+          if (mounted) {
             setState(() {
               _isError = true;
               _status = 'Respuesta vacía';
             });
+          }
         }
       } on FunctionException catch (e) {
         done = true;

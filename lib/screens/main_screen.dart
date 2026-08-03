@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -180,6 +179,15 @@ class _MainScreenState extends State<MainScreen> {
             pillStyle: const LiquidGlassNavPillStyle(
               animated: true,
               mode: LiquidGlassPillMode.both,
+              enableInnerRadiusTransparent: true,
+              magnification: 1.25,
+              glassStyle: LiquidGlassStyle(
+                refraction: LiquidGlassRefraction(
+                  distortion: 0.15,
+                  distortionWidth: 24.0,
+                  chromaticAberration: 0.025,
+                ),
+              ),
             ),
           ),
         ),

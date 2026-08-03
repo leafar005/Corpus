@@ -59,7 +59,7 @@ class CorpusApp extends StatelessWidget {
           theme: AppTheme.getLightTheme(themeNotifier.seedColor),
           darkTheme: AppTheme.getDarkTheme(themeNotifier.seedColor),
           themeMode: themeNotifier.currentMode,
-
+          scrollBehavior: const AlwaysScrollbarBehavior(),
           home: const AuthGate(),
         );
       },

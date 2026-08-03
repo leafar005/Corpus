@@ -64,23 +64,26 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
           _steamId = data['steamId'];
           _steamName = data['steamName'];
         });
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Cuenta de Steam vinculada con éxito.'),
             ),
           );
+        }
       }
     } on FunctionException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.details ?? e.toString()}')),
         );
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error al vincular: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLinkingSteam = false);
     }
@@ -102,15 +105,17 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
         _steamName = null;
         _steamInputController.clear();
       });
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Cuenta desvinculada.')));
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error al desvincular: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLinkingSteam = false);
     }

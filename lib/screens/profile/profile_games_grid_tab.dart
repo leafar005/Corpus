@@ -113,8 +113,9 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
             (e) => e['id'] == id,
             orElse: () => {'name': ''},
           )['name'];
-          if (name != '')
+          if (name != '') {
             query = query.contains('games.game_modes', '["$name"]');
+          }
         }
       }
       if (_filters.playerPerspectives.isNotEmpty) {
@@ -123,8 +124,9 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
             (e) => e['id'] == id,
             orElse: () => {'name': ''},
           )['name'];
-          if (name != '')
+          if (name != '') {
             query = query.contains('games.player_perspectives', '["$name"]');
+          }
         }
       }
       if (_filters.platforms.isNotEmpty) {
@@ -133,8 +135,9 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
             (e) => e['id'] == id,
             orElse: () => {'name': ''},
           )['name'];
-          if (name != '')
+          if (name != '') {
             query = query.contains('games.platforms', '["$name"]');
+          }
         }
       }
 
