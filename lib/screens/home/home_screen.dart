@@ -20,8 +20,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _latestReviewsScrollController = ScrollController();
-  bool _canScrollLeft = false;
-  bool _canScrollRight = true;
+  // ValueNotifier en lugar de bool+setState para evitar rebuild completo de
+  // HomeScreen cada vez que el usuario mueve el scroll horizontal
+  final ValueNotifier<bool> _canScrollLeft = ValueNotifier(false);
+  final ValueNotifier<bool> _canScrollRight = ValueNotifier(true);
 
   bool get _isDesktop =>
       defaultTargetPlatform == TargetPlatform.windows ||
@@ -57,16 +59,17 @@ class _HomeScreenState extends State<HomeScreen> {
   void _updateScrollArrows() {
     if (!mounted || !_latestReviewsScrollController.hasClients) return;
     final position = _latestReviewsScrollController.position;
-    setState(() {
-      _canScrollLeft = position.pixels > 1.0;
-      _canScrollRight = position.pixels < (position.maxScrollExtent - 1.0);
-    });
+    // Actualiza solo el ValueNotifier — no lanza rebuild de toda la pantalla
+    _canScrollLeft.value = position.pixels > 1.0;
+    _canScrollRight.value = position.pixels < (position.maxScrollExtent - 1.0);
   }
 
   @override
   void dispose() {
     _latestReviewsScrollController.removeListener(_updateScrollArrows);
     _latestReviewsScrollController.dispose();
+    _canScrollLeft.dispose();
+    _canScrollRight.dispose();
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
     _authSub?.cancel();
     super.dispose();
@@ -303,16 +306,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Stack(
                       children: [
                         _isGuest
-                            ? const GuestHeroShowcase()
+                            ? GuestHeroShowcase(
+                                switchDuration:
+                                    GuestHeroShowcase.defaultSwitchDuration,
+                              )
                             : playingGames.isEmpty
                             ? EmptyPlayingHero(
                                 userName: displayName,
                                 onSearchPressed:
                                     widget.onNavigateToSearch ?? () {},
+                                switchDuration:
+                                    EmptyPlayingHero.defaultSwitchDuration,
                               )
                             : HeroShowcase(
                                 playingGames: playingGames,
                                 userName: displayName,
+                                switchDuration:
+                                    HeroShowcase.defaultSwitchDuration,
                               ),
                       ],
                     ),
@@ -528,76 +538,86 @@ class _HomeScreenState extends State<HomeScreen> {
                                   );
                                 },
                               ),
-                              // Flecha Izquierda
-                              if (_isDesktop && _canScrollLeft)
-                                Positioned(
-                                  left: 0,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Center(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.6,
+                              // Flechas de scroll — usan ValueListenableBuilder para
+                              // no provocar un rebuild completo de HomeScreen al hacer scroll
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _canScrollLeft,
+                                builder: (context, canLeft, _) {
+                                  if (!_isDesktop || !canLeft) return const SizedBox.shrink();
+                                  return Positioned(
+                                    left: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                          shape: BoxShape.circle,
                                         ),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: IconButton(
-                                        icon: const Icon(
-                                          Icons.chevron_left,
-                                          color: Colors.white,
+                                        child: IconButton(
+                                          icon: const Icon(
+                                            Icons.chevron_left,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            _latestReviewsScrollController
+                                                .animateTo(
+                                                  _latestReviewsScrollController
+                                                          .offset -
+                                                      500,
+                                                  duration: const Duration(
+                                                    milliseconds: 500,
+                                                  ),
+                                                  curve: Curves.easeInOut,
+                                                );
+                                          },
                                         ),
-                                        onPressed: () {
-                                          _latestReviewsScrollController
-                                              .animateTo(
-                                                _latestReviewsScrollController
-                                                        .offset -
-                                                    500,
-                                                duration: const Duration(
-                                                  milliseconds: 500,
-                                                ),
-                                                curve: Curves.easeInOut,
-                                              );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              // Flecha Derecha
-                              if (_isDesktop && _canScrollRight)
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Center(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: IconButton(
-                                        icon: const Icon(
-                                          Icons.chevron_right,
-                                          color: Colors.white,
-                                        ),
-                                        onPressed: () {
-                                          _latestReviewsScrollController
-                                              .animateTo(
-                                                _latestReviewsScrollController
-                                                        .offset +
-                                                    500,
-                                                duration: const Duration(
-                                                  milliseconds: 500,
-                                                ),
-                                                curve: Curves.easeInOut,
-                                              );
-                                        },
                                       ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                },
+                              ),
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _canScrollRight,
+                                builder: (context, canRight, _) {
+                                  if (!_isDesktop || !canRight) return const SizedBox.shrink();
+                                  return Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(
+                                            Icons.chevron_right,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            _latestReviewsScrollController
+                                                .animateTo(
+                                                  _latestReviewsScrollController
+                                                          .offset +
+                                                      500,
+                                                  duration: const Duration(
+                                                    milliseconds: 500,
+                                                  ),
+                                                  curve: Curves.easeInOut,
+                                                );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ],
                           ),
                         ),

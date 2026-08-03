@@ -121,7 +121,8 @@ class _GameCardState extends State<GameCard> {
         widget.game['name'] ?? widget.game['title'] ?? 'Desconocido';
     final igdbId = widget.game['igdb_id'] ?? widget.game['id'];
 
-    return MouseRegion(
+    return RepaintBoundary(
+      child: MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: InkWell(
@@ -491,6 +492,7 @@ class _GameCardState extends State<GameCard> {
           ],
         ),
       ),
+    ),
     );
   }
 }
