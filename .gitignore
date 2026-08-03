@@ -24,6 +24,8 @@ doc/api/
 *.js_
 *.js.deps
 *.js.map
+# Excepción: Service Worker de Firebase (no es código generado)
+!web/firebase-messaging-sw.js
 
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -34,3 +36,8 @@ lib/env.dart
 # Scripts temporales
 scratch/
 supabase/.temp/
+
+# Credenciales de Firebase (NUNCA subir al repositorio)
+google-services.json
+GoogleService-Info.plist
+secrets/

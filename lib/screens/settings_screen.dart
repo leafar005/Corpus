@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/import_service.dart';
 import 'settings/import_preview_screen.dart';
 import 'package:corpus/screens/settings/integrations_screen.dart';
+import 'package:corpus/screens/settings/notifications_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Map<String, dynamic> userProfile;
@@ -69,9 +70,12 @@ class SettingsScreen extends StatelessWidget {
             title: 'Notificaciones',
             subtitle: 'Avisos, interacciones',
             onTap: () {
-              ScaffoldMessenger.of(
+              Navigator.push(
                 context,
-              ).showSnackBar(const SnackBar(content: Text('Próximamente...')));
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
             },
           ),
           _buildSettingsTile(
