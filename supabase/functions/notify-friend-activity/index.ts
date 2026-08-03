@@ -77,12 +77,13 @@ Deno.serve(async (req) => {
       status === "beaten"  ? "friend_finished_game" :
                              "friend_wishlisted_game";
 
-    const notifTitle =
-      status === "playing"  ? `${actorName} está jugando a ${gameTitle}` :
-      status === "beaten"   ? `${actorName} ha terminado ${gameTitle}` :
-                              `${actorName} quiere jugar a ${gameTitle}`;
-
-    const notifBody = ""; // El nombre de la app ya aparece en el sistema, no repetimos
+    // Título = nombre del amigo (sin repetir 'Corpus'), Cuerpo = la acción del juego.
+    // FCM en Android requiere que title y body no estén vacíos para mostrar la notificación en background.
+    const notifTitle = actorName;
+    const notifBody =
+      status === "playing"  ? `está jugando a ${gameTitle}` :
+      status === "beaten"   ? `ha terminado ${gameTitle}` :
+                              `quiere jugar a ${gameTitle}`;
 
     // Obtener todos los amigos aceptados del usuario
     const [asSenderRes, asReceiverRes] = await Promise.all([

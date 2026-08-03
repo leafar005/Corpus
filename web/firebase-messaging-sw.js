@@ -16,13 +16,22 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Recibe mensajes en background y los muestra como notificación nativa del sistema
+// Recibe mensajes en background.
+// NOTA: Si el payload contiene 'notification', el SDK de Firebase Web Push
+// ya muestra automáticamente la notificación en el navegador/PWA.
+// Si llamamos a self.registration.showNotification cuando payload.notification existe,
+// la notificación aparece duplicada.
 messaging.onBackgroundMessage(function(payload) {
   console.log('[Corpus SW] Notificación en background:', payload);
 
-  const title = payload.notification?.title ?? 'Corpus';
+  if (payload.notification) {
+    console.log('[Corpus SW] Payload con notification autogestionado por Firebase SDK. Omitiendo duplicado.');
+    return;
+  }
+
+  const title = payload.data?.title ?? 'Corpus';
   const options = {
-    body: payload.notification?.body ?? '',
+    body: payload.data?.body ?? '',
     icon: '/icons/Icon-192.png',
     badge: '/icons/Icon-192.png',
     data: payload.data ?? {},

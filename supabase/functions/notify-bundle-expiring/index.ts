@@ -87,8 +87,8 @@ Deno.serve(async (req) => {
 
       const result = await sendToUsersWithPref(
         "new_bundle",
-        `Nuevo bundle: ${bundleList}`,
-        "",
+        "Nuevo bundle disponible",
+        bundleList,
         { type: "new_bundle" },
         supabase
       );
@@ -128,8 +128,8 @@ Deno.serve(async (req) => {
 
     const result = await sendToUsersWithPref(
       "bundle_expiring",
-      `Termina en menos de 24h: ${bundleList}`,
-      "",
+      "Bundle a punto de terminar",
+      `Queda menos de 24h: ${bundleList}`,
       { type: "bundle_expiring" },
       supabase
     );
