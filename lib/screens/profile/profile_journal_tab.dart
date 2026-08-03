@@ -393,27 +393,30 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
     final rows = _flatten();
 
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: ListView.builder(
-        controller: scrollController,
-        // Scroll real: NADA de shrinkWrap ni NeverScrollableScrollPhysics.
-        // Esta lista necesita ser la propietaria de su scroll (ver
-        // journal_tab_integration.md para cómo darle espacio en el layout).
-        padding: const EdgeInsets.only(bottom: 24),
-        itemCount: rows.length + (hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= rows.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-            );
-          }
-          final row = rows[index];
-          return row.isHeader
-              ? _buildMonthHeader(row.label!)
-              : _buildJournalRow(row.review!);
-        },
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        onScrollMetrics(notification.metrics);
+        return false;
+      },
+      child: RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView.builder(
+          // Sin 'controller' para usar PrimaryScrollController (sincronizado con NestedScrollView en móvil)
+          padding: const EdgeInsets.only(bottom: 24),
+          itemCount: rows.length + (hasMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index >= rows.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              );
+            }
+            final row = rows[index];
+            return row.isHeader
+                ? _buildMonthHeader(row.label!)
+                : _buildJournalRow(row.review!);
+          },
+        ),
       ),
     );
   }

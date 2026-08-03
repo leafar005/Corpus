@@ -220,9 +220,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildHeader(isDesktop),
                   _buildLevelProgressBar(isDesktop),
-                  _buildNavBar(isDesktop),
-                  const SizedBox(height: 24),
+                  SizedBox(height: isDesktop ? 24 : 0),
                 ],
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _SliverNavBarDelegate(
+                height: 56.0,
+                topPadding: MediaQuery.of(context).padding.top,
+                child: _buildNavBar(isDesktop),
               ),
             ),
           ];
@@ -350,8 +357,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Back Button (if navigated from another screen)
           if (Navigator.canPop(context))
             Positioned(
-              top: MediaQuery.of(context).padding.top + 16,
-              left: 16,
+              top:
+                  MediaQuery.of(context).padding.top + (isDesktop ? 10.0 : 4.0),
+              left: 4,
               child: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
@@ -364,8 +372,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Buttons: Friends + Settings
           if (isMe)
             Positioned(
-              top: MediaQuery.of(context).padding.top + 16,
-              right: 16,
+              top:
+                  MediaQuery.of(context).padding.top + (isDesktop ? 10.0 : 4.0),
+              right: 4,
               child: Row(
                 children: [
                   _FriendsBadgeButton(
@@ -571,7 +580,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildNavBar(bool isDesktop) {
     return Container(
       margin: EdgeInsets.only(
-        top: 24,
+        top: 0,
         left: isDesktop ? 40 : 16,
         right: isDesktop ? 40 : 16,
       ),
@@ -616,16 +625,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
-          child: SelectionContainer.disabled(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected
-                    ? Theme.of(context).colorScheme.onSurface
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -945,27 +952,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: onTap,
-        child: SelectionContainer.disabled(
-          child: Column(
-            children: [
-              Text(
-                number,
-                style: const TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
+        child: Column(
+          children: [
+            Text(
+              number,
+              style: const TextStyle(
+                fontSize: 42,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
               ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1176,14 +1181,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ).then((_) => _fetchProfileData());
               },
-              child: SelectionContainer.disabled(
-                child: Text(
-                  'Ver todo',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+              child: Text(
+                'Ver todo',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -1365,5 +1368,43 @@ class _FriendsBadgeButtonState extends State<_FriendsBadgeButton> {
         },
       ),
     );
+  }
+}
+
+class _SliverNavBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+  final double topPadding;
+
+  _SliverNavBarDelegate({
+    required this.child,
+    required this.height,
+    required this.topPadding,
+  });
+
+  @override
+  double get minExtent => height + topPadding;
+
+  @override
+  double get maxExtent => height + topPadding;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: EdgeInsets.only(top: topPadding),
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _SliverNavBarDelegate oldDelegate) {
+    return oldDelegate.child != child ||
+        oldDelegate.height != height ||
+        oldDelegate.topPadding != topPadding;
   }
 }

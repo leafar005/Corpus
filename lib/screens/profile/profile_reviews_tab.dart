@@ -225,23 +225,27 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: ListView.builder(
-        controller: scrollController,
-        // Scroll real: nada de shrinkWrap. Necesita su propio espacio en
-        // el layout (ver journal_tab_integration.md).
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        itemCount: _reviews.length + (hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= _reviews.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-            );
-          }
-          return _buildReviewCard(_reviews[index]);
-        },
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        onScrollMetrics(notification.metrics);
+        return false;
+      },
+      child: RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView.builder(
+          // Sin 'controller' para usar PrimaryScrollController (sincronizado con NestedScrollView en móvil)
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          itemCount: _reviews.length + (hasMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index >= _reviews.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              );
+            }
+            return _buildReviewCard(_reviews[index]);
+          },
+        ),
       ),
     );
   }
