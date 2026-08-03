@@ -304,26 +304,27 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
             ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            child: TextButton.icon(
-              icon: const Icon(Icons.tune, size: 20),
-              label: Text(
-                'Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}',
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: _filters.hasFilters
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              onPressed: _openFilters,
-            ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildFiltersHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          icon: const Icon(Icons.tune, size: 20),
+          label: Text(
+            'Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}',
           ),
-          Expanded(child: _buildBody()),
-        ],
+          style: TextButton.styleFrom(
+            foregroundColor: _filters.hasFilters
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          onPressed: _openFilters,
+        ),
       ),
     );
   }
@@ -331,48 +332,64 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   Widget _buildBody() {
     if (_searchController.text.trim().isEmpty && !_filters.hasFilters) {
       if (_popularGamesError.isNotEmpty) {
-        return Center(
-          child: Text(
-            'Error cargando tendencias:\n$_popularGamesError',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.red),
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFiltersHeader(),
+            Expanded(
+              child: Center(
+                child: Text(
+                  'Error cargando tendencias:\n$_popularGamesError',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+            ),
+          ],
         );
       }
       if (_popularGames.isEmpty && _isInitialPopularLoading) {
-        return Center(child: CircularProgressIndicator());
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFiltersHeader(),
+            const Expanded(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+        );
       }
+      return _buildGrid(_popularGames);
+    }
+
+    if (_results.isEmpty && _isInitialSearchLoading) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Novedades Populares',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
+          _buildFiltersHeader(),
+          const Expanded(
+            child: Center(child: CircularProgressIndicator()),
           ),
-          Expanded(child: _buildGrid(_popularGames)),
         ],
       );
     }
 
-    if (_results.isEmpty && _isInitialSearchLoading) {
-      return Center(child: CircularProgressIndicator());
-    }
-
     if (_results.isEmpty && !_isInitialSearchLoading) {
-      return Center(
-        child: Text(
-          'No se encontraron resultados...',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFiltersHeader(),
+          Expanded(
+            child: Center(
+              child: Text(
+                'No se encontraron resultados...',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       );
     }
 
@@ -380,42 +397,52 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   }
 
   Widget _buildGrid(List<dynamic> gamesList) {
-    return GridView.builder(
+    return CustomScrollView(
       controller: scrollController,
-      padding: const EdgeInsets.all(8.0),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 150,
-        childAspectRatio: 0.7,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      itemCount: gamesList.length + (hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= gamesList.length) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(strokeWidth: 2),
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: _buildFiltersHeader(),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.all(8.0),
+          sliver: SliverGrid.builder(
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 150,
+              childAspectRatio: 0.7,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
             ),
-          );
-        }
+            itemCount: gamesList.length + (hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index >= gamesList.length) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
 
-        final game = gamesList[index];
-        final bool isInLibrary = _userGamesCache.containsKey(game['id']);
-        final double userRating = isInLibrary
-            ? _userGamesCache[game['id']]!
-            : 0.0;
+              final game = gamesList[index];
+              final bool isInLibrary = _userGamesCache.containsKey(game['id']);
+              final double userRating = isInLibrary
+                  ? _userGamesCache[game['id']]!
+                  : 0.0;
 
-        return GameCard(
-          game: game,
-          isInLibrary: isInLibrary,
-          userRating: userRating,
-          onReturn: _fetchUserGamesCache,
-          onTap: widget.isSelectionMode
-              ? (cleanData) => Navigator.pop(context, cleanData)
-              : null,
-        );
-      },
+              return GameCard(
+                game: game,
+                isInLibrary: isInLibrary,
+                userRating: userRating,
+                onReturn: _fetchUserGamesCache,
+                onTap: widget.isSelectionMode
+                    ? (cleanData) => Navigator.pop(context, cleanData)
+                    : null,
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
