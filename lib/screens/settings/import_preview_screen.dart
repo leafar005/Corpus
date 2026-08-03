@@ -164,6 +164,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                         isDense: true,
                         border: OutlineInputBorder(),
                       ),
+                      // ignore: deprecated_member_use
                       value: _statusFilter,
                       items: const [
                         DropdownMenuItem(value: 'todos', child: Text('Todos')),

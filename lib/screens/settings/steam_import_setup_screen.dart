@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'steam_import_progress_screen.dart';
 
 class SteamImportSetupScreen extends StatefulWidget {
@@ -11,6 +10,7 @@ class SteamImportSetupScreen extends StatefulWidget {
 
 class _SteamImportSetupScreenState extends State<SteamImportSetupScreen> {
   double _minHours = 3.0; // valor por defecto
+  // ignore: prefer_final_fields
   bool _isStarting = false;
 
   void _startImport() {
