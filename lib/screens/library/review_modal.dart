@@ -52,55 +52,59 @@ class ReviewModal {
   ReviewModal._();
 
   static Future<List<Map<String, dynamic>>> _fetchFriends() async {
-    final client = Supabase.instance.client;
-    final myId = client.auth.currentUser?.id;
-    if (myId == null) return [];
-
-    List<String> friendIds = [];
-
     try {
-      // v_friend_pairs es una vista: solo trae la columna, sin embed.
-      final pairs = await client
-          .from('v_friend_pairs')
-          .select('friend_id')
-          .eq('user_id', myId);
-      friendIds = List<Map<String, dynamic>>.from(
-        pairs,
-      ).map((r) => r['friend_id'] as String).toList();
-    } catch (_) {
-      // Fallback si la vista no existe: usar friendships directamente.
+      final client = Supabase.instance.client;
+      final myId = client.auth.currentUser?.id;
+      if (myId == null) return [];
+
+      List<String> friendIds = [];
+
       try {
-        final sent = await client
-            .from('friendships')
-            .select('addressee_id')
-            .eq('requester_id', myId)
-            .eq('status', 'accepted');
-        final received = await client
-            .from('friendships')
-            .select('requester_id')
-            .eq('addressee_id', myId)
-            .eq('status', 'accepted');
-        friendIds = [
-          ...List<Map<String, dynamic>>.from(
-            sent,
-          ).map((f) => f['addressee_id'] as String),
-          ...List<Map<String, dynamic>>.from(
-            received,
-          ).map((f) => f['requester_id'] as String),
-        ];
+        // v_friend_pairs es una vista: solo trae la columna, sin embed.
+        final pairs = await client
+            .from('v_friend_pairs')
+            .select('friend_id')
+            .eq('user_id', myId);
+        friendIds = List<Map<String, dynamic>>.from(
+          pairs,
+        ).map((r) => r['friend_id'] as String).toList();
       } catch (_) {
-        return [];
+        // Fallback si la vista no existe: usar friendships directamente.
+        try {
+          final sent = await client
+              .from('friendships')
+              .select('addressee_id')
+              .eq('requester_id', myId)
+              .eq('status', 'accepted');
+          final received = await client
+              .from('friendships')
+              .select('requester_id')
+              .eq('addressee_id', myId)
+              .eq('status', 'accepted');
+          friendIds = [
+            ...List<Map<String, dynamic>>.from(
+              sent,
+            ).map((f) => f['addressee_id'] as String),
+            ...List<Map<String, dynamic>>.from(
+              received,
+            ).map((f) => f['requester_id'] as String),
+          ];
+        } catch (_) {
+          return [];
+        }
       }
+
+      if (friendIds.isEmpty) return [];
+
+      final users = await client
+          .from('users')
+          .select('id, username, avatar_url')
+          .inFilter('id', friendIds);
+
+      return List<Map<String, dynamic>>.from(users);
+    } catch (_) {
+      return [];
     }
-
-    if (friendIds.isEmpty) return [];
-
-    final users = await client
-        .from('users')
-        .select('id, username, avatar_url')
-        .inFilter('id', friendIds);
-
-    return List<Map<String, dynamic>>.from(users);
   }
 
   static void show({
@@ -1196,7 +1200,7 @@ class ReviewModal {
                             ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 120),
                 ],
               ),
             );

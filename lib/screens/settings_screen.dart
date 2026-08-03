@@ -28,7 +28,7 @@ class SettingsScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.only(top: 8, bottom: 100),
         children: [
           _buildSettingsTile(
             context: context,
@@ -102,7 +102,6 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
-
 
           const Divider(color: Colors.white24, height: 32),
           const Padding(
