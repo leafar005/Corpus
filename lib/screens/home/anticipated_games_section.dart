@@ -1,0 +1,245 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import '../../services/igdb_service.dart';
+import '../library/game_details_screen.dart';
+
+class AnticipatedGamesSection extends StatefulWidget {
+  final List<dynamic> games;
+  final String countdownStyle;
+  final String title;
+
+  const AnticipatedGamesSection({
+    super.key,
+    required this.games,
+    this.countdownStyle = 'full',
+    this.title = 'Más Anticipados',
+  });
+
+  @override
+  State<AnticipatedGamesSection> createState() => _AnticipatedGamesSectionState();
+}
+
+class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
+  Timer? _timer;
+  late DateTime _now;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _now = DateTime.now();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.games.isEmpty) return const SizedBox.shrink();
+
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          GridView.builder(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: isDesktop ? 2 : 1,
+              childAspectRatio: isDesktop ? 2.5 : 1.8,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: widget.games.length,
+            itemBuilder: (context, index) {
+              return _buildGameCard(widget.games[index]);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGameCard(dynamic game) {
+    final title = game['name'] ?? 'Desconocido';
+    final releaseTimestamp = game['first_release_date'] as int?;
+    String dateStr = 'Fecha por confirmar';
+    
+    String days = '00';
+    String hours = '00';
+    String minutes = '00';
+
+    if (releaseTimestamp != null) {
+      final releaseDate = DateTime.fromMillisecondsSinceEpoch(releaseTimestamp * 1000);
+      dateStr = '${releaseDate.day.toString().padLeft(2, '0')}/${releaseDate.month.toString().padLeft(2, '0')}/${releaseDate.year}';
+      
+      final difference = releaseDate.difference(_now);
+      if (difference.isNegative) {
+        days = '00';
+        hours = '00';
+        minutes = '00';
+      } else {
+        days = difference.inDays.toString().padLeft(2, '0');
+        hours = (difference.inHours % 24).toString().padLeft(2, '0');
+        minutes = (difference.inMinutes % 60).toString().padLeft(2, '0');
+      }
+    }
+
+    String backgroundUrl = '';
+    if (game['artworks'] != null && game['artworks'].isNotEmpty) {
+      backgroundUrl = IGDBService.getScreenshotUrl(game['artworks'][0]['image_id']);
+    } else if (game['cover'] != null) {
+      backgroundUrl = IGDBService.getCoverUrl(game['cover']['image_id']);
+    }
+
+    return GestureDetector(
+      onTap: () {
+        if (game['id'] != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => GameDetailsScreen(
+                gameData: {
+                  'igdb_id': game['id'], 
+                  'title': title,
+                },
+              ),
+            ),
+          );
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.grey[900],
+          image: backgroundUrl.isNotEmpty
+              ? DecorationImage(
+                  image: NetworkImage(backgroundUrl),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withValues(alpha: 0.6),
+                    BlendMode.srcOver,
+                  ),
+                )
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              dateStr,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            if (widget.countdownStyle == 'days_only')
+              Row(
+                children: [
+                  _buildCountdownSection(days, 'DÍAS RESTANTES'),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  _buildCountdownSection(days, 'DAYS'),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('|', style: TextStyle(color: Colors.white54, fontSize: 32, fontWeight: FontWeight.w300)),
+                  ),
+                  _buildCountdownSection(hours, 'HOURS'),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('|', style: TextStyle(color: Colors.white54, fontSize: 32, fontWeight: FontWeight.w300)),
+                  ),
+                  _buildCountdownSection(minutes, 'MINUTES'),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCountdownSection(String value, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: value.split('').map((char) => _buildDigitBox(char)).toList(),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Colors.white70,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDigitBox(String digit) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15), // Efecto cristal translúcido
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Text(
+        digit,
+        style: const TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w300,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
