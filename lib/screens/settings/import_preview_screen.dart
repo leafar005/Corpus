@@ -24,7 +24,9 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
       return false;
     }
     if (_searchQuery.isNotEmpty) {
-      final name = r.igdbData?['name']?.toString().toLowerCase() ?? r.title.toLowerCase();
+      final name =
+          r.igdbData?['name']?.toString().toLowerCase() ??
+          r.title.toLowerCase();
       if (!name.contains(_searchQuery.toLowerCase())) {
         return false;
       }
@@ -35,16 +37,17 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
   List<CsvGameRow> get allMatchedRows => widget.rows
       .where((r) => r.matchStatus == 'matched' && r.igdbData != null)
       .toList();
-      
-  List<CsvGameRow> get matchedRows => allMatchedRows
-      .where(_matchesFilters)
+
+  List<CsvGameRow> get matchedRows =>
+      allMatchedRows.where(_matchesFilters).toList();
+
+  List<CsvGameRow> get ambiguousRows => widget.rows
+      .where((r) => r.matchStatus == 'ambiguous' && _matchesFilters(r))
       .toList();
-      
-  List<CsvGameRow> get ambiguousRows =>
-      widget.rows.where((r) => r.matchStatus == 'ambiguous' && _matchesFilters(r)).toList();
-      
-  List<CsvGameRow> get notFoundRows =>
-      widget.rows.where((r) => r.matchStatus == 'notFound' && _matchesFilters(r)).toList();
+
+  List<CsvGameRow> get notFoundRows => widget.rows
+      .where((r) => r.matchStatus == 'notFound' && _matchesFilters(r))
+      .toList();
 
   @override
   void initState() {
@@ -168,10 +171,22 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                       value: _statusFilter,
                       items: const [
                         DropdownMenuItem(value: 'todos', child: Text('Todos')),
-                        DropdownMenuItem(value: 'playing', child: Text('Jugando')),
-                        DropdownMenuItem(value: 'beaten', child: Text('Completado')),
-                        DropdownMenuItem(value: 'wishlist', child: Text('Pendiente')),
-                        DropdownMenuItem(value: 'abandoned', child: Text('Abandonado')),
+                        DropdownMenuItem(
+                          value: 'playing',
+                          child: Text('Jugando'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'beaten',
+                          child: Text('Completado'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'wishlist',
+                          child: Text('Pendiente'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'abandoned',
+                          child: Text('Abandonado'),
+                        ),
                       ],
                       onChanged: (val) {
                         if (val != null) {
@@ -201,18 +216,24 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.only(
+            left: 16.0,
+            right: 16.0,
+            top: 16.0,
+            bottom: 100.0,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton.icon(
                 onPressed: totalMatched == 0 ? null : _importData,
                 icon: const Icon(Icons.cloud_upload),
-                label: Text(
-                  'Importar $totalMatched juegos a mi biblioteca',
-                ),
+                label: Text('Importar $totalMatched juegos a mi biblioteca'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 24,
+                  ),
                   textStyle: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -417,37 +438,38 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
       currentRatingVisuals: 0.0,
       currentStatus: row.status,
       commentController: TextEditingController(text: row.comment ?? ''),
-      onSave: ({
-        required rating,
-        required ratingGameplay,
-        required ratingNarrative,
-        required ratingSoundtrack,
-        required ratingVisuals,
-        required comment,
-        required status,
-        required completionType,
-        required isReplay,
-        required replayNumber,
-        required platform,
-        required playTimeHours,
-        required playedFrom,
-        required playedUntil,
-        required progressPercent,
-        required newImages,
-        required existingImages,
-        required partnerId,
-        reviewId,
-      }) async {
-        setState(() {
-          row.rating = rating > 0 ? rating : null;
-          row.comment = comment;
-          row.status = status;
-          row.completionType = completionType;
-          row.platform = platform;
-          row.playTimeHours = playTimeHours;
-        });
-        Navigator.pop(context);
-      },
+      onSave:
+          ({
+            required rating,
+            required ratingGameplay,
+            required ratingNarrative,
+            required ratingSoundtrack,
+            required ratingVisuals,
+            required comment,
+            required status,
+            required completionType,
+            required isReplay,
+            required replayNumber,
+            required platform,
+            required playTimeHours,
+            required playedFrom,
+            required playedUntil,
+            required progressPercent,
+            required newImages,
+            required existingImages,
+            required partnerId,
+            reviewId,
+          }) async {
+            setState(() {
+              row.rating = rating > 0 ? rating : null;
+              row.comment = comment;
+              row.status = status;
+              row.completionType = completionType;
+              row.platform = platform;
+              row.playTimeHours = playTimeHours;
+            });
+            Navigator.pop(context);
+          },
     );
   }
 }

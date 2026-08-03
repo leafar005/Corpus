@@ -52,9 +52,6 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  bool _isDraggingGlass = false;
-  double _dragGlassX = 0.0;
-
   Future<void> _loadSavedTab() async {
     if (!_shouldPersistTab) return;
     final prefs = await SharedPreferences.getInstance();
@@ -165,195 +162,24 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildLiquidGlassNavBar(BuildContext context) {
-    final isApple = defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS;
-
-    if (isApple) {
-      return LiquidGlassBottomNavBar(
-        items: const [
-          LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
-          LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
-          LiquidGlassTabBarItem(icon: Icons.group, label: 'Actividad'),
-          LiquidGlassTabBarItem(icon: Icons.local_offer, label: 'Bundles'),
-          LiquidGlassTabBarItem(icon: Icons.person, label: 'Perfil'),
-        ],
-        selectedIndex: _currentIndex,
-        onChanged: (index) => _onTabTapped(index),
-        pillStyle: const LiquidGlassNavPillStyle(
-          animated: true,
-          mode: LiquidGlassPillMode.both,
-        ),
-      );
-    }
-
-    final items = [
-      (Icons.home, 'Inicio'),
-      (Icons.search, 'Buscar'),
-      (Icons.group, 'Actividad'),
-      (Icons.local_offer, 'Bundles'),
-      (Icons.person, 'Perfil'),
-    ];
-
     return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        height: 65,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(35),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 25,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(35),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(35),
-                // Acabado MATE elegante y escarchado para Android:
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFF1E1E24).withValues(alpha: 0.78)
-                    : const Color(0xFFF2F2F7).withValues(alpha: 0.88),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  width: 1.5,
-                ),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final totalWidth = constraints.maxWidth;
-                  final itemWidth = totalWidth / items.length;
-                  final pillWidth = (itemWidth * 0.85).clamp(44.0, 70.0);
-                  final targetCenter = (_currentIndex + 0.5) * itemWidth;
-                  final currentCenter = _isDraggingGlass
-                      ? _dragGlassX.clamp(
-                          pillWidth / 2,
-                          totalWidth - (pillWidth / 2),
-                        )
-                      : targetCenter;
-                  final pillLeft = currentCenter - (pillWidth / 2);
-
-                  return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onHorizontalDragStart: (details) {
-                      setState(() {
-                        _isDraggingGlass = true;
-                        _dragGlassX = details.localPosition.dx;
-                      });
-                    },
-                    onHorizontalDragUpdate: (details) {
-                      setState(() {
-                        _dragGlassX = details.localPosition.dx.clamp(0.0, totalWidth);
-                        final int closestIndex = ((_dragGlassX / itemWidth) - 0.5)
-                            .round()
-                            .clamp(0, items.length - 1);
-                        if (_currentIndex != closestIndex) {
-                          _currentIndex = closestIndex;
-                          if (_shouldPersistTab) {
-                            SharedPreferences.getInstance().then(
-                              (prefs) => prefs.setInt('main_tab_index', closestIndex),
-                            );
-                          }
-                        }
-                      });
-                    },
-                    onHorizontalDragEnd: (details) {
-                      setState(() {
-                        _isDraggingGlass = false;
-                      });
-                    },
-                    onHorizontalDragCancel: () {
-                      setState(() {
-                        _isDraggingGlass = false;
-                      });
-                    },
-                    child: Stack(
-                      alignment: Alignment.centerLeft,
-                      children: [
-                        AnimatedPositioned(
-                          duration: _isDraggingGlass
-                              ? Duration.zero
-                              : const Duration(milliseconds: 300),
-                          curve: Curves.easeOutCubic,
-                          left: pillLeft,
-                          width: pillWidth,
-                          height: 48,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
-                                width: 1.2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                                  blurRadius: 12,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Row(
-                          children: List.generate(items.length, (index) {
-                            final isSelected = _currentIndex == index;
-                            final (icon, label) = items[index];
-
-                            return Expanded(
-                              child: GestureDetector(
-                                onTap: () => _onTabTapped(index),
-                                behavior: HitTestBehavior.opaque,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        icon,
-                                        size: 22,
-                                        color: isSelected
-                                            ? Theme.of(context)
-                                                .colorScheme
-                                                .primary
-                                            : Colors.grey.shade400,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        label,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: isSelected
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                          color: isSelected
-                                              ? Theme.of(context)
-                                                  .colorScheme
-                                                  .primary
-                                              : Colors.grey.shade400,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+          child: LiquidGlassBottomNavBar(
+            items: const [
+              LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
+              LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
+              LiquidGlassTabBarItem(icon: Icons.group, label: 'Actividad'),
+              LiquidGlassTabBarItem(icon: Icons.local_offer, label: 'Bundles'),
+              LiquidGlassTabBarItem(icon: Icons.person, label: 'Perfil'),
+            ],
+            selectedIndex: _currentIndex,
+            onChanged: (index) => _onTabTapped(index),
+            pillStyle: const LiquidGlassNavPillStyle(
+              animated: true,
+              mode: LiquidGlassPillMode.both,
             ),
           ),
         ),

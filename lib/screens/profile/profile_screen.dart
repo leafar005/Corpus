@@ -698,7 +698,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: _buildRatingsHistogram(),
               ),
             ],
-            const SizedBox(height: 40),
+            const SizedBox(height: 120),
           ],
         ),
       );
