@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Notificador global para cambiar el tema en tiempo real
@@ -122,6 +123,15 @@ class AppTheme {
         hintStyle: const TextStyle(color: Colors.grey),
         prefixIconColor: Colors.grey,
       ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       dividerTheme: const DividerThemeData(color: Colors.white24, thickness: 1),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: bgColor,
@@ -209,6 +219,15 @@ class AppTheme {
         ),
         hintStyle: TextStyle(color: Colors.grey.shade500),
         prefixIconColor: Colors.grey.shade600,
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+        },
       ),
       dividerTheme: DividerThemeData(color: Colors.grey.shade300, thickness: 1),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
