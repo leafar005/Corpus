@@ -4,10 +4,7 @@ import 'package:corpus/globals.dart';
 import 'profile/edit_profile_screen.dart';
 import 'info_screen.dart';
 import 'appearance_screen.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/import_service.dart';
-import 'settings/import_preview_screen.dart';
 import 'package:corpus/screens/settings/integrations_screen.dart';
 import 'package:corpus/screens/settings/notifications_screen.dart';
 
@@ -352,6 +349,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  // ignore: unused_element
   void _showStashMigrationHelp(BuildContext context) {
     showModalBottomSheet(
       context: context,

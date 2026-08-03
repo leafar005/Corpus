@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../library/game_details_screen.dart';
@@ -21,44 +20,32 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
   RealtimeChannel? _subscription;
   int? _appId;
   String? _appName;
-  DateTime? _since;
 
   @override
   void initState() {
     super.initState();
     _appId = widget.initialProfile['currently_playing_appid'];
     _appName = widget.initialProfile['currently_playing_name'];
-    final sinceStr = widget.initialProfile['currently_playing_since'];
-    if (sinceStr != null) {
-      _since = DateTime.tryParse(sinceStr);
-    }
 
-    _subscribe();
-  }
-
-  void _subscribe() {
     _subscription = Supabase.instance.client
         .channel('public:users:${widget.userId}')
         .onPostgresChanges(
-          event: PostgresChangeEvent.update,
-          schema: 'public',
-          table: 'users',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'id',
-            value: widget.userId,
-          ),
-          callback: (payload) {
-            if (mounted) {
-              setState(() {
-                _appId = payload.newRecord['currently_playing_appid'];
-                _appName = payload.newRecord['currently_playing_name'];
-                final sinceStr = payload.newRecord['currently_playing_since'];
-                _since = sinceStr != null ? DateTime.tryParse(sinceStr) : null;
-              });
-            }
-          },
-        )
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'users',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: widget.userId,
+            ),
+            callback: (payload) {
+              if (mounted) {
+                setState(() {
+                  _appId = payload.newRecord['currently_playing_appid'];
+                  _appName = payload.newRecord['currently_playing_name'];
+                });
+              }
+            })
         .subscribe();
   }
 
@@ -82,7 +69,7 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
             .eq('steam_app_id', _appId!)
             .maybeSingle();
             
-        if (res != null && mounted) {
+        if (res != null && context.mounted) {
           Navigator.push(
             context,
             MaterialPageRoute(
