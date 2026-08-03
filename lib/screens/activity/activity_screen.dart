@@ -22,7 +22,8 @@ class ActivityScreen extends StatefulWidget {
   State<ActivityScreen> createState() => _ActivityScreenState();
 }
 
-class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMixin {
+class _ActivityScreenState extends State<ActivityScreen>
+    with PaginatedScrollMixin {
   final _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _activities = [];
   bool _isLoading = true;
@@ -144,7 +145,10 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
   // DATOS
   // ──────────────────────────────────────────
 
-  Future<void> _fetchActivity({bool isRefresh = false, bool silent = false}) async {
+  Future<void> _fetchActivity({
+    bool isRefresh = false,
+    bool silent = false,
+  }) async {
     if (isRefresh) {
       _offset = 0;
       hasMore = true;
@@ -452,29 +456,33 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
     }
   }
 
-  String _getActionText(String actionType, String? status) {
+  String _getActionText(String actionType, String? status, bool isOwnActivity) {
     switch (actionType) {
       case 'status_change':
         switch (status) {
           case 'playing':
-            return 'está jugando a';
+            return isOwnActivity ? 'has empezado a jugar a' : 'está jugando a';
           case 'beaten':
-            return 'ha completado';
+            return isOwnActivity ? 'has completado' : 'ha completado';
           case 'wishlist':
-            return 'quiere jugar a';
+            return isOwnActivity
+                ? 'has añadido a la wishlist'
+                : 'quiere jugar a';
           case 'abandoned':
-            return 'ha abandonado';
+            return isOwnActivity ? 'has abandonado' : 'ha abandonado';
           case 'on_hold':
-            return 'ha pausado';
+            return isOwnActivity ? 'has pausado' : 'ha pausado';
           default:
-            return 'actualizó';
+            return isOwnActivity ? 'has actualizado' : 'actualizó';
         }
       case 'reviewed':
-        return 'ha reseñado';
+        return isOwnActivity ? 'has reseñado' : 'ha reseñado';
       case 'achievement':
-        return 'ha desbloqueado un logro en';
+        return isOwnActivity
+            ? 'has desbloqueado un logro en'
+            : 'ha desbloqueado un logro en';
       default:
-        return 'hizo algo con';
+        return isOwnActivity ? 'has interactuado con' : 'hizo algo con';
     }
   }
 
@@ -535,13 +543,13 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
     final status = meta['status'] as String?;
     final dateStr = _formatDate(activity['created_at'] as String? ?? '');
 
-    final actionText = _getActionText(actionType, status);
-    final actionIcon = _getActionIcon(actionType, status);
-    final actionColor = _getActionColor(actionType, status, context);
-
     final myId = _supabase.auth.currentUser?.id;
     final activityUserId = userData['id'] as String?;
     final isOwnActivity = myId == activityUserId;
+
+    final actionText = _getActionText(actionType, status, isOwnActivity);
+    final actionIcon = _getActionIcon(actionType, status);
+    final actionColor = _getActionColor(actionType, status, context);
 
     // Datos de la reseña enriquecida
     final rating = review != null
@@ -850,7 +858,9 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
                       padding: const EdgeInsets.only(right: 8),
                       child: GestureDetector(
                         onTap: () {
-                          final strUrls = imageUrls.map((e) => e.toString()).toList();
+                          final strUrls = imageUrls
+                              .map((e) => e.toString())
+                              .toList();
                           showFullScreenGallery(context, strUrls, idx);
                         },
                         child: ClipRRect(
@@ -1024,26 +1034,40 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
           : ValueListenableBuilder<Set<String>>(
               valueListenable: onlineUsersNotifier,
               builder: (context, onlineUsers, child) {
-                final sortedFriends = List<Map<String, dynamic>>.from(_friendsStrip);
+                final sortedFriends = List<Map<String, dynamic>>.from(
+                  _friendsStrip,
+                );
                 sortedFriends.sort((a, b) {
-                  final aPlaying = a['currently_playing_appid'] != null && a['currently_playing_name'] != null;
-                  final bPlaying = b['currently_playing_appid'] != null && b['currently_playing_name'] != null;
-                  
+                  final aPlaying =
+                      a['currently_playing_appid'] != null &&
+                      a['currently_playing_name'] != null;
+                  final bPlaying =
+                      b['currently_playing_appid'] != null &&
+                      b['currently_playing_name'] != null;
+
                   final aId = a['id'] as String?;
                   final bId = b['id'] as String?;
-                  
+
                   final aOnline = aId != null && onlineUsers.contains(aId);
                   final bOnline = bId != null && onlineUsers.contains(bId);
-                  
+
                   final aScore = aPlaying ? 2 : (aOnline ? 1 : 0);
                   final bScore = bPlaying ? 2 : (bOnline ? 1 : 0);
-                  
+
                   if (aScore != bScore) {
                     return bScore.compareTo(aScore);
                   }
                   // En caso de empate, ordenamos alfabéticamente por nombre
-                  final aName = (a['display_name'] as String? ?? a['username'] as String? ?? '').toLowerCase();
-                  final bName = (b['display_name'] as String? ?? b['username'] as String? ?? '').toLowerCase();
+                  final aName =
+                      (a['display_name'] as String? ??
+                              a['username'] as String? ??
+                              '')
+                          .toLowerCase();
+                  final bName =
+                      (b['display_name'] as String? ??
+                              b['username'] as String? ??
+                              '')
+                          .toLowerCase();
                   return aName.compareTo(bName);
                 });
 
@@ -1059,16 +1083,21 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
                         friend['username'] as String? ??
                         'Usuario';
                     final avatarUrl = friend['avatar_url'] as String?;
-                    
+
                     // Lógica del juego en curso
-                    final playingGame = friend['currently_playing_name'] as String?;
-                    final isPlaying = friend['currently_playing_appid'] != null && playingGame != null;
-                    
+                    final playingGame =
+                        friend['currently_playing_name'] as String?;
+                    final isPlaying =
+                        friend['currently_playing_appid'] != null &&
+                        playingGame != null;
+
                     // Lógica de si está online
-                    final isOnline = friendId != null && onlineUsers.contains(friendId);
-                    
+                    final isOnline =
+                        friendId != null && onlineUsers.contains(friendId);
+
                     final playingColor = Colors.greenAccent[400]!;
-                    final onlineColor = Colors.blueAccent; // Color cuando solo están conectados
+                    final onlineColor =
+                        Colors.blueAccent; // Color cuando solo están conectados
 
                     return GestureDetector(
                       onTap: () {
@@ -1091,9 +1120,15 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
                               children: [
                                 CircleAvatar(
                                   radius: 28,
-                                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                  backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                                  child: avatarUrl == null ? const Icon(Icons.person, size: 26) : null,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                                  backgroundImage: avatarUrl != null
+                                      ? NetworkImage(avatarUrl)
+                                      : null,
+                                  child: avatarUrl == null
+                                      ? const Icon(Icons.person, size: 26)
+                                      : null,
                                 ),
                                 // Dibujamos el punto si están jugando O si están online
                                 if (isPlaying || isOnline)
@@ -1106,9 +1141,13 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         // Prioridad al color verde si están jugando, azul si solo están en la app
-                                        color: isPlaying ? playingColor : onlineColor,
+                                        color: isPlaying
+                                            ? playingColor
+                                            : onlineColor,
                                         border: Border.all(
-                                          color: Theme.of(context).colorScheme.surface,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surface,
                                           width: 2,
                                         ),
                                       ),

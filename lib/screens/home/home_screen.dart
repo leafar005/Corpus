@@ -26,8 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _isDesktop =>
       defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.macOS ||
-      defaultTargetPlatform == TargetPlatform.linux ||
-      kIsWeb;
+      defaultTargetPlatform == TargetPlatform.linux;
 
   late Future<Map<String, dynamic>> _homeDataFuture;
   StreamSubscription<AuthState>? _authSub;
@@ -127,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .select('game_id')
             .eq('user_id', userId)
             .eq('completion_type', 'on_hold');
-        
+
         if (onHoldReviews.isNotEmpty) {
           final onHoldGameIds = onHoldReviews.map((r) => r['game_id']).toSet();
           games.removeWhere((g) => onHoldGameIds.contains(g['game_id']));
@@ -192,13 +191,15 @@ class _HomeScreenState extends State<HomeScreen> {
             .select('game_id')
             .eq('user_id', currentUser.id)
             .eq('status', 'wishlist');
-        
-        final wishlistGameIds = List<Map<String, dynamic>>.from(wishlistResp)
-            .map((g) => g['game_id'] as int)
-            .toList();
+
+        final wishlistGameIds = List<Map<String, dynamic>>.from(
+          wishlistResp,
+        ).map((g) => g['game_id'] as int).toList();
 
         if (wishlistGameIds.isNotEmpty) {
-          wishlistAnticipatedGames = await IGDBService.getUpcomingGamesByIds(wishlistGameIds);
+          wishlistAnticipatedGames = await IGDBService.getUpcomingGamesByIds(
+            wishlistGameIds,
+          );
         }
       } catch (e) {
         debugPrint('Error obteniendo juegos de wishlist anticipados: $e');
@@ -206,11 +207,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final savedOrder = prefs.getStringList('home_sections_order') ?? ['hero', 'stash_activity', 'anticipated_games'];
+    final savedOrder =
+        prefs.getStringList('home_sections_order') ??
+        ['hero', 'stash_activity', 'anticipated_games'];
     final savedHidden = prefs.getStringList('home_sections_hidden') ?? [];
-    final countdownStyle = prefs.getString('anticipated_countdown_style') ?? 'full';
-    
-    final defaultOrder = ['hero', 'stash_activity', 'wishlist_anticipated', 'anticipated_games'];
+    final countdownStyle =
+        prefs.getString('anticipated_countdown_style') ?? 'full';
+
+    final defaultOrder = [
+      'hero',
+      'stash_activity',
+      'wishlist_anticipated',
+      'anticipated_games',
+    ];
     List<String> loadedOrder = List<String>.from(savedOrder);
     for (int i = 0; i < defaultOrder.length; i++) {
       if (!loadedOrder.contains(defaultOrder[i])) {
@@ -265,14 +274,24 @@ class _HomeScreenState extends State<HomeScreen> {
           final anticipatedGames =
               (snapshot.data?['anticipatedGames'] as List<dynamic>?) ?? [];
           final wishlistAnticipatedGames =
-              (snapshot.data?['wishlistAnticipatedGames'] as List<dynamic>?) ?? [];
+              (snapshot.data?['wishlistAnticipatedGames'] as List<dynamic>?) ??
+              [];
 
-          final sectionsOrder = snapshot.data?['sectionsOrder'] as List<String>? ?? ['hero', 'stash_activity', 'wishlist_anticipated', 'anticipated_games'];
-          final sectionsHidden = snapshot.data?['sectionsHidden'] as Set<String>? ?? {};
-          final countdownStyle = snapshot.data?['countdownStyle'] as String? ?? 'full';
+          final sectionsOrder =
+              snapshot.data?['sectionsOrder'] as List<String>? ??
+              [
+                'hero',
+                'stash_activity',
+                'wishlist_anticipated',
+                'anticipated_games',
+              ];
+          final sectionsHidden =
+              snapshot.data?['sectionsHidden'] as Set<String>? ?? {};
+          final countdownStyle =
+              snapshot.data?['countdownStyle'] as String? ?? 'full';
 
           List<Widget> slivers = [];
-          
+
           for (final sectionKey in sectionsOrder) {
             if (sectionsHidden.contains(sectionKey)) continue;
 
@@ -300,7 +319,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               );
-            } else if (sectionKey == 'wishlist_anticipated' && wishlistAnticipatedGames.isNotEmpty) {
+            } else if (sectionKey == 'wishlist_anticipated' &&
+                wishlistAnticipatedGames.isNotEmpty) {
               slivers.add(
                 SliverToBoxAdapter(
                   child: AnticipatedGamesSection(
@@ -310,7 +330,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               );
-            } else if (sectionKey == 'anticipated_games' && anticipatedGames.isNotEmpty) {
+            } else if (sectionKey == 'anticipated_games' &&
+                anticipatedGames.isNotEmpty) {
               slivers.add(
                 SliverToBoxAdapter(
                   child: AnticipatedGamesSection(
@@ -319,11 +340,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               );
-            } else if (sectionKey == 'stash_activity' && latestReviews.isNotEmpty) {
+            } else if (sectionKey == 'stash_activity' &&
+                latestReviews.isNotEmpty) {
               slivers.add(
                 SliverToBoxAdapter(
                   child: Container(
-                    color: Colors.black, // Color sólido, ya que el degradado está encima
+                    color: Colors
+                        .black, // Color sólido, ya que el degradado está encima
                     padding: const EdgeInsets.fromLTRB(16.0, 48.0, 16.0, 48.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,29 +376,42 @@ class _HomeScreenState extends State<HomeScreen> {
                                     margin: const EdgeInsets.only(right: 16),
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.1),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       borderRadius: BorderRadius.circular(16),
                                       border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.05),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.05,
+                                        ),
                                       ),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
                                             if (game?['cover_url'] != null)
                                               InkWell(
                                                 onTap: () {
-                                                  if (review['game_id'] != null) {
+                                                  if (review['game_id'] !=
+                                                      null) {
                                                     Navigator.push(
                                                       context,
                                                       MaterialPageRoute(
                                                         builder: (context) => GameDetailsScreen(
                                                           gameData: {
-                                                            'id': review['game_id'],
-                                                            if (game?['title'] != null) 'title': game!['title'],
-                                                            if (game?['cover_url'] != null) 'cover_url': game!['cover_url'],
+                                                            'id':
+                                                                review['game_id'],
+                                                            if (game?['title'] !=
+                                                                null)
+                                                              'title':
+                                                                  game!['title'],
+                                                            if (game?['cover_url'] !=
+                                                                null)
+                                                              'cover_url':
+                                                                  game!['cover_url'],
                                                           },
                                                         ),
                                                       ),
@@ -383,47 +419,70 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   }
                                                 },
                                                 child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(8),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
                                                   child: Image.network(
                                                     game['cover_url'],
                                                     width: 40,
                                                     height: 50,
                                                     fit: BoxFit.cover,
-                                                    errorBuilder: (_, _, _) => const Icon(Icons.videogame_asset),
+                                                    errorBuilder: (_, _, _) =>
+                                                        const Icon(
+                                                          Icons.videogame_asset,
+                                                        ),
                                                   ),
                                                 ),
                                               ),
                                             const SizedBox(width: 8),
                                             Expanded(
                                               child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
-                                                    game?['title'] ?? 'Juego Desconocido',
-                                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                                    game?['title'] ??
+                                                        'Juego Desconocido',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
                                                     maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
                                                   Row(
                                                     children: [
-                                                      if (review['stash_user_avatar_url'] != null)
+                                                      if (review['stash_user_avatar_url'] !=
+                                                          null)
                                                         CircleAvatar(
                                                           radius: 8,
-                                                          backgroundImage: NetworkImage(review['stash_user_avatar_url']),
-                                                          onBackgroundImageError: (_, _) {},
+                                                          backgroundImage:
+                                                              NetworkImage(
+                                                                review['stash_user_avatar_url'],
+                                                              ),
+                                                          onBackgroundImageError:
+                                                              (_, _) {},
                                                         )
                                                       else
-                                                        const Icon(Icons.person, size: 16),
+                                                        const Icon(
+                                                          Icons.person,
+                                                          size: 16,
+                                                        ),
                                                       const SizedBox(width: 4),
                                                       Expanded(
                                                         child: Text(
-                                                          review['stash_user_display_name'] ?? 'Usuario',
+                                                          review['stash_user_display_name'] ??
+                                                              'Usuario',
                                                           style: TextStyle(
                                                             fontSize: 12,
-                                                            color: Colors.white.withValues(alpha: 0.7),
+                                                            color: Colors.white
+                                                                .withValues(
+                                                                  alpha: 0.7,
+                                                                ),
                                                           ),
                                                           maxLines: 1,
-                                                          overflow: TextOverflow.ellipsis,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                         ),
                                                       ),
                                                     ],
@@ -435,13 +494,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                               Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(Icons.star, size: 14, color: Colors.amber),
+                                                  const Icon(
+                                                    Icons.star,
+                                                    size: 14,
+                                                    color: Colors.amber,
+                                                  ),
                                                   const SizedBox(width: 4),
                                                   Text(
                                                     review['rating'].toString(),
                                                     style: const TextStyle(
                                                       fontSize: 13,
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                     ),
                                                   ),
                                                 ],
@@ -452,7 +516,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Expanded(
                                           child: Text(
                                             review['comment'] ?? '',
-                                            style: const TextStyle(fontSize: 13),
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
                                             maxLines: 4,
                                             overflow: TextOverflow.ellipsis,
                                           ),
@@ -471,17 +537,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                   child: Center(
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.6),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.6,
+                                        ),
                                         shape: BoxShape.circle,
                                       ),
                                       child: IconButton(
-                                        icon: const Icon(Icons.chevron_left, color: Colors.white),
+                                        icon: const Icon(
+                                          Icons.chevron_left,
+                                          color: Colors.white,
+                                        ),
                                         onPressed: () {
-                                          _latestReviewsScrollController.animateTo(
-                                            _latestReviewsScrollController.offset - 500,
-                                            duration: const Duration(milliseconds: 500),
-                                            curve: Curves.easeInOut,
-                                          );
+                                          _latestReviewsScrollController
+                                              .animateTo(
+                                                _latestReviewsScrollController
+                                                        .offset -
+                                                    500,
+                                                duration: const Duration(
+                                                  milliseconds: 500,
+                                                ),
+                                                curve: Curves.easeInOut,
+                                              );
                                         },
                                       ),
                                     ),
@@ -496,17 +572,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                   child: Center(
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.6),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.6,
+                                        ),
                                         shape: BoxShape.circle,
                                       ),
                                       child: IconButton(
-                                        icon: const Icon(Icons.chevron_right, color: Colors.white),
+                                        icon: const Icon(
+                                          Icons.chevron_right,
+                                          color: Colors.white,
+                                        ),
                                         onPressed: () {
-                                          _latestReviewsScrollController.animateTo(
-                                            _latestReviewsScrollController.offset + 500,
-                                            duration: const Duration(milliseconds: 500),
-                                            curve: Curves.easeInOut,
-                                          );
+                                          _latestReviewsScrollController
+                                              .animateTo(
+                                                _latestReviewsScrollController
+                                                        .offset +
+                                                    500,
+                                                duration: const Duration(
+                                                  milliseconds: 500,
+                                                ),
+                                                curve: Curves.easeInOut,
+                                              );
                                         },
                                       ),
                                     ),
@@ -524,9 +610,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           slivers.add(
-            const SliverPadding(
-              padding: EdgeInsets.only(bottom: 100),
-            ),
+            const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
           );
 
           return RefreshIndicator(
