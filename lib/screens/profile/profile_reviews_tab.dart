@@ -162,69 +162,6 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Buscar reseña por juego...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                        _refresh();
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-            ),
-            onChanged: (value) {
-              if (_debounce?.isActive ?? false) _debounce!.cancel();
-              _debounce = Timer(const Duration(milliseconds: 500), () {
-                setState(() => _searchQuery = value.trim());
-                _refresh();
-              });
-            },
-          ),
-        ),
-        Expanded(child: _buildBody()),
-      ],
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isInitialLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(48.0),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_reviews.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Text(
-            _error ?? 'Todavía no hay reseñas escritas.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
-    }
-
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         onScrollMetrics(notification.metrics);
@@ -232,11 +169,84 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       },
       child: RefreshIndicator(
         onRefresh: _refresh,
-        child: ListView.builder(
-          // Sin 'controller' para usar PrimaryScrollController (sincronizado con NestedScrollView en móvil)
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          itemCount: _reviews.length + (hasMore ? 1 : 0),
-          itemBuilder: (context, index) {
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: _buildSearchBar(),
+              ),
+            ),
+            _buildListSliver(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return TextField(
+      controller: _searchController,
+      decoration: InputDecoration(
+        hintText: 'Buscar reseña por juego...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: _searchQuery.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                  _refresh();
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      onChanged: (value) {
+        if (_debounce?.isActive ?? false) _debounce!.cancel();
+        _debounce = Timer(const Duration(milliseconds: 500), () {
+          setState(() => _searchQuery = value.trim());
+          _refresh();
+        });
+      },
+    );
+  }
+
+  Widget _buildListSliver() {
+    if (_isInitialLoading) {
+      return const SliverFillRemaining(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_reviews.isEmpty) {
+      return SliverFillRemaining(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Text(
+              _error ?? 'Todavía no hay reseñas escritas.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
             if (index >= _reviews.length) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
@@ -245,6 +255,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
             }
             return _buildReviewCard(_reviews[index]);
           },
+          childCount: _reviews.length + (hasMore ? 1 : 0),
         ),
       ),
     );
