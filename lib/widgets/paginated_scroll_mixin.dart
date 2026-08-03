@@ -53,6 +53,15 @@ mixin PaginatedScrollMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
+  /// Método para soportar infinite scroll en vistas como NestedScrollView
+  /// donde se prefiere NotificationListener sin pasar scrollController.
+  void onScrollMetrics(ScrollMetrics metrics) {
+    if (!hasMore || isLoadingMore) return;
+    if (metrics.maxScrollExtent - metrics.pixels <= prefetchThreshold) {
+      loadMore();
+    }
+  }
+
   /// Fuerzas una comprobación de la posición del scroll después del siguiente
   /// frame. Útil para llamar al final de [loadMore] por si la página cargada
   /// no es suficiente para rellenar la pantalla y disparar el scroll natural.

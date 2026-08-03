@@ -311,11 +311,15 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: GridView.builder(
-        controller: scrollController,
-        // Scroll real: nada de shrinkWrap.
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        onScrollMetrics(notification.metrics);
+        return false;
+      },
+      child: RefreshIndicator(
+        onRefresh: _refresh,
+        child: GridView.builder(
+          // Usar PrimaryScrollController (sincronizado con NestedScrollView en móvil)
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 120,
@@ -350,6 +354,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           );
         },
       ),
+    ),
     );
   }
 }
