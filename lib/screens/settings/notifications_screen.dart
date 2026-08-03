@@ -20,6 +20,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   // Preferencias — valores por defecto son todos true
   bool _friendStartedPlaying = true;
   bool _friendFinishedGame = true;
+  bool _friendWishlistedGame = true;
   bool _newBundle = true;
   bool _bundleExpiring = true;
   bool _commentOnReview = true;
@@ -49,6 +50,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         setState(() {
           _friendStartedPlaying = data['friend_started_playing'] ?? true;
           _friendFinishedGame = data['friend_finished_game'] ?? true;
+          _friendWishlistedGame = data['friend_wishlisted_game'] ?? true;
           _newBundle = data['new_bundle'] ?? true;
           _bundleExpiring = data['bundle_expiring'] ?? true;
           _commentOnReview = data['comment_on_review'] ?? true;
@@ -74,6 +76,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           'user_id': userId,
           'friend_started_playing': _friendStartedPlaying,
           'friend_finished_game': _friendFinishedGame,
+          'friend_wishlisted_game': _friendWishlistedGame,
           'new_bundle': _newBundle,
           'bundle_expiring': _bundleExpiring,
           'comment_on_review': _commentOnReview,
@@ -102,6 +105,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           break;
         case 'friend_finished_game':
           _friendFinishedGame = value;
+          break;
+        case 'friend_wishlisted_game':
+          _friendWishlistedGame = value;
           break;
         case 'new_bundle':
           _newBundle = value;
@@ -164,6 +170,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   subtitle: 'Cuando un amigo marca un juego como completado.',
                   value: _friendFinishedGame,
                   onChanged: (v) => _toggle('friend_finished_game', v),
+                ),
+                _buildNotifTile(
+                  icon: Icons.bookmark_add_outlined,
+                  iconColor: Colors.deepPurpleAccent,
+                  title: 'Amigo añade a wishlist',
+                  subtitle: 'Cuando un amigo quiere jugar a un juego.',
+                  value: _friendWishlistedGame,
+                  onChanged: (v) => _toggle('friend_wishlisted_game', v),
                 ),
 
                 const Divider(height: 24, indent: 16, endIndent: 16),

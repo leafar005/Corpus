@@ -5,6 +5,7 @@
  * Notifica a los amigos cuando:
  *   - Un amigo empieza a jugar (action_type='status_change', metadata.status='playing')
  *   - Un amigo termina un juego (action_type='status_change', metadata.status='beaten')
+ *   - Un amigo añade un juego a su wishlist (action_type='status_change', metadata.status='wishlist')
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -41,7 +42,7 @@ Deno.serve(async (req) => {
     }
 
     const status = metadata?.status as string | undefined;
-    if (status !== "playing" && status !== "beaten") {
+    if (status !== "playing" && status !== "beaten" && status !== "wishlist") {
       return new Response(JSON.stringify({ skipped: `status '${status}' not notifiable` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -69,12 +70,17 @@ Deno.serve(async (req) => {
       if (game?.title) gameTitle = game.title;
     }
 
-    // Determinar título y cuerpo de la notificación
-    const prefKey = status === "playing" ? "friend_started_playing" : "friend_finished_game";
+    // Determinar clave de preferencia, título y cuerpo
+    const prefKey =
+      status === "playing" ? "friend_started_playing" :
+      status === "beaten"  ? "friend_finished_game" :
+                             "friend_wishlisted_game";
+
     const notifTitle = "Corpus";
-    const notifBody = status === "playing"
-      ? `${actorName} está jugando a ${gameTitle}`
-      : `${actorName} ha terminado ${gameTitle}`;
+    const notifBody =
+      status === "playing"   ? `${actorName} está jugando a ${gameTitle}` :
+      status === "beaten"    ? `${actorName} ha terminado ${gameTitle}` :
+                               `${actorName} quiere jugar a ${gameTitle}`;
 
     // Obtener todos los amigos aceptados del usuario
     const [asSenderRes, asReceiverRes] = await Promise.all([
