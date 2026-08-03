@@ -43,6 +43,7 @@ dependencies:
   csv: ^6.0.0
   html: ^0.15.6
   flutter_image_compress: ^2.5.1
+  liquid_glass_easy: ^3.5.0
 
   # Push notifications
   firebase_core: ^3.14.0
