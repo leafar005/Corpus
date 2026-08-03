@@ -8,6 +8,7 @@ import 'env.dart';
 import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
 
+import 'package:corpus/screens/auth/login_screen.dart';
 import 'globals.dart';
 
 void main() async {
@@ -58,7 +59,7 @@ class CorpusApp extends StatelessWidget {
           theme: AppTheme.getLightTheme(themeNotifier.seedColor),
           darkTheme: AppTheme.getDarkTheme(themeNotifier.seedColor),
           themeMode: themeNotifier.currentMode,
-          scrollBehavior: const AlwaysScrollbarBehavior(),
+
           home: const AuthGate(),
         );
       },
@@ -86,13 +87,15 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
 
     // Escuchamos el estado de autenticación para rastrear o limpiar la presencia
-    _authSub = (widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange).listen((data) {
-      if (data.session?.user != null) {
-        _setupPresence();
-      } else {
-        _cleanupPresence();
-      }
-    });
+    _authSub =
+        (widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange)
+            .listen((data) {
+              if (data.session?.user != null) {
+                _setupPresence();
+              } else {
+                _cleanupPresence();
+              }
+            });
   }
 
   void _setupPresence() async {
@@ -107,27 +110,28 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     // Inicializamos el canal de presencia en tiempo real
     _presenceChannel = Supabase.instance.client.channel('online-users');
-    
-    _presenceChannel!.onPresenceSync((_) {
-      final state = _presenceChannel!.presenceState();
-      final onlineIds = <String>{};
 
-      for (final presenceState in state) {
-        for (final presence in presenceState.presences) {
-          if (presence.payload['user_id'] != null) {
-            onlineIds.add(presence.payload['user_id'] as String);
+    _presenceChannel!
+        .onPresenceSync((_) {
+          final state = _presenceChannel!.presenceState();
+          final onlineIds = <String>{};
+
+          for (final presenceState in state) {
+            for (final presence in presenceState.presences) {
+              if (presence.payload['user_id'] != null) {
+                onlineIds.add(presence.payload['user_id'] as String);
+              }
+            }
           }
-        }
-      }
-      
-      // Actualizamos el notificador global con los amigos conectados
-      onlineUsersNotifier.value = onlineIds;
-      
-    }).subscribe((status, [error]) async {
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        await _presenceChannel!.track({'user_id': userId});
-      }
-    });
+
+          // Actualizamos el notificador global con los amigos conectados
+          onlineUsersNotifier.value = onlineIds;
+        })
+        .subscribe((status, [error]) async {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            await _presenceChannel!.track({'user_id': userId});
+          }
+        });
   }
 
   void _cleanupPresence() {
@@ -142,7 +146,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // Si la app se vuelve a abrir, reconectamos. Si se minimiza o cierra, nos desconectamos.
     if (state == AppLifecycleState.resumed) {
       _setupPresence();
-    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       _presenceChannel?.untrack();
     }
   }
@@ -159,14 +164,20 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     // Mantenemos tu UI original mientras verifica la sesión
     return StreamBuilder<AuthState>(
-      stream: widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange,
+      stream:
+          widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        return MainScreen(key: ValueKey(snapshot.data?.session?.user.id));
+        final session = snapshot.hasData ? snapshot.data!.session : null;
+        if (session != null) {
+          return MainScreen(key: ValueKey(session.user.id));
+        } else {
+          return LoginScreen();
+        }
       },
     );
   }
