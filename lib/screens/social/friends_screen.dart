@@ -344,6 +344,14 @@ class _FriendsScreenState extends State<FriendsScreen>
                             ).colorScheme.onSurfaceVariant,
                           ),
                         ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => _FriendProfileScreen(userId: userId),
+                            ),
+                          );
+                        },
                         trailing: alreadySentOrFriend
                             ? Chip(
                                 label: const Text(
