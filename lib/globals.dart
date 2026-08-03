@@ -9,7 +9,8 @@ final ValueNotifier<int> libraryUpdateNotifier = ValueNotifier<int>(0);
 final ThemeNotifier themeNotifier = ThemeNotifier();
 
 // NUEVO: Estado global de usuarios conectados en tiempo real
-final ValueNotifier<Set<String>> onlineUsersNotifier = ValueNotifier<Set<String>>({});
+final ValueNotifier<Set<String>> onlineUsersNotifier =
+    ValueNotifier<Set<String>>({});
 
 // Flag para desactivar temporizadores infinitos de carrusel/fondo en tests E2E y evitar que pumpAndSettle se cuelgue
 bool kDisableCarouselForTests = false;

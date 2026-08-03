@@ -330,9 +330,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                 borderSide: BorderSide.none,
               ),
               filled: true,
-              fillColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
             onChanged: (value) {
               if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -361,9 +359,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                 borderSide: BorderSide.none,
               ),
               filled: true,
-              fillColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
             items: [
               const DropdownMenuItem<int?>(value: null, child: Text('Todos')),
@@ -415,21 +411,18 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     return SliverPadding(
       padding: const EdgeInsets.only(bottom: 24),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index >= rows.length) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              );
-            }
-            final row = rows[index];
-            return row.isHeader
-                ? _buildMonthHeader(row.label!)
-                : _buildJournalRow(row.review!);
-          },
-          childCount: rows.length + (hasMore ? 1 : 0),
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index >= rows.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          }
+          final row = rows[index];
+          return row.isHeader
+              ? _buildMonthHeader(row.label!)
+              : _buildJournalRow(row.review!);
+        }, childCount: rows.length + (hasMore ? 1 : 0)),
       ),
     );
   }

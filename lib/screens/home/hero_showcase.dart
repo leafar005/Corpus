@@ -971,8 +971,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                     _buildPanningImageLayer(
                       AssetImage(_previousScreenshotUrl!),
                       _previousPanValue,
-                      errorBuilder: (_, _, _) =>
-                          Container(color: Colors.black),
+                      errorBuilder: (_, _, _) => Container(color: Colors.black),
                     ),
                   Opacity(
                     opacity: _previousScreenshotUrl == null
@@ -981,8 +980,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                     child: _buildPanningImageLayer(
                       AssetImage(_currentScreenshotUrl!),
                       _panController.value,
-                      errorBuilder: (_, _, _) =>
-                          Container(color: Colors.black),
+                      errorBuilder: (_, _, _) => Container(color: Colors.black),
                     ),
                   ),
                 ],

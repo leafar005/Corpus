@@ -249,14 +249,6 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                               child: Text('Fecha de Lanzamiento'),
                             ),
                             DropdownMenuItem(
-                              value: 'rating',
-                              child: Text('Nota IGDB'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'aggregated_rating',
-                              child: Text('Metacritic'),
-                            ),
-                            DropdownMenuItem(
                               value: 'name',
                               child: Text('Alfabético'),
                             ),

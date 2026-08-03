@@ -45,7 +45,8 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
     final prefs = await SharedPreferences.getInstance();
     final savedOrder = prefs.getStringList('home_sections_order');
     final savedHidden = prefs.getStringList('home_sections_hidden') ?? [];
-    final savedCountdownStyle = prefs.getString('anticipated_countdown_style') ?? 'full';
+    final savedCountdownStyle =
+        prefs.getString('anticipated_countdown_style') ?? 'full';
 
     List<String> loadedOrder = [];
     if (savedOrder != null && savedOrder.isNotEmpty) {
@@ -159,7 +160,9 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
             child: Text(
               'Mantén pulsado y arrastra para reordenar las secciones en la pantalla de inicio. También puedes ocultarlas usando los interruptores.',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
                 fontSize: 14,
               ),
             ),
@@ -170,14 +173,15 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
               onReorderItem: (oldIndex, newIndex) {
                 _onReorderItem(oldIndex, newIndex);
               },
-              proxyDecorator: (Widget child, int index, Animation<double> animation) {
-                return Material(
-                  color: Colors.transparent,
-                  shadowColor: Colors.black.withValues(alpha: 0.2),
-                  elevation: 8,
-                  child: child,
-                );
-              },
+              proxyDecorator:
+                  (Widget child, int index, Animation<double> animation) {
+                    return Material(
+                      color: Colors.transparent,
+                      shadowColor: Colors.black.withValues(alpha: 0.2),
+                      elevation: 8,
+                      child: child,
+                    );
+                  },
               children: [
                 for (final key in _order)
                   Container(
@@ -187,7 +191,9 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                       color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.05),
                       ),
                     ),
                     child: ListTile(
@@ -200,7 +206,9 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                       title: Text(
                         itemLabels[key] ?? key,
                         style: TextStyle(
-                          color: _hiddenItems.contains(key) ? Colors.grey : null,
+                          color: _hiddenItems.contains(key)
+                              ? Colors.grey
+                              : null,
                           decoration: _hiddenItems.contains(key)
                               ? TextDecoration.lineThrough
                               : null,
@@ -209,7 +217,8 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (key == 'anticipated_games' || key == 'wishlist_anticipated')
+                          if (key == 'anticipated_games' ||
+                              key == 'wishlist_anticipated')
                             IconButton(
                               icon: const Icon(Icons.settings_outlined),
                               onPressed: _showCountdownStyleDialog,
@@ -221,7 +230,9 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                           const SizedBox(width: 8),
                           Icon(
                             Icons.drag_handle,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.3),
                           ),
                         ],
                       ),

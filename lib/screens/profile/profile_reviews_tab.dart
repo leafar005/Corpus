@@ -245,18 +245,15 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index >= _reviews.length) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              );
-            }
-            return _buildReviewCard(_reviews[index]);
-          },
-          childCount: _reviews.length + (hasMore ? 1 : 0),
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index >= _reviews.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          }
+          return _buildReviewCard(_reviews[index]);
+        }, childCount: _reviews.length + (hasMore ? 1 : 0)),
       ),
     );
   }

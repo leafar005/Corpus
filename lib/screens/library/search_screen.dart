@@ -353,9 +353,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildFiltersHeader(),
-            const Expanded(
-              child: Center(child: CircularProgressIndicator()),
-            ),
+            const Expanded(child: Center(child: CircularProgressIndicator())),
           ],
         );
       }
@@ -367,9 +365,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildFiltersHeader(),
-          const Expanded(
-            child: Center(child: CircularProgressIndicator()),
-          ),
+          const Expanded(child: Center(child: CircularProgressIndicator())),
         ],
       );
     }
@@ -401,9 +397,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
       controller: scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        SliverToBoxAdapter(
-          child: _buildFiltersHeader(),
-        ),
+        SliverToBoxAdapter(child: _buildFiltersHeader()),
         SliverPadding(
           padding: const EdgeInsets.all(8.0),
           sliver: SliverGrid.builder(

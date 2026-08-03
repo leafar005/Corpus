@@ -50,7 +50,9 @@ class CsvGameRow {
 class ImportService {
   /// Repara caracteres UTF-8 rotos (mojibake) típicos de exportaciones de Excel/web
   static String fixEncoding(String text) {
-    if (text.isEmpty || !RegExp(r'[ÃÂ][\u0080-\u00BF]').hasMatch(text)) {
+    if (text.isEmpty) return text;
+    // Si contiene "Ã" o "Â" (las secuencias más comunes de UTF-8 roto leído como Latin-1)
+    if (!text.contains('Ã') && !text.contains('Â')) {
       return text;
     }
     try {
@@ -70,7 +72,6 @@ class ImportService {
     return [field.toString()];
   }
 
-  
   static CsvGameRow? _buildRow({
     required String rawTitle,
     String? rawIgdbId,
@@ -98,28 +99,43 @@ class ImportService {
 
     final rawStatusClean = (rawStatus ?? 'wishlist').toLowerCase().trim();
     String cleanStatus = 'wishlist';
-    if (rawStatusClean == 'beaten' || rawStatusClean == 'completed' ||
-        rawStatusClean == 'finished' || rawStatusClean == 'terminado') {
+    if (rawStatusClean == 'beaten' ||
+        rawStatusClean == 'completed' ||
+        rawStatusClean == 'finished' ||
+        rawStatusClean == 'terminado') {
       cleanStatus = 'beaten';
-    } else if (rawStatusClean == 'playing' || rawStatusClean == 'jugando' ||
+    } else if (rawStatusClean == 'playing' ||
+        rawStatusClean == 'jugando' ||
         rawStatusClean == 'in progress') {
       cleanStatus = 'playing';
-    } else if (rawStatusClean == 'want' || rawStatusClean == 'wishlist' ||
-        rawStatusClean == 'backlog' || rawStatusClean == 'quiero') {
+    } else if (rawStatusClean == 'want' ||
+        rawStatusClean == 'wishlist' ||
+        rawStatusClean == 'backlog' ||
+        rawStatusClean == 'quiero') {
       cleanStatus = 'wishlist';
-    } else if (rawStatusClean == 'archived' || rawStatusClean == 'abandoned' ||
-        rawStatusClean == 'dropped' || rawStatusClean == 'abandonado') {
+    } else if (rawStatusClean == 'archived' ||
+        rawStatusClean == 'abandoned' ||
+        rawStatusClean == 'dropped' ||
+        rawStatusClean == 'abandonado') {
       cleanStatus = 'abandoned';
-    } else if (rawStatusClean == 'on_hold' || rawStatusClean == 'on hold' ||
-        rawStatusClean == 'paused' || rawStatusClean == 'pausado') {
+    } else if (rawStatusClean == 'on_hold' ||
+        rawStatusClean == 'on hold' ||
+        rawStatusClean == 'paused' ||
+        rawStatusClean == 'pausado') {
       cleanStatus = 'on_hold';
     }
 
     double? cleanRating;
     if (rawRating != null && rawRating.isNotEmpty) {
       final parsed = double.tryParse(rawRating);
-      if (parsed != null && parsed >= 1.0 && parsed <= 10.0) {
-        cleanRating = parsed;
+      if (parsed != null && parsed > 0.0) {
+        if (parsed > 10.0 && parsed <= 100.0) {
+          cleanRating = parsed / 10.0;
+        } else if (parsed <= 5.0) {
+          cleanRating = parsed * 2.0;
+        } else if (parsed <= 10.0) {
+          cleanRating = parsed;
+        }
       }
     }
 
@@ -178,7 +194,9 @@ class ImportService {
     ).convert(content);
     if (rows.isEmpty) return [];
 
-    final List<String> headers = rows.first.map((e) => e.toString().toLowerCase().trim()).toList();
+    final List<String> headers = rows.first
+        .map((e) => e.toString().toLowerCase().trim())
+        .toList();
 
     int titleIdx = headers.indexOf('title');
     if (titleIdx == -1) titleIdx = headers.indexOf('name');
@@ -208,7 +226,9 @@ class ImportService {
     if (dateIdx == -1) dateIdx = headers.indexOf('date');
 
     String? cell(List<dynamic> row, int idx) =>
-        (idx != -1 && idx < row.length && row[idx] != null) ? row[idx].toString() : null;
+        (idx != -1 && idx < row.length && row[idx] != null)
+        ? row[idx].toString()
+        : null;
 
     final List<CsvGameRow> parsedRows = [];
     for (int i = 1; i < rows.length; i++) {
@@ -257,7 +277,7 @@ class ImportService {
     return parsedRows;
   }
 
-static Future<void> matchGamesWithIGDB(
+  static Future<void> matchGamesWithIGDB(
     List<CsvGameRow> rows,
     Function(int processed, int total) onProgress, {
     bool Function()? isCancelled,
@@ -407,7 +427,9 @@ static Future<void> matchGamesWithIGDB(
             ? row.rating
             : null;
         final String dateAddedStr =
-            row.steamLastPlayedAt ?? row.dateAdded ?? DateTime.now().toUtc().toIso8601String();
+            row.steamLastPlayedAt ??
+            row.dateAdded ??
+            DateTime.now().toUtc().toIso8601String();
 
         gamesPayload.add({
           'igdb_id': igdbId,
@@ -448,9 +470,11 @@ static Future<void> matchGamesWithIGDB(
           'last_played_at': dateAddedStr,
           'updated_at': dateAddedStr,
           if (row.steamOwned) 'steam_owned': true,
-          if (row.steamPlaytimeMinutes != null) 'steam_playtime_minutes': row.steamPlaytimeMinutes,
+          if (row.steamPlaytimeMinutes != null)
+            'steam_playtime_minutes': row.steamPlaytimeMinutes,
           if (row.isSteamOnly) 'is_steam_only': true,
-          if (row.steamLastPlayedAt != null) 'steam_last_played_at': row.steamLastPlayedAt,
+          if (row.steamLastPlayedAt != null)
+            'steam_last_played_at': row.steamLastPlayedAt,
         });
 
         reviewsPayload.add({
@@ -460,8 +484,7 @@ static Future<void> matchGamesWithIGDB(
           'comment': row.comment?.isNotEmpty == true ? row.comment : null,
           'status': row.status,
           'completion_type':
-              row.completionType ??
-              (row.status == 'beaten' ? 'story' : 'none'),
+              row.completionType ?? (row.status == 'beaten' ? 'story' : 'none'),
           'platform': row.platform,
           'play_time_hours': (row.playTimeHours ?? 0) > 0
               ? row.playTimeHours

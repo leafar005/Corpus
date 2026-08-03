@@ -15,14 +15,13 @@ class _SteamImportSetupScreenState extends State<SteamImportSetupScreen> {
 
   void _startImport() {
     final minPlaytimeMinutes = (_minHours * 60).round();
-    
+
     Navigator.pop(context);
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SteamImportProgressScreen(
-          minPlaytimeMinutes: minPlaytimeMinutes,
-        ),
+        builder: (_) =>
+            SteamImportProgressScreen(minPlaytimeMinutes: minPlaytimeMinutes),
       ),
     );
   }
@@ -67,10 +66,18 @@ class _SteamImportSetupScreenState extends State<SteamImportSetupScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Tiempo mínimo de juego', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Tiempo mínimo de juego',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Text(
-                  _minHours == 0 ? 'Sin mínimo (todos)' : '${_minHours.toStringAsFixed(_minHours.truncateToDouble() == _minHours ? 0 : 1)}h',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+                  _minHours == 0
+                      ? 'Sin mínimo (todos)'
+                      : '${_minHours.toStringAsFixed(_minHours.truncateToDouble() == _minHours ? 0 : 1)}h',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ],
             ),
@@ -79,16 +86,22 @@ class _SteamImportSetupScreenState extends State<SteamImportSetupScreen> {
               min: 0,
               max: 50,
               divisions: 100, // pasos de 0.5h
-              label: _minHours == 0 ? 'Sin mínimo' : '${_minHours.toStringAsFixed(1)}h',
+              label: _minHours == 0
+                  ? 'Sin mínimo'
+                  : '${_minHours.toStringAsFixed(1)}h',
               onChanged: (val) => setState(() => _minHours = val),
             ),
             Wrap(
               spacing: 8,
-              children: [0.0, 1.0, 3.0, 5.0, 10.0].map((h) => ChoiceChip(
-                label: Text(h == 0 ? 'Todos' : '${h.toInt()}h'),
-                selected: _minHours == h,
-                onSelected: (_) => setState(() => _minHours = h),
-              )).toList(),
+              children: [0.0, 1.0, 3.0, 5.0, 10.0]
+                  .map(
+                    (h) => ChoiceChip(
+                      label: Text(h == 0 ? 'Todos' : '${h.toInt()}h'),
+                      selected: _minHours == h,
+                      onSelected: (_) => setState(() => _minHours = h),
+                    ),
+                  )
+                  .toList(),
             ),
             const SizedBox(height: 32),
             SizedBox(

@@ -30,22 +30,23 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
     _subscription = Supabase.instance.client
         .channel('public:users:${widget.userId}')
         .onPostgresChanges(
-            event: PostgresChangeEvent.update,
-            schema: 'public',
-            table: 'users',
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'id',
-              value: widget.userId,
-            ),
-            callback: (payload) {
-              if (mounted) {
-                setState(() {
-                  _appId = payload.newRecord['currently_playing_appid'];
-                  _appName = payload.newRecord['currently_playing_name'];
-                });
-              }
-            })
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'users',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.userId,
+          ),
+          callback: (payload) {
+            if (mounted) {
+              setState(() {
+                _appId = payload.newRecord['currently_playing_appid'];
+                _appName = payload.newRecord['currently_playing_name'];
+              });
+            }
+          },
+        )
         .subscribe();
   }
 
@@ -68,14 +69,12 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
             .select('igdb_id, steam_app_id, title')
             .eq('steam_app_id', _appId!)
             .maybeSingle();
-            
+
         if (res != null && context.mounted) {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => GameDetailsScreen(
-                gameData: res,
-              ),
+              builder: (context) => GameDetailsScreen(gameData: res),
             ),
           );
         }
@@ -85,7 +84,11 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.videogame_asset, size: 18, color: Colors.greenAccent[400]),
+            Icon(
+              Icons.videogame_asset,
+              size: 18,
+              color: Colors.greenAccent[400],
+            ),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -95,10 +98,26 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                   shadows: const [
-                    Shadow(offset: Offset(-1, -1), color: Colors.black, blurRadius: 2),
-                    Shadow(offset: Offset(1, -1), color: Colors.black, blurRadius: 2),
-                    Shadow(offset: Offset(1, 1), color: Colors.black, blurRadius: 2),
-                    Shadow(offset: Offset(-1, 1), color: Colors.black, blurRadius: 2),
+                    Shadow(
+                      offset: Offset(-1, -1),
+                      color: Colors.black,
+                      blurRadius: 2,
+                    ),
+                    Shadow(
+                      offset: Offset(1, -1),
+                      color: Colors.black,
+                      blurRadius: 2,
+                    ),
+                    Shadow(
+                      offset: Offset(1, 1),
+                      color: Colors.black,
+                      blurRadius: 2,
+                    ),
+                    Shadow(
+                      offset: Offset(-1, 1),
+                      color: Colors.black,
+                      blurRadius: 2,
+                    ),
                   ],
                 ),
                 maxLines: 1,

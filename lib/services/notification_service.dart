@@ -40,12 +40,12 @@ class NotificationService {
 
   static const AndroidNotificationChannel _androidChannel =
       AndroidNotificationChannel(
-    'corpus_default',           // id — debe coincidir con AndroidManifest
-    'Notificaciones de Corpus', // nombre visible
-    description: 'Actividad de amigos, bundles y comentarios.',
-    importance: Importance.high,
-    playSound: true,
-  );
+        'corpus_default', // id — debe coincidir con AndroidManifest
+        'Notificaciones de Corpus', // nombre visible
+        description: 'Actividad de amigos, bundles y comentarios.',
+        importance: Importance.high,
+        playSound: true,
+      );
 
   // ─── Init ──────────────────────────────────────────────────────────────────
 
@@ -64,11 +64,15 @@ class NotificationService {
 
     // Registrar el handler de mensajes en background (solo Android)
     if (Platform.isAndroid) {
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
     }
 
     // Inicializar flutter_local_notifications
-    const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/launcher_icon',
+    );
     const windowsSettings = WindowsInitializationSettings(
       appName: 'Corpus',
       appUserModelId: 'com.rafaelcasado.corpus.corpus',
@@ -89,7 +93,8 @@ class NotificationService {
     if (Platform.isAndroid) {
       await _localNotifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(_androidChannel);
 
       // Escuchar mensajes FCM cuando la app está en primer plano
@@ -139,14 +144,17 @@ class NotificationService {
       // Solicitar también el permiso nativo POST_NOTIFICATIONS (Android 13+)
       await _localNotifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
     }
 
     if (Platform.isWindows) {
       // flutter_local_notifications v19 no requiere solicitud explícita de permiso
       // en Windows — las notificaciones Toast funcionan directamente.
-      debugPrint('[NotificationService] Windows: permisos de notificación por defecto.');
+      debugPrint(
+        '[NotificationService] Windows: permisos de notificación por defecto.',
+      );
     }
   }
 
@@ -174,26 +182,27 @@ class NotificationService {
 
       final platform = kIsWeb ? 'web' : 'android';
 
-      await Supabase.instance.client.from('push_tokens').upsert(
-        {
-          'user_id': userId,
-          'token': token,
-          'platform': platform,
-        },
-        onConflict: 'token',
-        ignoreDuplicates: false,
-      );
+      await Supabase.instance.client
+          .from('push_tokens')
+          .upsert(
+            {'user_id': userId, 'token': token, 'platform': platform},
+            onConflict: 'token',
+            ignoreDuplicates: false,
+          );
 
-      debugPrint('[NotificationService] Token FCM ($platform) guardado: ${token.substring(0, 20)}...');
+      debugPrint(
+        '[NotificationService] Token FCM ($platform) guardado: ${token.substring(0, 20)}...',
+      );
 
       // Escuchar refresh de token para mantenerlo actualizado
       messaging.onTokenRefresh.listen((newToken) async {
         final uid = Supabase.instance.client.auth.currentUser?.id;
         if (uid == null) return;
-        await Supabase.instance.client.from('push_tokens').upsert(
-          {'user_id': uid, 'token': newToken, 'platform': platform},
-          onConflict: 'token',
-        );
+        await Supabase.instance.client.from('push_tokens').upsert({
+          'user_id': uid,
+          'token': newToken,
+          'platform': platform,
+        }, onConflict: 'token');
         debugPrint('[NotificationService] Token FCM actualizado.');
       });
     } catch (e) {
@@ -266,7 +275,9 @@ class NotificationService {
   Future<void> sendTestNotification() async {
     if (kIsWeb) {
       // En web: mostrar via API del navegador directamente si tenemos permiso
-      debugPrint('[NotificationService] Test notification en web — enviada vía FCM al dispositivo.');
+      debugPrint(
+        '[NotificationService] Test notification en web — enviada vía FCM al dispositivo.',
+      );
       return;
     }
     await showNotification(
@@ -299,19 +310,25 @@ class NotificationService {
   /// El navegador no muestra notificaciones automáticamente en foreground,
   /// así que simplemente lo logeamos. El service worker gestiona el background.
   void _onForegroundMessageWeb(RemoteMessage message) {
-    debugPrint('[NotificationService] Web foreground message: ${message.notification?.title}');
+    debugPrint(
+      '[NotificationService] Web foreground message: ${message.notification?.title}',
+    );
     // Aquí se podría mostrar un SnackBar o banner in-app si se desea.
   }
 
   /// Tap en notificación cuando la app estaba en background (pero no terminada).
   void _onNotificationOpenedApp(RemoteMessage message) {
-    debugPrint('[NotificationService] App abierta desde notificación: ${message.data}');
+    debugPrint(
+      '[NotificationService] App abierta desde notificación: ${message.data}',
+    );
     // TODO: Navegar a la pantalla relevante según message.data['type']
   }
 
   /// Tap en notificación local (Windows foreground o Android foreground).
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('[NotificationService] Notificación local tapeada: ${response.payload}');
+    debugPrint(
+      '[NotificationService] Notificación local tapeada: ${response.payload}',
+    );
     // TODO: Navegar a la pantalla relevante según response.payload
   }
 }

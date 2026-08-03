@@ -13,7 +13,7 @@ void main() {
         'Muestra indicador de carga mientras el Stream de autenticación está en espera (ConnectionState.waiting)',
         (WidgetTester tester) async {
           // StreamController que aún no ha emitido ningún evento
-          final controller = StreamController<AuthState>();
+          final controller = StreamController<AuthState>.broadcast();
 
           await tester.pumpWidget(
             MaterialApp(home: AuthGate(authStream: controller.stream)),
@@ -29,7 +29,7 @@ void main() {
       testWidgets(
         'Redirige indefectiblemente a LoginScreen cuando el usuario no tiene sesión activa (session == null)',
         (WidgetTester tester) async {
-          final controller = StreamController<AuthState>();
+          final controller = StreamController<AuthState>.broadcast();
 
           await tester.pumpWidget(
             MaterialApp(home: AuthGate(authStream: controller.stream)),
@@ -51,7 +51,7 @@ void main() {
       testWidgets('Redirige a LoginScreen tras emitir initialSession nula', (
         WidgetTester tester,
       ) async {
-        final controller = StreamController<AuthState>();
+        final controller = StreamController<AuthState>.broadcast();
 
         await tester.pumpWidget(
           MaterialApp(home: AuthGate(authStream: controller.stream)),
