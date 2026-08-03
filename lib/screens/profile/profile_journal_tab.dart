@@ -281,110 +281,129 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar juego...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                              _refresh();
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                  ),
-                  onChanged: (value) {
-                    if (_debounce?.isActive ?? false) _debounce!.cancel();
-                    _debounce = Timer(const Duration(milliseconds: 500), () {
-                      setState(() => _searchQuery = value.trim());
-                      _refresh();
-                    });
-                  },
-                ),
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        onScrollMetrics(notification.metrics);
+        return false;
+      },
+      child: RefreshIndicator(
+        onRefresh: _refresh,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: _buildSearchBar(),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 1,
-                child: DropdownButtonFormField<int?>(
-                  initialValue: _selectedYear,
-                  hint: const Text('Año'),
-                  isExpanded: true,
-                  icon: const Icon(Icons.arrow_drop_down),
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  ),
-                  items: [
-                    const DropdownMenuItem<int?>(
-                      value: null,
-                      child: Text('Todos'),
-                    ),
-                    ..._availableYears.map(
-                      (year) => DropdownMenuItem<int?>(
-                        value: year,
-                        child: Text(year.toString()),
-                      ),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() => _selectedYear = value);
-                    _refresh();
-                  },
+            ),
+            _buildListSliver(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar juego...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                        _refresh();
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+            ),
+            onChanged: (value) {
+              if (_debounce?.isActive ?? false) _debounce!.cancel();
+              _debounce = Timer(const Duration(milliseconds: 500), () {
+                setState(() => _searchQuery = value.trim());
+                _refresh();
+              });
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 1,
+          child: DropdownButtonFormField<int?>(
+            initialValue: _selectedYear,
+            hint: const Text('Año'),
+            isExpanded: true,
+            icon: const Icon(Icons.arrow_drop_down),
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 15,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+            ),
+            items: [
+              const DropdownMenuItem<int?>(value: null, child: Text('Todos')),
+              ..._availableYears.map(
+                (year) => DropdownMenuItem<int?>(
+                  value: year,
+                  child: Text(year.toString()),
                 ),
               ),
             ],
+            onChanged: (value) {
+              setState(() => _selectedYear = value);
+              _refresh();
+            },
           ),
         ),
-        Expanded(child: _buildBody()),
       ],
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildListSliver() {
     if (_isInitialLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(48.0),
+      return const SliverFillRemaining(
         child: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_reviews.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Text(
-            _error ??
-                'Aún no hay nada en tu diario. En cuanto marques una fecha\n'
-                    'de juego en una reseña, aparecerá aquí.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+      return SliverFillRemaining(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Text(
+              _error ??
+                  'Aún no hay nada en tu diario. En cuanto marques una fecha\n'
+                      'de juego en una reseña, aparecerá aquí.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ),
@@ -393,18 +412,11 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
     final rows = _flatten();
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        onScrollMetrics(notification.metrics);
-        return false;
-      },
-      child: RefreshIndicator(
-        onRefresh: _refresh,
-        child: ListView.builder(
-          // Sin 'controller' para usar PrimaryScrollController (sincronizado con NestedScrollView en móvil)
-          padding: const EdgeInsets.only(bottom: 24),
-          itemCount: rows.length + (hasMore ? 1 : 0),
-          itemBuilder: (context, index) {
+    return SliverPadding(
+      padding: const EdgeInsets.only(bottom: 24),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
             if (index >= rows.length) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
@@ -416,6 +428,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                 ? _buildMonthHeader(row.label!)
                 : _buildJournalRow(row.review!);
           },
+          childCount: rows.length + (hasMore ? 1 : 0),
         ),
       ),
     );

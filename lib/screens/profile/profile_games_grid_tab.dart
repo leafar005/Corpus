@@ -217,100 +217,6 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar juego...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                              _refresh();
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                  ),
-                  onChanged: (value) {
-                    if (_debounce?.isActive ?? false) _debounce!.cancel();
-                    _debounce = Timer(const Duration(milliseconds: 500), () {
-                      setState(() => _searchQuery = value.trim());
-                      _refresh();
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Badge(
-                isLabelVisible: _filters.hasFilters,
-                label: Text(_filters.filterCount.toString()),
-                offset: const Offset(0, 0),
-                child: FilledButton.icon(
-                  onPressed: _openFilters,
-                  icon: const Icon(Icons.tune),
-                  label: const Text('Filtros'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                    foregroundColor: Theme.of(context).colorScheme.onSurface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    minimumSize: const Size(
-                      0,
-                      56,
-                    ), // Matches default TextField height
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(child: _buildBody()),
-      ],
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isInitialLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_games.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Text(
-            _error ?? 'No hay juegos para mostrar.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
-    }
-
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         onScrollMetrics(notification.metrics);
@@ -318,43 +224,151 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
       },
       child: RefreshIndicator(
         onRefresh: _refresh,
-        child: GridView.builder(
-          // Usar PrimaryScrollController (sincronizado con NestedScrollView en móvil)
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: _buildSearchBar(),
+              ),
+            ),
+            _buildGridSliver(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar juego...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                        _refresh();
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+            ),
+            onChanged: (value) {
+              if (_debounce?.isActive ?? false) _debounce!.cancel();
+              _debounce = Timer(const Duration(milliseconds: 500), () {
+                setState(() => _searchQuery = value.trim());
+                _refresh();
+              });
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        Badge(
+          isLabelVisible: _filters.hasFilters,
+          label: Text(_filters.filterCount.toString()),
+          offset: const Offset(0, 0),
+          child: FilledButton.icon(
+            onPressed: _openFilters,
+            icon: const Icon(Icons.tune),
+            label: const Text('Filtros'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+              foregroundColor: Theme.of(context).colorScheme.onSurface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              minimumSize: const Size(
+                0,
+                56,
+              ), // Matches default TextField height
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGridSliver() {
+    if (_isInitialLoading) {
+      return const SliverFillRemaining(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_games.isEmpty) {
+      return SliverFillRemaining(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Text(
+              _error ?? 'No hay juegos para mostrar.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 120,
           childAspectRatio: 0.7,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),
-        itemCount: _games.length + (hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= _games.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            );
-          }
-          final item = _games[index];
-          final gameData = item['games'] as Map<String, dynamic>;
-          final rating = (item['rating'] ?? 0).toDouble();
-          gameData['user_rating'] = rating;
-          gameData['is_steam_only'] = item['is_steam_only'];
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            if (index >= _games.length) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              );
+            }
+            final item = _games[index];
+            final gameData = item['games'] as Map<String, dynamic>;
+            final rating = (item['rating'] ?? 0).toDouble();
+            gameData['user_rating'] = rating;
+            gameData['is_steam_only'] = item['is_steam_only'];
 
-          return GameCard(
-            game: gameData,
-            isInLibrary: true,
-            userRating: rating,
-            onReturn: () {
-              widget.onReturn();
-              _refresh();
-            },
-          );
-        },
+            return GameCard(
+              game: gameData,
+              isInLibrary: true,
+              userRating: rating,
+              onReturn: () {
+                widget.onReturn();
+                _refresh();
+              },
+            );
+          },
+          childCount: _games.length + (hasMore ? 1 : 0),
+        ),
       ),
-    ),
     );
   }
 }

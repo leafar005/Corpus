@@ -665,19 +665,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildMobileLayout() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_selectedTab == 0) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildSidebarInfo(isMobile: true),
-          ),
-          const SizedBox(height: 24),
-        ],
-        Expanded(child: _buildCurrentTabContent(isMobile: true)),
-      ],
-    );
+    return _buildCurrentTabContent(isMobile: true);
   }
 
   Widget _buildCurrentTabContent({bool isMobile = false}) {
@@ -691,6 +679,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (isMobile) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildSidebarInfo(isMobile: true),
+              ),
+              const SizedBox(height: 24),
+            ],
             _buildHallOfFame(),
             const SizedBox(height: 32),
             _buildGiantStatsRow(isMobile: isMobile),
