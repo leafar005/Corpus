@@ -138,7 +138,13 @@ class _BundlesScreenState extends State<BundlesScreen> {
       appBar: AppBar(
         title: const Text('Bundles Activos'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
+          IconButton(
+            icon: const Padding(
+              padding: EdgeInsets.only(top: 2.0),
+              child: Icon(Icons.refresh),
+            ),
+            onPressed: _refresh,
+          ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60.0),
