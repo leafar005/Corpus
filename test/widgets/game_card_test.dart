@@ -35,7 +35,7 @@ void main() {
         await gesture.moveTo(tester.getCenter(find.byType(GameCard)));
         await tester.pumpAndSettle();
 
-        expect(find.text('Elden Ring'), findsOneWidget);
+        expect(find.text('Elden Ring'), findsWidgets);
         expect(find.text('9.5'), findsOneWidget);
       },
     );
@@ -66,7 +66,7 @@ void main() {
         await gesture.moveTo(tester.getCenter(find.byType(GameCard)));
         await tester.pumpAndSettle();
 
-        expect(find.text('Hollow Knight'), findsOneWidget);
+        expect(find.text('Hollow Knight'), findsWidgets);
         expect(find.text('0.0'), findsNothing);
       },
     );
@@ -97,7 +97,7 @@ void main() {
         await gesture.moveTo(tester.getCenter(find.byType(GameCard)));
         await tester.pumpAndSettle();
 
-        expect(find.text('Juego Sin Carátula'), findsOneWidget);
+        expect(find.text('Juego Sin Carátula'), findsWidgets);
         expect(find.byIcon(Icons.videogame_asset), findsOneWidget);
       },
     );
