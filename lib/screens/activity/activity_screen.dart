@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../widgets/full_screen_gallery.dart';
 import '../../widgets/coop_badge.dart';
 import '../activity/review_details_screen.dart';
 import '../profile/profile_screen.dart';
@@ -848,8 +849,10 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: GestureDetector(
-                        onTap: () =>
-                            _showImageFullScreen(imageUrls[idx] as String),
+                        onTap: () {
+                          final strUrls = imageUrls.map((e) => e.toString()).toList();
+                          showFullScreenGallery(context, strUrls, idx);
+                        },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
@@ -951,36 +954,7 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
     );
   }
 
-  void _showImageFullScreen(String imageUrl) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.zero,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(context).pop(),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              InteractiveViewer(
-                child: Image.network(imageUrl, fit: BoxFit.contain),
-              ),
-              Positioned(
-                top: 16,
-                right: 16,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 32),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
+  // _showImageFullScreen removed in favor of full_screen_gallery.dart
   Widget _buildEmptyState() {
     return Center(
       child: Column(

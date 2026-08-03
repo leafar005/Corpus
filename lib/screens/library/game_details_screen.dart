@@ -18,6 +18,7 @@ import '../../widgets/coop_badge.dart';
 import 'review_modal.dart';
 import '../../repositories/review_repository.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../widgets/full_screen_gallery.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameDetailsScreen extends StatefulWidget {
@@ -67,7 +68,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   int? _metacriticScore;
   String? _metacriticUrl;
   bool _isTrueMetacritic = false;
-  bool _isLoadingMetacritic = false;
+  final bool _isLoadingMetacritic = false;
 
   // Juegos relacionados (DLCs, remakes, ports, etc.)
   List<dynamic> _relatedGames = [];
@@ -111,8 +112,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   void _onScroll() {
     if (!mounted) return;
-    final offset =
-        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final offset = _scrollController.hasClients
+        ? _scrollController.offset
+        : 0.0;
     if ((offset - _scrollOffset).abs() > 2.0) {
       setState(() {
         _scrollOffset = offset;
@@ -178,14 +180,20 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   Future<void> _fetchMetacritic() async {
     // Attempt to read from gameData directly (if backfilled previously)
-    final initialScore = widget.gameData['metacritic_score'] ?? _enrichedData['metacritic_score'] ?? widget.gameData['aggregated_rating'] ?? _enrichedData['aggregated_rating'];
-    
+    final initialScore =
+        widget.gameData['metacritic_score'] ??
+        _enrichedData['metacritic_score'] ??
+        widget.gameData['aggregated_rating'] ??
+        _enrichedData['aggregated_rating'];
+
     // Look for metacritic url in websites
-    String? mcUrl = widget.gameData['metacritic_url'] ?? _enrichedData['metacritic_url'];
+    String? mcUrl =
+        widget.gameData['metacritic_url'] ?? _enrichedData['metacritic_url'];
     if (mcUrl == null) {
       final websites = _enrichedData['websites'] as List<dynamic>? ?? [];
       for (final w in websites) {
-        if (w['category'] == 14) { // 14 is metacritic in IGDB
+        if (w['category'] == 14) {
+          // 14 is metacritic in IGDB
           mcUrl = w['url'];
           break;
         }
@@ -196,7 +204,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     String? steamUrl;
     final websites = _enrichedData['websites'] as List<dynamic>? ?? [];
     for (final w in websites) {
-      if (w['category'] == 13) { // 13 is Steam
+      if (w['category'] == 13) {
+        // 13 is Steam
         steamUrl = w['url'];
         break;
       }
@@ -209,7 +218,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         final appId = match.group(1);
         if (appId != null) {
           try {
-            final res = await http.get(Uri.parse('https://store.steampowered.com/api/appdetails?appids=$appId&l=spanish'));
+            final res = await http.get(
+              Uri.parse(
+                'https://store.steampowered.com/api/appdetails?appids=$appId&l=spanish',
+              ),
+            );
             if (res.statusCode == 200) {
               final json = jsonDecode(res.body);
               final appData = json[appId];
@@ -240,7 +253,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         _metacriticScore = initialScore is num ? initialScore.toInt() : null;
         _metacriticUrl = mcUrl;
         // If it came from our DB's metacritic_score, it's a true Metacritic score
-        _isTrueMetacritic = (widget.gameData['metacritic_score'] != null || _enrichedData['metacritic_score'] != null);
+        _isTrueMetacritic =
+            (widget.gameData['metacritic_score'] != null ||
+            _enrichedData['metacritic_score'] != null);
       });
     }
   }
@@ -574,121 +589,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
-  void _showImageGallery(List<String> imageUrls, int initialIndex) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final PageController pageController = PageController(
-          initialPage: initialIndex,
-        );
-        int currentIndex = initialIndex;
-
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.zero,
-          child: StatefulBuilder(
-            builder: (context, setState) {
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => Navigator.of(context).pop(),
-                    child: PageView.builder(
-                      controller: pageController,
-                      itemCount: imageUrls.length,
-                      onPageChanged: (index) {
-                        setState(() {
-                          currentIndex = index;
-                        });
-                      },
-                      itemBuilder: (context, index) {
-                        return InteractiveViewer(
-                          child: Image.network(
-                            imageUrls[index],
-                            fit: BoxFit.contain,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Positioned(
-                    top: 16,
-                    right: 16,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ),
-                  if (MediaQuery.of(context).size.width > 800 &&
-                      imageUrls.length > 1) ...[
-                    if (currentIndex > 0)
-                      Positioned(
-                        left: 16,
-                        top: 0,
-                        bottom: 0,
-                        child: Center(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.chevron_left,
-                                color: Colors.white,
-                                size: 36,
-                              ),
-                              onPressed: () {
-                                pageController.previousPage(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (currentIndex < imageUrls.length - 1)
-                      Positioned(
-                        right: 16,
-                        top: 0,
-                        bottom: 0,
-                        child: Center(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.chevron_right,
-                                color: Colors.white,
-                                size: 36,
-                              ),
-                              onPressed: () {
-                                pageController.nextPage(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ],
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
+  // _showImageGallery implementation removed in favor of full_screen_gallery.dart
 
   /// Enriquece los datos del juego llamando a IGDB si faltan campos importantes
   Future<void> _enrichGameData() async {
@@ -793,7 +694,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               'version_parent': game['version_parent'],
             if (game['remake_of'] != null) 'remake_of': game['remake_of'],
             if (game['remaster_of'] != null) 'remaster_of': game['remaster_of'],
-            if (game['aggregated_rating'] != null) 'aggregated_rating': game['aggregated_rating'],
+            if (game['aggregated_rating'] != null)
+              'aggregated_rating': game['aggregated_rating'],
             'platforms': game['platforms'] != null
                 ? (game['platforms'] as List).map((p) => p['name']).toList()
                 : [],
@@ -1858,8 +1760,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final Color scoreColor = _metacriticScore! >= 75
         ? Colors.green
         : _metacriticScore! >= 50
-            ? Colors.orange
-            : Colors.red;
+        ? Colors.orange
+        : Colors.red;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
@@ -1903,8 +1805,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    _isTrueMetacritic ? 'Metacritic Score' : 'Media de Críticas',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    _isTrueMetacritic
+                        ? 'Metacritic Score'
+                        : 'Media de Críticas',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   if (_metacriticUrl != null) ...[
                     const SizedBox(width: 8),
@@ -2295,7 +2202,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: GestureDetector(
-                            onTap: () => _showImageGallery(
+                            onTap: () => showFullScreenGallery(
+                              context,
                               List<String>.from(imageUrls),
                               idx,
                             ),
@@ -3498,7 +3406,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   final List<String> urls = screenshotsList
                       .map((id) => IGDBService.getScreenshotUrl(id.toString()))
                       .toList();
-                  _showImageGallery(urls, index);
+                  showFullScreenGallery(context, urls, index);
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: ClipRRect(
@@ -3574,7 +3482,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   final List<String> urls = artworksList
                       .map((id) => IGDBService.getArtworkUrl(id.toString()))
                       .toList();
-                  _showImageGallery(urls, index);
+                  showFullScreenGallery(context, urls, index);
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: ClipRRect(
@@ -3699,13 +3607,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     // Si ya está cubierto por franchises[], lo ignoramos; si no, lo añadimos.
     final dynamic singularFranchise =
         _enrichedData['franchise'] ?? widget.gameData['franchise'];
-    if (singularFranchise is Map &&
-        singularFranchise['name'] != null) {
+    if (singularFranchise is Map && singularFranchise['name'] != null) {
       final int? sfId = (singularFranchise['id'] is num)
           ? (singularFranchise['id'] as num).toInt()
           : int.tryParse(singularFranchise['id']?.toString() ?? '');
-      final bool alreadyIn =
-          franchisesData.any((f) => f['id'] != null && f['id'] == sfId);
+      final bool alreadyIn = franchisesData.any(
+        (f) => f['id'] != null && f['id'] == sfId,
+      );
       if (!alreadyIn) {
         franchisesData.add({'id': sfId, 'name': singularFranchise['name']});
       }
@@ -3993,238 +3901,225 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
 
     final bool isDesktop = MediaQuery.of(context).size.width > 800;
-    final double topPadding =
-        MediaQueryData.fromView(View.of(context)).padding.top;
+    final double topPadding = MediaQueryData.fromView(
+      View.of(context),
+    ).padding.top;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _GameDetailsHeaderDelegate(
-                topPadding: topPadding,
-                title: title,
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                leading: const BackButton(color: Colors.white),
-                background: highResCoverUrl.isNotEmpty
-                    ? Stack(
-                        clipBehavior: Clip.none,
-                        fit: StackFit.expand,
-                        children: [
-                          AnimatedSwitcher(
-                            duration: const Duration(seconds: 1),
-                            transitionBuilder:
-                                (Widget child, Animation<double> animation) {
-                                  return FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  );
-                                },
-                            child: _selectedScreenshotUrl != null
-                                ? _buildFadeInImage(
-                                    _selectedScreenshotUrl!,
-                                    key: ValueKey(_selectedScreenshotUrl),
-                                  )
-                                : (!_isEnriching
-                                      ? _buildFadeInImage(
-                                          highResCoverUrl,
-                                          key: ValueKey(highResCoverUrl),
-                                        )
-                                      : Container(
-                                          key: ValueKey('empty'),
-                                          color: Theme.of(
-                                            context,
-                                          ).primaryColorDark,
-                                        )),
-                          ),
-
-                          Container(
-                            color: Colors.black.withValues(alpha: 0.3),
-                          ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: -2,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
-                                  stops: const [
-                                    0.0,
-                                    0.12,
-                                    0.22,
-                                    0.35,
-                                    0.5,
-                                    0.65,
-                                    0.8,
-                                    1.0,
-                                  ],
-                                  colors: [
-                                    Theme.of(context).scaffoldBackgroundColor,
-                                    Theme.of(context)
-                                        .scaffoldBackgroundColor
-                                        .withValues(alpha: 0.9),
-                                    Theme.of(context)
-                                        .scaffoldBackgroundColor
-                                        .withValues(alpha: 0.7),
-                                    Theme.of(context)
-                                        .scaffoldBackgroundColor
-                                        .withValues(alpha: 0.5),
-                                    Theme.of(context)
-                                        .scaffoldBackgroundColor
-                                        .withValues(alpha: 0.3),
-                                    Theme.of(context)
-                                        .scaffoldBackgroundColor
-                                        .withValues(alpha: 0.15),
-                                    Theme.of(context)
-                                        .scaffoldBackgroundColor
-                                        .withValues(alpha: 0.05),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : Container(color: Theme.of(context).primaryColorDark),
-              ),
-            ),
-
-            if (isDesktop)
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40.0,
-                  vertical: 24.0,
-                ),
-                sliver: SliverCrossAxisGroup(
-                  slivers: [
-                    SliverConstrainedCrossAxis(
-                      maxExtent: 280,
-                      sliver: SliverToBoxAdapter(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            coverArtWidget,
-                            const SizedBox(height: 24),
-                            interactiveWidget,
-                            _buildFriendsWithGame(context),
-                          ],
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _GameDetailsHeaderDelegate(
+              topPadding: topPadding,
+              title: title,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              leading: const BackButton(color: Colors.white),
+              background: highResCoverUrl.isNotEmpty
+                  ? Stack(
+                      clipBehavior: Clip.none,
+                      fit: StackFit.expand,
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(seconds: 1),
+                          transitionBuilder:
+                              (Widget child, Animation<double> animation) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                          child: _selectedScreenshotUrl != null
+                              ? _buildFadeInImage(
+                                  _selectedScreenshotUrl!,
+                                  key: ValueKey(_selectedScreenshotUrl),
+                                )
+                              : (!_isEnriching
+                                    ? _buildFadeInImage(
+                                        highResCoverUrl,
+                                        key: ValueKey(highResCoverUrl),
+                                      )
+                                    : Container(
+                                        key: ValueKey('empty'),
+                                        color: Theme.of(
+                                          context,
+                                        ).primaryColorDark,
+                                      )),
                         ),
-                      ),
-                    ),
-                    SliverConstrainedCrossAxis(
-                      maxExtent: 40,
-                      sliver: const SliverToBoxAdapter(
-                        child: SizedBox.shrink(),
-                      ),
-                    ),
-                    SliverCrossAxisExpanded(
-                      flex: 1,
-                      sliver: SliverMainAxisGroup(
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                headerInfoWidget,
-                                const SizedBox(height: 12),
-                              ],
-                            ),
-                          ),
-                          SliverPersistentHeader(
-                            pinned: true,
-                            delegate: _GameDetailsTabBarDelegate(
-                              height: 56.0,
-                              child: _buildNavBar(
-                                isDesktop: true,
-                                infoTabIdx: infoTabIdx,
-                                communityTabIdx: communityTabIdx,
-                                mediaTabIdx: mediaTabIdx,
-                                relatedTabIdx: relatedTabIdx,
-                                linksTabIdx: linksTabIdx,
-                                hasMedia: hasMedia,
-                                hasRelated: hasRelated,
-                                hasLinks: hasLinks,
+
+                        Container(color: Colors.black.withValues(alpha: 0.3)),
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: -2,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                stops: const [
+                                  0.0,
+                                  0.12,
+                                  0.22,
+                                  0.35,
+                                  0.5,
+                                  0.65,
+                                  0.8,
+                                  1.0,
+                                ],
+                                colors: [
+                                  Theme.of(context).scaffoldBackgroundColor,
+                                  Theme.of(context).scaffoldBackgroundColor
+                                      .withValues(alpha: 0.9),
+                                  Theme.of(context).scaffoldBackgroundColor
+                                      .withValues(alpha: 0.7),
+                                  Theme.of(context).scaffoldBackgroundColor
+                                      .withValues(alpha: 0.5),
+                                  Theme.of(context).scaffoldBackgroundColor
+                                      .withValues(alpha: 0.3),
+                                  Theme.of(context).scaffoldBackgroundColor
+                                      .withValues(alpha: 0.15),
+                                  Theme.of(context).scaffoldBackgroundColor
+                                      .withValues(alpha: 0.05),
+                                  Colors.transparent,
+                                ],
                               ),
                             ),
                           ),
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 24.0),
-                              child: buildCurrentTabContent(),
-                            ),
-                          ),
-                          const SliverToBoxAdapter(
-                            child: SizedBox(height: 60),
-                          ),
+                        ),
+                      ],
+                    )
+                  : Container(color: Theme.of(context).primaryColorDark),
+            ),
+          ),
+
+          if (isDesktop)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 40.0,
+                vertical: 24.0,
+              ),
+              sliver: SliverCrossAxisGroup(
+                slivers: [
+                  SliverConstrainedCrossAxis(
+                    maxExtent: 280,
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          coverArtWidget,
+                          const SizedBox(height: 24),
+                          interactiveWidget,
+                          _buildFriendsWithGame(context),
                         ],
                       ),
                     ),
+                  ),
+                  SliverConstrainedCrossAxis(
+                    maxExtent: 40,
+                    sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
+                  ),
+                  SliverCrossAxisExpanded(
+                    flex: 1,
+                    sliver: SliverMainAxisGroup(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              headerInfoWidget,
+                              const SizedBox(height: 12),
+                            ],
+                          ),
+                        ),
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _GameDetailsTabBarDelegate(
+                            height: 56.0,
+                            child: _buildNavBar(
+                              isDesktop: true,
+                              infoTabIdx: infoTabIdx,
+                              communityTabIdx: communityTabIdx,
+                              mediaTabIdx: mediaTabIdx,
+                              relatedTabIdx: relatedTabIdx,
+                              linksTabIdx: linksTabIdx,
+                              hasMedia: hasMedia,
+                              hasRelated: hasRelated,
+                              hasLinks: hasLinks,
+                            ),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 24.0),
+                            child: buildCurrentTabContent(),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 60)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(width: 120, child: coverArtWidget),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [headerInfoWidget],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    interactiveWidget,
+                    _buildFriendsWithGame(context),
+                    const SizedBox(height: 12),
                   ],
                 ),
-              )
-            else ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(width: 120, child: coverArtWidget),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [headerInfoWidget],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      interactiveWidget,
-                      _buildFriendsWithGame(context),
-                      const SizedBox(height: 12),
-                    ],
-                  ),
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _GameDetailsTabBarDelegate(
+                height: 56.0,
+                child: _buildNavBar(
+                  isDesktop: false,
+                  infoTabIdx: infoTabIdx,
+                  communityTabIdx: communityTabIdx,
+                  mediaTabIdx: mediaTabIdx,
+                  relatedTabIdx: relatedTabIdx,
+                  linksTabIdx: linksTabIdx,
+                  hasMedia: hasMedia,
+                  hasRelated: hasRelated,
+                  hasLinks: hasLinks,
                 ),
               ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _GameDetailsTabBarDelegate(
-                  height: 56.0,
-                  child: _buildNavBar(
-                    isDesktop: false,
-                    infoTabIdx: infoTabIdx,
-                    communityTabIdx: communityTabIdx,
-                    mediaTabIdx: mediaTabIdx,
-                    relatedTabIdx: relatedTabIdx,
-                    linksTabIdx: linksTabIdx,
-                    hasMedia: hasMedia,
-                    hasRelated: hasRelated,
-                    hasLinks: hasLinks,
-                  ),
-                ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: buildCurrentTabContent(),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: buildCurrentTabContent(),
-                ),
-              ),
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 60),
-              ),
-            ],
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 60)),
           ],
-        ),
+        ],
+      ),
     );
   }
 }
@@ -4266,10 +4161,7 @@ class _GameDetailsHeaderDelegate extends SliverPersistentHeaderDelegate {
       fit: StackFit.expand,
       children: [
         // 1. Imagen de fondo
-        Opacity(
-          opacity: (1.0 - progress).clamp(0.0, 1.0),
-          child: background,
-        ),
+        Opacity(opacity: (1.0 - progress).clamp(0.0, 1.0), child: background),
         // 2. Fondo sólido al colapsar
         Opacity(
           opacity: progress,
@@ -4321,10 +4213,7 @@ class _GameDetailsTabBarDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;
 
-  _GameDetailsTabBarDelegate({
-    required this.child,
-    required this.height,
-  });
+  _GameDetailsTabBarDelegate({required this.child, required this.height});
 
   @override
   double get minExtent => height;
@@ -4349,4 +4238,3 @@ class _GameDetailsTabBarDelegate extends SliverPersistentHeaderDelegate {
     return oldDelegate.child != child || oldDelegate.height != height;
   }
 }
-

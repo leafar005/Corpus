@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../library/game_details_screen.dart';
 import '../library/review_modal.dart';
+import '../../widgets/full_screen_gallery.dart';
 import '../../repositories/review_repository.dart';
 import '../../widgets/achievement_toast.dart';
 import 'dart:io';
@@ -1173,8 +1174,10 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 8),
                                     child: GestureDetector(
-                                      onTap: () =>
-                                          _showImageFullScreen(imageUrls[idx]),
+                                      onTap: () {
+                                        final strUrls = imageUrls.map((e) => e.toString()).toList();
+                                        showFullScreenGallery(context, strUrls, idx);
+                                      },
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
                                         child: Image.network(
@@ -1498,8 +1501,10 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                 ),
                                                 child: GestureDetector(
                                                   onTap: () =>
-                                                      _showImageFullScreen(
-                                                        comment['image_url'],
+                                                      showFullScreenGallery(
+                                                        context,
+                                                        [comment['image_url']],
+                                                        0,
                                                       ),
                                                   child: ClipRRect(
                                                     borderRadius:
@@ -1978,33 +1983,5 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     );
   }
 
-  void _showImageFullScreen(String imageUrl) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.zero,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(context).pop(),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              InteractiveViewer(
-                child: Image.network(imageUrl, fit: BoxFit.contain),
-              ),
-              Positioned(
-                top: 16,
-                right: 16,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 32),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // _showImageFullScreen removed in favor of full_screen_gallery.dart
 }
