@@ -48,8 +48,11 @@ class IgdbConstants {
     'kiwami',
     'twin snakes',
     'reloaded',
-    'part i',
+    // 'part i' eliminado: se usa regex con word boundary para no afectar 'Part II', 'Part III', etc.
   ];
+
+  /// Regex para detectar exactamente "Part I" (no "Part II", "Part III"...) mediante word boundary.
+  static final RegExp _partIRegex = RegExp(r'\bpart i\b', caseSensitive: false);
 
   /// Keywords que indican que un juego es Remaster (category 9).
   static const List<String> _remasterKeywords = [
@@ -106,7 +109,10 @@ class IgdbConstants {
     final lowerTitle = title.toLowerCase();
     final lowerSummary = summary?.toLowerCase() ?? '';
 
-    if (_remakeKeywords.any((k) => lowerTitle.contains(k))) return 8;
+    if (_remakeKeywords.any((k) => lowerTitle.contains(k)) ||
+        _partIRegex.hasMatch(title)) {
+      return 8;
+    }
     if (_remasterKeywords.any((k) => lowerTitle.contains(k)) ||
         _hdRegex.hasMatch(lowerTitle)) {
       return 9;
