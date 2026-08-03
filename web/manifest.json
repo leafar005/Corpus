@@ -1,6 +1,6 @@
 {
-    "name": "corpus",
-    "short_name": "corpus",
+    "name": "Corpus",
+    "short_name": "Corpus",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#000000",

@@ -26,7 +26,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="corpus">
+  <meta name="apple-mobile-web-app-title" content="Corpus">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Theme color for Safari/Chrome top and bottom bars -->
@@ -41,7 +41,11 @@
     body {
       background-color: #212121;
       margin: 0;
-      padding: 0;
+      /* Aplica el SafeArea de iOS mediante CSS para que el lienzo de Flutter no toque el notch */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
       overscroll-behavior-x: none;
     }
 
@@ -55,7 +59,7 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
 
-  <title>corpus</title>
+  <title>Corpus</title>
   <link rel="manifest" href="manifest.json">
 </head>
 
