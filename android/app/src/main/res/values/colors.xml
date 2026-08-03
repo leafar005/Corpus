@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Color morado de Corpus para el icono de notificación FCM -->
+    <color name="notification_color">#7E57C2</color>
+</resources>

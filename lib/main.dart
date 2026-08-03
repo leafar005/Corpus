@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'screens/main_screen.dart';
 import 'env.dart';
 import 'theme/app_theme.dart';
+import 'services/notification_service.dart';
 
 import 'globals.dart';
 
@@ -12,13 +14,33 @@ void main() async {
   // 1. Asegura que los motores de Flutter están listos
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Inicializa la conexión con Supabase
+  // 2. Inicializa Firebase
+  if (kIsWeb) {
+    // En web: pasar configuración explícita (google-services.json no aplica en web)
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: 'AIzaSyAGjsQRsHKWe2C6HSn1IqVlqn91O2e6IVE',
+        authDomain: 'corpus-games.firebaseapp.com',
+        projectId: 'corpus-games',
+        storageBucket: 'corpus-games.firebasestorage.app',
+        messagingSenderId: '1081828301308',
+        appId: '1:1081828301308:web:bb9580b5efd664baacba79',
+      ),
+    );
+  } else {
+    await Firebase.initializeApp();
+  }
+
+  // 3. Inicializa la conexión con Supabase
   await Supabase.initialize(
     url: Env.supabaseUrl,
     publishableKey: Env.supabaseAnonKey,
   );
 
-  // 3. Arranca la interfaz gráfica
+  // 4. Inicializa el servicio de notificaciones (Android + Windows + Web)
+  await NotificationService().init();
+
+  // 5. Arranca la interfaz gráfica
   runApp(const CorpusApp());
 }
 
@@ -79,6 +101,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     // Si no hay usuario o el canal ya está configurado, salimos temprano
     if (userId == null || _presenceChannel != null) return;
+
+    // Pedir permisos de notificación y guardar token FCM (solo la primera vez)
+    final notifService = NotificationService();
+    await notifService.requestPermissions();
+    await notifService.saveFcmToken();
 
     // Inicializamos el canal de presencia en tiempo real
     _presenceChannel = Supabase.instance.client.channel('online-users');

@@ -468,6 +468,17 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     if (parsedBundles.length > 0) {
+      // 0. Detectar bundles NUEVOS (que no existen aún en la BD) antes del upsert
+      const currentIds = parsedBundles.map(b => b.id);
+      const { data: existingRows } = await supabase
+        .from('active_bundles')
+        .select('id')
+        .in('id', currentIds);
+
+      const existingIds = new Set((existingRows ?? []).map((r: any) => r.id));
+      const newBundles = parsedBundles.filter(b => !existingIds.has(b.id));
+      console.log(`Bundles nuevos detectados: ${newBundles.length}`);
+
       // 1. Upsert current bundles
       const { error: upsertError } = await supabase
         .from('active_bundles')
@@ -476,7 +487,6 @@ Deno.serve(async (req) => {
       if (upsertError) throw upsertError;
 
       // 2. Delete bundles that are no longer active
-      const currentIds = parsedBundles.map(b => b.id);
       const { error: deleteError } = await supabase
         .from('active_bundles')
         .delete()
@@ -484,6 +494,27 @@ Deno.serve(async (req) => {
 
       if (deleteError) {
         console.error('Error borrando bundles obsoletos:', deleteError);
+      }
+
+      // 3. Notificar bundles nuevos a todos los usuarios (best-effort, no bloqueante)
+      if (newBundles.length > 0) {
+        try {
+          const selfUrl = SUPABASE_URL.replace('supabase.co', 'supabase.co/functions/v1');
+          await fetch(`${selfUrl}/notify-bundle-expiring`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify({
+              type: 'new_bundles',
+              bundleTitles: newBundles.map((b: any) => b.title),
+            }),
+          });
+          console.log(`[sync-bundles] Push de bundles nuevos enviado: ${newBundles.map((b: any) => b.title).join(', ')}`);
+        } catch (notifErr) {
+          console.error('[sync-bundles] Error enviando notificación de bundle nuevo:', notifErr);
+        }
       }
     } else {
       console.warn('parsedBundles vacío — no se ejecuta la limpieza para evitar borrar todo por error.');
