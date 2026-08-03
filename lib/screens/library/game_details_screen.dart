@@ -93,12 +93,27 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   bool _localizeLinks = true;
 
   StreamSubscription<AuthState>? _authSub;
+  late final ScrollController _scrollController;
+  double _scrollOffset = 0.0;
 
   bool get _isGuest => _repo.client.auth.currentUser == null;
+
+  void _onScroll() {
+    if (!mounted) return;
+    final offset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    if ((offset - _scrollOffset).abs() > 2.0) {
+      setState(() {
+        _scrollOffset = offset;
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _scrollController = widget.scrollController ?? ScrollController();
+    _scrollController.addListener(_onScroll);
 
     if (_isGuest) {
       _isLoadingUserData = false;
@@ -451,6 +466,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    if (widget.scrollController == null) {
+      _scrollController.dispose();
+    }
     _carouselTimer?.cancel();
     _commentController.dispose();
     _ratingController.dispose();
@@ -3817,117 +3836,108 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       ],
     );
 
-    return SelectionArea(
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: Stack(
-          children: [
-            CustomScrollView(
-              controller: widget.scrollController,
-              slivers: [
-                SliverAppBar(
-                  expandedHeight: 250,
-                  pinned: true,
-                  centerTitle: false,
-                  automaticallyImplyLeading: false,
-                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                  surfaceTintColor: Colors.transparent,
-                  scrolledUnderElevation: 0,
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: highResCoverUrl.isNotEmpty
-                        ? Stack(
-                            clipBehavior: Clip.none,
-                            fit: StackFit.expand,
-                            children: [
-                              AnimatedSwitcher(
-                                duration: const Duration(seconds: 1),
-                                transitionBuilder:
-                                    (
-                                      Widget child,
-                                      Animation<double> animation,
-                                    ) {
-                                      return FadeTransition(
-                                        opacity: animation,
-                                        child: child,
-                                      );
-                                    },
-                                child: _selectedScreenshotUrl != null
-                                    ? _buildFadeInImage(
-                                        _selectedScreenshotUrl!,
-                                        key: ValueKey(_selectedScreenshotUrl),
-                                      )
-                                    : (!_isEnriching
-                                          ? _buildFadeInImage(
-                                              highResCoverUrl,
-                                              key: ValueKey(highResCoverUrl),
-                                            )
-                                          : Container(
-                                              key: ValueKey('empty'),
-                                              color: Theme.of(
-                                                context,
-                                              ).primaryColorDark,
-                                            )),
-                              ),
+    final double topPadding = MediaQuery.of(context).padding.top > 0
+        ? MediaQuery.of(context).padding.top
+        : MediaQuery.of(context).viewPadding.top;
 
-                              Container(
-                                color: Colors.black.withValues(alpha: 0.3),
-                              ),
-                              Positioned(
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom:
-                                    -2, // Se extiende 2px por debajo para tapar la costura
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                      stops: const [
-                                        0.0,
-                                        0.12,
-                                        0.22,
-                                        0.35,
-                                        0.5,
-                                        0.65,
-                                        0.8,
-                                        1.0,
-                                      ],
-                                      colors: [
-                                        Theme.of(
-                                          context,
-                                        ).scaffoldBackgroundColor,
-                                        Theme.of(context)
-                                            .scaffoldBackgroundColor
-                                            .withValues(alpha: 0.9),
-                                        Theme.of(context)
-                                            .scaffoldBackgroundColor
-                                            .withValues(alpha: 0.7),
-                                        Theme.of(context)
-                                            .scaffoldBackgroundColor
-                                            .withValues(alpha: 0.45),
-                                        Theme.of(context)
-                                            .scaffoldBackgroundColor
-                                            .withValues(alpha: 0.25),
-                                        Theme.of(context)
-                                            .scaffoldBackgroundColor
-                                            .withValues(alpha: 0.1),
-                                        Theme.of(context)
-                                            .scaffoldBackgroundColor
-                                            .withValues(alpha: 0.03),
-                                        Theme.of(context)
-                                            .scaffoldBackgroundColor
-                                            .withValues(alpha: 0.0),
-                                      ],
-                                    ),
-                                  ),
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _GameDetailsHeaderDelegate(
+                topPadding: topPadding,
+                title: title,
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                leading: const BackButton(color: Colors.white),
+                background: highResCoverUrl.isNotEmpty
+                    ? Stack(
+                        clipBehavior: Clip.none,
+                        fit: StackFit.expand,
+                        children: [
+                          AnimatedSwitcher(
+                            duration: const Duration(seconds: 1),
+                            transitionBuilder:
+                                (Widget child, Animation<double> animation) {
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  );
+                                },
+                            child: _selectedScreenshotUrl != null
+                                ? _buildFadeInImage(
+                                    _selectedScreenshotUrl!,
+                                    key: ValueKey(_selectedScreenshotUrl),
+                                  )
+                                : (!_isEnriching
+                                      ? _buildFadeInImage(
+                                          highResCoverUrl,
+                                          key: ValueKey(highResCoverUrl),
+                                        )
+                                      : Container(
+                                          key: ValueKey('empty'),
+                                          color: Theme.of(
+                                            context,
+                                          ).primaryColorDark,
+                                        )),
+                          ),
+
+                          Container(
+                            color: Colors.black.withValues(alpha: 0.3),
+                          ),
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: -2,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  stops: const [
+                                    0.0,
+                                    0.12,
+                                    0.22,
+                                    0.35,
+                                    0.5,
+                                    0.65,
+                                    0.8,
+                                    1.0,
+                                  ],
+                                  colors: [
+                                    Theme.of(context).scaffoldBackgroundColor,
+                                    Theme.of(context)
+                                        .scaffoldBackgroundColor
+                                        .withValues(alpha: 0.9),
+                                    Theme.of(context)
+                                        .scaffoldBackgroundColor
+                                        .withValues(alpha: 0.7),
+                                    Theme.of(context)
+                                        .scaffoldBackgroundColor
+                                        .withValues(alpha: 0.5),
+                                    Theme.of(context)
+                                        .scaffoldBackgroundColor
+                                        .withValues(alpha: 0.3),
+                                    Theme.of(context)
+                                        .scaffoldBackgroundColor
+                                        .withValues(alpha: 0.15),
+                                    Theme.of(context)
+                                        .scaffoldBackgroundColor
+                                        .withValues(alpha: 0.05),
+                                    Colors.transparent,
+                                  ],
                                 ),
-                              ), // Close Positioned
-                            ],
-                          )
-                        : Container(color: Theme.of(context).primaryColorDark),
-                  ),
-                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Container(color: Theme.of(context).primaryColorDark),
+              ),
+            ),
 
                 SliverToBoxAdapter(
                   child: LayoutBuilder(
@@ -4007,14 +4017,94 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 ),
               ],
             ),
-            Positioned(
-              top: MediaQuery.of(context).size.width < 600 ? 30.0 : 5.0,
-              left: 8.0,
-              child: const BackButton(color: Colors.white),
-            ),
-          ],
-        ),
-      ),
     );
+  }
+}
+
+class _GameDetailsHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double topPadding;
+  final Widget background;
+  final Widget leading;
+  final String title;
+  final Color backgroundColor;
+
+  _GameDetailsHeaderDelegate({
+    required this.topPadding,
+    required this.background,
+    required this.leading,
+    required this.title,
+    required this.backgroundColor,
+  });
+
+  @override
+  double get minExtent => 56.0 + topPadding;
+
+  @override
+  double get maxExtent => 250.0 + topPadding;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final double maxShrink = maxExtent - minExtent;
+    final double progress = maxShrink > 0
+        ? (shrinkOffset / maxShrink).clamp(0.0, 1.0)
+        : 0.0;
+    final double titleOpacity = ((progress - 0.6) / 0.4).clamp(0.0, 1.0);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // 1. Imagen de fondo
+        Opacity(
+          opacity: (1.0 - progress).clamp(0.0, 1.0),
+          child: background,
+        ),
+        // 2. Fondo sólido al colapsar
+        Opacity(
+          opacity: progress,
+          child: Container(color: backgroundColor),
+        ),
+        // 3. Barra fija exactamente debajo de topPadding (notch)
+        Positioned(
+          top: topPadding,
+          left: 0,
+          right: 0,
+          height: 56.0,
+          child: Row(
+            children: [
+              leading,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Opacity(
+                  opacity: titleOpacity,
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _GameDetailsHeaderDelegate oldDelegate) {
+    return oldDelegate.topPadding != topPadding ||
+        oldDelegate.background != background ||
+        oldDelegate.title != title ||
+        oldDelegate.backgroundColor != backgroundColor;
   }
 }
