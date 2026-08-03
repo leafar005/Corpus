@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:math';
 import 'dart:convert';
@@ -91,6 +92,16 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   // ¿Quién lo tiene? - amigos con este juego en la biblioteca
   List<Map<String, dynamic>> _friendsWithGame = [];
   bool _localizeLinks = true;
+  List<String> _infoTabOrder = const [
+    'genres_themes',
+    'platforms',
+    'metacritic',
+    'stash_stats',
+    'summary',
+    'hltb',
+    'engine',
+  ];
+  Set<String> _infoTabHidden = {};
 
   StreamSubscription<AuthState>? _authSub;
   late final ScrollController _scrollController;
@@ -157,6 +168,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     _enrichGameData().then((_) => _fetchMetacritic());
     _fetchTimeToBeat();
     _fetchRelatedGames();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadPreferences();
   }
 
   Future<void> _fetchMetacritic() async {
@@ -230,10 +247,46 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedOrder = prefs.getStringList('info_tab_order');
+    final savedHidden = prefs.getStringList('info_tab_hidden') ?? [];
+
+    const defaultOrder = [
+      'franchise',
+      'genres_themes',
+      'platforms',
+      'metacritic',
+      'stash_stats',
+      'summary',
+      'hltb',
+      'engine',
+    ];
+
+    List<String> loadedOrder = [];
+    if (savedOrder != null && savedOrder.isNotEmpty) {
+      loadedOrder = List<String>.from(savedOrder);
+      for (int i = 0; i < defaultOrder.length; i++) {
+        final key = defaultOrder[i];
+        if (!loadedOrder.contains(key)) {
+          loadedOrder.insert(i.clamp(0, loadedOrder.length), key);
+        }
+      }
+      loadedOrder.removeWhere((key) => !defaultOrder.contains(key));
+    } else {
+      loadedOrder = List<String>.from(defaultOrder);
+    }
+
     if (mounted) {
-      setState(() {
-        _localizeLinks = prefs.getBool('localize_links') ?? true;
-      });
+      final newLocalize = prefs.getBool('localize_links') ?? true;
+      final newHidden = savedHidden.toSet();
+      if (_localizeLinks != newLocalize ||
+          !listEquals(_infoTabOrder, loadedOrder) ||
+          !setEquals(_infoTabHidden, newHidden)) {
+        setState(() {
+          _localizeLinks = newLocalize;
+          _infoTabOrder = loadedOrder;
+          _infoTabHidden = newHidden;
+        });
+      }
     }
   }
 
@@ -2461,14 +2514,14 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       child: GestureDetector(
         onTap: () => setState(() => _selectedMainTabIndex = index),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
                     : Colors.transparent,
-                width: 2,
+                width: 3,
               ),
             ),
           ),
@@ -2481,6 +2534,46 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavBar({
+    required bool isDesktop,
+    required int infoTabIdx,
+    required int communityTabIdx,
+    required int mediaTabIdx,
+    required int relatedTabIdx,
+    required int linksTabIdx,
+    required bool hasMedia,
+    required bool hasRelated,
+    required bool hasLinks,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(
+        top: 0,
+        left: isDesktop ? 0 : 16,
+        right: isDesktop ? 0 : 16,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withValues(alpha: 0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildTabButton(infoTabIdx, 'Información'),
+            _buildTabButton(communityTabIdx, 'Comunidad'),
+            if (hasMedia) _buildTabButton(mediaTabIdx, 'Media'),
+            if (hasRelated) _buildTabButton(relatedTabIdx, 'Relacionado'),
+            if (hasLinks) _buildTabButton(linksTabIdx, 'Links'),
+          ],
         ),
       ),
     );
@@ -3004,8 +3097,43 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (collectionName != null || franchisesData.isNotEmpty) ...[
+      children: _infoTabOrder
+          .where((key) => !_infoTabHidden.contains(key))
+          .map(
+            (key) => _buildInfoSection(
+              key,
+              summary: summary,
+              collectionName: collectionName,
+              collectionId: collectionId,
+              franchisesData: franchisesData,
+              genresList: genresList,
+              themesList: themesList,
+              platformsList: platformsList,
+              gameEnginesList: gameEnginesList,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildInfoSection(
+    String key, {
+    required String? summary,
+    required String? collectionName,
+    required int? collectionId,
+    required List<Map<String, dynamic>> franchisesData,
+    required List genresList,
+    required List themesList,
+    required List platformsList,
+    required List gameEnginesList,
+  }) {
+    if (key == 'franchise') {
+      if (collectionName == null && franchisesData.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const Text(
             'Franquicia / Colección',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -3103,7 +3231,16 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
           const SizedBox(height: 28),
         ],
-        if (genresList.isNotEmpty || themesList.isNotEmpty) ...[
+      );
+    }
+
+    if (key == 'genres_themes') {
+      if (genresList.isEmpty && themesList.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const Text(
             'Géneros y temáticas',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -3158,7 +3295,14 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
           const SizedBox(height: 28),
         ],
-        if (platformsList.isNotEmpty) ...[
+      );
+    }
+
+    if (key == 'platforms') {
+      if (platformsList.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const Text(
             'Plataformas',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -3194,9 +3338,22 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
           const SizedBox(height: 28),
         ],
-        _buildMetacriticSection(),
-        _buildStashStatsSection(),
-        if (summary != null) ...[
+      );
+    }
+
+    if (key == 'metacritic') {
+      return _buildMetacriticSection();
+    }
+
+    if (key == 'stash_stats') {
+      return _buildStashStatsSection();
+    }
+
+    if (key == 'summary') {
+      if (summary == null || summary.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const Text(
             'Sinopsis',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -3205,36 +3362,51 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           Text(summary, style: const TextStyle(fontSize: 16, height: 1.6)),
           const SizedBox(height: 28),
         ],
-        const Text(
-          'Tiempo Estimado (HLTB)',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        _buildTimeToBeatRow(),
-        if (gameEnginesList.isNotEmpty) ...[
+      );
+    }
+
+    if (key == 'hltb') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tiempo Estimado (HLTB)',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          _buildTimeToBeatRow(),
           const SizedBox(height: 28),
-          Row(
-            children: [
-              Icon(
-                Icons.memory,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Motor Gráfico: ${gameEnginesList.join(', ')}',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 14,
-                  ),
+        ],
+      );
+    }
+
+    if (key == 'engine') {
+      if (gameEnginesList.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 28),
+        child: Row(
+          children: [
+            Icon(
+              Icons.memory,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Motor Gráfico: ${gameEnginesList.join(', ')}',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 14,
                 ),
               ),
-            ],
-          ),
-        ],
-      ],
-    );
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildMediaTab({
@@ -3792,53 +3964,37 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final int relatedTabIdx = tabIdx++;
     final int linksTabIdx = hasLinks ? tabIdx++ : -1;
 
-    final Widget tabsAndContentWidget = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildTabButton(infoTabIdx, 'Información'),
-                _buildTabButton(communityTabIdx, 'Comunidad'),
-                if (hasMedia) _buildTabButton(mediaTabIdx, 'Media'),
-                if (hasRelated) _buildTabButton(relatedTabIdx, 'Relacionado'),
-                if (hasLinks) _buildTabButton(linksTabIdx, 'Links'),
-              ],
-            ),
-          ),
-        ),
-        if (_selectedMainTabIndex == infoTabIdx)
-          _buildInfoTab(
-            summary: summary,
-            collectionName: collectionName,
-            collectionId: collectionId,
-            franchisesData: franchisesData,
-            genresList: genresList,
-            themesList: themesList,
-            platformsList: platformsList,
-            gameEnginesList: gameEnginesList,
-          )
-        else if (_selectedMainTabIndex == communityTabIdx)
-          _buildStashReviewsList()
-        else if (hasMedia && _selectedMainTabIndex == mediaTabIdx)
-          _buildMediaTab(
-            screenshotsList: screenshotsList,
-            artworksList: artworksList,
-            videosList: videosList,
-          )
-        else if (_selectedMainTabIndex == relatedTabIdx)
-          _buildRelatedTab()
-        else if (hasLinks && _selectedMainTabIndex == linksTabIdx)
-          _buildLinksTab(),
-      ],
-    );
+    Widget buildCurrentTabContent() {
+      if (_selectedMainTabIndex == infoTabIdx) {
+        return _buildInfoTab(
+          summary: summary,
+          collectionName: collectionName,
+          collectionId: collectionId,
+          franchisesData: franchisesData,
+          genresList: genresList,
+          themesList: themesList,
+          platformsList: platformsList,
+          gameEnginesList: gameEnginesList,
+        );
+      } else if (_selectedMainTabIndex == communityTabIdx) {
+        return _buildStashReviewsList();
+      } else if (hasMedia && _selectedMainTabIndex == mediaTabIdx) {
+        return _buildMediaTab(
+          screenshotsList: screenshotsList,
+          artworksList: artworksList,
+          videosList: videosList,
+        );
+      } else if (_selectedMainTabIndex == relatedTabIdx) {
+        return _buildRelatedTab();
+      } else if (hasLinks && _selectedMainTabIndex == linksTabIdx) {
+        return _buildLinksTab();
+      }
+      return const SizedBox.shrink();
+    }
 
-    final double topPadding = MediaQuery.of(context).padding.top > 0
-        ? MediaQuery.of(context).padding.top
-        : MediaQuery.of(context).viewPadding.top;
+    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+    final double topPadding =
+        MediaQueryData.fromView(View.of(context)).padding.top;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -3939,84 +4095,136 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               ),
             ),
 
-                SliverToBoxAdapter(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final bool isDesktop = constraints.maxWidth > 800;
-
-                      if (isDesktop) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40.0,
-                            vertical: 24.0,
+            if (isDesktop)
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40.0,
+                  vertical: 24.0,
+                ),
+                sliver: SliverCrossAxisGroup(
+                  slivers: [
+                    SliverConstrainedCrossAxis(
+                      maxExtent: 280,
+                      sliver: SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            coverArtWidget,
+                            const SizedBox(height: 24),
+                            interactiveWidget,
+                            _buildFriendsWithGame(context),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SliverConstrainedCrossAxis(
+                      maxExtent: 40,
+                      sliver: const SliverToBoxAdapter(
+                        child: SizedBox.shrink(),
+                      ),
+                    ),
+                    SliverCrossAxisExpanded(
+                      flex: 1,
+                      sliver: SliverMainAxisGroup(
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                headerInfoWidget,
+                                const SizedBox(height: 12),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(
-                                width: 280,
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    coverArtWidget,
-                                    const SizedBox(height: 24),
-                                    interactiveWidget,
-                                    if (isDesktop)
-                                      _buildFriendsWithGame(context),
-                                  ],
-                                ),
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _GameDetailsTabBarDelegate(
+                              height: 56.0,
+                              child: _buildNavBar(
+                                isDesktop: true,
+                                infoTabIdx: infoTabIdx,
+                                communityTabIdx: communityTabIdx,
+                                mediaTabIdx: mediaTabIdx,
+                                relatedTabIdx: relatedTabIdx,
+                                linksTabIdx: linksTabIdx,
+                                hasMedia: hasMedia,
+                                hasRelated: hasRelated,
+                                hasLinks: hasLinks,
                               ),
-                              const SizedBox(width: 40),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    headerInfoWidget,
-                                    const SizedBox(height: 12),
-                                    tabsAndContentWidget,
-                                    const SizedBox(height: 60),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        );
-                      } else {
-                        return Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  SizedBox(width: 120, child: coverArtWidget),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [headerInfoWidget],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              interactiveWidget,
-                              if (!isDesktop) _buildFriendsWithGame(context),
-                              const SizedBox(height: 12),
-                              tabsAndContentWidget,
-                              const SizedBox(height: 60),
-                            ],
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 24.0),
+                              child: buildCurrentTabContent(),
+                            ),
                           ),
-                        );
-                      }
-                    },
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 60),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(width: 120, child: coverArtWidget),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [headerInfoWidget],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      interactiveWidget,
+                      _buildFriendsWithGame(context),
+                      const SizedBox(height: 12),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _GameDetailsTabBarDelegate(
+                  height: 56.0,
+                  child: _buildNavBar(
+                    isDesktop: false,
+                    infoTabIdx: infoTabIdx,
+                    communityTabIdx: communityTabIdx,
+                    mediaTabIdx: mediaTabIdx,
+                    relatedTabIdx: relatedTabIdx,
+                    linksTabIdx: linksTabIdx,
+                    hasMedia: hasMedia,
+                    hasRelated: hasRelated,
+                    hasLinks: hasLinks,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: buildCurrentTabContent(),
+                ),
+              ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 60),
+              ),
+            ],
+          ],
+        ),
     );
   }
 }
@@ -4108,3 +4316,37 @@ class _GameDetailsHeaderDelegate extends SliverPersistentHeaderDelegate {
         oldDelegate.backgroundColor != backgroundColor;
   }
 }
+
+class _GameDetailsTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _GameDetailsTabBarDelegate({
+    required this.child,
+    required this.height,
+  });
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _GameDetailsTabBarDelegate oldDelegate) {
+    return oldDelegate.child != child || oldDelegate.height != height;
+  }
+}
+

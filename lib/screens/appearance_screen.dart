@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../globals.dart';
+import 'settings/info_tab_appearance_screen.dart';
 
 class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
@@ -53,7 +54,45 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           ),
           const SizedBox(height: 24),
           _buildColorPicker(),
+          const SizedBox(height: 32),
+          const Text(
+            'Detalles del juego',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          _buildInfoTabTile(),
+          const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInfoTabTile() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ListTile(
+        leading: Icon(
+          Icons.view_list_outlined,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: const Text(
+          'Personalizar pestaña Información',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: const Text('Orden y visibilidad de los campos'),
+        trailing: const Icon(Icons.chevron_right),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const InfoTabAppearanceScreen(),
+            ),
+          );
+        },
       ),
     );
   }
