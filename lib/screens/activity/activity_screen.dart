@@ -1174,6 +1174,27 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
     );
   }
 
+  Widget _buildFriendsHeaderSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          child: Text(
+            'Amigos',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        _buildFriendsStrip(),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isGuest) {
@@ -1196,33 +1217,36 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
             icon: Badge(
               isLabelVisible: _pendingRequestsCount > 0,
               label: Text(_pendingRequestsCount.toString()),
-              child: const Icon(Icons.person_search_rounded),
+              child: const Icon(Icons.people_rounded),
             ),
-            tooltip: 'Buscar amigos y solicitudes',
+            tooltip: 'Amigos',
             onPressed: _openFriendsScreen,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Actualizar',
-            onPressed: _fetchActivity,
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildFriendsStrip(),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _activities.isEmpty
-                ? _buildEmptyState()
-                : RefreshIndicator(
-                    onRefresh: () => _fetchActivity(isRefresh: true),
-                    child: ListView.builder(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: () => _fetchActivity(isRefresh: true),
+              child: _activities.isEmpty
+                  ? ListView(
                       controller: scrollController,
-                      itemCount: _activities.length + (hasMore ? 1 : 0),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        _buildFriendsHeaderSection(),
+                        _buildEmptyState(),
+                      ],
+                    )
+                  : ListView.builder(
+                      controller: scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: _activities.length + 1 + (hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
-                        if (index >= _activities.length) {
+                        if (index == 0) {
+                          return _buildFriendsHeaderSection();
+                        }
+                        final activityIndex = index - 1;
+                        if (activityIndex >= _activities.length) {
                           return const Center(
                             child: Padding(
                               padding: EdgeInsets.all(16.0),
@@ -1230,13 +1254,13 @@ class _ActivityScreenState extends State<ActivityScreen> with PaginatedScrollMix
                             ),
                           );
                         }
-                        return _buildActivityCard(_activities[index], index);
+                        return _buildActivityCard(
+                          _activities[activityIndex],
+                          activityIndex,
+                        );
                       },
                     ),
-                  ),
-          ),
-        ],
-      ),
+            ),
     );
   }
 }
