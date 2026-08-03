@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
@@ -16,6 +17,9 @@ class HeroShowcase extends StatefulWidget {
     required this.userName,
     this.switchDuration = const Duration(seconds: 10),
   });
+
+  static Duration get defaultSwitchDuration =>
+      kIsWeb ? const Duration(seconds: 15) : const Duration(seconds: 10);
 
   @override
   State<HeroShowcase> createState() => _HeroShowcaseState();
@@ -234,7 +238,11 @@ class _HeroShowcaseState extends State<HeroShowcase>
       fit: StackFit.expand,
       children: [
         if (screenshotUrl != null)
-          _buildPanningImageLayer(NetworkImage(screenshotUrl), panValue)
+          _buildPanningImageLayer(
+            NetworkImage(screenshotUrl),
+            panValue,
+            MediaQuery.sizeOf(context).width,
+          )
         else
           Container(color: Colors.black),
 
@@ -264,188 +272,190 @@ class _HeroShowcaseState extends State<HeroShowcase>
         // Degradado inferior para fundir a negro suavemente
         const _BottomFadeGradient(),
 
-        SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isPortrait = constraints.maxHeight > constraints.maxWidth;
+        RepaintBoundary(
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isPortrait = constraints.maxHeight > constraints.maxWidth;
 
-              final textSection = Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize
-                    .min, // El texto ocupa solo lo que necesita hacia abajo
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontFamily: 'Helvetica',
-                        fontSize: isPortrait ? 42 : 48,
-                        fontWeight: FontWeight.w900,
-                        height: 1.1,
-                        letterSpacing: -1,
-                      ),
-                      children: [
-                        const TextSpan(
-                          text: 'Bienvenido,\n',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        TextSpan(
-                          text: widget.userName,
-                          style: TextStyle(
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: isPortrait ? 56 : null,
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
-                          onTap: () =>
-                              _navigateToGameDetails(gameData, coverUrl, false),
-                          child: RichText(
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            text: TextSpan(
-                              style: TextStyle(
-                                fontFamily: 'Helvetica',
-                                fontSize: isPortrait ? 22 : 24,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              children: [
-                                TextSpan(
-                                  text: _randomPrefix,
-                                  style: const TextStyle(color: Colors.white70),
-                                ),
-                                TextSpan(
-                                  text: title,
-                                  style: TextStyle(
-                                    color: Theme.of(context).primaryColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const TextSpan(
-                                  text: '?',
-                                  style: TextStyle(color: Colors.white70),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () =>
-                        _navigateToGameDetails(gameData, coverUrl, true),
-                    icon: const Icon(Icons.edit, size: 20),
-                    label: const Text('Editar reseña'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-
-              final coverSection = MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: () =>
-                      _navigateToGameDetails(gameData, coverUrl, false),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          blurRadius: 40,
-                          offset: const Offset(0, 20),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: coverUrl.isNotEmpty
-                          ? Image.network(
-                              coverUrl,
-                              fit: BoxFit.cover,
-                              width: isPortrait
-                                  ? constraints.maxWidth * 0.38
-                                  : 240,
-                            )
-                          : Container(
-                              width: isPortrait
-                                  ? constraints.maxWidth * 0.38
-                                  : 240,
-                              height: isPortrait
-                                  ? (constraints.maxWidth * 0.38) * 1.4
-                                  : 340,
-                              color: Colors.grey,
-                            ),
-                    ),
-                  ),
-                ),
-              );
-
-              if (isPortrait) {
-                // Layout fijo para móvil: el texto anclado arriba y la carátula anclada abajo a la derecha
-                return Stack(
+                final textSection = Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize
+                      .min, // El texto ocupa solo lo que necesita hacia abajo
                   children: [
-                    Positioned(
-                      top: constraints.maxHeight * 0.10, // Sube el texto
-                      left: 24,
-                      right: 24,
-                      child: textSection,
+                    RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontFamily: 'Helvetica',
+                          fontSize: isPortrait ? 42 : 48,
+                          fontWeight: FontWeight.w900,
+                          height: 1.1,
+                          letterSpacing: -1,
+                        ),
+                        children: [
+                          const TextSpan(
+                            text: 'Bienvenido,\n',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          TextSpan(
+                            text: widget.userName,
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    Positioned(
-                      bottom:
-                          32, // Bajamos la carátula para que no colisione con el texto
-                      right: 16,
-                      child: coverSection,
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: isPortrait ? 56 : null,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () =>
+                                _navigateToGameDetails(gameData, coverUrl, false),
+                            child: RichText(
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontFamily: 'Helvetica',
+                                  fontSize: isPortrait ? 22 : 24,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: _randomPrefix,
+                                    style: const TextStyle(color: Colors.white70),
+                                  ),
+                                  TextSpan(
+                                    text: title,
+                                    style: TextStyle(
+                                      color: Theme.of(context).primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: '?',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          _navigateToGameDetails(gameData, coverUrl, true),
+                      icon: const Icon(Icons.edit, size: 20),
+                      label: const Text('Editar reseña'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
                     ),
                   ],
                 );
-              } else {
-                // Layout de escritorio
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 48.0,
-                    vertical: 32.0,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: textSection,
-                        ),
+
+                final coverSection = MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () =>
+                        _navigateToGameDetails(gameData, coverUrl, false),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            blurRadius: 40,
+                            offset: const Offset(0, 20),
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: coverSection,
-                        ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: coverUrl.isNotEmpty
+                            ? Image.network(
+                                coverUrl,
+                                fit: BoxFit.cover,
+                                width: isPortrait
+                                    ? constraints.maxWidth * 0.38
+                                    : 240,
+                              )
+                            : Container(
+                                width: isPortrait
+                                    ? constraints.maxWidth * 0.38
+                                    : 240,
+                                height: isPortrait
+                                    ? (constraints.maxWidth * 0.38) * 1.4
+                                    : 340,
+                                color: Colors.grey,
+                              ),
                       ),
-                    ],
+                    ),
                   ),
                 );
-              }
-            },
+
+                if (isPortrait) {
+                  // Layout fijo para móvil: el texto anclado arriba y la carátula anclada abajo a la derecha
+                  return Stack(
+                    children: [
+                      Positioned(
+                        top: constraints.maxHeight * 0.10, // Sube el texto
+                        left: 24,
+                        right: 24,
+                        child: textSection,
+                      ),
+                      Positioned(
+                        bottom:
+                            32, // Bajamos la carátula para que no colisione con el texto
+                        right: 16,
+                        child: coverSection,
+                      ),
+                    ],
+                  );
+                } else {
+                  // Layout de escritorio
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 48.0,
+                      vertical: 32.0,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: textSection,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: coverSection,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+            ),
           ),
         ),
       ],
@@ -503,10 +513,35 @@ class _HeroShowcaseState extends State<HeroShowcase>
       return Container(color: Colors.black);
     }
 
+    // Las barras de progreso y la UI de texto se pasan como `child` del
+    // AnimatedBuilder para que NO se reconstruyan en cada frame de la animación.
+    // Solo el fondo animado (imágenes + paneo) se reconstruye por frame.
+    final staticOverlay = Stack(
+      fit: StackFit.expand,
+      children: [
+        RepaintBoundary(
+          child: SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: _buildProgressBars(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
     return FadeTransition(
       opacity: _initialFadeController,
       child: AnimatedBuilder(
         animation: _panController,
+        // child NO se reconstruye en cada frame: contiene el overlay estático
+        child: staticOverlay,
         builder: (context, child) {
           return Stack(
             fit: StackFit.expand,
@@ -527,18 +562,8 @@ class _HeroShowcaseState extends State<HeroShowcase>
                 ),
               ),
 
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 8.0,
-                    ),
-                    child: _buildProgressBars(),
-                  ),
-                ),
-              ),
+              // El overlay estático (barras de progreso) viene del child
+              ?child,
             ],
           );
         },
@@ -563,6 +588,9 @@ class GuestHeroShowcase extends StatefulWidget {
     super.key,
     this.switchDuration = const Duration(seconds: 10),
   });
+
+  static Duration get defaultSwitchDuration =>
+      kIsWeb ? const Duration(seconds: 15) : const Duration(seconds: 10);
 
   @override
   State<GuestHeroShowcase> createState() => _GuestHeroShowcaseState();
@@ -673,6 +701,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
           AnimatedBuilder(
             animation: _panController,
             builder: (context, child) {
+              final sw = MediaQuery.sizeOf(context).width;
               return Stack(
                 fit: StackFit.expand,
                 children: [
@@ -680,6 +709,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                     _buildPanningImageLayer(
                       AssetImage(_previousScreenshotUrl!),
                       _previousPanValue,
+                      sw,
                       errorBuilder: (context, error, stackTrace) =>
                           Container(color: Colors.black),
                     ),
@@ -690,6 +720,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                     child: _buildPanningImageLayer(
                       AssetImage(_currentScreenshotUrl!),
                       _panController.value,
+                      sw,
                       errorBuilder: (context, error, stackTrace) =>
                           Container(color: Colors.black),
                     ),
@@ -801,38 +832,34 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
 
 Widget _buildPanningImageLayer(
   ImageProvider provider,
-  double panValue, {
+  double panValue,
+  double screenWidth, {
   Widget Function(BuildContext, Object, StackTrace?)? errorBuilder,
 }) {
-  return LayoutBuilder(
-    builder: (context, constraints) {
-      final screenWidth = constraints.maxWidth;
-      // Paneo súper lento
-      final offsetX = (1.0 - (panValue * 2)) * (screenWidth * 0.04);
+  // El offsetX se calcula fuera del árbol de widgets — sin layout pass extra por frame
+  final offsetX = (1.0 - (panValue * 2)) * (screenWidth * 0.04);
 
-      return Transform.translate(
-        offset: Offset(offsetX, 0),
-        child: Transform.scale(
-          scale: 1.08,
-          child: Image(
-            image: provider,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-              if (wasSynchronouslyLoaded) return child;
-              return AnimatedOpacity(
-                opacity: frame == null ? 0 : 1,
-                duration: const Duration(seconds: 1),
-                curve: Curves.easeOut,
-                child: child,
-              );
-            },
-            errorBuilder: errorBuilder,
-          ),
-        ),
-      );
-    },
+  return Transform.translate(
+    offset: Offset(offsetX, 0),
+    child: Transform.scale(
+      scale: 1.08,
+      child: Image(
+        image: provider,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) return child;
+          return AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: const Duration(seconds: 1),
+            curve: Curves.easeOut,
+            child: child,
+          );
+        },
+        errorBuilder: errorBuilder,
+      ),
+    ),
   );
 }
 
@@ -886,6 +913,9 @@ class EmptyPlayingHero extends StatefulWidget {
     required this.onSearchPressed,
     this.switchDuration = const Duration(seconds: 10),
   });
+
+  static Duration get defaultSwitchDuration =>
+      kIsWeb ? const Duration(seconds: 15) : const Duration(seconds: 10);
 
   @override
   State<EmptyPlayingHero> createState() => _EmptyPlayingHeroState();
@@ -964,6 +994,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
           AnimatedBuilder(
             animation: _panController,
             builder: (context, child) {
+              final sw = MediaQuery.sizeOf(context).width;
               return Stack(
                 fit: StackFit.expand,
                 children: [
@@ -971,6 +1002,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                     _buildPanningImageLayer(
                       AssetImage(_previousScreenshotUrl!),
                       _previousPanValue,
+                      sw,
                       errorBuilder: (_, _, _) => Container(color: Colors.black),
                     ),
                   Opacity(
@@ -980,6 +1012,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                     child: _buildPanningImageLayer(
                       AssetImage(_currentScreenshotUrl!),
                       _panController.value,
+                      sw,
                       errorBuilder: (_, _, _) => Container(color: Colors.black),
                     ),
                   ),

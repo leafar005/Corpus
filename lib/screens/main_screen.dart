@@ -28,17 +28,30 @@ class _MainScreenState extends State<MainScreen> {
     GlobalKey<NavigatorState>(),
   ];
 
-  late final List<Widget> _screens = [
-    HomeScreen(onNavigateToSearch: () => _onTabTapped(1)),
-    const SearchScreen(),
-    const ActivityScreen(),
-    const BundlesScreen(),
-    const ProfileScreen(),
-  ];
+  // Lazy loading: las pantallas solo se instancian la primera vez que se visitan.
+  // Un Set rastrea qué pestañas ya han sido inicializadas.
+  final Set<int> _initializedTabs = {0}; // La pestaña 0 (Inicio) siempre se carga de entrada.
+  late final List<Widget?> _screens = List.filled(5, null);
+
+  Widget _getScreen(int index) {
+    if (_screens[index] == null) {
+      _screens[index] = switch (index) {
+        0 => HomeScreen(onNavigateToSearch: () => _onTabTapped(1)),
+        1 => const SearchScreen(),
+        2 => const ActivityScreen(),
+        3 => const BundlesScreen(),
+        4 => const ProfileScreen(),
+        _ => const SizedBox.shrink(),
+      };
+    }
+    return _screens[index]!;
+  }
 
   @override
   void initState() {
     super.initState();
+    // Pre-instanciamos la primera pantalla
+    _getScreen(0);
     _loadSavedTab();
   }
 
@@ -55,8 +68,10 @@ class _MainScreenState extends State<MainScreen> {
     if (!_shouldPersistTab) return;
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
+      final savedIndex = prefs.getInt('main_tab_index') ?? 0;
       setState(() {
-        _currentIndex = prefs.getInt('main_tab_index') ?? 0;
+        _currentIndex = savedIndex;
+        _initializedTabs.add(savedIndex);
       });
     }
   }
@@ -66,7 +81,10 @@ class _MainScreenState extends State<MainScreen> {
       // Si toca la misma pestaña, hace "pop" hasta el principio de esa pestaña
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
     } else {
-      setState(() => _currentIndex = index);
+      setState(() {
+        _currentIndex = index;
+        _initializedTabs.add(index); // Marca la pestaña como inicializada
+      });
       if (_shouldPersistTab) {
         SharedPreferences.getInstance().then(
           (prefs) => prefs.setInt('main_tab_index', index),
@@ -76,12 +94,16 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildNavigator(int index) {
+    // Si la pestaña aún no ha sido visitada, no la construimos (nil widget)
+    if (!_initializedTabs.contains(index)) {
+      return const SizedBox.shrink();
+    }
     return Offstage(
       offstage: _currentIndex != index,
       child: Navigator(
         key: _navigatorKeys[index],
         onGenerateRoute: (routeSettings) {
-          return MaterialPageRoute(builder: (context) => _screens[index]);
+          return MaterialPageRoute(builder: (context) => _getScreen(index));
         },
       ),
     );

@@ -19,7 +19,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Personal & social video game tracker.">
+  <meta name="description" content="Personal &amp; social video game tracker.">
 
   <!-- iOS meta tags & icons -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -27,32 +27,99 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Corpus">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/Icon-512.png">
 
   <!-- Theme color for Safari/Chrome top and bottom bars -->
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
 
   <style>
-    /* 
+    /*
       Sets the background color to match the theme to avoid white bars
       when overscrolling or in safe areas.
     */
     body {
       background-color: #000000;
       margin: 0;
-      /* Aplica el SafeArea de iOS mediante CSS para que el lienzo de Flutter no toque el notch */
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
-      overscroll-behavior-x: none;
+      padding: 0;
+      /* Bloquea la navegacion del historial con swipe desde el borde en iOS PWA.
+         Sin esto, el gesto lleva a una URL vacia y aparece pantalla negra. */
+      overscroll-behavior: none;
     }
 
     @media (prefers-color-scheme: light) {
       body {
         background-color: #ffffff;
       }
+    }
+
+    /* Splash / Loading screen */
+    #corpus-splash {
+      position: fixed;
+      inset: 0;
+      background-color: #000000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+    }
+
+    #corpus-splash.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .splash-logo-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .splash-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      animation: splash-pulse 1.8s ease-in-out infinite;
+    }
+
+    .splash-wordmark {
+      font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: #ffffff;
+      opacity: 0.9;
+      text-transform: uppercase;
+    }
+
+    .splash-bar-track {
+      width: 120px;
+      height: 2px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+
+    .splash-bar-fill {
+      height: 100%;
+      width: 40%;
+      background: #7E57C2;
+      border-radius: 1px;
+      animation: splash-slide 1.5s ease-in-out infinite;
+    }
+
+    @keyframes splash-pulse {
+      0%, 100% { transform: scale(1);    opacity: 1;    }
+      50%       { transform: scale(0.93); opacity: 0.75; }
+    }
+
+    @keyframes splash-slide {
+      0%   { transform: translateX(-100%); }
+      50%  { transform: translateX(150%);  }
+      100% { transform: translateX(150%);  }
     }
   </style>
 
@@ -64,6 +131,28 @@
 </head>
 
 <body>
+  <!-- Splash screen: visible while Flutter engine loads, fades out automatically -->
+  <div id="corpus-splash" aria-hidden="true">
+    <div class="splash-logo-wrap">
+      <img class="splash-icon" src="icons/Icon-512.png" alt="Corpus">
+      <div class="splash-wordmark">Corpus</div>
+      <div class="splash-bar-track">
+        <div class="splash-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Hide the splash as soon as Flutter has painted its first frame
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('corpus-splash');
+      if (splash) {
+        splash.classList.add('hidden');
+        setTimeout(function() { splash.remove(); }, 600);
+      }
+    });
+  </script>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
