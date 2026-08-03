@@ -257,7 +257,7 @@ class IGDBService {
   static Future<Map<String, dynamic>?> getGameById(int igdbId) async {
     final response = await _postQuery(
       'games',
-      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, version_parent, remakes, remasters, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, franchises.name, game_engines.name, websites.url, websites.category, websites.type, aggregated_rating; where id = $igdbId;',
+      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, version_parent, remakes, remasters, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, collection.id, franchise.id, franchise.name, franchises.id, franchises.name, game_engines.name, websites.url, websites.category, websites.type, aggregated_rating; where id = $igdbId;',
     );
 
     if (response.statusCode == 200) {
@@ -452,7 +452,7 @@ class IGDBService {
       if (collectionId != null && franchiseId != null) {
         // Si tenemos AMBOS (colección Y franquicia del mismo logro), los unimos con OR
         mainConditions.add(
-          '((collection = ($collectionId)) | (collections = ($collectionId)) | (franchises = ($franchiseId)))',
+          '((collection = ($collectionId)) | (collections = ($collectionId)) | (franchise = $franchiseId) | (franchises = ($franchiseId)))',
         );
       } else {
         if (collectionId != null) {
@@ -461,7 +461,7 @@ class IGDBService {
           );
         }
         if (franchiseId != null) {
-          mainConditions.add('franchises = ($franchiseId)');
+          mainConditions.add('(franchise = $franchiseId | franchises = ($franchiseId))');
         }
       }
       if (collectionId2 != null) {
@@ -470,7 +470,7 @@ class IGDBService {
         );
       }
       if (franchiseId2 != null) {
-        mainConditions.add('franchises = ($franchiseId2)');
+        mainConditions.add('(franchise = $franchiseId2 | franchises = ($franchiseId2))');
       }
 
       if (mainConditions.isEmpty) return [];
@@ -501,9 +501,14 @@ class IGDBService {
     bool isFranchise = false,
   }) async {
     try {
+      // IGDB tiene dos campos de franquicia:
+      // - 'franchise' (singular, campo legacy usado en juegos anteriores a ~2015)
+      // - 'franchises' (plural array, campo moderno)
+      // Hay que consultar ambos para no perder juegos como Mario Kart 7, 8, DS, etc.
       final String filterCondition = isFranchise
-          ? 'franchises = ($collectionId)'
+          ? '(franchise = $collectionId | franchises = ($collectionId))'
           : '((collection = ($collectionId)) | (collections = ($collectionId)))';
+
 
       final response = await _postQuery(
         'games',

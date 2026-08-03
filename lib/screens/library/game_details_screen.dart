@@ -3084,68 +3084,58 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           ),
           const SizedBox(height: 28),
         ],
-        if (genresList.isNotEmpty) ...[
+        if (genresList.isNotEmpty || themesList.isNotEmpty) ...[
           const Text(
-            'Géneros',
+            'Géneros y temáticas',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: genresList.map((g) {
-              final gName = g is Map ? g['name'].toString() : g.toString();
-              return Chip(
-                label: Text(
-                  IgdbConstants.formatGenreWithEmoji(gName),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+            children: [
+              ...genresList.map((g) {
+                final gName = g is Map ? g['name'].toString() : g.toString();
+                return Chip(
+                  label: Text(
+                    IgdbConstants.formatGenreWithEmoji(gName),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.1),
-                side: BorderSide(
-                  color: Theme.of(
+                  backgroundColor: Theme.of(
                     context,
-                  ).colorScheme.primary.withValues(alpha: 0.3),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 28),
-        ],
-        if (themesList.isNotEmpty) ...[
-          const Text(
-            'Temáticas',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: themesList.map((t) {
-              final tName = t is Map ? t['name'].toString() : t.toString();
-              return Chip(
-                label: Text(
-                  IgdbConstants.formatThemeWithEmoji(tName),
-                  style: const TextStyle(fontSize: 13),
-                ),
-                backgroundColor: Colors.transparent,
-                side: BorderSide(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              );
-            }).toList(),
+                  ).colorScheme.primary.withValues(alpha: 0.1),
+                  side: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.3),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                );
+              }),
+              ...themesList.map((t) {
+                final tName = t is Map ? t['name'].toString() : t.toString();
+                return Chip(
+                  label: Text(
+                    IgdbConstants.formatThemeWithEmoji(tName),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  backgroundColor: Colors.transparent,
+                  side: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                );
+              }),
+            ],
           ),
           const SizedBox(height: 28),
         ],
@@ -3493,6 +3483,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
 
     final List<Map<String, dynamic>> franchisesData = [];
+
+    // ─── franchises (plural array — campo moderno) ────────────────────────────
     final List<dynamic> rawFranchises =
         (_enrichedData['franchises'] as List?)?.isNotEmpty == true
         ? (_enrichedData['franchises'] as List)
@@ -3508,6 +3500,23 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           f.toString() != 'null' &&
           f.toString().isNotEmpty) {
         franchisesData.add({'name': f.toString()});
+      }
+    }
+
+    // ─── franchise (singular — campo legacy, juegos pre-2015) ─────────────────
+    // Algunos juegos (ej. Mario Kart DS, Wii, 7) solo tienen este campo en IGDB.
+    // Si ya está cubierto por franchises[], lo ignoramos; si no, lo añadimos.
+    final dynamic singularFranchise =
+        _enrichedData['franchise'] ?? widget.gameData['franchise'];
+    if (singularFranchise is Map &&
+        singularFranchise['name'] != null) {
+      final int? sfId = (singularFranchise['id'] is num)
+          ? (singularFranchise['id'] as num).toInt()
+          : int.tryParse(singularFranchise['id']?.toString() ?? '');
+      final bool alreadyIn =
+          franchisesData.any((f) => f['id'] != null && f['id'] == sfId);
+      if (!alreadyIn) {
+        franchisesData.add({'id': sfId, 'name': singularFranchise['name']});
       }
     }
 
