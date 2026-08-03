@@ -81,6 +81,56 @@ class IGDBService {
     return resp;
   }
 
+  /// Obtiene los juegos más anticipados ordenados por 'hype'
+  static Future<List<dynamic>> getMostAnticipatedGames({int limit = 4}) async {
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    
+    // Traemos nombre, fecha de lanzamiento, el arte de fondo y la carátula por si acaso
+    final query = '''
+      fields name, first_release_date, artworks.image_id, cover.image_id;
+      where first_release_date > $now & hypes != null;
+      sort hypes desc;
+      limit $limit;
+    ''';
+
+    try {
+      final response = await _postQuery('games', query);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as List<dynamic>;
+      } else {
+        debugPrint('Error IGDB Anticipated: ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Exception IGDB Anticipated: $e');
+      return [];
+    }
+  }
+
+  /// Obtiene juegos por ID que aún no han salido, ordenados por fecha de salida
+  static Future<List<dynamic>> getUpcomingGamesByIds(List<int> ids) async {
+    if (ids.isEmpty) return [];
+    final nowSeconds = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
+    final query = '''
+      fields name, first_release_date, artworks.image_id, cover.image_id;
+      where id = (${ids.join(',')}) & first_release_date > $nowSeconds;
+      sort first_release_date asc;
+    ''';
+    
+    try {
+      final response = await _postQuery('games', query);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as List<dynamic>;
+      } else {
+        debugPrint('Error IGDB Upcoming: ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Exception IGDB Upcoming: $e');
+      return [];
+    }
+  }
+
   static Future<List<dynamic>> searchGames(
     String query, {
     int offset = 0,
