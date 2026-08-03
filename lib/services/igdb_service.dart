@@ -84,9 +84,10 @@ class IGDBService {
   /// Obtiene los juegos más anticipados ordenados por 'hype'
   static Future<List<dynamic>> getMostAnticipatedGames({int limit = 4}) async {
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    
+
     // Traemos nombre, fecha de lanzamiento, el arte de fondo y la carátula por si acaso
-    final query = '''
+    final query =
+        '''
       fields name, first_release_date, artworks.image_id, cover.image_id;
       where first_release_date > $now & hypes != null;
       sort hypes desc;
@@ -111,12 +112,13 @@ class IGDBService {
   static Future<List<dynamic>> getUpcomingGamesByIds(List<int> ids) async {
     if (ids.isEmpty) return [];
     final nowSeconds = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
-    final query = '''
+    final query =
+        '''
       fields name, first_release_date, artworks.image_id, cover.image_id;
       where id = (${ids.join(',')}) & first_release_date > $nowSeconds;
       sort first_release_date asc;
     ''';
-    
+
     try {
       final response = await _postQuery('games', query);
       if (response.statusCode == 200) {
@@ -186,8 +188,10 @@ class IGDBService {
             ' & (total_rating_count != null | total_rating_count = null)';
       } else if (sortClause.contains('rating') && sortClause.contains('desc')) {
         whereConditions += ' & (rating != null | rating = null)';
-      } else if (sortClause.contains('aggregated_rating') && sortClause.contains('desc')) {
-        whereConditions += ' & (aggregated_rating != null | aggregated_rating = null)';
+      } else if (sortClause.contains('aggregated_rating') &&
+          sortClause.contains('desc')) {
+        whereConditions +=
+            ' & (aggregated_rating != null | aggregated_rating = null)';
       }
     }
 
@@ -511,7 +515,9 @@ class IGDBService {
           );
         }
         if (franchiseId != null) {
-          mainConditions.add('(franchise = $franchiseId | franchises = ($franchiseId))');
+          mainConditions.add(
+            '(franchise = $franchiseId | franchises = ($franchiseId))',
+          );
         }
       }
       if (collectionId2 != null) {
@@ -520,7 +526,9 @@ class IGDBService {
         );
       }
       if (franchiseId2 != null) {
-        mainConditions.add('(franchise = $franchiseId2 | franchises = ($franchiseId2))');
+        mainConditions.add(
+          '(franchise = $franchiseId2 | franchises = ($franchiseId2))',
+        );
       }
 
       if (mainConditions.isEmpty) return [];
@@ -558,7 +566,6 @@ class IGDBService {
       final String filterCondition = isFranchise
           ? '(franchise = $collectionId | franchises = ($collectionId))'
           : '((collection = ($collectionId)) | (collections = ($collectionId)))';
-
 
       final response = await _postQuery(
         'games',
@@ -632,7 +639,8 @@ class IGDBService {
       // varias filas en external_games (duplicados, distintas categorías),
       // así que con limit = chunk.length algunos juegos del lote se quedan
       // fuera de la respuesta sin ningún error. 500 es el máximo por petición.
-      final body = 'fields uid, game; where $sourceFilter & ($orConditions); limit 500;';
+      final body =
+          'fields uid, game; where $sourceFilter & ($orConditions); limit 500;';
 
       try {
         final response = await _postQuery('external_games', body);

@@ -127,7 +127,7 @@ class IgdbConstants {
     }
 
     // Si tiene parent_game pero no matcheó ningún keyword, y no hay categoría explícita de IGDB, asumimos DLC.
-    if (hasParentGame && igdbCategory == null) return 1;
+    if (hasParentGame && (igdbCategory == null || igdbCategory == 0)) return 1;
 
     // Es un juego base normal → devolver null (no mostrar badge).
     return null;
