@@ -1175,8 +1175,14 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     padding: const EdgeInsets.only(right: 8),
                                     child: GestureDetector(
                                       onTap: () {
-                                        final strUrls = imageUrls.map((e) => e.toString()).toList();
-                                        showFullScreenGallery(context, strUrls, idx);
+                                        final strUrls = imageUrls
+                                            .map((e) => e.toString())
+                                            .toList();
+                                        showFullScreenGallery(
+                                          context,
+                                          strUrls,
+                                          idx,
+                                        );
                                       },
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
@@ -1856,9 +1862,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                             color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(24),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
+                          padding: const EdgeInsets.only(
+                            left: 8,
+                            right: 16,
+                            top: 4,
+                            bottom: 4,
                           ),
                           child: Row(
                             children: [
@@ -1869,7 +1877,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     context,
                                   ).colorScheme.onSurfaceVariant,
                                 ),
-                                padding: const EdgeInsets.all(6),
+                                padding: const EdgeInsets.all(4),
                                 constraints: const BoxConstraints(),
                                 onPressed: () async {
                                   final picker = ImagePicker();
@@ -1883,7 +1891,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                   }
                                 },
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 0),
                               IconButton(
                                 icon: Icon(
                                   Icons.videogame_asset,
@@ -1891,7 +1899,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     context,
                                   ).colorScheme.onSurfaceVariant,
                                 ),
-                                padding: const EdgeInsets.all(6),
+                                padding: const EdgeInsets.all(4),
                                 constraints: const BoxConstraints(),
                                 onPressed: () async {
                                   final game = await Navigator.push(
