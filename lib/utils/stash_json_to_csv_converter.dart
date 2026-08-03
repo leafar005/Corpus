@@ -46,7 +46,10 @@ class StashJsonToCsvConverter {
   /// Escapes a string for CSV format.
   static String escapeCsv(String text) {
     if (text.isEmpty) return '';
-    if (text.contains(',') || text.contains('"') || text.contains('\n') || text.contains('\r')) {
+    if (text.contains(',') ||
+        text.contains('"') ||
+        text.contains('\n') ||
+        text.contains('\r')) {
       final escaped = text.replaceAll('"', '""');
       return '"$escaped"';
     }
@@ -69,18 +72,20 @@ class StashJsonToCsvConverter {
     );
 
     for (final r in rows) {
-      csvBuffer.writeln([
-        escapeCsv(r.title),
-        escapeCsv(r.igdbId ?? ''),
-        escapeCsv(r.releaseYear ?? ''),
-        escapeCsv(r.status),
-        escapeCsv(r.rating ?? ''),
-        escapeCsv(r.comment ?? ''),
-        escapeCsv(r.platform ?? ''),
-        escapeCsv(r.playTimeHours ?? ''),
-        escapeCsv(r.completionType),
-        escapeCsv(r.dateAdded ?? ''),
-      ].join(','));
+      csvBuffer.writeln(
+        [
+          escapeCsv(r.title),
+          escapeCsv(r.igdbId ?? ''),
+          escapeCsv(r.releaseYear ?? ''),
+          escapeCsv(r.status),
+          escapeCsv(r.rating ?? ''),
+          escapeCsv(r.comment ?? ''),
+          escapeCsv(r.platform ?? ''),
+          escapeCsv(r.playTimeHours ?? ''),
+          escapeCsv(r.completionType),
+          escapeCsv(r.dateAdded ?? ''),
+        ].join(','),
+      );
     }
 
     return csvBuffer.toString();
@@ -94,10 +99,14 @@ class StashJsonToCsvConverter {
 
     List<dynamic> entriesToProcess = [];
 
-    if (data is Map && data.containsKey('log') && data['log']['entries'] is List) {
+    if (data is Map &&
+        data.containsKey('log') &&
+        data['log']['entries'] is List) {
       final entries = data['log']['entries'] as List;
       for (final entry in entries) {
-        if (entry is Map && entry.containsKey('response') && entry['response']['content'] is Map) {
+        if (entry is Map &&
+            entry.containsKey('response') &&
+            entry['response']['content'] is Map) {
           final content = entry['response']['content'];
           String? text = content['text'];
           if (text != null) {
@@ -143,14 +152,17 @@ class StashJsonToCsvConverter {
       final gameId = int.tryParse(gameIdRaw?.toString() ?? '');
       if (gameId == null) continue;
 
-      final modDate = num.tryParse(review['modificationDate']?.toString() ?? '') ?? 0;
+      final modDate =
+          num.tryParse(review['modificationDate']?.toString() ?? '') ?? 0;
       final existing = dedupedByGameId[gameId];
       if (existing == null) {
         dedupedByGameId[gameId] = entry;
       } else {
-        final existingModDate = num.tryParse(
-          existing['review']?['modificationDate']?.toString() ?? '',
-        ) ?? 0;
+        final existingModDate =
+            num.tryParse(
+              existing['review']?['modificationDate']?.toString() ?? '',
+            ) ??
+            0;
         if (modDate > existingModDate) {
           dedupedByGameId[gameId] = entry;
         }
@@ -164,23 +176,34 @@ class StashJsonToCsvConverter {
       final review = entry['review'];
       if (game is! Map || review is! Map) continue;
 
-      final title = fixEncoding(game['name']?.toString() ?? game['title']?.toString() ?? 'Desconocido');
-      final igdbId = game['id']?.toString() ?? game['igdb_id']?.toString() ?? '';
+      final title = fixEncoding(
+        game['name']?.toString() ?? game['title']?.toString() ?? 'Desconocido',
+      );
+      final igdbId =
+          game['id']?.toString() ?? game['igdb_id']?.toString() ?? '';
 
       String releaseYear = '';
       final rawDate = game['firstReleaseDate'] ?? game['first_release_date'];
       if (rawDate != null) {
         final timestamp = num.tryParse(rawDate.toString());
         if (timestamp != null) {
-          final ms = timestamp > 9999999999 ? timestamp.toInt() : timestamp.toInt() * 1000;
+          final ms = timestamp > 9999999999
+              ? timestamp.toInt()
+              : timestamp.toInt() * 1000;
           final date = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
           releaseYear = date.year.toString();
         }
       }
 
       final status = review['status']?.toString() ?? 'abandoned';
-      final rating = review['ratingFloat']?.toString() ?? review['rating']?.toString() ?? review['score']?.toString() ?? '';
-      final comment = fixEncoding(review['comment']?.toString() ?? review['review']?.toString() ?? '');
+      final rating =
+          review['ratingFloat']?.toString() ??
+          review['rating']?.toString() ??
+          review['score']?.toString() ??
+          '';
+      final comment = fixEncoding(
+        review['comment']?.toString() ?? review['review']?.toString() ?? '',
+      );
 
       String platformName = '';
       if (review['platform'] is Map && review['platform']['name'] != null) {
@@ -190,7 +213,9 @@ class StashJsonToCsvConverter {
       String playTimeHours = '';
       if (review['detailInfo'] is List) {
         for (final detail in review['detailInfo']) {
-          if (detail is Map && detail['type'] == 'playingTime' && detail['seconds'] != null) {
+          if (detail is Map &&
+              detail['type'] == 'playingTime' &&
+              detail['seconds'] != null) {
             final secs = num.tryParse(detail['seconds'].toString()) ?? 0;
             if (secs > 0) {
               playTimeHours = (secs / 3600.0).toStringAsFixed(1);
@@ -204,7 +229,9 @@ class StashJsonToCsvConverter {
 
       String completionType = 'none';
       if (review['markers'] is List) {
-        final markers = (review['markers'] as List).map((e) => e.toString()).toList();
+        final markers = (review['markers'] as List)
+            .map((e) => e.toString())
+            .toList();
         if (markers.contains('completionists')) {
           completionType = '100_percent';
         } else if (markers.contains('beaten')) {
@@ -220,28 +247,33 @@ class StashJsonToCsvConverter {
       if (rawModDate != null) {
         DateTime? dateObj;
         if (rawModDate is num) {
-          final ms = rawModDate > 9999999999 ? rawModDate.toInt() : rawModDate.toInt() * 1000;
+          final ms = rawModDate > 9999999999
+              ? rawModDate.toInt()
+              : rawModDate.toInt() * 1000;
           dateObj = DateTime.fromMillisecondsSinceEpoch(ms);
         } else {
           dateObj = DateTime.tryParse(rawModDate.toString());
         }
         if (dateObj != null) {
-          dateAdded = '${dateObj.year}-${dateObj.month.toString().padLeft(2, '0')}-${dateObj.day.toString().padLeft(2, '0')}';
+          dateAdded =
+              '${dateObj.year}-${dateObj.month.toString().padLeft(2, '0')}-${dateObj.day.toString().padLeft(2, '0')}';
         }
       }
 
-      result.add(StashExtractedGame(
-        title: title,
-        igdbId: igdbId.isEmpty ? null : igdbId,
-        releaseYear: releaseYear.isEmpty ? null : releaseYear,
-        status: status,
-        rating: rating.isEmpty ? null : rating,
-        comment: comment.isEmpty ? null : comment,
-        platform: platformName.isEmpty ? null : platformName,
-        playTimeHours: playTimeHours.isEmpty ? null : playTimeHours,
-        completionType: completionType,
-        dateAdded: dateAdded.isEmpty ? null : dateAdded,
-      ));
+      result.add(
+        StashExtractedGame(
+          title: title,
+          igdbId: igdbId.isEmpty ? null : igdbId,
+          releaseYear: releaseYear.isEmpty ? null : releaseYear,
+          status: status,
+          rating: rating.isEmpty ? null : rating,
+          comment: comment.isEmpty ? null : comment,
+          platform: platformName.isEmpty ? null : platformName,
+          playTimeHours: playTimeHours.isEmpty ? null : playTimeHours,
+          completionType: completionType,
+          dateAdded: dateAdded.isEmpty ? null : dateAdded,
+        ),
+      );
     }
 
     return result;

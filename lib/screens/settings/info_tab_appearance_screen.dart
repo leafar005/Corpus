@@ -138,7 +138,10 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 12.0,
+                  ),
                   child: Text(
                     'Arrastra para reordenar las secciones y usa el interruptor para ocultar o mostrar cada una en los detalles del juego.',
                     style: TextStyle(color: Colors.grey, fontSize: 14),
@@ -164,10 +167,9 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isVisible
-                                ? Theme.of(context)
-                                    .colorScheme
-                                    .outline
-                                    .withValues(alpha: 0.2)
+                                ? Theme.of(
+                                    context,
+                                  ).colorScheme.outline.withValues(alpha: 0.2)
                                 : Colors.transparent,
                           ),
                         ),
@@ -194,8 +196,9 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                             children: [
                               Switch(
                                 value: isVisible,
-                                activeThumbColor:
-                                    Theme.of(context).colorScheme.primary,
+                                activeThumbColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
                                 onChanged: (value) =>
                                     _toggleVisibility(key, value),
                               ),

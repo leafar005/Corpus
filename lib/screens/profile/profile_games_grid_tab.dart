@@ -91,32 +91,50 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
 
       if (_filters.genres.isNotEmpty) {
         for (var id in _filters.genres) {
-          final name = IgdbConstants.genres.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
+          final name = IgdbConstants.genres.firstWhere(
+            (e) => e['id'] == id,
+            orElse: () => {'name': ''},
+          )['name'];
           if (name != '') query = query.contains('games.genres', '["$name"]');
         }
       }
       if (_filters.themes.isNotEmpty) {
         for (var id in _filters.themes) {
-          final name = IgdbConstants.themes.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
+          final name = IgdbConstants.themes.firstWhere(
+            (e) => e['id'] == id,
+            orElse: () => {'name': ''},
+          )['name'];
           if (name != '') query = query.contains('games.themes', '["$name"]');
         }
       }
       if (_filters.gameModes.isNotEmpty) {
         for (var id in _filters.gameModes) {
-          final name = IgdbConstants.gameModes.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
-          if (name != '') query = query.contains('games.game_modes', '["$name"]');
+          final name = IgdbConstants.gameModes.firstWhere(
+            (e) => e['id'] == id,
+            orElse: () => {'name': ''},
+          )['name'];
+          if (name != '')
+            query = query.contains('games.game_modes', '["$name"]');
         }
       }
       if (_filters.playerPerspectives.isNotEmpty) {
         for (var id in _filters.playerPerspectives) {
-          final name = IgdbConstants.playerPerspectives.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
-          if (name != '') query = query.contains('games.player_perspectives', '["$name"]');
+          final name = IgdbConstants.playerPerspectives.firstWhere(
+            (e) => e['id'] == id,
+            orElse: () => {'name': ''},
+          )['name'];
+          if (name != '')
+            query = query.contains('games.player_perspectives', '["$name"]');
         }
       }
       if (_filters.platforms.isNotEmpty) {
         for (var id in _filters.platforms) {
-          final name = IgdbConstants.popularPlatforms.firstWhere((e) => e['id'] == id, orElse: () => {'name': ''})['name'];
-          if (name != '') query = query.contains('games.platforms', '["$name"]');
+          final name = IgdbConstants.popularPlatforms.firstWhere(
+            (e) => e['id'] == id,
+            orElse: () => {'name': ''},
+          )['name'];
+          if (name != '')
+            query = query.contains('games.platforms', '["$name"]');
         }
       }
 
@@ -131,15 +149,13 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
       switch (_filters.sortBy) {
         case 'title':
           orderQuery = query.order(
-            'title',
-            referencedTable: 'games',
+            'games(title)',
             ascending: _filters.sortAscending,
           );
           break;
         case 'release_date':
           orderQuery = query.order(
-            'release_date',
-            referencedTable: 'games',
+            'games(release_date)',
             ascending: _filters.sortAscending,
           );
           break;
@@ -148,9 +164,10 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           break;
         case 'metacritic_score':
           orderQuery = query.order(
-            'metacritic_score',
-            referencedTable: 'games',
+            'games(metacritic_score)',
             ascending: _filters.sortAscending,
+            nullsFirst: _filters
+                .sortAscending, // nulls al final cuando ordenamos desc (mayor nota primero)
           );
           break;
         case 'updated_at':
@@ -265,9 +282,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
                 borderSide: BorderSide.none,
               ),
               filled: true,
-              fillColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
             onChanged: (value) {
               if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -340,34 +355,32 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index >= _games.length) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              );
-            }
-            final item = _games[index];
-            final gameData = item['games'] as Map<String, dynamic>;
-            final rating = (item['rating'] ?? 0).toDouble();
-            gameData['user_rating'] = rating;
-            gameData['is_steam_only'] = item['is_steam_only'];
-
-            return GameCard(
-              game: gameData,
-              isInLibrary: true,
-              userRating: rating,
-              onReturn: () {
-                widget.onReturn();
-                _refresh();
-              },
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index >= _games.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             );
-          },
-          childCount: _games.length + (hasMore ? 1 : 0),
-        ),
+          }
+          final item = _games[index];
+          final gameData = item['games'] as Map<String, dynamic>;
+          final rating = (item['rating'] ?? 0).toDouble();
+          gameData['user_rating'] = rating;
+          gameData['is_steam_only'] = item['is_steam_only'];
+
+          return GameCard(
+            game: gameData,
+            isInLibrary: true,
+            userRating: rating,
+            showMetacriticBadge: _filters.sortBy == 'metacritic_score',
+            onReturn: () {
+              widget.onReturn();
+              _refresh();
+            },
+          );
+        }, childCount: _games.length + (hasMore ? 1 : 0)),
       ),
     );
   }

@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:math';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../globals.dart';
@@ -64,11 +63,16 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   // Tiempo de juego estimado (HowLongToBeat)
   Map<String, dynamic>? _timeToBeat;
 
-  // Metacritic (Steam only / fallback)
+  // Metacritic (scraper real via Edge Function)
+  // Caché en memoria para la sesión actual (evita re-llamar al scraper
+  // si el usuario cierra y vuelve a abrir el mismo juego)
+  static final Map<String, Map<String, dynamic>> _metacriticCache = {};
+
   int? _metacriticScore;
   String? _metacriticUrl;
-  bool _isTrueMetacritic = false;
-  final bool _isLoadingMetacritic = false;
+  double? _metacriticUserScore;
+  int? _metacriticCriticCount;
+  bool _isLoadingMetacritic = false;
 
   // Juegos relacionados (DLCs, remakes, ports, etc.)
   List<dynamic> _relatedGames = [];
@@ -179,84 +183,89 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Future<void> _fetchMetacritic() async {
-    // Attempt to read from gameData directly (if backfilled previously)
-    final initialScore =
+    // 1. Si ya tenemos datos cacheados en BD, los usamos directamente
+    final cachedScore =
         widget.gameData['metacritic_score'] ??
-        _enrichedData['metacritic_score'] ??
-        widget.gameData['aggregated_rating'] ??
-        _enrichedData['aggregated_rating'];
-
-    // Look for metacritic url in websites
-    String? mcUrl =
+        _enrichedData['metacritic_score'];
+    final cachedUrl =
         widget.gameData['metacritic_url'] ?? _enrichedData['metacritic_url'];
-    if (mcUrl == null) {
-      final websites = _enrichedData['websites'] as List<dynamic>? ?? [];
-      for (final w in websites) {
-        if (w['category'] == 14) {
-          // 14 is metacritic in IGDB
-          mcUrl = w['url'];
-          break;
+    final cachedUserScore =
+        widget.gameData['metacritic_user_score'] ??
+        _enrichedData['metacritic_user_score'];
+
+    if (cachedScore != null) {
+      if (mounted) {
+        setState(() {
+          _metacriticScore = (cachedScore as num).toInt();
+          _metacriticUrl = cachedUrl as String?;
+          _metacriticUserScore = cachedUserScore != null
+              ? (cachedUserScore as num).toDouble()
+              : null;
+        });
+      }
+      return;
+    }
+
+    // 2. No hay datos en BD → comprobar caché en memoria de la sesión
+    final title = widget.gameData['title'] ?? _enrichedData['title'];
+    if (title == null || title.toString().isEmpty) return;
+
+    final cacheKey = title.toString().toLowerCase().trim();
+
+    if (_metacriticCache.containsKey(cacheKey)) {
+      final cached = _metacriticCache[cacheKey]!;
+      if (mounted) {
+        setState(() {
+          _metacriticScore = cached['metascore'] as int?;
+          _metacriticUrl = cached['url'] as String?;
+          _metacriticUserScore = cached['user_score'] != null
+              ? (cached['user_score'] as num).toDouble()
+              : null;
+          _metacriticCriticCount = cached['critic_review_count'] as int?;
+        });
+      }
+      return;
+    }
+
+    // 3. No hay caché → llamar al scraper real via Edge Function
+    final gameId = widget.gameData['id']?.toString();
+    final cachedSlug =
+        widget.gameData['metacritic_slug'] ?? _enrichedData['metacritic_slug'];
+
+    if (mounted) setState(() => _isLoadingMetacritic = true);
+
+    try {
+      final supabase = Supabase.instance.client;
+      final payload = <String, dynamic>{'gameTitle': title.toString()};
+      if (gameId != null) payload['gameId'] = gameId;
+      if (cachedSlug != null) payload['metacriticSlug'] = cachedSlug.toString();
+
+      final response = await supabase.functions.invoke(
+        'get-metacritic-score',
+        body: payload,
+      );
+
+      if (response.status == 200 && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        // Guardar en caché de sesión
+        _metacriticCache[cacheKey] = data;
+        if (mounted) {
+          setState(() {
+            _metacriticScore = data['metascore'] as int?;
+            _metacriticUrl = data['url'] as String?;
+            _metacriticUserScore = data['user_score'] != null
+                ? (data['user_score'] as num).toDouble()
+                : null;
+            _metacriticCriticCount = data['critic_review_count'] as int?;
+          });
         }
+      } else {
+        debugPrint('[Metacritic] Error de la Edge Function: ${response.data}');
       }
-    }
-
-    // Try to get exact Metacritic score & URL from Steam if available
-    String? steamUrl;
-    final websites = _enrichedData['websites'] as List<dynamic>? ?? [];
-    for (final w in websites) {
-      if (w['category'] == 13) {
-        // 13 is Steam
-        steamUrl = w['url'];
-        break;
-      }
-    }
-
-    if (steamUrl != null) {
-      final regex = RegExp(r'app/(\d+)');
-      final match = regex.firstMatch(steamUrl);
-      if (match != null) {
-        final appId = match.group(1);
-        if (appId != null) {
-          try {
-            final res = await http.get(
-              Uri.parse(
-                'https://store.steampowered.com/api/appdetails?appids=$appId&l=spanish',
-              ),
-            );
-            if (res.statusCode == 200) {
-              final json = jsonDecode(res.body);
-              final appData = json[appId];
-              if (appData != null && appData['success'] == true) {
-                final metacritic = appData['data']['metacritic'];
-                if (metacritic != null) {
-                  if (mounted) {
-                    setState(() {
-                      _metacriticScore = metacritic['score'];
-                      _metacriticUrl = metacritic['url'];
-                      _isTrueMetacritic = true;
-                    });
-                  }
-                  return; // Successfully fetched from Steam
-                }
-              }
-            }
-          } catch (e) {
-            debugPrint('Error fetching Metacritic from Steam: $e');
-          }
-        }
-      }
-    }
-
-    // Fallback to IGDB / existing data if Steam fetch failed or game is not on Steam
-    if (mounted) {
-      setState(() {
-        _metacriticScore = initialScore is num ? initialScore.toInt() : null;
-        _metacriticUrl = mcUrl;
-        // If it came from our DB's metacritic_score, it's a true Metacritic score
-        _isTrueMetacritic =
-            (widget.gameData['metacritic_score'] != null ||
-            _enrichedData['metacritic_score'] != null);
-      });
+    } catch (e) {
+      debugPrint('[Metacritic] Excepción llamando a Edge Function: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingMetacritic = false);
     }
   }
 
@@ -1749,73 +1758,151 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       return const Padding(
         padding: EdgeInsets.only(bottom: 16),
         child: SizedBox(
-          height: 32,
-          width: 32,
+          height: 24,
+          width: 24,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       );
     }
     if (_metacriticScore == null) return const SizedBox.shrink();
 
-    final Color scoreColor = _metacriticScore! >= 75
-        ? Colors.green
-        : _metacriticScore! >= 50
-        ? Colors.orange
-        : Colors.red;
+    Color scoreColor(int s) => s >= 75
+        ? const Color(0xFF4CAF50)
+        : s >= 50
+        ? const Color(0xFFFFC107)
+        : const Color(0xFFF44336);
+
+    Color userColor(double s) => s >= 7.5
+        ? const Color(0xFF4CAF50)
+        : s >= 5.0
+        ? const Color(0xFFFFC107)
+        : const Color(0xFFF44336);
+
+    // Badge cuadrado perfecto usando ConstrainedBox
+    Widget scoreBadge({
+      required String value,
+      required Color color,
+      String? subtitle,
+    }) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 44,
+            height: 44, // 1:1 explícito → siempre cuadrado
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _isTrueMetacritic ? 'Metacritic' : 'Nota Crítica (IGDB)',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const Text(
+            'Metacritic',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           InkWell(
             onTap: _metacriticUrl != null
                 ? () => launchUrl(Uri.parse(_metacriticUrl!))
                 : null,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: scoreColor.withValues(alpha: 0.5)),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: scoreColor,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _metacriticScore.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+                  // Metascore badge
+                  scoreBadge(
+                    value: _metacriticScore.toString(),
+                    color: scoreColor(_metacriticScore!),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    _isTrueMetacritic
-                        ? 'Metacritic Score'
-                        : 'Media de Críticas',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                  // Etiqueta + número de críticas
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Metascore',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (_metacriticCriticCount != null)
+                        Text(
+                          '$_metacriticCriticCount críticas',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
                   ),
+                  // User Score (si existe) separado por un divider vertical
+                  if (_metacriticUserScore != null) ...[
+                    const SizedBox(width: 16),
+                    Container(
+                      width: 1,
+                      height: 36,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outline.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(width: 16),
+                    scoreBadge(
+                      value: _metacriticUserScore!.toStringAsFixed(1),
+                      color: userColor(_metacriticUserScore!),
+                    ),
+                    const SizedBox(width: 12),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'User Score',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (_metacriticUrl != null) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.open_in_new, size: 16, color: Colors.grey),
+                    const SizedBox(width: 10),
+                    Icon(
+                      Icons.open_in_new,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ],
                 ],
               ),

@@ -100,15 +100,12 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
               top: 16,
               right: 16,
               child: IconButton(
-                icon: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 32,
-                ),
+                icon: const Icon(Icons.close, color: Colors.white, size: 32),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),
-            if (MediaQuery.of(context).size.width > 800 && widget.imageUrls.length > 1) ...[
+            if (MediaQuery.of(context).size.width > 800 &&
+                widget.imageUrls.length > 1) ...[
               if (_currentIndex > 0)
                 Positioned(
                   left: 16,
@@ -161,12 +158,14 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
   }
 }
 
-void showFullScreenGallery(BuildContext context, List<String> imageUrls, int initialIndex) {
+void showFullScreenGallery(
+  BuildContext context,
+  List<String> imageUrls,
+  int initialIndex,
+) {
   showDialog(
     context: context,
-    builder: (context) => FullScreenGallery(
-      imageUrls: imageUrls,
-      initialIndex: initialIndex,
-    ),
+    builder: (context) =>
+        FullScreenGallery(imageUrls: imageUrls, initialIndex: initialIndex),
   );
 }

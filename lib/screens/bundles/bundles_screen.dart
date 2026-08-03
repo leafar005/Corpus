@@ -61,8 +61,10 @@ class _BundlesScreenState extends State<BundlesScreen> {
             .select()
             .order('end_date', ascending: true);
       } else {
-        response = await Supabase.instance.client
-            .rpc('search_active_bundles', params: {'search_term': _searchQuery});
+        response = await Supabase.instance.client.rpc(
+          'search_active_bundles',
+          params: {'search_term': _searchQuery},
+        );
       }
 
       final newBundles = List<Map<String, dynamic>>.from(response);
@@ -264,7 +266,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
         padding: const EdgeInsets.all(16),
         itemCount: rows.length,
         itemBuilder: (context, index) {
-
           final row = rows[index];
           if (row.isHeader) {
             return _buildStoreHeader(row.storeName!);
@@ -299,7 +300,6 @@ class _BundleCard extends StatefulWidget {
 }
 
 class _BundleCardState extends State<_BundleCard> {
-
   Widget _buildTierHeader(
     BuildContext context,
     Map<String, dynamic> tier,

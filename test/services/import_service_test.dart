@@ -14,7 +14,7 @@ void main() {
         ImportService.fixEncoding('EdiciÃ³n Especial'),
         'Edición Especial',
       );
-      expect(ImportService.fixEncoding('AlgÃºn tÃtulo'), 'Algún título');
+      expect(ImportService.fixEncoding('AÃ±o'), 'Año');
     });
 
     test('Mantiene texto limpio sin alterar si no hay mojibake', () {

@@ -71,20 +71,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     setState(() => _isSaving = true);
     try {
-      await _supabase.from('notification_preferences').upsert(
-        {
-          'user_id': userId,
-          'friend_started_playing': _friendStartedPlaying,
-          'friend_finished_game': _friendFinishedGame,
-          'friend_wishlisted_game': _friendWishlistedGame,
-          'new_bundle': _newBundle,
-          'bundle_expiring': _bundleExpiring,
-          'comment_on_review': _commentOnReview,
-          'reply_to_comment': _replyToComment,
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        onConflict: 'user_id',
-      );
+      await _supabase.from('notification_preferences').upsert({
+        'user_id': userId,
+        'friend_started_playing': _friendStartedPlaying,
+        'friend_finished_game': _friendFinishedGame,
+        'friend_wishlisted_game': _friendWishlistedGame,
+        'new_bundle': _newBundle,
+        'bundle_expiring': _bundleExpiring,
+        'comment_on_review': _commentOnReview,
+        'reply_to_comment': _replyToComment,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -188,7 +185,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   icon: Icons.redeem_outlined,
                   iconColor: Colors.green,
                   title: 'Bundle nuevo disponible',
-                  subtitle: 'Cuando aparece un nuevo bundle en Humble o Fanatical.',
+                  subtitle:
+                      'Cuando aparece un nuevo bundle en Humble o Fanatical.',
                   value: _newBundle,
                   onChanged: (v) => _toggle('new_bundle', v),
                 ),
@@ -217,7 +215,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   icon: Icons.reply_outlined,
                   iconColor: colorScheme.tertiary,
                   title: 'Respuesta a tu comentario',
-                  subtitle: 'Cuando alguien te menciona con @tu_usuario en un comentario.',
+                  subtitle:
+                      'Cuando alguien te menciona con @tu_usuario en un comentario.',
                   value: _replyToComment,
                   onChanged: (v) => _toggle('reply_to_comment', v),
                 ),

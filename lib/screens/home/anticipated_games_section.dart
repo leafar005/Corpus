@@ -16,7 +16,8 @@ class AnticipatedGamesSection extends StatefulWidget {
   });
 
   @override
-  State<AnticipatedGamesSection> createState() => _AnticipatedGamesSectionState();
+  State<AnticipatedGamesSection> createState() =>
+      _AnticipatedGamesSectionState();
 }
 
 class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
@@ -55,10 +56,7 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
         children: [
           Text(
             widget.title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           GridView.builder(
@@ -85,15 +83,18 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
     final title = game['name'] ?? 'Desconocido';
     final releaseTimestamp = game['first_release_date'] as int?;
     String dateStr = 'Fecha por confirmar';
-    
+
     String days = '00';
     String hours = '00';
     String minutes = '00';
 
     if (releaseTimestamp != null) {
-      final releaseDate = DateTime.fromMillisecondsSinceEpoch(releaseTimestamp * 1000);
-      dateStr = '${releaseDate.day.toString().padLeft(2, '0')}/${releaseDate.month.toString().padLeft(2, '0')}/${releaseDate.year}';
-      
+      final releaseDate = DateTime.fromMillisecondsSinceEpoch(
+        releaseTimestamp * 1000,
+      );
+      dateStr =
+          '${releaseDate.day.toString().padLeft(2, '0')}/${releaseDate.month.toString().padLeft(2, '0')}/${releaseDate.year}';
+
       final difference = releaseDate.difference(_now);
       if (difference.isNegative) {
         days = '00';
@@ -108,7 +109,9 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
 
     String backgroundUrl = '';
     if (game['artworks'] != null && game['artworks'].isNotEmpty) {
-      backgroundUrl = IGDBService.getScreenshotUrl(game['artworks'][0]['image_id']);
+      backgroundUrl = IGDBService.getScreenshotUrl(
+        game['artworks'][0]['image_id'],
+      );
     } else if (game['cover'] != null) {
       backgroundUrl = IGDBService.getCoverUrl(game['cover']['image_id']);
     }
@@ -120,10 +123,7 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
             context,
             MaterialPageRoute(
               builder: (context) => GameDetailsScreen(
-                gameData: {
-                  'igdb_id': game['id'], 
-                  'title': title,
-                },
+                gameData: {'igdb_id': game['id'], 'title': title},
               ),
             ),
           );
@@ -176,23 +176,33 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
             ),
             const Spacer(),
             if (widget.countdownStyle == 'days_only')
-              Row(
-                children: [
-                  _buildCountdownSection(days, 'DÍAS RESTANTES'),
-                ],
-              )
+              Row(children: [_buildCountdownSection(days, 'DÍAS RESTANTES')])
             else
               Row(
                 children: [
                   _buildCountdownSection(days, 'DAYS'),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('|', style: TextStyle(color: Colors.white54, fontSize: 32, fontWeight: FontWeight.w300)),
+                    child: Text(
+                      '|',
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
                   ),
                   _buildCountdownSection(hours, 'HOURS'),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('|', style: TextStyle(color: Colors.white54, fontSize: 32, fontWeight: FontWeight.w300)),
+                    child: Text(
+                      '|',
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
                   ),
                   _buildCountdownSection(minutes, 'MINUTES'),
                 ],
@@ -208,7 +218,10 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
-          children: value.split('').map((char) => _buildDigitBox(char)).toList(),
+          children: value
+              .split('')
+              .map((char) => _buildDigitBox(char))
+              .toList(),
         ),
         const SizedBox(height: 8),
         Text(
@@ -228,7 +241,9 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
       margin: const EdgeInsets.symmetric(horizontal: 2),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15), // Efecto cristal translúcido
+        color: Colors.white.withValues(
+          alpha: 0.15,
+        ), // Efecto cristal translúcido
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),

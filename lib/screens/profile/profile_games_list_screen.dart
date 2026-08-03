@@ -30,4 +30,3 @@ class ProfileGamesListScreen extends StatelessWidget {
     );
   }
 }
-
