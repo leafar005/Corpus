@@ -14,6 +14,7 @@ It combines a personal game journal with a closed social layer for your group, e
 - Track every game with statuses: **Playing, Beaten, Wishlist, Abandoned, On Hold**
 - Auto-populated covers, release dates, completion times, and genres from **IGDB**
 - Saga progress tracker grouped by IGDB collection
+- **Import Data:** Import your game history from CSV or JSON (e.g., from Backloggd, Stash).
 
 ### Reviews & Social
 - Overall score + per-category breakdown (Gameplay, Soundtrack, …)
@@ -22,6 +23,8 @@ It combines a personal game journal with a closed social layer for your group, e
 - Co-op partner linking: record who you played it with
 - **"Who has it?"** — see instantly which friends own or have played a game
 - Real-time activity feed via **Supabase Realtime**
+- **Search Friends** and view their profiles directly.
+- **Game Journal:** Keep track of your daily gaming sessions on your profile.
 
 ### Gamification & Achievements
 - Robust XP and level system calculated securely on the database level via PostgreSQL Triggers.
