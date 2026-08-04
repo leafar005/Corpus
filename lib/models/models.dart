@@ -1,0 +1,10 @@
+// lib/models/models.dart
+//
+// Barrel export para los modelos de dominio de Corpus.
+// Importa este archivo en vez de los archivos individuales:
+//   import 'package:corpus/models/models.dart';
+
+export 'game.dart';
+export 'game_status.dart';
+export 'review.dart';
+export 'user_profile.dart';
