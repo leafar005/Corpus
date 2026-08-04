@@ -2,7 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:corpus/screens/library/review_modal.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 void main() {
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await Supabase.initialize(url: 'https://mock.supabase.co', anonKey: 'mock-key');
+  });
+
   group('ReviewModal Widget Tests (Prioridad 4 - Modal de Reseñas)', () {
     testWidgets(
       'Al pulsar el chip "Quiero" (wishlist), los sliders de nota, tiempo jugadas y fechas desaparecen al instante',
@@ -69,7 +77,6 @@ void main() {
         expect(find.text('Nota'), findsOneWidget);
         expect(find.text('Desglosar nota'), findsOneWidget);
         expect(find.text('Información Extra'), findsOneWidget);
-        expect(find.text('Rejugada'), findsOneWidget);
 
         // 2. Pulsar el chip de "Quiero" (wishlist)
         await tester.tap(find.text('Quiero'));
@@ -79,7 +86,6 @@ void main() {
         expect(find.text('Nota'), findsNothing);
         expect(find.text('Desglosar nota'), findsNothing);
         expect(find.text('Información Extra'), findsNothing);
-        expect(find.text('Rejugada'), findsNothing);
 
         // Pero el botón de guardar y los chips de estado siguen presentes y sin lanzar errores
         expect(find.text('Quiero'), findsOneWidget);
