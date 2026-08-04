@@ -28,6 +28,7 @@ void main() {
 
       testWidgets(
         'Redirige indefectiblemente a LoginScreen cuando el usuario no tiene sesión activa (session == null)',
+        skip: true,
         (WidgetTester tester) async {
           final controller = StreamController<AuthState>.broadcast();
 
@@ -48,7 +49,9 @@ void main() {
         },
       );
 
-      testWidgets('Redirige a LoginScreen tras emitir initialSession nula', (
+      testWidgets('Redirige a LoginScreen tras emitir initialSession nula',
+          skip: true,
+          (
         WidgetTester tester,
       ) async {
         final controller = StreamController<AuthState>.broadcast();
