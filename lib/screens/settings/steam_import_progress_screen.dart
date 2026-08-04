@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 import 'package:corpus/services/import_service.dart';
 import 'import_preview_screen.dart';
 
@@ -186,9 +187,9 @@ class _SteamImportProgressScreenState extends State<SteamImportProgressScreen> {
         automaticallyImplyLeading:
             _isDone || _isError, // Solo permitir salir si acabó o falló
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.only(top: 32.0, bottom: getBottomSpacer(context), left: 24.0, right: 24.0),
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

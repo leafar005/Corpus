@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 import 'dart:async';
 import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
@@ -399,7 +400,12 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
       slivers: [
         SliverToBoxAdapter(child: _buildFiltersHeader()),
         SliverPadding(
-          padding: const EdgeInsets.all(8.0),
+          padding: EdgeInsets.only(
+            left: 8.0,
+            right: 8.0,
+            top: 8.0,
+            bottom: getBottomSpacer(context),
+          ),
           sliver: SliverGrid.builder(
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 150,

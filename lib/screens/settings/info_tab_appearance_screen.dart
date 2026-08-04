@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 
 class InfoTabAppearanceScreen extends StatefulWidget {
   const InfoTabAppearanceScreen({super.key});
@@ -151,7 +153,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                 Expanded(
                   child: ReorderableListView.builder(
                     buildDefaultDragHandles: false,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.only(top: 8, bottom: getBottomSpacer(context), left: 16, right: 16),
                     itemCount: _order.length,
                     onReorderItem: _onReorderItem,
                     itemBuilder: (context, index) {

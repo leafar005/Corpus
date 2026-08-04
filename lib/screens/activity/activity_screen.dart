@@ -8,6 +8,7 @@ import '../../widgets/coop_badge.dart';
 import '../activity/review_details_screen.dart';
 import '../profile/profile_screen.dart';
 import '../social/friends_screen.dart';
+import '../library/game_details_screen.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
 
@@ -595,8 +596,38 @@ class _ActivityScreenState extends State<ActivityScreen>
       ).then((_) => _fetchActivity(isRefresh: true, silent: true));
     }
 
+    void openGameDetails() {
+      final isDesktop = MediaQuery.of(context).size.width > 800;
+      if (isDesktop) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GameDetailsScreen(gameData: gameData),
+          ),
+        ).then((_) => _fetchActivity(isRefresh: true, silent: true));
+      } else {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: false,
+          enableDrag: true,
+          builder: (context) => DraggableScrollableSheet(
+            initialChildSize: 1.0,
+            minChildSize: 0.5,
+            maxChildSize: 1.0,
+            expand: false,
+            snap: true,
+            builder: (context, scrollController) => GameDetailsScreen(
+              gameData: gameData,
+              scrollController: scrollController,
+            ),
+          ),
+        ).then((_) => _fetchActivity(isRefresh: true, silent: true));
+      }
+    }
+
     return GestureDetector(
-      onTap: isReview ? openReview : null,
+      onTap: isReview ? openReview : openGameDetails,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         decoration: BoxDecoration(
@@ -1245,6 +1276,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                   ? ListView(
                       controller: scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.only(bottom: getBottomSpacer(context)),
+
                       children: [
                         _buildFriendsHeaderSection(),
                         _buildEmptyState(),
@@ -1253,6 +1286,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                   : ListView.builder(
                       controller: scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.only(bottom: getBottomSpacer(context)),
+
                       itemCount: _activities.length + 1 + (hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
                         if (index == 0) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'search_screen.dart';
 import 'package:corpus/widgets/game_card.dart';
@@ -104,7 +105,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
           // 4. Estado de éxito (dibujamos la cuadrícula real)
           return GridView.builder(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.only(
+              left: 8.0,
+              right: 8.0,
+              top: 8.0,
+              bottom: getBottomSpacer(context),
+            ),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 150, // Anchura máxima ideal de cada carátula
               childAspectRatio: 0.7,

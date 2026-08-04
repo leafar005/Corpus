@@ -216,11 +216,11 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(
+          padding: EdgeInsets.only(
             left: 16.0,
             right: 16.0,
             top: 16.0,
-            bottom: 100.0,
+            bottom: getBottomSpacer(context),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

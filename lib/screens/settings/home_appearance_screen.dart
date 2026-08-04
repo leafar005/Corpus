@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 
 class HomeAppearanceScreen extends StatefulWidget {
   const HomeAppearanceScreen({super.key});
@@ -195,7 +197,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
           Expanded(
             child: ReorderableListView(
               buildDefaultDragHandles: false,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.only(top: 8, bottom: getBottomSpacer(context), left: 16, right: 16),
               onReorderItem: (oldIndex, newIndex) {
                 _onReorderItem(oldIndex, newIndex);
               },
