@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../env.dart';
 
 // ─── Background message handler (debe ser top-level) ────────────────────────
 // Se ejecuta cuando llega un mensaje FCM con la app en background/terminada.
@@ -16,9 +17,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM Background] Mensaje recibido: ${message.messageId}');
 }
 
-/// Clave pública VAPID para Web Push (Firebase Console → Cloud Messaging → Web Push certificates)
-const _vapidKey =
-    'BFTRlpi5j2qIqEKJqjLqcuTWqKhJQCehsnCHfSvk4cO4aOKj2meu2s7AUfsO1XSQCuDI714ugoEemuVtg1al2Cw';
+// La clave VAPID se lee desde Env.firebaseVapidKey (inyectada con --dart-define-from-file).
 
 /// Servicio singleton de notificaciones.
 /// Gestiona FCM (Android + Web) y notificaciones locales (Windows + foreground Android).
@@ -172,7 +171,7 @@ class NotificationService {
     try {
       final messaging = FirebaseMessaging.instance;
       final token = kIsWeb
-          ? await messaging.getToken(vapidKey: _vapidKey)
+          ? await messaging.getToken(vapidKey: Env.firebaseVapidKey)
           : await messaging.getToken();
 
       if (token == null) return;
@@ -180,7 +179,7 @@ class NotificationService {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
 
-      final platform = kIsWeb ? 'web' : 'android';
+      const platform = kIsWeb ? 'web' : 'android';
 
       await Supabase.instance.client
           .from('push_tokens')
@@ -218,7 +217,7 @@ class NotificationService {
 
     try {
       final token = kIsWeb
-          ? await FirebaseMessaging.instance.getToken(vapidKey: _vapidKey)
+          ? await FirebaseMessaging.instance.getToken(vapidKey: Env.firebaseVapidKey)
           : await FirebaseMessaging.instance.getToken();
       if (token == null) return;
       await Supabase.instance.client
@@ -252,7 +251,7 @@ class NotificationService {
       color: Color(0xFF7E57C2),
     );
 
-    final windowsDetails = WindowsNotificationDetails(
+    const windowsDetails = WindowsNotificationDetails(
       actions: [
         WindowsAction(
           content: 'Abrir',
