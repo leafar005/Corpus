@@ -41,6 +41,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Ignorar actividades de hace más de 1 hora (ej: importaciones masivas de Stash o Steam)
+    const createdAt = record?.created_at;
+    if (createdAt) {
+      const eventTime = new Date(createdAt).getTime();
+      const now = Date.now();
+      if (now - eventTime > 60 * 60 * 1000) {
+        return new Response(JSON.stringify({ skipped: "activity is too old (likely imported)" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const status = metadata?.status as string | undefined;
     if (status !== "playing" && status !== "beaten" && status !== "wishlist") {
       return new Response(JSON.stringify({ skipped: `status '${status}' not notifiable` }), {

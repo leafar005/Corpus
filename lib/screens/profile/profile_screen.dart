@@ -47,6 +47,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       widget.userId == null &&
       Supabase.instance.client.auth.currentUser == null;
 
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
     _authSub?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -166,15 +169,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final rating = (row['rating'] ?? 0).toDouble();
       // Incluimos la nota dentro del gameData para mostrarla en la UI
       gameData['user_rating'] = rating;
+      
+      final updatedAt = row['updated_at']?.toString() ?? '';
+      final lastPlayedAt = row['last_played_at']?.toString() ?? updatedAt;
 
       if (row['status'] == 'wishlist' && row['is_steam_only'] != true) {
+        gameData['_sort_date'] = updatedAt;
         wishlist.add(gameData);
       } else if (row['status'] == 'playing') {
+        gameData['_sort_date'] = updatedAt;
         playing.add(gameData);
       } else if (row['status'] == 'beaten') {
+        gameData['_sort_date'] = lastPlayedAt;
         beaten.add(gameData);
       }
     }
+
+    wishlist.sort((a, b) => (b['_sort_date'] as String).compareTo(a['_sort_date'] as String));
+    playing.sort((a, b) => (b['_sort_date'] as String).compareTo(a['_sort_date'] as String));
+    beaten.sort((a, b) => (b['_sort_date'] as String).compareTo(a['_sort_date'] as String));
 
     if (mounted) {
       setState(() {
@@ -211,9 +224,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
+      body: Scrollbar(
+        controller: _scrollController,
+        thumbVisibility: isDesktop,
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,17 +240,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _SliverNavBarDelegate(
-                height: 56.0,
-                topPadding: MediaQuery.of(context).padding.top,
-                child: _buildNavBar(isDesktop),
+            if (isDesktop)
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                sliver: SliverCrossAxisGroup(
+                  slivers: [
+                    SliverConstrainedCrossAxis(
+                      maxExtent: 300,
+                      sliver: SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 24),
+                            _buildSidebarInfo(),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SliverConstrainedCrossAxis(
+                      maxExtent: 40,
+                      sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
+                    ),
+                    SliverCrossAxisExpanded(
+                      flex: 1,
+                      sliver: SliverMainAxisGroup(
+                        slivers: [
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _SliverNavBarDelegate(
+                              height: 56.0,
+                              topPadding: MediaQuery.of(context).padding.top,
+                              child: _buildNavBar(isDesktop),
+                            ),
+                          ),
+                          _buildCurrentTabContent(isMobile: false),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              SliverMainAxisGroup(
+                slivers: [
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _SliverNavBarDelegate(
+                      height: 56.0,
+                      topPadding: MediaQuery.of(context).padding.top,
+                      child: _buildNavBar(isDesktop),
+                    ),
+                  ),
+                  _buildCurrentTabContent(isMobile: true),
+                ],
               ),
-            ),
-          ];
-        },
-        body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+          ],
+        ),
       ),
     );
   }
@@ -640,33 +701,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildDesktopLayout() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Columna Izquierda (Sidebar)
-          SizedBox(
-            width: 300,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [_buildSidebarInfo()],
-              ),
-            ),
-          ),
-          const SizedBox(width: 40),
-          // Columna Derecha (Contenido Principal)
-          Expanded(child: _buildCurrentTabContent()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    return _buildCurrentTabContent(isMobile: true);
-  }
+  // (Layout methods removed for CustomScrollView approach)
 
   Widget _buildCurrentTabContent({bool isMobile = false}) {
     final userId =
@@ -675,10 +710,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Supabase.instance.client.auth.currentUser!.id;
 
     if (_selectedTab == 0) {
-      return SingleChildScrollView(
+      return SliverToBoxAdapter(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 24),
             if (isMobile) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -698,24 +734,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: _buildRatingsHistogram(),
               ),
             ],
-            const SizedBox(height: 120),
+            SizedBox(height: getBottomSpacer(context)),
           ],
         ),
       );
     } else if (_selectedTab == 1) {
       // Juegos
-      return ProfileGamesGridTab(userId: userId, onReturn: _fetchProfileData);
+      return ProfileGamesGridTab(
+        userId: userId,
+        onReturn: _fetchProfileData,
+        scrollController: _scrollController,
+      );
     } else if (_selectedTab == 2) {
       // Diario
-      return ProfileJournalTab(userId: userId, userData: _userProfile);
+      return ProfileJournalTab(
+        userId: userId,
+        userData: _userProfile,
+        scrollController: _scrollController,
+      );
     } else if (_selectedTab == 3) {
       // Reseñas
-      return ProfileReviewsTab(userId: userId, userData: _userProfile);
+      return ProfileReviewsTab(
+        userId: userId,
+        userData: _userProfile,
+        scrollController: _scrollController,
+      );
     } else if (_selectedTab == 4) {
       // Logros
-      return SingleChildScrollView(
+      return SliverToBoxAdapter(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0),
+          padding: EdgeInsets.only(
+            left: isMobile ? 16 : 0,
+            right: isMobile ? 16 : 0,
+            top: 24,
+          ),
           child: ProfileAchievementsTab(
             userId: userId,
             isOwnProfile: _isOwnProfile,
@@ -1283,17 +1335,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         if (_wishlistGames.isNotEmpty) ...[
           _buildSectionTitle('Quiero', _wishlistGames.length, 'wishlist'),
-          _buildCarousel(_wishlistGames),
+          _buildCarousel(_wishlistGames.take(20).toList()),
           const SizedBox(height: 24),
         ],
         if (_playingGames.isNotEmpty) ...[
           _buildSectionTitle('Jugando', _playingGames.length, 'playing'),
-          _buildCarousel(_playingGames),
+          _buildCarousel(_playingGames.take(20).toList()),
           const SizedBox(height: 24),
         ],
         if (_allGames.isNotEmpty) ...[
           _buildSectionTitle('Completados', _allGames.length, 'beaten'),
-          _buildCarousel(_allGames),
+          _buildCarousel(_allGames.take(20).toList()),
         ] else ...[
           Center(
             child: Padding(

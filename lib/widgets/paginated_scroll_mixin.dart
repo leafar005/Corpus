@@ -27,7 +27,11 @@ import 'package:flutter/material.dart';
 /// }
 /// ```
 mixin PaginatedScrollMixin<T extends StatefulWidget> on State<T> {
-  final ScrollController scrollController = ScrollController();
+  ScrollController? _externalScrollController;
+  final ScrollController _internalScrollController = ScrollController();
+  
+  ScrollController get scrollController => _externalScrollController ?? _internalScrollController;
+  
   bool isLoadingMore = false;
   bool hasMore = true;
 
@@ -35,13 +39,16 @@ mixin PaginatedScrollMixin<T extends StatefulWidget> on State<T> {
   /// esto se precarga *antes* de llegar abajo del todo, no al tocar fondo.
   double get prefetchThreshold => 600;
 
-  void initPagination() {
+  void initPagination({ScrollController? externalController}) {
+    _externalScrollController = externalController;
     scrollController.addListener(_onScroll);
   }
 
   void disposePagination() {
     scrollController.removeListener(_onScroll);
-    scrollController.dispose();
+    if (_externalScrollController == null) {
+      _internalScrollController.dispose();
+    }
   }
 
   void _onScroll() {

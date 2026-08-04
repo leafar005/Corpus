@@ -19,11 +19,13 @@ import '../../widgets/paginated_scroll_mixin.dart';
 class ProfileReviewsTab extends StatefulWidget {
   final String userId;
   final Map<String, dynamic>? userData;
+  final ScrollController scrollController;
 
   const ProfileReviewsTab({
     super.key,
     required this.userId,
     required this.userData,
+    required this.scrollController,
   });
 
   @override
@@ -45,7 +47,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
   @override
   void initState() {
     super.initState();
-    initPagination();
+    initPagination(externalController: widget.scrollController);
     loadMore();
   }
 
@@ -162,26 +164,16 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
 
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        onScrollMetrics(notification.metrics);
-        return false;
-      },
-      child: RefreshIndicator(
-        onRefresh: _refresh,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: _buildSearchBar(),
-              ),
-            ),
-            _buildListSliver(),
-          ],
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: _buildSearchBar(),
+          ),
         ),
-      ),
+        _buildListSliver(),
+      ],
     );
   }
 

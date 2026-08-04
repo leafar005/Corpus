@@ -429,9 +429,9 @@ class ImportService {
         final String? effectiveLastPlayedAt =
             row.steamLastPlayedAt ??
             row.dateAdded ??
-            (row.steamOwned ? null : DateTime.now().toUtc().toIso8601String());
+            (row.steamOwned ? null : DateTime.now().subtract(const Duration(hours: 2)).toUtc().toIso8601String());
         final String effectiveUpdatedAt =
-            effectiveLastPlayedAt ?? DateTime.now().toUtc().toIso8601String();
+            effectiveLastPlayedAt ?? DateTime.now().subtract(const Duration(hours: 2)).toUtc().toIso8601String();
 
         gamesPayload.add({
           'igdb_id': igdbId,
@@ -500,7 +500,7 @@ class ImportService {
         if (gamesPayload.isNotEmpty) {
           await supabase
               .from('games')
-              .upsert(gamesPayload, onConflict: 'igdb_id');
+              .upsert(gamesPayload, onConflict: 'igdb_id', ignoreDuplicates: true);
         }
         if (userGamesPayload.isNotEmpty) {
           await supabase
