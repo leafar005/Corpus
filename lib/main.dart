@@ -200,6 +200,19 @@ class AlwaysScrollbarBehavior extends MaterialScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    return Scrollbar(controller: details.controller, child: child);
+    if (axisDirectionToAxis(details.direction) == Axis.horizontal) {
+      return child;
+    }
+    
+    final controller = details.controller;
+    if (controller != null) {
+      try {
+        if (controller.positions.length > 1) {
+          return child;
+        }
+      } catch (_) {}
+    }
+
+    return Scrollbar(controller: controller, child: child);
   }
 }

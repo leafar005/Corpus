@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:corpus/globals.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../repositories/review_repository.dart';
@@ -99,7 +100,7 @@ class ReviewModal {
     String reviewCompletionType = hasReview
         ? (r!.completionType ?? 'story')
         : 'story';
-    bool reviewIsReplay = hasReview ? r!.isReplay : false;
+    bool reviewIsReplay = hasReview && r!.isReplay;
     // TODO: replayNumber is not in Review model currently? Let's assume it's omitted or 1
     int reviewReplayNumber = 1;
     String? reviewPlatform = hasReview ? r!.platform : null;
@@ -322,15 +323,16 @@ class ReviewModal {
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(modalContext).viewInsets.bottom,
                 top: 24,
-                left: 24,
-                right: 24,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Flexible(
-                    child: SingleChildScrollView(
-                      child: Column(
+                    child: Scrollbar(
+                      child: SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -382,7 +384,7 @@ class ReviewModal {
                               chip(
                                 'beaten',
                                 'Terminado',
-                                Icons.emoji_events,
+                                Icons.check_circle,
                                 reviewStatus,
                                 statusColor('beaten'),
                                 (v) {
@@ -592,72 +594,7 @@ class ReviewModal {
                               ),
                             ),
 
-                            const SizedBox(height: 16),
 
-                            // ── Rejugada ──────────────────────────────────────
-                            Row(
-                              children: [
-                                Text(
-                                  'Rejugada',
-                                  style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Switch(
-                                  value: reviewIsReplay,
-                                  onChanged: (val) =>
-                                      setModalState(() => reviewIsReplay = val),
-                                  activeThumbColor: Theme.of(
-                                    modalContext,
-                                  ).colorScheme.primary,
-                                ),
-                              ],
-                            ),
-                            if (reviewIsReplay)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'Nº de rejugada',
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    SizedBox(
-                                      width: 60,
-                                      child: TextField(
-                                        keyboardType: TextInputType.number,
-                                        textAlign: TextAlign.center,
-                                        decoration: const InputDecoration(
-                                          border: OutlineInputBorder(),
-                                          contentPadding: EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                        ),
-                                        controller: TextEditingController(
-                                          text: reviewReplayNumber.toString(),
-                                        ),
-                                        onChanged: (val) {
-                                          final n = int.tryParse(val);
-                                          if (n != null) {
-                                            setModalState(
-                                              () => reviewReplayNumber = n,
-                                            );
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
 
                             const SizedBox(height: 16),
 
@@ -770,7 +707,62 @@ class ReviewModal {
                                   style: TextStyle(fontSize: 14),
                                 ),
                                 children: [
-                                  FutureBuilder<List<UserProfile>>(
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'Rejugada',
+                                            style: TextStyle(
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          Switch(
+                                            value: reviewIsReplay,
+                                            onChanged: (val) =>
+                                                setModalState(() => reviewIsReplay = val),
+                                            activeThumbColor: Theme.of(modalContext).colorScheme.primary,
+                                          ),
+                                        ],
+                                      ),
+                                      if (reviewIsReplay)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 16),
+                                          child: Row(
+                                            children: [
+                                              Text(
+                                                'Nº de rejugada',
+                                                style: TextStyle(
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              SizedBox(
+                                                width: 60,
+                                                child: TextField(
+                                                  keyboardType: TextInputType.number,
+                                                  textAlign: TextAlign.center,
+                                                  decoration: const InputDecoration(
+                                                    border: OutlineInputBorder(),
+                                                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                                  ),
+                                                  controller: TextEditingController(text: reviewReplayNumber.toString()),
+                                                  onChanged: (val) {
+                                                    final n = int.tryParse(val);
+                                                    if (n != null) {
+                                                      setModalState(() => reviewReplayNumber = n);
+                                                    }
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      FutureBuilder<List<UserProfile>>(
                                     future: friendsFuture,
                                     builder: (context, snapshot) {
                                       if (snapshot.connectionState ==
@@ -1074,6 +1066,8 @@ class ReviewModal {
                                       ),
                                     ],
                                   ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -1082,13 +1076,17 @@ class ReviewModal {
                       ),
                     ),
                   ),
+                ),
+              ),
 
                   // ── Botón guardar ─────────────────────────────────────
                   const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
                       onPressed: isSaving
                           ? null
                           : () => onSave(
@@ -1142,8 +1140,9 @@ class ReviewModal {
                               ),
                             ),
                     ),
+                    ),
                   ),
-                  const SizedBox(height: 120),
+                  SizedBox(height: getBottomSpacer(modalContext)),
                 ],
               ),
             );

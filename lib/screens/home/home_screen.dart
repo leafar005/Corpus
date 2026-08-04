@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../globals.dart';
 import '../../services/igdb_service.dart';
 import '../library/game_details_screen.dart';
 import 'hero_showcase.dart';

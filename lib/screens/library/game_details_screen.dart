@@ -46,6 +46,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   bool _isSaving = false;
   String? _selectedScreenshotUrl;
   bool _isLoadingUserData = true;
+  // ignore: unused_field
   bool _isEnriching = true;
   int _selectedMainTabIndex = 0;
 
@@ -496,6 +497,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   // Widget "¿Quién lo tiene?" — avatares de amigos que tienen este juego
+  // ignore: unused_element
   Widget _buildFriendsWithGame(BuildContext context) {
     if (_friendsWithGame.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -805,6 +807,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   /// Obtiene el ID y nombre del juego original (si existe) desde parent_game, version_parent, etc.
+  // ignore: unused_element
   ({int id, String? name})? _getOriginalGameInfo() {
     final candidates = [
       widget.gameData['parent_game'],
@@ -871,6 +874,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   /// Navega al juego original de forma INSTANTÁNEA precargando su carátula y datos desde la RAM o base de datos local
+  // ignore: unused_element
   Future<void> _navigateToOriginalGame(int id, String? name) async {
     final cleanData = <String, dynamic>{'igdb_id': id, 'id': id};
     if (name != null) {
@@ -1424,6 +1428,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
+  // ignore: unused_element
         ).showSnackBar(SnackBar(content: Text('Error al eliminar reseña: $e')));
       }
     }
@@ -1558,6 +1563,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       ],
     );
   }
+  // ignore: unused_element
 
 
 
@@ -2377,6 +2383,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         ),
                       );
                     }
+  // ignore: unused_element
                   : null,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),

@@ -70,7 +70,11 @@ class ReviewRepository {
 
   /// Devuelve el perfil del usuario (solo columnas de `users`).
   Future<UserProfile?> fetchUserProfile(String userId) async {
-    final data = await _client.from('users').select().eq('id', userId).maybeSingle();
+    final data = await _client
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
     if (data == null) return null;
     return UserProfile.fromMap(data);
   }
@@ -88,9 +92,9 @@ class ReviewRepository {
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response)
-        .map(Review.fromMap)
-        .toList();
+    return List<Map<String, dynamic>>.from(
+      response,
+    ).map(Review.fromMap).toList();
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -180,11 +184,17 @@ class ReviewRepository {
           .upsert(
             {
               'igdb_id': igdbId,
-              'title': gameData['title'],
-              'cover_url': gameData['cover_url'],
-              'release_date': gameData['release_date']?.toString().split(
-                'T',
-              )[0],
+              'title':
+                  gameData['title'] ??
+                  gameData['name'] ??
+                  enrichedData['title'] ??
+                  enrichedData['name'] ??
+                  'Desconocido',
+              'cover_url': gameData['cover_url'] ?? enrichedData['cover_url'],
+              'release_date':
+                  (gameData['release_date'] ?? enrichedData['release_date'])
+                      ?.toString()
+                      .split('T')[0],
               'genres': gameData['genres'] ?? enrichedData['genres'],
               'category': () {
                 final dynamic rawCat =
@@ -832,9 +842,9 @@ class ReviewRepository {
             .from('v_friend_pairs')
             .select('friend_id')
             .eq('user_id', myId);
-        friendIds = List<Map<String, dynamic>>.from(pairs)
-            .map((r) => r['friend_id'] as String)
-            .toList();
+        friendIds = List<Map<String, dynamic>>.from(
+          pairs,
+        ).map((r) => r['friend_id'] as String).toList();
       } catch (_) {
         // Fallback: leer friendships directamente (bidireccional).
         try {
@@ -849,10 +859,12 @@ class ReviewRepository {
               .eq('addressee_id', myId)
               .eq('status', 'accepted');
           friendIds = [
-            ...List<Map<String, dynamic>>.from(sent)
-                .map((f) => f['addressee_id'] as String),
-            ...List<Map<String, dynamic>>.from(received)
-                .map((f) => f['requester_id'] as String),
+            ...List<Map<String, dynamic>>.from(
+              sent,
+            ).map((f) => f['addressee_id'] as String),
+            ...List<Map<String, dynamic>>.from(
+              received,
+            ).map((f) => f['requester_id'] as String),
           ];
         } catch (_) {
           return [];
@@ -866,9 +878,9 @@ class ReviewRepository {
           .select('id, username, avatar_url, display_name')
           .inFilter('id', friendIds);
 
-      return List<Map<String, dynamic>>.from(users)
-          .map(UserProfile.fromMap)
-          .toList();
+      return List<Map<String, dynamic>>.from(
+        users,
+      ).map(UserProfile.fromMap).toList();
     } catch (e) {
       debugPrint('[ReviewRepository] fetchFriendsForCoopPicker error: $e');
       return [];

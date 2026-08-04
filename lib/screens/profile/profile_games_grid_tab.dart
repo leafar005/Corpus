@@ -17,12 +17,14 @@ class ProfileGamesGridTab extends StatefulWidget {
   final String userId;
   final String? status; // null para todos, o 'beaten', 'playing', 'wishlist'
   final VoidCallback onReturn;
+  final ScrollController scrollController;
 
   const ProfileGamesGridTab({
     super.key,
     required this.userId,
     this.status,
     required this.onReturn,
+    required this.scrollController,
   });
 
   @override
@@ -48,7 +50,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   @override
   void initState() {
     super.initState();
-    initPagination();
+    initPagination(externalController: widget.scrollController);
     loadMore();
   }
 
@@ -237,26 +239,16 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
 
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        onScrollMetrics(notification.metrics);
-        return false;
-      },
-      child: RefreshIndicator(
-        onRefresh: _refresh,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: _buildSearchBar(),
-              ),
-            ),
-            _buildGridSliver(),
-          ],
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: _buildSearchBar(),
+          ),
         ),
-      ),
+        _buildGridSliver(),
+      ],
     );
   }
 
