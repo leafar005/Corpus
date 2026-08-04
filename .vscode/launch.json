@@ -2,24 +2,35 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Corpus Web (Fixed Port 8080)",
+            "name": "Corpus Web (Edge - Puerto 8080)",
             "request": "launch",
             "type": "dart",
             "args": [
+                "--dart-define-from-file=.env.json",
                 "--web-port",
                 "8080"
             ],
             "deviceId": "edge"
         },
         {
-            "name": "Corpus Web (Chrome - Fixed Port 8080)",
+            "name": "Corpus Web (Chrome - Puerto 8080)",
             "request": "launch",
             "type": "dart",
             "args": [
+                "--dart-define-from-file=.env.json",
                 "--web-port",
                 "8080"
             ],
             "deviceId": "chrome"
+        },
+        {
+            "name": "Corpus Windows",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--dart-define-from-file=.env.json"
+            ],
+            "deviceId": "windows"
         }
     ]
 }

@@ -1,28 +1,59 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
+# analysis_options.yaml
+# Reglas de linting para Corpus — endurecidas el 2026-08-04
 #
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
+# Filosofía:
+#  - Activamos reglas que tienen CERO falsos positivos y añaden valor real.
+#  - No activamos reglas que generan ruido o que entran en conflicto con el
+#    estilo actual del proyecto (ej. prefer_single_quotes genera miles de hits).
+#  - Usamos `// ignore:` puntualmente donde una regla no aplica por contexto.
 
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
-linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
-  rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+analyzer:
+  errors:
+    # Tratar imports no usados como error (no solo warning)
+    unused_import: error
+    # Tratar variables locales no usadas como error
+    unused_local_variable: error
+    # Campos privados nunca usados
+    unused_field: warning
+    # Parámetros de constructores no usados
+    unused_element: warning
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+linter:
+  rules:
+    # ── Calidad de código ─────────────────────────────────────────────────────
+    # Prohibir print() en producción — usar debugPrint o un logger
+    avoid_print: true
+    # Siempre declarar tipos de retorno explícitos
+    always_declare_return_types: true
+    # Declarar tipo en variables locales cuando no es obvio
+    prefer_typing_uninitialized_variables: true
+    # Usar const cuando es posible (rendimiento en rebuild)
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_const_literals_to_create_immutables: true
+    # Usar interpolación de strings en vez de concatenación
+    prefer_interpolation_to_compose_strings: true
+    # Evitar comparaciones innecesarias con booleanos (if (x == true))
+    avoid_bool_literals_in_conditional_expressions: true
+    # Evitar return innecesarios al final de funciones void
+    # (no reconocido en esta versión de linter)
+    # Usar is/is! en vez de runtimeType comparisons
+    avoid_type_to_string: false   # permitir por ahora (debugging frecuente)
+
+    # ── Seguridad ─────────────────────────────────────────────────────────────
+    # Evitar dynamic explícito — usar Object?, T, o tipos concretos
+    # (desactivado por ahora: el proyecto usa Map<String,dynamic> extensivamente)
+    # avoid_dynamic: true
+
+    # ── Estilo ────────────────────────────────────────────────────────────────
+    # Comillas simples (desactivado: el proyecto usa comillas dobles consistentemente)
+    # prefer_single_quotes: true
+
+    # Trailing commas en constructores/llamadas multilínea
+    require_trailing_commas: false  # activar cuando se limpie el código existente
+
+    # ── Documentación ─────────────────────────────────────────────────────────
+    # Documentar miembros públicos de paquetes (demasiado ruidoso para apps)
+    # public_member_api_docs: true
