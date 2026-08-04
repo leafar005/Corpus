@@ -31,7 +31,7 @@ void main() {
         // Generar credenciales únicas transitorias para esta ejecución
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final transientEmail = 'e2e_transient_$timestamp@corpus.app';
-        final transientPassword = 'Password123!';
+        const transientPassword = 'Password123!';
         final transientUsername = 'Tester_$timestamp';
 
         // Función auxiliar para esperar a que aparezca un widget (ej: tras peticiones HTTP reales a IGDB/Supabase)

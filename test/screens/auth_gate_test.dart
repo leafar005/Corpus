@@ -36,7 +36,7 @@ void main() {
           );
 
           // Emitir un evento de cierre de sesión / sin sesión
-          controller.add(AuthState(AuthChangeEvent.signedOut, null));
+          controller.add(const AuthState(AuthChangeEvent.signedOut, null));
           await tester.pumpAndSettle();
 
           expect(find.byType(LoginScreen), findsOneWidget);
@@ -57,7 +57,7 @@ void main() {
           MaterialApp(home: AuthGate(authStream: controller.stream)),
         );
 
-        controller.add(AuthState(AuthChangeEvent.initialSession, null));
+        controller.add(const AuthState(AuthChangeEvent.initialSession, null));
         await tester.pumpAndSettle();
 
         expect(find.byType(LoginScreen), findsOneWidget);
