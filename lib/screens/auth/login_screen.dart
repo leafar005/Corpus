@@ -25,12 +25,14 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      // Esta pantalla puede haberse abierto de dos formas: como pantalla de
-      // entrada "de toda la vida" (sin sesión) o empujada encima desde un
-      // aviso de modo invitado (Perfil, Actividad, Inicio...). En ambos
-      // casos, tras un login correcto, la cerramos nosotros mismos: ya no
-      // depende de que el AuthGate cambie de pantalla por su cuenta.
-      if (mounted) Navigator.of(context).pop();
+      // Si la pantalla fue empujada encima (ej. desde el aviso de invitado con
+      // Navigator.push), podemos hacer pop para volver atrás. Si es la pantalla
+      // raíz del AuthGate (canPop == false), no hacemos pop para no vaciar
+      // el Navigator y causar una pantalla negra; dejamos que el StreamBuilder
+      // de AuthState reconstruya y muestre MainScreen automáticamente.
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     } on AuthException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
