@@ -639,6 +639,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
   final Random _random = Random();
 
   late AnimationController _panController;
+  late AnimationController _initialFadeController;
   late Animation<double> _fadeAnimation;
 
   @override
@@ -647,6 +648,10 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
     _panController = AnimationController(
       vsync: this,
       duration: widget.switchDuration,
+    );
+    _initialFadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
@@ -664,6 +669,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
       _nextIndex = (startIndex + 1) % _hardcodedImages.length;
     });
 
+    _initialFadeController.forward();
     _panController.forward(from: 0.0);
 
     if (!kDisableCarouselForTests) {
@@ -690,146 +696,152 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
   void dispose() {
     _timer?.cancel();
     _panController.dispose();
+    _initialFadeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Fondo negro permanente para que el primer frameBuilder haga el fade de negro a la imagen
-        Container(color: Colors.black),
+    return FadeTransition(
+      opacity: _initialFadeController,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Fondo negro permanente para que el primer frameBuilder haga el fade de negro a la imagen
+          Container(color: Colors.black),
 
-        if (_currentScreenshotUrl != null)
-          AnimatedBuilder(
-            animation: _panController,
-            builder: (context, child) {
-              final sw = MediaQuery.sizeOf(context).width;
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_previousScreenshotUrl != null)
-                    _buildPanningImageLayer(
-                      AssetImage(_previousScreenshotUrl!),
-                      _previousPanValue,
-                      sw,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Container(color: Colors.black),
-                    ),
-                  Opacity(
-                    opacity: _previousScreenshotUrl == null
-                        ? 1.0
-                        : _fadeAnimation.value,
-                    child: _buildPanningImageLayer(
-                      AssetImage(_currentScreenshotUrl!),
-                      _panController.value,
-                      sw,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Container(color: Colors.black),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-
-        // Mismo oscurecido que usa el hero real para que el texto se lea bien.
-        Container(color: Colors.black.withValues(alpha: 0.7)),
-
-        // Degradado inferior para fundir a negro suavemente
-        const _BottomFadeGradient(),
-
-        SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isPortrait = constraints.maxHeight > constraints.maxWidth;
-
-              final textSection = Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontFamily: 'Helvetica',
-                        fontSize: isPortrait ? 42 : 48,
-                        fontWeight: FontWeight.w900,
-                        height: 1.1,
-                        letterSpacing: -1,
-                        color: Colors.white,
-                      ),
-                      children: [
-                        const TextSpan(
-                          text: 'Comienza a registrar\ntus juegos ',
-                        ),
-                        TextSpan(
-                          text: 'ahora',
-                          style: TextStyle(
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        const TextSpan(text: '.'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => openLoginScreen(context),
-                    icon: const Icon(Icons.login, size: 20),
-                    label: const Text('Iniciar sesión'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      textStyle: const TextStyle(fontSize: 18),
-                    ),
-                  ),
-                ],
-              );
-
-              if (isPortrait) {
+          if (_currentScreenshotUrl != null)
+            AnimatedBuilder(
+              animation: _panController,
+              builder: (context, child) {
+                final sw = MediaQuery.sizeOf(context).width;
                 return Stack(
+                  fit: StackFit.expand,
                   children: [
-                    Positioned(
-                      top: constraints.maxHeight * 0.10,
-                      left: 24,
-                      right: 24,
-                      child: textSection,
+                    if (_previousScreenshotUrl != null)
+                      _buildPanningImageLayer(
+                        AssetImage(_previousScreenshotUrl!),
+                        _previousPanValue,
+                        sw,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(color: Colors.black),
+                      ),
+                    Opacity(
+                      opacity: _previousScreenshotUrl == null
+                          ? 1.0
+                          : _fadeAnimation.value,
+                      child: _buildPanningImageLayer(
+                        AssetImage(_currentScreenshotUrl!),
+                        _panController.value,
+                        sw,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(color: Colors.black),
+                      ),
                     ),
                   ],
                 );
-              } else {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 48.0,
-                    vertical: 32.0,
-                  ),
-                  child: Row(
+              },
+            ),
+
+          // Mismo oscurecido que usa el hero real para que el texto se lea bien.
+          Container(color: Colors.black.withValues(alpha: 0.7)),
+
+          // Degradado inferior para fundir a negro suavemente
+          const _BottomFadeGradient(),
+
+          RepaintBoundary(
+            child: SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isPortrait = constraints.maxHeight > constraints.maxWidth;
+
+                  final textSection = Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        flex: 3,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: textSection,
+                      RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontFamily: 'Helvetica',
+                            fontSize: isPortrait ? 42 : 48,
+                            fontWeight: FontWeight.w900,
+                            height: 1.1,
+                            letterSpacing: -1,
+                            color: Colors.white,
+                          ),
+                          children: [
+                            const TextSpan(
+                              text: 'Comienza a registrar\ntus juegos ',
+                            ),
+                            TextSpan(
+                              text: 'ahora',
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            const TextSpan(text: '.'),
+                          ],
                         ),
                       ),
-                      Expanded(flex: 2, child: Container()),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () => openLoginScreen(context),
+                        icon: const Icon(Icons.login, size: 20),
+                        label: const Text('Iniciar sesión'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(fontSize: 18),
+                        ),
+                      ),
                     ],
-                  ),
-                );
-              }
-            },
+                  );
+
+                  if (isPortrait) {
+                    return Stack(
+                      children: [
+                        Positioned(
+                          top: constraints.maxHeight * 0.10,
+                          left: 24,
+                          right: 24,
+                          child: textSection,
+                        ),
+                      ],
+                    );
+                  } else {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 48.0,
+                        vertical: 32.0,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: textSection,
+                            ),
+                          ),
+                          Expanded(flex: 2, child: Container()),
+                        ],
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
