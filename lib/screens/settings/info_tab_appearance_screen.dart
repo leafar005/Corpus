@@ -150,6 +150,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                 const SizedBox(height: 8),
                 Expanded(
                   child: ReorderableListView.builder(
+                    buildDefaultDragHandles: false,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _order.length,
                     onReorderItem: _onReorderItem,
@@ -203,7 +204,13 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                                     _toggleVisibility(key, value),
                               ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.drag_handle, color: Colors.grey),
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: const Icon(
+                                  Icons.drag_handle,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             ],
                           ),
                         ),
