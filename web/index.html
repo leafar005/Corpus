@@ -36,13 +36,14 @@
       Sets the background color to match the theme to avoid white bars
       when overscrolling or in safe areas.
     */
-    body {
+    html, body {
       background-color: #000000;
       margin: 0;
       padding: 0;
       /* Bloquea la navegacion del historial con swipe desde el borde en iOS PWA.
-         Sin esto, el gesto lleva a una URL vacia y aparece pantalla negra. */
-      overscroll-behavior: none;
+         Usamos -x y -y explícitos para mayor compatibilidad. */
+      overscroll-behavior-x: none;
+      overscroll-behavior-y: none;
     }
 
     @media (prefers-color-scheme: light) {
