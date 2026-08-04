@@ -13,6 +13,8 @@ doc/api/
 
 # dotenv environment variables file
 .env*
+# El .example SÍ se versiona: contiene solo placeholders, no secretos
+!.env.json.example
 
 # Avoid committing generated Javascript files:
 *.dart.js
