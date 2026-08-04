@@ -1096,7 +1096,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                         friendId != null && onlineUsers.contains(friendId);
 
                     final playingColor = Colors.greenAccent[400]!;
-                    final onlineColor =
+                    const onlineColor =
                         Colors.blueAccent; // Color cuando solo están conectados
 
                     return GestureDetector(
@@ -1191,11 +1191,11 @@ class _ActivityScreenState extends State<ActivityScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Text(
             'Amigos',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -1213,7 +1213,7 @@ class _ActivityScreenState extends State<ActivityScreen>
     if (_isGuest) {
       return Scaffold(
         appBar: AppBar(title: const Text('Actividad')),
-        body: Center(
+        body: const Center(
           child: GuestLoginPrompt(
             icon: Icons.people_outline_rounded,
             message: 'Inicia sesión para ver la actividad de tus amigos.',

@@ -5,6 +5,7 @@ import '../library/review_modal.dart';
 import '../../widgets/full_screen_gallery.dart';
 import '../../repositories/review_repository.dart';
 import '../../widgets/achievement_toast.dart';
+import '../../models/review.dart';
 import 'dart:io';
 import 'dart:math';
 import 'package:image_picker/image_picker.dart';
@@ -438,7 +439,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       context: context,
       gameData: widget.gameData,
       enrichedData: widget.gameData,
-      existingReview: _currentReviewData,
+      existingReview: Review.fromMap(_currentReviewData),
       currentPartnerId: _partnerData?['id'],
       isSaving: _isSubmitting,
       currentRating: rating,

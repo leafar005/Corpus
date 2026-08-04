@@ -126,7 +126,7 @@ class _MilestoneBarPainter extends CustomPainter {
 
     final double h = size.height;
     final double h2 = h / 2.0;
-    final double g2 = 1.5; // Half of the gap width (3.0 total)
+    const double g2 = 1.5; // Half of the gap width (3.0 total)
 
     int prevTarget = 0;
     for (int i = 0; i < milestones.length; i++) {

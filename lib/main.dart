@@ -14,33 +14,39 @@ void main() async {
   // 1. Asegura que los motores de Flutter están listos
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Inicializa Firebase
+  // 2. Valida que todas las variables de entorno necesarias fueron inyectadas.
+  //    Falla rápido con un mensaje claro si falta alguna.
+  //    Ejecutar con: flutter run --dart-define-from-file=.env.json
+  Env.assertConfigured();
+
+  // 3. Inicializa Firebase
   if (kIsWeb) {
-    // En web: pasar configuración explícita (google-services.json no aplica en web)
+    // En web: la configuración viene de variables de entorno (Env.*)
+    // ya que google-services.json no aplica en web.
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: 'AIzaSyAGjsQRsHKWe2C6HSn1IqVlqn91O2e6IVE',
-        authDomain: 'corpus-games.firebaseapp.com',
-        projectId: 'corpus-games',
-        storageBucket: 'corpus-games.firebasestorage.app',
-        messagingSenderId: '1081828301308',
-        appId: '1:1081828301308:web:bb9580b5efd664baacba79',
+        apiKey: Env.firebaseApiKey,
+        authDomain: Env.firebaseAuthDomain,
+        projectId: Env.firebaseProjectId,
+        storageBucket: Env.firebaseStorageBucket,
+        messagingSenderId: Env.firebaseMessagingSenderId,
+        appId: Env.firebaseAppId,
       ),
     );
   } else {
     await Firebase.initializeApp();
   }
 
-  // 3. Inicializa la conexión con Supabase
+  // 4. Inicializa la conexión con Supabase
   await Supabase.initialize(
     url: Env.supabaseUrl,
     publishableKey: Env.supabaseAnonKey,
   );
 
-  // 4. Inicializa el servicio de notificaciones (Android + Windows + Web)
+  // 5. Inicializa el servicio de notificaciones (Android + Windows + Web)
   await NotificationService().init();
 
-  // 5. Arranca la interfaz gráfica
+  // 6. Arranca la interfaz gráfica
   runApp(const CorpusApp());
 }
 
