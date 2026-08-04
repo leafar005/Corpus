@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/storage_utils.dart';
 import '../utils/igdb_constants.dart';
 import '../utils/image_compressor.dart';
+import '../models/models.dart';
 
 /// Resultado de una operación de guardado de reseña.
 /// Separa los datos puros del manejo de UI en el screen.
@@ -68,12 +69,14 @@ class ReviewRepository {
   }
 
   /// Devuelve el perfil del usuario (solo columnas de `users`).
-  Future<Map<String, dynamic>?> fetchUserProfile(String userId) async {
-    return await _client.from('users').select().eq('id', userId).maybeSingle();
+  Future<UserProfile?> fetchUserProfile(String userId) async {
+    final data = await _client.from('users').select().eq('id', userId).maybeSingle();
+    if (data == null) return null;
+    return UserProfile.fromMap(data);
   }
 
   /// Devuelve las reseñas del usuario para un juego, ordenadas por fecha.
-  Future<List<Map<String, dynamic>>> fetchReviews({
+  Future<List<Review>> fetchReviews({
     required String userId,
     required dynamic gameId,
   }) async {
@@ -85,7 +88,9 @@ class ReviewRepository {
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    return List<Map<String, dynamic>>.from(response)
+        .map(Review.fromMap)
+        .toList();
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -136,7 +141,7 @@ class ReviewRepository {
           : (comment.trim().isNotEmpty ? comment.trim() : null),
       'status': status,
       'completion_type': isWishlist ? 'none' : completionType,
-      'is_replay': isWishlist ? false : isReplay,
+      'is_replay': !isWishlist && isReplay,
       'replay_number': isWishlist ? null : (isReplay ? replayNumber : null),
       'platform': isWishlist ? null : platform,
       'play_time_hours': isWishlist
@@ -267,7 +272,7 @@ class ReviewRepository {
                   gameData['game_engines'] ?? enrichedData['game_engines'],
             },
             onConflict: 'igdb_id',
-            ignoreDuplicates: false,
+            ignoreDuplicates: true,
           );
     } catch (e) {
       debugPrint('[ReviewRepository] Game catalog upsert error: $e');
@@ -411,31 +416,8 @@ class ReviewRepository {
       await _client.from('reviews').insert(reviewData);
     }
 
-    // Sincronizar user_games
-    await _client.from('user_games').upsert({
-      'user_id': userId,
-      'game_id': igdbId,
-      'status': status,
-      'rating': isWishlist ? null : (rating >= 1 ? rating : null),
-      'rating_gameplay': isWishlist
-          ? null
-          : (ratingGameplay >= 1 ? ratingGameplay : null),
-      'rating_narrative': isWishlist
-          ? null
-          : (ratingNarrative >= 1 ? ratingNarrative : null),
-      'rating_soundtrack': isWishlist
-          ? null
-          : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
-      'rating_visuals': isWishlist
-          ? null
-          : (ratingVisuals >= 1 ? ratingVisuals : null),
-      'comment': isWishlist
-          ? null
-          : (comment.trim().isNotEmpty ? comment.trim() : null),
-      'partner_id': partnerId,
-      'is_steam_only': false,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }, onConflict: 'user_id, game_id');
+    // El trigger sync_user_games_rating_from_review se encarga automáticamente
+    // de insertar/actualizar user_games cuando se modifica la reseña en la tabla reviews.
 
     // Detectar logros recién desbloqueados
     Set<String> newlyUnlocked = {};
@@ -531,7 +513,7 @@ class ReviewRepository {
   /// (para que el screen pueda actualizar `_inLibrary`).
   Future<bool> deleteReview({
     required String reviewId,
-    required Map<String, dynamic> reviewData,
+    required Review reviewData,
     required dynamic gameId,
   }) async {
     final userId = _client.auth.currentUser!.id;
@@ -551,12 +533,10 @@ class ReviewRepository {
       }
     } catch (_) {}
 
-    final reviewImageUrls = reviewData['image_urls'] as List<dynamic>?;
-    if (reviewImageUrls != null) {
-      for (var url in reviewImageUrls) {
-        if (!urlsToDelete.contains(url.toString())) {
-          urlsToDelete.add(url.toString());
-        }
+    final reviewImageUrls = reviewData.imageUrls;
+    for (var url in reviewImageUrls) {
+      if (!urlsToDelete.contains(url.toString())) {
+        urlsToDelete.add(url.toString());
       }
     }
 
@@ -826,5 +806,72 @@ class ReviewRepository {
         .eq('game_id', igdbId)
         .maybeSingle();
     return row;
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  // Social / Amigos
+  // ──────────────────────────────────────────────────────────────────
+
+  /// Devuelve la lista de amigos del usuario actual (id, username, avatar_url)
+  /// para el selector de co-op en el modal de reseña.
+  ///
+  /// Usa [v_friend_pairs] como fuente principal. Si la vista no está disponible,
+  /// hace fallback leyendo directamente de [friendships].
+  ///
+  /// Devuelve [List&lt;UserProfile&gt;] tipado — ya no Map&lt;String, dynamic&gt;.
+  Future<List<UserProfile>> fetchFriendsForCoopPicker() async {
+    try {
+      final myId = _client.auth.currentUser?.id;
+      if (myId == null) return [];
+
+      List<String> friendIds = [];
+
+      try {
+        // v_friend_pairs es una vista simétrica: devuelve ambos lados de la amistad.
+        final pairs = await _client
+            .from('v_friend_pairs')
+            .select('friend_id')
+            .eq('user_id', myId);
+        friendIds = List<Map<String, dynamic>>.from(pairs)
+            .map((r) => r['friend_id'] as String)
+            .toList();
+      } catch (_) {
+        // Fallback: leer friendships directamente (bidireccional).
+        try {
+          final sent = await _client
+              .from('friendships')
+              .select('addressee_id')
+              .eq('requester_id', myId)
+              .eq('status', 'accepted');
+          final received = await _client
+              .from('friendships')
+              .select('requester_id')
+              .eq('addressee_id', myId)
+              .eq('status', 'accepted');
+          friendIds = [
+            ...List<Map<String, dynamic>>.from(sent)
+                .map((f) => f['addressee_id'] as String),
+            ...List<Map<String, dynamic>>.from(received)
+                .map((f) => f['requester_id'] as String),
+          ];
+        } catch (_) {
+          return [];
+        }
+      }
+
+      if (friendIds.isEmpty) return [];
+
+      final users = await _client
+          .from('users')
+          .select('id, username, avatar_url, display_name')
+          .inFilter('id', friendIds);
+
+      return List<Map<String, dynamic>>.from(users)
+          .map(UserProfile.fromMap)
+          .toList();
+    } catch (e) {
+      debugPrint('[ReviewRepository] fetchFriendsForCoopPicker error: $e');
+      return [];
+    }
   }
 }

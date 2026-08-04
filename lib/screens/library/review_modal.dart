@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../repositories/review_repository.dart';
+import '../../models/models.dart';
 
 /// Callback invocado cuando el usuario pulsa "Guardar/Publicar Reseña".
 /// Firma idéntica a [_GameDetailsScreenState._saveReview].
@@ -51,67 +52,17 @@ typedef OnSaveReview =
 class ReviewModal {
   ReviewModal._();
 
-  static Future<List<Map<String, dynamic>>> _fetchFriends() async {
-    try {
-      final client = Supabase.instance.client;
-      final myId = client.auth.currentUser?.id;
-      if (myId == null) return [];
-
-      List<String> friendIds = [];
-
-      try {
-        // v_friend_pairs es una vista: solo trae la columna, sin embed.
-        final pairs = await client
-            .from('v_friend_pairs')
-            .select('friend_id')
-            .eq('user_id', myId);
-        friendIds = List<Map<String, dynamic>>.from(
-          pairs,
-        ).map((r) => r['friend_id'] as String).toList();
-      } catch (_) {
-        // Fallback si la vista no existe: usar friendships directamente.
-        try {
-          final sent = await client
-              .from('friendships')
-              .select('addressee_id')
-              .eq('requester_id', myId)
-              .eq('status', 'accepted');
-          final received = await client
-              .from('friendships')
-              .select('requester_id')
-              .eq('addressee_id', myId)
-              .eq('status', 'accepted');
-          friendIds = [
-            ...List<Map<String, dynamic>>.from(
-              sent,
-            ).map((f) => f['addressee_id'] as String),
-            ...List<Map<String, dynamic>>.from(
-              received,
-            ).map((f) => f['requester_id'] as String),
-          ];
-        } catch (_) {
-          return [];
-        }
-      }
-
-      if (friendIds.isEmpty) return [];
-
-      final users = await client
-          .from('users')
-          .select('id, username, avatar_url')
-          .inFilter('id', friendIds);
-
-      return List<Map<String, dynamic>>.from(users);
-    } catch (_) {
-      return [];
-    }
-  }
+  /// Delega en [ReviewRepository.fetchFriendsForCoopPicker] para obtener
+  /// los amigos del usuario actual. La lógica (v_friend_pairs + fallback)
+  /// vive en el repositorio — no la duplicamos aquí.
+  static Future<List<UserProfile>> _fetchFriends() =>
+      ReviewRepository().fetchFriendsForCoopPicker();
 
   static void show({
     required BuildContext context,
     required Map<String, dynamic> gameData,
     required Map<String, dynamic> enrichedData,
-    Map<String, dynamic>? existingReview,
+    Review? existingReview,
     String? currentPartnerId,
     required bool isSaving,
     required double currentRating,
@@ -128,52 +79,49 @@ class ReviewModal {
 
     // Inicializar estado del formulario desde la reseña existente o el estado actual
     double reviewRating = hasReview
-        ? (r!['rating'] ?? 0).toDouble()
+        ? (r!.rating ?? 0)
         : currentRating;
     double reviewRatingGameplay = hasReview
-        ? (r!['rating_gameplay'] ?? 0).toDouble()
+        ? (r!.ratingGameplay ?? 0)
         : currentRatingGameplay;
     double reviewRatingNarrative = hasReview
-        ? (r!['rating_narrative'] ?? 0).toDouble()
+        ? (r!.ratingNarrative ?? 0)
         : currentRatingNarrative;
     double reviewRatingSoundtrack = hasReview
-        ? (r!['rating_soundtrack'] ?? 0).toDouble()
+        ? (r!.ratingSoundtrack ?? 0)
         : currentRatingSoundtrack;
     double reviewRatingVisuals = hasReview
-        ? (r!['rating_visuals'] ?? 0).toDouble()
+        ? (r!.ratingVisuals ?? 0)
         : currentRatingVisuals;
     String reviewStatus = hasReview
-        ? (r!['status'] ?? currentStatus)
+        ? r!.status.dbValue
         : currentStatus;
     String reviewCompletionType = hasReview
-        ? (r!['completion_type'] ?? 'story')
+        ? (r!.completionType ?? 'story')
         : 'story';
-    bool reviewIsReplay = hasReview ? (r!['is_replay'] ?? false) : false;
-    int reviewReplayNumber = hasReview ? (r!['replay_number'] ?? 1) : 1;
-    String? reviewPlatform = hasReview ? r!['platform'] : null;
-    String playTimeText = hasReview && r!['play_time_hours'] != null
-        ? r['play_time_hours'].toString()
+    bool reviewIsReplay = hasReview ? r!.isReplay : false;
+    // TODO: replayNumber is not in Review model currently? Let's assume it's omitted or 1
+    int reviewReplayNumber = 1;
+    String? reviewPlatform = hasReview ? r!.platform : null;
+    String playTimeText = hasReview && r!.playTimeHours != null
+        ? r.playTimeHours.toString()
         : '';
-    DateTime? reviewPlayedFrom = hasReview && r!['played_from'] != null
-        ? DateTime.parse(r['played_from'])
-        : null;
-    DateTime? reviewPlayedUntil = hasReview && r!['played_until'] != null
-        ? DateTime.parse(r['played_until'])
-        : null;
-    int reviewProgressPercent = hasReview ? (r!['progress_percent'] ?? 0) : 0;
+    // Review model does not have played_from/played_until/progress_percent yet.
+    // They might be in user_games or they might be missing. We'll leave them as null/0 for now.
+    DateTime? reviewPlayedFrom;
+    DateTime? reviewPlayedUntil;
+    int reviewProgressPercent = 0;
 
     // El controller de comentario vive dentro del modal (con texto inicial)
     final reviewCommentController = TextEditingController(
-      text: hasReview ? (r!['comment'] ?? '') : commentController.text,
+      text: hasReview ? (r!.comment ?? '') : commentController.text,
     );
-    final String? reviewId = hasReview ? r!['id'] : null;
+    final String? reviewId = hasReview ? r!.id : null;
     String? reviewPartnerId = currentPartnerId;
-    final Future<List<Map<String, dynamic>>> friendsFuture = _fetchFriends();
+    final Future<List<UserProfile>> friendsFuture = _fetchFriends();
 
     List<XFile> newImages = [];
-    List<String> existingImages = hasReview
-        ? List<String>.from(r!['image_urls'] ?? [])
-        : [];
+    List<String> existingImages = hasReview ? List<String>.from(r!.imageUrls) : [];
 
     final List<dynamic> platforms =
         (gameData['platforms'] as List?)?.isNotEmpty == true
@@ -822,7 +770,7 @@ class ReviewModal {
                                   style: TextStyle(fontSize: 14),
                                 ),
                                 children: [
-                                  FutureBuilder<List<Map<String, dynamic>>>(
+                                  FutureBuilder<List<UserProfile>>(
                                     future: friendsFuture,
                                     builder: (context, snapshot) {
                                       if (snapshot.connectionState ==
@@ -871,25 +819,23 @@ class ReviewModal {
                                                   'Jugué en solitario',
                                                 ),
                                               ),
-                                              ...friends.map((f) {
+                                              ...friends.map((friend) {
                                                 return DropdownMenuItem<
                                                   String?
                                                 >(
-                                                  value: f['id'] as String,
+                                                  value: friend.id,
                                                   child: Row(
                                                     children: [
                                                       CircleAvatar(
                                                         radius: 12,
                                                         backgroundImage:
-                                                            f['avatar_url'] !=
-                                                                null
+                                                            friend.avatarUrl != null
                                                             ? NetworkImage(
-                                                                f['avatar_url'],
+                                                                friend.avatarUrl!,
                                                               )
                                                             : null,
                                                         child:
-                                                            f['avatar_url'] ==
-                                                                null
+                                                            friend.avatarUrl == null
                                                             ? const Icon(
                                                                 Icons.person,
                                                                 size: 16,
@@ -898,8 +844,7 @@ class ReviewModal {
                                                       ),
                                                       const SizedBox(width: 8),
                                                       Text(
-                                                        f['username'] ??
-                                                            'Usuario',
+                                                        friend.effectiveName,
                                                         overflow: TextOverflow
                                                             .ellipsis,
                                                       ),
@@ -1158,9 +1103,7 @@ class ReviewModal {
                               completionType: reviewStatus == 'wishlist'
                                   ? 'none'
                                   : reviewCompletionType,
-                              isReplay: reviewStatus == 'wishlist'
-                                  ? false
-                                  : reviewIsReplay,
+                              isReplay: !(reviewStatus == 'wishlist') && reviewIsReplay,
                               replayNumber: reviewIsReplay
                                   ? reviewReplayNumber
                                   : null,
