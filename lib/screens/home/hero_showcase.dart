@@ -513,9 +513,10 @@ class _HeroShowcaseState extends State<HeroShowcase>
       return Container(color: Colors.black);
     }
 
-    // Las barras de progreso y la UI de texto se pasan como `child` del
-    // AnimatedBuilder para que NO se reconstruyan en cada frame de la animación.
-    // Solo el fondo animado (imágenes + paneo) se reconstruye por frame.
+    // La UI de texto (carátula, título, botón...) se pasa como `child` del
+    // AnimatedBuilder exterior para no reconstruirse en cada frame del paneo.
+    // Las barras de progreso se envuelven en su propio AnimatedBuilder para que
+    // se animen y llenen gradualmente al ritmo de _panController.
     final staticOverlay = Stack(
       fit: StackFit.expand,
       children: [
@@ -528,7 +529,10 @@ class _HeroShowcaseState extends State<HeroShowcase>
                   horizontal: 16.0,
                   vertical: 8.0,
                 ),
-                child: _buildProgressBars(),
+                child: AnimatedBuilder(
+                  animation: _panController,
+                  builder: (context, _) => _buildProgressBars(),
+                ),
               ),
             ),
           ),
