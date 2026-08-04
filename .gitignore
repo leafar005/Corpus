@@ -32,8 +32,7 @@ doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies
 
-# Variables de entorno secretas
-lib/env.dart
+# Variables de entorno secretas (ahora manejadas con .env.json)
 
 # Scripts temporales
 scratch/
