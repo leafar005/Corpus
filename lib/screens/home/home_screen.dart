@@ -17,14 +17,16 @@ class _PhaseOneData {
   final String displayName;
   final List<String> sectionsOrder;
   final Set<String> sectionsHidden;
-  final String countdownStyle;
+  final String anticipatedCountdownStyle;
+  final String wishlistCountdownStyle;
 
   const _PhaseOneData({
     required this.games,
     required this.displayName,
     required this.sectionsOrder,
     required this.sectionsHidden,
-    required this.countdownStyle,
+    required this.anticipatedCountdownStyle,
+    required this.wishlistCountdownStyle,
   });
 }
 
@@ -200,7 +202,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final savedOrder = prefs.getStringList('home_sections_order') ??
         ['hero', 'stash_activity', 'anticipated_games'];
     final savedHidden = prefs.getStringList('home_sections_hidden') ?? [];
-    final countdownStyle = prefs.getString('anticipated_countdown_style') ?? 'full';
+    final anticipatedCountdownStyle =
+        prefs.getString('anticipated_countdown_style') ?? 'full';
+    final wishlistCountdownStyle =
+        prefs.getString('wishlist_countdown_style') ??
+        prefs.getString('anticipated_countdown_style') ??
+        'full';
 
     const defaultOrder = [
       'hero',
@@ -221,7 +228,8 @@ class _HomeScreenState extends State<HomeScreen> {
       displayName: displayName,
       sectionsOrder: loadedOrder,
       sectionsHidden: savedHidden.toSet(),
-      countdownStyle: countdownStyle,
+      anticipatedCountdownStyle: anticipatedCountdownStyle,
+      wishlistCountdownStyle: wishlistCountdownStyle,
     );
   }
 
@@ -355,12 +363,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _phaseTwoLoaded
                         ? (wishlistAnticipatedGames.isNotEmpty
                             ? AnticipatedGamesSection(
-                                key: const ValueKey('wishlist_anticipated_loaded'),
+                                key: const ValueKey(
+                                  'wishlist_anticipated_loaded',
+                                ),
                                 games: wishlistAnticipatedGames,
-                                countdownStyle: p1.countdownStyle,
+                                countdownStyle: p1.wishlistCountdownStyle,
                                 title: 'Proximos en tu Wishlist',
                               )
-                            : const SizedBox.shrink(key: ValueKey('wishlist_empty')))
+                            : const SizedBox.shrink(
+                                key: ValueKey('wishlist_empty'),
+                              ))
                         : const _SectionShimmer(
                             key: ValueKey('wishlist_shimmer'),
                             label: 'Proximos en tu Wishlist',
@@ -378,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? AnticipatedGamesSection(
                                 key: const ValueKey('anticipated_loaded'),
                                 games: anticipatedGames,
-                                countdownStyle: p1.countdownStyle,
+                                countdownStyle: p1.anticipatedCountdownStyle,
                               )
                             : const SizedBox.shrink(key: ValueKey('anticipated_empty')))
                         : const _SectionShimmer(

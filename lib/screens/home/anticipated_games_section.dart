@@ -12,7 +12,7 @@ class AnticipatedGamesSection extends StatefulWidget {
     super.key,
     required this.games,
     this.countdownStyle = 'full',
-    this.title = 'Más Anticipados',
+    this.title = 'Juegos más anticipados',
   });
 
   @override

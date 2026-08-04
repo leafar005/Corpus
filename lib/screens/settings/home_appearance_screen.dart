@@ -32,7 +32,8 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
 
   List<String> _order = [];
   Set<String> _hiddenItems = {};
-  String _countdownStyle = 'full';
+  String _anticipatedCountdownStyle = 'full';
+  String _wishlistCountdownStyle = 'full';
   bool _isLoading = true;
 
   @override
@@ -45,8 +46,12 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
     final prefs = await SharedPreferences.getInstance();
     final savedOrder = prefs.getStringList('home_sections_order');
     final savedHidden = prefs.getStringList('home_sections_hidden') ?? [];
-    final savedCountdownStyle =
+    final savedAnticipatedCountdownStyle =
         prefs.getString('anticipated_countdown_style') ?? 'full';
+    final savedWishlistCountdownStyle =
+        prefs.getString('wishlist_countdown_style') ??
+        prefs.getString('anticipated_countdown_style') ??
+        'full';
 
     List<String> loadedOrder = [];
     if (savedOrder != null && savedOrder.isNotEmpty) {
@@ -68,7 +73,8 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
       setState(() {
         _order = loadedOrder;
         _hiddenItems = savedHidden.toSet();
-        _countdownStyle = savedCountdownStyle;
+        _anticipatedCountdownStyle = savedAnticipatedCountdownStyle;
+        _wishlistCountdownStyle = savedWishlistCountdownStyle;
         _isLoading = false;
       });
     }
@@ -78,7 +84,14 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('home_sections_order', _order);
     await prefs.setStringList('home_sections_hidden', _hiddenItems.toList());
-    await prefs.setString('anticipated_countdown_style', _countdownStyle);
+    await prefs.setString(
+      'anticipated_countdown_style',
+      _anticipatedCountdownStyle,
+    );
+    await prefs.setString(
+      'wishlist_countdown_style',
+      _wishlistCountdownStyle,
+    );
   }
 
   void _onReorderItem(int oldIndex, int newIndex) {
@@ -100,12 +113,20 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
     _savePreferences();
   }
 
-  Future<void> _showCountdownStyleDialog() async {
+  Future<void> _showCountdownStyleDialog(String key) async {
+    final currentStyle = key == 'wishlist_anticipated'
+        ? _wishlistCountdownStyle
+        : _anticipatedCountdownStyle;
+
     final result = await showDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Formato de Cuenta Atrás'),
+          title: Text(
+            key == 'wishlist_anticipated'
+                ? 'Formato de Cuenta Atrás (Wishlist)'
+                : 'Formato de Cuenta Atrás (Anticipados)',
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -114,7 +135,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                 title: const Text('Completa (Días, Horas, Minutos)'),
                 value: 'full',
                 // ignore: deprecated_member_use
-                groupValue: _countdownStyle,
+                groupValue: currentStyle,
                 // ignore: deprecated_member_use
                 onChanged: (value) => Navigator.pop(context, value),
               ),
@@ -123,7 +144,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                 title: const Text('Solo días totales'),
                 value: 'days_only',
                 // ignore: deprecated_member_use
-                groupValue: _countdownStyle,
+                groupValue: currentStyle,
                 // ignore: deprecated_member_use
                 onChanged: (value) => Navigator.pop(context, value),
               ),
@@ -133,9 +154,13 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
       },
     );
 
-    if (result != null && result != _countdownStyle && mounted) {
+    if (result != null && result != currentStyle && mounted) {
       setState(() {
-        _countdownStyle = result;
+        if (key == 'wishlist_anticipated') {
+          _wishlistCountdownStyle = result;
+        } else {
+          _anticipatedCountdownStyle = result;
+        }
       });
       _savePreferences();
     }
@@ -169,6 +194,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
           ),
           Expanded(
             child: ReorderableListView(
+              buildDefaultDragHandles: false,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               onReorderItem: (oldIndex, newIndex) {
                 _onReorderItem(oldIndex, newIndex);
@@ -183,61 +209,67 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                     );
                   },
               children: [
-                for (final key in _order)
-                  Container(
-                    key: ValueKey(key),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.05),
-                      ),
-                    ),
-                    child: ListTile(
-                      leading: Icon(
-                        itemIcons[key],
-                        color: _hiddenItems.contains(key)
-                            ? Colors.grey
-                            : Theme.of(context).colorScheme.primary,
-                      ),
-                      title: Text(
-                        itemLabels[key] ?? key,
-                        style: TextStyle(
-                          color: _hiddenItems.contains(key)
-                              ? Colors.grey
-                              : null,
-                          decoration: _hiddenItems.contains(key)
-                              ? TextDecoration.lineThrough
-                              : null,
+                for (int idx = 0; idx < _order.length; idx++)
+                  () {
+                    final key = _order[idx];
+                    return Container(
+                      key: ValueKey(key),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.05),
                         ),
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (key == 'anticipated_games' ||
-                              key == 'wishlist_anticipated')
-                            IconButton(
-                              icon: const Icon(Icons.settings_outlined),
-                              onPressed: _showCountdownStyleDialog,
+                      child: ListTile(
+                        leading: Icon(
+                          itemIcons[key],
+                          color: _hiddenItems.contains(key)
+                              ? Colors.grey
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(
+                          itemLabels[key] ?? key,
+                          style: TextStyle(
+                            color: _hiddenItems.contains(key)
+                                ? Colors.grey
+                                : null,
+                            decoration: _hiddenItems.contains(key)
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (key == 'anticipated_games' ||
+                                key == 'wishlist_anticipated')
+                              IconButton(
+                                icon: const Icon(Icons.settings_outlined),
+                                onPressed: () => _showCountdownStyleDialog(key),
+                              ),
+                            Switch(
+                              value: !_hiddenItems.contains(key),
+                              onChanged: (val) => _toggleVisibility(key, val),
                             ),
-                          Switch(
-                            value: !_hiddenItems.contains(key),
-                            onChanged: (val) => _toggleVisibility(key, val),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.drag_handle,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.3),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            ReorderableDragStartListener(
+                              index: idx,
+                              child: Icon(
+                                Icons.drag_handle,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.3),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  }(),
               ],
             ),
           ),
