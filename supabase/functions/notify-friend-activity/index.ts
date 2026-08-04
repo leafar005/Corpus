@@ -85,24 +85,20 @@ Deno.serve(async (req) => {
       status === "beaten"   ? `ha terminado ${gameTitle}` :
                               `quiere jugar a ${gameTitle}`;
 
-    // Obtener todos los amigos aceptados del usuario
-    const [asSenderRes, asReceiverRes] = await Promise.all([
-      supabase
-        .from("friendships")
-        .select("addressee_id")
-        .eq("requester_id", userId)
-        .eq("status", "accepted"),
-      supabase
-        .from("friendships")
-        .select("requester_id")
-        .eq("addressee_id", userId)
-        .eq("status", "accepted"),
-    ]);
+    // Obtener todos los amigos aceptados del usuario usando la vista simétrica v_friend_pairs.
+    // La vista ya maneja ambas direcciones de la amistad en una sola query.
+    const { data: friendPairs, error: friendsError } = await supabase
+      .from("v_friend_pairs")
+      .select("friend_id")
+      .eq("user_id", userId);
 
-    const friendIds = new Set<string>([
-      ...(asSenderRes.data ?? []).map((f: any) => f.addressee_id),
-      ...(asReceiverRes.data ?? []).map((f: any) => f.requester_id),
-    ]);
+    const friendIds = new Set<string>(
+      (friendPairs ?? []).map((f: any) => f.friend_id as string)
+    );
+
+    if (friendsError) {
+      console.warn("[notify-friend-activity] Error leyendo v_friend_pairs:", friendsError);
+    }
 
     if (friendIds.size === 0) {
       return new Response(JSON.stringify({ sent: 0, reason: "no friends" }), {

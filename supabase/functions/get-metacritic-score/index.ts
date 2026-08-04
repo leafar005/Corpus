@@ -369,7 +369,7 @@ Deno.serve(async (req) => {
           metacritic_user_score: data.user_score,
           metacritic_updated_at: new Date().toISOString(),
         })
-        .eq('id', gameId);
+        .eq('igdb_id', gameId);
 
       if (updateError) {
         log('ERROR', 'Error guardando en la tabla games', { error: updateError.message });
