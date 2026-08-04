@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 import 'steam_import_progress_screen.dart';
 
 class SteamImportSetupScreen extends StatefulWidget {
@@ -30,10 +32,10 @@ class _SteamImportSetupScreenState extends State<SteamImportSetupScreen> {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 24,
-        right: 24,
-        top: 24,
+        top: 24.0,
+        bottom: getBottomSpacer(context),
+        left: 24.0,
+        right: 24.0,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 import '../../services/notification_service.dart';
 
 /// Pantalla de ajustes de notificaciones.
@@ -148,7 +149,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: EdgeInsets.only(top: 16.0, bottom: getBottomSpacer(context), left: 16.0, right: 16.0),
               children: [
                 // ── Amigos ────────────────────────────────────────────────
                 _buildSectionHeader('Amigos'),

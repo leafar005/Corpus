@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 import 'steam_import_setup_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:corpus/services/import_service.dart';
@@ -128,7 +130,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.only(top: 16.0, bottom: getBottomSpacer(context), left: 16.0, right: 16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../globals.dart';
 import '../../services/igdb_service.dart';
@@ -418,9 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
           }
-
-          slivers.add(const SliverPadding(padding: EdgeInsets.only(bottom: 100)));
-
+          slivers.add(SliverPadding(padding: EdgeInsets.only(bottom: getBottomSpacer(context))));
           return RefreshIndicator(
             onRefresh: _handleRefresh,
             child: CustomScrollView(

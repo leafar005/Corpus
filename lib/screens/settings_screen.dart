@@ -28,7 +28,7 @@ class SettingsScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: ListView(
-        padding: const EdgeInsets.only(top: 8, bottom: 100),
+        padding: EdgeInsets.only(top: 8, bottom: getBottomSpacer(context)),
         children: [
           _buildSettingsTile(
             context: context,
