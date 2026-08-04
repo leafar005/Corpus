@@ -124,18 +124,41 @@ class SettingsScreen extends StatelessWidget {
               return StatefulBuilder(
                 builder: (context, setState) {
                   final localizeLinks = prefs.getBool('localize_links') ?? true;
-                  return SwitchListTile(
-                    secondary: const Icon(Icons.language),
-                    title: const Text('Traducir enlaces de tiendas'),
-                    subtitle: const Text(
-                      'Convierte los enlaces de tiendas a euros y español.',
-                    ),
-                    value: localizeLinks,
-                    activeThumbColor: Theme.of(context).colorScheme.primary,
-                    onChanged: (bool value) {
-                      prefs.setBool('localize_links', value);
-                      setState(() {});
-                    },
+                  final duracionDeEnabled =
+                      (prefs.getString('time_source_pref') ?? 'igdb') ==
+                      'duracionde';
+                  return Column(
+                    children: [
+                      SwitchListTile(
+                        secondary: const Icon(Icons.language),
+                        title: const Text('Traducir enlaces de tiendas'),
+                        subtitle: const Text(
+                          'Convierte los enlaces de tiendas a euros y español.',
+                        ),
+                        value: localizeLinks,
+                        activeThumbColor: Theme.of(context).colorScheme.primary,
+                        onChanged: (bool value) {
+                          prefs.setBool('localize_links', value);
+                          setState(() {});
+                        },
+                      ),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.timer_outlined),
+                        title: const Text('DuracionDe (experimental)'),
+                        subtitle: const Text(
+                          'Obtener tiempos de duración en español desde duracionde.com (con fallback a IGDB).',
+                        ),
+                        value: duracionDeEnabled,
+                        activeThumbColor: Theme.of(context).colorScheme.primary,
+                        onChanged: (bool value) {
+                          prefs.setString(
+                            'time_source_pref',
+                            value ? 'duracionde' : 'igdb',
+                          );
+                          setState(() {});
+                        },
+                      ),
+                    ],
                   );
                 },
               );

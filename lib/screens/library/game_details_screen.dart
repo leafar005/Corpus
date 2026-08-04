@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../globals.dart';
 import '../../services/igdb_service.dart';
+import '../../services/duracionde_service.dart';
 import '../../utils/igdb_constants.dart';
 import '../activity/review_details_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -317,14 +318,38 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   Future<void> _fetchTimeToBeat() async {
     final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
     if (igdbId == null) return;
+    final id = igdbId is int ? igdbId : int.parse(igdbId.toString());
 
-    final ttb = await IGDBService.getTimeToBeat(
-      igdbId is int ? igdbId : int.parse(igdbId.toString()),
-    );
+    final prefs = await SharedPreferences.getInstance();
+    final source = prefs.getString('time_source_pref') ?? 'igdb';
+
+    Map<String, dynamic>? ttb;
+
+    if (source == 'duracionde') {
+      final title =
+          (widget.gameData['title'] ?? widget.gameData['name'] ?? '') as String;
+      ttb = await DuracionDeService.getTimeToBeat(id, title: title);
+
+      if (ttb == null || ttb['found'] == false) {
+        // Fallback silencioso a IGDB
+        final igdbTtb = await IGDBService.getTimeToBeat(id);
+        if (igdbTtb != null) {
+          ttb = {...igdbTtb, '_source': 'igdb_fallback'};
+        } else {
+          ttb = null;
+        }
+      } else {
+        ttb = {...ttb, '_source': 'duracionde'};
+      }
+    } else {
+      final igdbTtb = await IGDBService.getTimeToBeat(id);
+      if (igdbTtb != null) {
+        ttb = {...igdbTtb, '_source': 'igdb'};
+      }
+    }
+
     if (mounted && ttb != null) {
-      setState(() {
-        _timeToBeat = ttb;
-      });
+      setState(() => _timeToBeat = ttb);
     }
   }
 
@@ -2404,14 +2429,16 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   Widget _buildTimeToBeatCard(
     String title,
-    int? seconds,
+    num? rawValue,
     Color color,
     IconData icon,
   ) {
     String timeText = '--';
-    if (seconds != null && seconds > 0) {
-      timeText =
-          '${(seconds / 3600).toStringAsFixed(1).replaceAll('.0', '')} h';
+    if (rawValue != null && rawValue > 0) {
+      final isDD = _timeToBeat?['_source'] == 'duracionde';
+      final double hours =
+          isDD ? rawValue.toDouble() : rawValue.toDouble() / 3600;
+      timeText = '${hours.toStringAsFixed(1).replaceAll('.0', '')} h';
     }
 
     return Expanded(
@@ -2451,26 +2478,37 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Widget _buildTimeToBeatRow() {
+    // Soporta dos esquemas de claves:
+    // - IGDB: hastily / normally / completely
+    // - DuracionDe: main / main_extra / completionist
+    final ttb = _timeToBeat;
+    final isDD = (ttb?['_source'] as String?) == 'duracionde';
+    final principalKey = isDD ? 'main' : 'hastily';
+    final extrasKey = isDD ? 'main_extra' : 'normally';
+    final completionistKey = isDD ? 'completionist' : 'completely';
+    final principal = ttb?[principalKey];
+    final extras = ttb?[extrasKey];
+    final completionist = ttb?[completionistKey];
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildTimeToBeatCard(
           'Principal',
-          _timeToBeat?['hastily'],
+          principal,
           Colors.blueAccent,
           Icons.speed,
         ),
         const SizedBox(width: 8),
         _buildTimeToBeatCard(
           'Extras',
-          _timeToBeat?['normally'],
+          extras,
           Colors.purpleAccent,
           Icons.explore,
         ),
         const SizedBox(width: 8),
         _buildTimeToBeatCard(
           'Completista',
-          _timeToBeat?['completely'],
+          completionist,
           Colors.amber,
           Icons.emoji_events,
         ),
@@ -3361,12 +3399,19 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
 
     if (key == 'hltb') {
+      final source = _timeToBeat?['_source'] as String?;
+      String titleText = 'Tiempo estimado';
+      if (source == 'duracionde') {
+        titleText = 'Tiempo estimado (duracionde.com)';
+      } else if (source == 'igdb' || source == 'igdb_fallback') {
+        titleText = 'Tiempo estimado (IGDB.com)';
+      }
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Tiempo Estimado (HLTB)',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Text(
+            titleText,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           _buildTimeToBeatRow(),
