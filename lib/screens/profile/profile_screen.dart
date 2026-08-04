@@ -195,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_isGuestProfile) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: Center(
+        body: const Center(
           child: GuestLoginPrompt(
             message: 'Inicia sesión para ver y personalizar tu perfil.',
           ),
@@ -1297,7 +1297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ] else ...[
           Center(
             child: Padding(
-              padding: EdgeInsets.all(32.0),
+              padding: const EdgeInsets.all(32.0),
               child: Text(
                 'Aún no tienes juegos completados con nota.',
                 style: TextStyle(
