@@ -8,7 +8,6 @@ import 'env.dart';
 import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
 
-import 'package:corpus/screens/auth/login_screen.dart';
 import 'globals.dart';
 
 void main() async {
@@ -176,7 +175,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         if (session != null) {
           return MainScreen(key: ValueKey(session.user.id));
         } else {
-          return LoginScreen();
+          return const MainScreen(key: ValueKey('guest'));
         }
       },
     );
