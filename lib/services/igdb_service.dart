@@ -3,51 +3,17 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' show parse;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../env.dart';
 
 class IGDBService {
-  static String? _accessToken;
-  // TTL: los tokens de Twitch duran ~60 días; renovamos con 5 min de margen.
-  static DateTime? _tokenExpiresAt;
-
-  // 1. Obtener el token de seguridad de Twitch (Autenticación)
-  static Future<void> _authenticate() async {
-    // Reutilizamos el token si existe Y no ha expirado (con 5 min de margen)
-    final now = DateTime.now();
-    if (_accessToken != null &&
-        _tokenExpiresAt != null &&
-        now.isBefore(_tokenExpiresAt!)) {
-      return;
-    }
-
-    final url = kIsWeb
-        ? 'https://corsproxy.io/?https://id.twitch.tv/oauth2/token?client_id=${Env.igdbClientId}&client_secret=${Env.igdbClientSecret}&grant_type=client_credentials'
-        : 'https://id.twitch.tv/oauth2/token?client_id=${Env.igdbClientId}&client_secret=${Env.igdbClientSecret}&grant_type=client_credentials';
-
-    final response = await http
-        .post(Uri.parse(url))
-        .timeout(const Duration(seconds: 10));
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      _accessToken = data['access_token'];
-      // Guardamos el tiempo de expiración restando 5 minutos de margen
-      final expiresIn = (data['expires_in'] as num?)?.toInt() ?? 3600;
-      _tokenExpiresAt = DateTime.now().add(Duration(seconds: expiresIn - 300));
-    } else {
-      throw Exception('Error al autenticar con Twitch: ${response.body}');
-    }
-  }
-
-  // 1b. Helper centralizado: Intenta usar la Edge Function igdb-proxy de Supabase,
-  // y hace fallback transparente a llamada directa con Twitch API si el proxy falla.
+  // 1. Helper centralizado: Llama a la Edge Function igdb-proxy de Supabase.
+  // Ya no hacemos fallback directo a la API de Twitch desde el cliente
+  // porque expondría el Client Secret. Toda llamada pasa por el proxy.
   static Future<http.Response> _postQuery(String endpoint, String query) async {
-    debugPrint('[IGDB] Intentando Edge Function igdb-proxy...');
     try {
       final res = await Supabase.instance.client.functions
           .invoke('igdb-proxy', body: {'endpoint': endpoint, 'query': query})
-          .timeout(const Duration(seconds: 10));
-      debugPrint('[IGDB] Edge Function respondió: status=${res.status}');
+          .timeout(const Duration(seconds: 15));
+          
       if (res.status == 200 && res.data != null) {
         final bodyString = res.data is String ? res.data : jsonEncode(res.data);
         return http.Response.bytes(
@@ -55,30 +21,13 @@ class IGDBService {
           200,
           headers: {'content-type': 'application/json; charset=utf-8'},
         );
+      } else {
+        throw Exception('Error del proxy IGDB: status ${res.status}, data: ${res.data}');
       }
     } catch (e) {
-      debugPrint('[IGDB Proxy Fallback] Error: $e');
+      debugPrint('[IGDB Proxy] Error de conexión: $e');
+      rethrow;
     }
-
-    debugPrint('[IGDB] Cayendo al fallback directo (Twitch/IGDB)...');
-    await _authenticate();
-    final String url = kIsWeb
-        ? 'https://corsproxy.io/?https://api.igdb.com/v4/$endpoint'
-        : 'https://api.igdb.com/v4/$endpoint';
-
-    final resp = await http
-        .post(
-          Uri.parse(url),
-          headers: {
-            'Client-ID': Env.igdbClientId,
-            'Authorization': 'Bearer $_accessToken',
-            'Accept': 'application/json',
-          },
-          body: query,
-        )
-        .timeout(const Duration(seconds: 15));
-    debugPrint('[IGDB] Fallback directo respondió: status=${resp.statusCode}');
-    return resp;
   }
 
   /// Obtiene los juegos más anticipados ordenados por 'hype'
