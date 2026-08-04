@@ -426,10 +426,12 @@ class ImportService {
         final double? cleanRating = (row.rating != null && row.rating! >= 1.0)
             ? row.rating
             : null;
-        final String dateAddedStr =
+        final String? effectiveLastPlayedAt =
             row.steamLastPlayedAt ??
             row.dateAdded ??
-            DateTime.now().toUtc().toIso8601String();
+            (row.steamOwned ? null : DateTime.now().toUtc().toIso8601String());
+        final String effectiveUpdatedAt =
+            effectiveLastPlayedAt ?? DateTime.now().toUtc().toIso8601String();
 
         gamesPayload.add({
           'igdb_id': igdbId,
@@ -467,8 +469,8 @@ class ImportService {
           'play_time_hours': (row.playTimeHours ?? 0) > 0
               ? row.playTimeHours
               : null,
-          'last_played_at': dateAddedStr,
-          'updated_at': dateAddedStr,
+          'last_played_at': effectiveLastPlayedAt,
+          'updated_at': effectiveUpdatedAt,
           if (row.steamOwned) 'steam_owned': true,
           if (row.steamPlaytimeMinutes != null)
             'steam_playtime_minutes': row.steamPlaytimeMinutes,
@@ -490,7 +492,7 @@ class ImportService {
               ? row.playTimeHours
               : null,
           'is_replay': false,
-          'created_at': dateAddedStr,
+          'created_at': effectiveLastPlayedAt,
         });
       }
 

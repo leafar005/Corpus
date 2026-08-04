@@ -310,7 +310,7 @@ Deno.serve(async (req) => {
             game_id: gameObj.igdb_id,
             steam_owned: true,
             steam_playtime_minutes: steamGame.playtime_forever || 0,
-            steam_last_played_at: steamGame.rtime_last_played ? new Date(steamGame.rtime_last_played * 1000).toISOString() : null,
+            steam_last_played_at: (steamGame.rtime_last_played && Number(steamGame.rtime_last_played) > 0) ? new Date(Number(steamGame.rtime_last_played) * 1000).toISOString() : null,
             steam_imported_at: new Date().toISOString()
             // Critical Rule 1: We DO NOT include status, rating, or comment here.
           });
