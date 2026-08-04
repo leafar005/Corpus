@@ -1,9 +1,7 @@
 -- 03_security_policies.sql: Row Level Security (RLS) Policies, Grants, Revokes
 
--- Name: games Allow all for authenticated; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Allow all for authenticated" ON public.games TO authenticated USING (true) WITH CHECK (true);
+-- ELIMINADA: "Allow all for authenticated" en games era ambigua y redundante.
+-- Las políticas específicas (SELECT, INSERT) cubren lo necesario.
 
 
 --
@@ -16,18 +14,20 @@ CREATE POLICY "Allow public read access on active_bundles" ON public.active_bund
 
 --
 
--- Name: stash_community_reviews Anyone can insert stash community reviews; Type: POLICY; Schema: public; Owner: -
+-- Name: stash_community_reviews Service role inserts stash community reviews; Type: POLICY; Schema: public; Owner: -
+-- CAMBIADA: de "Anyone can insert" a solo service_role para evitar inserts no autorizados.
 --
 
-CREATE POLICY "Anyone can insert stash community reviews" ON public.stash_community_reviews FOR INSERT WITH CHECK (true);
+CREATE POLICY "Service role inserts stash community reviews" ON public.stash_community_reviews FOR INSERT TO service_role WITH CHECK (true);
 
 
 --
 
--- Name: stash_sync_metadata Anyone can insert stash sync metadata; Type: POLICY; Schema: public; Owner: -
+-- Name: stash_sync_metadata Service role manages stash sync metadata; Type: POLICY; Schema: public; Owner: -
+-- CAMBIADA: de "Anyone can insert" a solo service_role.
 --
 
-CREATE POLICY "Anyone can insert stash sync metadata" ON public.stash_sync_metadata USING (true) WITH CHECK (true);
+CREATE POLICY "Service role manages stash sync metadata" ON public.stash_sync_metadata FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 
 --
@@ -104,18 +104,9 @@ CREATE POLICY "No direct user insert into activity_feed" ON public.activity_feed
 
 --
 
--- Name: games No user DELETE on games; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "No user DELETE on games" ON public.games FOR DELETE USING (false);
-
-
---
-
--- Name: games No user UPDATE on games; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "No user UPDATE on games" ON public.games FOR UPDATE USING (false);
+-- ELIMINADAS: "No user DELETE on games" y "No user UPDATE on games" eran innecesarias.
+-- Sin política de UPDATE/DELETE activa, esas operaciones quedan denegadas por defecto.
+-- Eliminadas junto con "Allow all for authenticated" para limpiar la lógica RLS.
 
 
 --
