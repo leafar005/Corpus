@@ -1,166 +1,200 @@
 <!DOCTYPE html>
 <html>
+  <head>
 
-<head>
-  <!--
+    <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.
-
     The path provided below has to start and end with a slash "/" in order for
     it to work correctly.
-
     For more details:
     * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="$FLUTTER_BASE_HREF">
+    <base href="$FLUTTER_BASE_HREF">
+    <meta charset="UTF-8">
+    <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+    <meta name="description" content="Personal &amp; social video game tracker.">
 
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Personal &amp; social video game tracker.">
+    <!-- iOS meta tags & icons -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Corpus">
+    <link rel="apple-touch-icon" href="icons/Icon-512.png">
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Corpus">
-  <link rel="apple-touch-icon" href="icons/Icon-512.png">
-
-  <!-- Theme color for Safari/Chrome top and bottom bars -->
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
-
-  <style>
-    /*
+    <!-- Theme color for Safari/Chrome top and bottom bars -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+    <style>
+      /*
       Sets the background color to match the theme to avoid white bars
       when overscrolling or in safe areas.
     */
-    html, body {
-      background-color: #000000;
-      margin: 0;
-      padding: 0;
-      /* Bloquea la navegacion del historial con swipe desde el borde en iOS PWA.
-         Usamos -x y -y explícitos para mayor compatibilidad. */
-      overscroll-behavior-x: none;
-      overscroll-behavior-y: none;
-    }
-
-    @media (prefers-color-scheme: light) {
+      html,
       body {
-        background-color: #ffffff;
+        background-color: #000000;
+        margin: 0;
+        padding: 0;
+        /* Bloquea la navegacion del historial con swipe desde el borde en iOS PWA.
+         Usamos -x y -y explícitos para mayor compatibilidad. */
+        overscroll-behavior-x: none;
+        overscroll-behavior-y: none;
       }
-    }
+      @media (prefers-color-scheme: light) {
+        body {
+          background-color: #ffffff;
+        }
+      }
+      /* Splash / Loading screen */
+      #corpus-splash {
+        position: fixed;
+        inset: 0;
+        background-color: #000000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.5s ease;
+      }
+      #corpus-splash.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .splash-logo-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+      .splash-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        animation: splash-pulse 1.8s ease-in-out infinite;
+      }
+      .splash-bar-track {
+        width: 120px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 1px;
+        overflow: hidden;
+      }
+      .splash-bar-fill {
+        height: 100%;
+        width: 40%;
+        background: #7E57C2;
+        border-radius: 1px;
+        animation: splash-slide 1.5s ease-in-out infinite;
+      }
+      @keyframes splash-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(0.93);
+          opacity: 0.75;
+        }
+      }
+      @keyframes splash-slide {
+        0% {
+          transform: translateX(-100%);
+        }
+        50% {
+          transform: translateX(150%);
+        }
+        100% {
+          transform: translateX(150%);
+        }
+      }
+    </style>
 
-    /* Splash / Loading screen */
-    #corpus-splash {
-      position: fixed;
-      inset: 0;
-      background-color: #000000;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      transition: opacity 0.5s ease;
-    }
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Corpus</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2064-2752.png" media="(device-width: 1032px) and (device-height: 1376px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2752-2064.png" media="(device-width: 1032px) and (device-height: 1376px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2048-2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2732-2048.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1668-2420.png" media="(device-width: 834px) and (device-height: 1210px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2420-1668.png" media="(device-width: 834px) and (device-height: 1210px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1668-2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2388-1668.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1668-2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2224-1668.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1536-2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2048-1536.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1640-2360.png" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2360-1640.png" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1620-2160.png" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2160-1620.png" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1488-2266.png" media="(device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2266-1488.png" media="(device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1320-2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2868-1320.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1206-2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2622-1206.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1260-2736.png" media="(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2736-1260.png" media="(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1290-2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2796-1290.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1179-2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2556-1179.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1170-2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2532-1170.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1284-2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2778-1284.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1080-2340.png" media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2340-1080.png" media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1242-2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2688-1242.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1125-2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2436-1125.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-828-1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1792-828.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1242-2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-2208-1242.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-750-1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1334-750.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-640-1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="splash/apple-splash-1136-640.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+  </head>
+  <body>
 
-    #corpus-splash.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .splash-logo-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .splash-icon {
-      width: 72px;
-      height: 72px;
-      border-radius: 18px;
-      animation: splash-pulse 1.8s ease-in-out infinite;
-    }
-
-    .splash-wordmark {
-      font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      font-size: 24px;
-      font-weight: 900;
-      letter-spacing: 6px;
-      color: #ffffff;
-      opacity: 0.9;
-      text-transform: uppercase;
-    }
-
-    .splash-bar-track {
-      width: 120px;
-      height: 2px;
-      background: rgba(255,255,255,0.12);
-      border-radius: 1px;
-      overflow: hidden;
-    }
-
-    .splash-bar-fill {
-      height: 100%;
-      width: 40%;
-      background: #7E57C2;
-      border-radius: 1px;
-      animation: splash-slide 1.5s ease-in-out infinite;
-    }
-
-    @keyframes splash-pulse {
-      0%, 100% { transform: scale(1);    opacity: 1;    }
-      50%       { transform: scale(0.93); opacity: 0.75; }
-    }
-
-    @keyframes splash-slide {
-      0%   { transform: translateX(-100%); }
-      50%  { transform: translateX(150%);  }
-      100% { transform: translateX(150%);  }
-    }
-  </style>
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png" />
-
-  <title>Corpus</title>
-  <link rel="manifest" href="manifest.json">
-</head>
-
-<body>
-  <!-- Splash screen: visible while Flutter engine loads, fades out automatically -->
-  <div id="corpus-splash" aria-hidden="true">
-    <div class="splash-logo-wrap">
-      <img class="splash-icon" src="icons/Icon-512.png" alt="Corpus">
-      <div class="splash-wordmark">Corpus</div>
-      <div class="splash-bar-track">
-        <div class="splash-bar-fill"></div>
+    <!-- Splash screen: visible while Flutter engine loads, fades out automatically -->
+    <div id="corpus-splash" aria-hidden="true">
+      <div class="splash-logo-wrap">
+        <img class="splash-icon" src="icons/Icon-192.png" alt="Corpus Logo">
+        <div class="splash-bar-track">
+          <div class="splash-bar-fill"></div>
+        </div>
       </div>
     </div>
-  </div>
+    <script>
+      // Hide the splash as soon as Flutter has painted its first frame
+      window.addEventListener('flutter-first-frame', function() {
+        var splash = document.getElementById('corpus-splash');
+        if (splash) {
+          splash.classList.add('hidden');
+          setTimeout(function() {
+            splash.remove();
+          }, 600);
+        }
+      });
+    </script>
 
-  <script>
-    // Hide the splash as soon as Flutter has painted its first frame
-    window.addEventListener('flutter-first-frame', function () {
-      var splash = document.getElementById('corpus-splash');
-      if (splash) {
-        splash.classList.add('hidden');
-        setTimeout(function() { splash.remove(); }, 600);
-      }
-    });
-  </script>
-
-  <!--
+    <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
     or to give the user feedback during the initialization process.
-
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
-</body>
-
+    <script src="flutter_bootstrap.js" async=""></script>
+  </body>
 </html>
