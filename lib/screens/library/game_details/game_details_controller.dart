@@ -22,9 +22,7 @@ class GameDetailsController extends ChangeNotifier {
   final Map<String, dynamic> gameData; // TODO(B-A1): reemplazar por GameModel
   final ReviewRepository _repo;
 
-  // Caché de Metacritic compartida entre aperturas de la pantalla durante
-  // la sesión. Origen: línea ~74 del original. Debe seguir siendo static.
-  static final Map<String, Map<String, dynamic>> _metacriticCache = {};
+  // Cache de metacritic eliminada a favor de GameModel
 
   bool get isGuest => _repo.client.auth.currentUser == null;
 
@@ -101,32 +99,21 @@ class GameDetailsController extends ChangeNotifier {
 
   /// Origen: _fetchMetacritic, líneas 186-272.
   Future<void> fetchMetacritic() async {
-    final cachedScore = gameData['metacritic_score'] ?? enrichedData['metacritic_score'];
-    final cachedUrl = gameData['metacritic_url'] ?? enrichedData['metacritic_url'];
-    final cachedUserScore = gameData['metacritic_user_score'] ?? enrichedData['metacritic_user_score'];
+    final gameModel = Game.fromMap({
+      ...gameData,
+      ...enrichedData,
+    });
 
-    if (cachedScore != null) {
-      metacriticScore = (cachedScore as num).toInt();
-      metacriticUrl = cachedUrl as String?;
-      metacriticUserScore = cachedUserScore != null ? (cachedUserScore as num).toDouble() : null;
+    if (gameModel.hasRecentMetacriticData) {
+      metacriticScore = gameModel.metacriticScore;
+      metacriticUrl = gameModel.metacriticUrl;
+      metacriticUserScore = gameModel.metacriticUserScore;
       notifyListeners();
       return;
     }
 
-    final title = gameData['title'] ?? enrichedData['title'];
-    if (title == null || title.toString().isEmpty) return;
-
-    final cacheKey = title.toString().toLowerCase().trim();
-
-    if (_metacriticCache.containsKey(cacheKey)) {
-      final cached = _metacriticCache[cacheKey]!;
-      metacriticScore = cached['metascore'] as int?;
-      metacriticUrl = cached['url'] as String?;
-      metacriticUserScore = cached['user_score'] != null ? (cached['user_score'] as num).toDouble() : null;
-      metacriticCriticCount = cached['critic_review_count'] as int?;
-      notifyListeners();
-      return;
-    }
+    final title = gameModel.title;
+    if (title.isEmpty) return;
 
     final gameId = gameData['id']?.toString();
     final cachedSlug = gameData['metacritic_slug'] ?? enrichedData['metacritic_slug'];
@@ -135,7 +122,7 @@ class GameDetailsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final payload = <String, dynamic>{'gameTitle': title.toString()};
+      final payload = <String, dynamic>{'gameTitle': title};
       if (gameId != null) payload['gameId'] = gameId;
       if (cachedSlug != null) payload['metacriticSlug'] = cachedSlug.toString();
 
@@ -143,7 +130,6 @@ class GameDetailsController extends ChangeNotifier {
 
       if (response.status == 200 && response.data != null) {
         final data = response.data as Map<String, dynamic>;
-        _metacriticCache[cacheKey] = data;
         metacriticScore = data['metascore'] as int?;
         metacriticUrl = data['url'] as String?;
         metacriticUserScore = data['user_score'] != null ? (data['user_score'] as num).toDouble() : null;

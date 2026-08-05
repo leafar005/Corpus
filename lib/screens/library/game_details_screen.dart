@@ -69,9 +69,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   Map<String, dynamic>? _timeToBeat;
 
   // Metacritic (scraper real via Edge Function)
-  // Caché en memoria para la sesión actual (evita re-llamar al scraper
-  // si el usuario cierra y vuelve a abrir el mismo juego)
-  static final Map<String, Map<String, dynamic>> _metacriticCache = {};
 
   int? _metacriticScore;
   String? _metacriticUrl;
@@ -174,7 +171,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     _loadPreferences();
     _startCarousel(widget.gameData['screenshots']);
-    _enrichGameData().then((_) => _fetchMetacritic());
+    _enrichGameData();
+    _fetchMetacritic();
     _fetchTimeToBeat();
     _fetchRelatedGames();
   }
@@ -186,51 +184,28 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Future<void> _fetchMetacritic() async {
-    // 1. Si ya tenemos datos cacheados en BD, los usamos directamente
-    final cachedScore =
-        widget.gameData['metacritic_score'] ??
-        _enrichedData['metacritic_score'];
-    final cachedUrl =
-        widget.gameData['metacritic_url'] ?? _enrichedData['metacritic_url'];
-    final cachedUserScore =
-        widget.gameData['metacritic_user_score'] ??
-        _enrichedData['metacritic_user_score'];
+    // 1. Instanciamos el modelo Game para aprovechar su lógica de caducidad
+    final gameModel = Game.fromMap({
+      ...widget.gameData,
+      ..._enrichedData, // merge con datos enriquecidos por si los tiene
+    });
 
-    if (cachedScore != null) {
+    // 2. Comprobamos si tiene datos recientes de Metacritic en BD (menos de 30 días)
+    if (gameModel.hasRecentMetacriticData) {
       if (mounted) {
         setState(() {
-          _metacriticScore = (cachedScore as num).toInt();
-          _metacriticUrl = cachedUrl as String?;
-          _metacriticUserScore = cachedUserScore != null
-              ? (cachedUserScore as num).toDouble()
-              : null;
+          _metacriticScore = gameModel.metacriticScore;
+          _metacriticUrl = gameModel.metacriticUrl;
+          _metacriticUserScore = gameModel.metacriticUserScore;
+          // _metacriticCriticCount no se guarda en BD, lo dejamos en null
         });
       }
       return;
     }
 
-    // 2. No hay datos en BD → comprobar caché en memoria de la sesión
-    final title = widget.gameData['title'] ?? _enrichedData['title'];
-    if (title == null || title.toString().isEmpty) return;
-
-    final cacheKey = title.toString().toLowerCase().trim();
-
-    if (_metacriticCache.containsKey(cacheKey)) {
-      final cached = _metacriticCache[cacheKey]!;
-      if (mounted) {
-        setState(() {
-          _metacriticScore = cached['metascore'] as int?;
-          _metacriticUrl = cached['url'] as String?;
-          _metacriticUserScore = cached['user_score'] != null
-              ? (cached['user_score'] as num).toDouble()
-              : null;
-          _metacriticCriticCount = cached['critic_review_count'] as int?;
-        });
-      }
-      return;
-    }
-
-    // 3. No hay caché → llamar al scraper real via Edge Function
+    // 3. No hay datos recientes en BD → llamar al scraper real via Edge Function
+    final title = gameModel.title;
+    if (title.isEmpty) return;
     final gameId = widget.gameData['id']?.toString();
     final cachedSlug =
         widget.gameData['metacritic_slug'] ?? _enrichedData['metacritic_slug'];
@@ -250,8 +225,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
       if (response.status == 200 && response.data != null) {
         final data = response.data as Map<String, dynamic>;
-        // Guardar en caché de sesión
-        _metacriticCache[cacheKey] = data;
         if (mounted) {
           setState(() {
             _metacriticScore = data['metascore'] as int?;
