@@ -1172,7 +1172,7 @@ ALTER TABLE ONLY public.reviews
 --
 
 ALTER TABLE ONLY public.reviews
-    ADD CONSTRAINT reviews_user_id_users_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+    ADD CONSTRAINT reviews_user_id_users_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
