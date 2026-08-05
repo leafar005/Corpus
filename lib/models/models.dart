@@ -8,3 +8,5 @@ export 'game.dart';
 export 'game_status.dart';
 export 'review.dart';
 export 'user_profile.dart';
+export 'user_game.dart';
+export 'achievement.dart';

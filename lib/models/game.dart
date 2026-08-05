@@ -26,6 +26,8 @@ class Game {
     this.franchises = const [],
     this.collection,
     this.category,
+    this.parentGameId,
+    this.isSteamOnly = false,
     this.metacriticScore,
     this.metacriticUrl,
     this.metacriticUserScore,
@@ -47,6 +49,8 @@ class Game {
   final List<String> franchises;
   final String? collection;
   final int? category;
+  final int? parentGameId;
+  final bool isSteamOnly;
 
   // Metacritic (persistido desde la Edge Function get-metacritic-score)
   final int? metacriticScore;
@@ -66,9 +70,14 @@ class Game {
   factory Game.fromMap(Map<String, dynamic> map) {
     return Game(
       igdbId: (map['igdb_id'] ?? map['id']) as int,
-      title: map['title'] as String? ?? '',
-      coverUrl: map['cover_url'] as String?,
-      releaseDate: map['release_date'] as String?,
+      title: map['title'] as String? ?? map['name'] as String? ?? '',
+      coverUrl: map['cover_url'] as String? ?? 
+          (map['cover'] != null && map['cover']['image_id'] != null 
+              ? 'https://images.igdb.com/igdb/image/upload/t_cover_big/${map['cover']['image_id']}.jpg' 
+              : null),
+      releaseDate: map['first_release_date'] != null
+          ? DateTime.fromMillisecondsSinceEpoch((map['first_release_date'] as num).toInt() * 1000).toIso8601String()
+          : map['release_date'] as String?,
       summary: map['summary'] as String?,
       genres: _parseStringList(map['genres']),
       themes: _parseStringList(map['themes']),
@@ -79,6 +88,8 @@ class Game {
       franchises: _parseStringList(map['franchises']),
       collection: _parseCollectionName(map['collection']),
       category: (map['category'] as num?)?.toInt(),
+      parentGameId: (map['parent_game'] as num?)?.toInt(),
+      isSteamOnly: map['is_steam_only'] == true,
       metacriticScore: (map['metacritic_score'] as num?)?.toInt(),
       metacriticUrl: map['metacritic_url'] as String?,
       metacriticUserScore: (map['metacritic_user_score'] as num?)?.toDouble(),
@@ -104,6 +115,8 @@ class Game {
     if (franchises.isNotEmpty) 'franchises': franchises,
     if (collection != null) 'collection': collection,
     if (category != null) 'category': category,
+    if (parentGameId != null) 'parent_game': parentGameId,
+    if (isSteamOnly) 'is_steam_only': true,
     if (metacriticScore != null) 'metacritic_score': metacriticScore,
     if (metacriticUrl != null) 'metacritic_url': metacriticUrl,
     if (metacriticUserScore != null) 'metacritic_user_score': metacriticUserScore,
