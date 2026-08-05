@@ -265,7 +265,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                   (Widget child, int index, Animation<double> animation) {
                     return Material(
                       color: Colors.transparent,
-                      shadowColor: Colors.black.withValues(alpha: 0.2),
+                      shadowColor: Theme.of(context).shadowColor.withValues(alpha: 0.2),
                       elevation: 8,
                       child: child,
                     );

@@ -117,7 +117,7 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
                                   shape: BoxShape.circle,
                                   color: currentPage == index
                                       ? Theme.of(context).colorScheme.primary
-                                      : Colors.white.withValues(alpha: 0.2),
+                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
                                 ),
                               ),
                             ),
@@ -199,7 +199,7 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
               : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Theme.of(context).shadowColor.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

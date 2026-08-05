@@ -176,7 +176,7 @@ class ReviewModal {
                 selectedColor: color,
                 backgroundColor: Theme.of(
                   modalContext,
-                ).colorScheme.surfaceContainerHighest,
+                ).colorScheme.surface,
                 labelStyle: TextStyle(
                   color: tc,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal,

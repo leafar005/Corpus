@@ -888,23 +888,19 @@ class _BottomFadeGradient extends StatelessWidget {
       bottom: -1,
       left: 0,
       right: 0,
-      height: 250,
+      height: 350,
       child: IgnorePointer(
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              stops: const [0.0, 0.3, 0.5, 0.65, 0.78, 0.88, 0.95, 1.0],
+              stops: const [0.0, 0.4, 0.7, 1.0],
               colors: [
-                Colors.black.withValues(alpha: 0.0),
-                Colors.black.withValues(alpha: 0.03),
-                Colors.black.withValues(alpha: 0.1),
-                Colors.black.withValues(alpha: 0.25),
-                Colors.black.withValues(alpha: 0.45),
-                Colors.black.withValues(alpha: 0.7),
-                Colors.black.withValues(alpha: 0.9),
-                Colors.black,
+                Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.0),
+                Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.4),
+                Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.8),
+                Theme.of(context).scaffoldBackgroundColor,
               ],
             ),
           ),

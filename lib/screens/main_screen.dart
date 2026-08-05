@@ -189,12 +189,30 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildLiquidGlassNavBar(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(35),
-          child: LiquidGlassBottomNavBar(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(35),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).shadowColor.withValues(alpha: 0.15),
+                blurRadius: 20,
+                spreadRadius: 0,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(35),
+            child: LiquidGlassBottomNavBar(
+            itemStyle: LiquidGlassNavItemStyle(
+              selectedColor: isDark ? Theme.of(context).colorScheme.primary : Colors.black,
+              unselectedColor: isDark ? Colors.white70 : Colors.black54,
+            ),
             items: const [
               LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
               LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
@@ -216,6 +234,7 @@ class _MainScreenState extends State<MainScreen> {
                   chromaticAberration: 0.025,
                 ),
               ),
+            ),
             ),
           ),
         ),
