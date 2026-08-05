@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../models/models.dart';
+import '../../widgets/game_card.dart';
 import '../../services/igdb_service.dart';
 import '../library/game_details_screen.dart';
 import 'hero_showcase.dart';
@@ -19,6 +22,7 @@ class _PhaseOneData {
   final Set<String> sectionsHidden;
   final String anticipatedCountdownStyle;
   final String wishlistCountdownStyle;
+  final int bundlesEndingSoonDays;
 
   const _PhaseOneData({
     required this.games,
@@ -27,6 +31,7 @@ class _PhaseOneData {
     required this.sectionsHidden,
     required this.anticipatedCountdownStyle,
     required this.wishlistCountdownStyle,
+    required this.bundlesEndingSoonDays,
   });
 }
 
@@ -35,11 +40,13 @@ class _PhaseTwoData {
   final List<dynamic> anticipatedGames;
   final List<dynamic> wishlistAnticipatedGames;
   final List<Map<String, dynamic>> latestReviews;
+  final List<Map<String, dynamic>> bundlesEndingSoon;
 
   const _PhaseTwoData({
     required this.anticipatedGames,
     required this.wishlistAnticipatedGames,
     required this.latestReviews,
+    required this.bundlesEndingSoon,
   });
 }
 
@@ -47,8 +54,9 @@ class _PhaseTwoData {
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSearch;
+  final Function(String)? onNavigateToBundles;
 
-  const HomeScreen({super.key, this.onNavigateToSearch});
+  const HomeScreen({super.key, this.onNavigateToSearch, this.onNavigateToBundles});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -58,6 +66,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _latestReviewsScrollController = ScrollController();
   final ValueNotifier<bool> _canScrollLeft = ValueNotifier(false);
   final ValueNotifier<bool> _canScrollRight = ValueNotifier(true);
+  
+  final PageController _bundlesScrollController = PageController();
+  final ValueNotifier<bool> _canScrollBundlesLeft = ValueNotifier(false);
+  final ValueNotifier<bool> _canScrollBundlesRight = ValueNotifier(true);
+  final ValueNotifier<int> _currentBundlePage = ValueNotifier(0);
 
   bool get _isDesktop =>
       defaultTargetPlatform == TargetPlatform.windows ||
@@ -78,8 +91,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _startLoading();
     libraryUpdateNotifier.addListener(_onLibraryUpdated);
     _latestReviewsScrollController.addListener(_updateScrollArrows);
+    _bundlesScrollController.addListener(_updateBundlesScrollArrows);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateScrollArrows();
+      _updateBundlesScrollArrows();
     });
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
       if (mounted) _startLoading();
@@ -109,12 +124,24 @@ class _HomeScreenState extends State<HomeScreen> {
     _canScrollRight.value = position.pixels < (position.maxScrollExtent - 1.0);
   }
 
+  void _updateBundlesScrollArrows() {
+    if (!mounted || !_bundlesScrollController.hasClients) return;
+    final position = _bundlesScrollController.position;
+    _canScrollBundlesLeft.value = position.pixels > 1.0;
+    _canScrollBundlesRight.value = position.pixels < (position.maxScrollExtent - 1.0);
+  }
+
   @override
   void dispose() {
     _latestReviewsScrollController.removeListener(_updateScrollArrows);
     _latestReviewsScrollController.dispose();
+    _bundlesScrollController.removeListener(_updateBundlesScrollArrows);
+    _bundlesScrollController.dispose();
     _canScrollLeft.dispose();
     _canScrollRight.dispose();
+    _canScrollBundlesLeft.dispose();
+    _canScrollBundlesRight.dispose();
+    _currentBundlePage.dispose();
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
     _authSub?.cancel();
     super.dispose();
@@ -203,14 +230,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ['hero', 'stash_activity', 'anticipated_games'];
     final savedHidden = prefs.getStringList('home_sections_hidden') ?? [];
     final anticipatedCountdownStyle =
-        prefs.getString('anticipated_countdown_style') ?? 'full';
+        prefs.getString('anticipated_countdown_style') ?? 'days_only';
     final wishlistCountdownStyle =
         prefs.getString('wishlist_countdown_style') ??
         prefs.getString('anticipated_countdown_style') ??
-        'full';
+        'days_only';
+    final bundlesEndingSoonDays = prefs.getInt('home_bundles_ending_soon_days') ?? 3;
 
     const defaultOrder = [
       'hero',
+      'bundles_ending_soon',
       'stash_activity',
       'wishlist_anticipated',
       'anticipated_games',
@@ -230,6 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
       sectionsHidden: savedHidden.toSet(),
       anticipatedCountdownStyle: anticipatedCountdownStyle,
       wishlistCountdownStyle: wishlistCountdownStyle,
+      bundlesEndingSoonDays: bundlesEndingSoonDays,
     );
   }
 
@@ -275,22 +305,44 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
+    Future<List<Map<String, dynamic>>> bundlesFuture() async {
+      try {
+        final p1 = await _phaseOneFuture;
+        if (p1.sectionsHidden.contains('bundles_ending_soon')) return [];
+        
+        final limitDate = DateTime.now().add(Duration(days: p1.bundlesEndingSoonDays));
+        final resp = await Supabase.instance.client
+            .from('active_bundles')
+            .select()
+            .gte('end_date', DateTime.now().toIso8601String())
+            .lte('end_date', limitDate.toIso8601String())
+            .order('end_date', ascending: true);
+        return List<Map<String, dynamic>>.from(resp);
+      } catch (e) {
+        debugPrint('Error obteniendo bundles por terminar: $e');
+        return [];
+      }
+    }
+
     // Capturamos cada resultado en variables tipadas via .then()
     // para evitar problemas de inferencia con Future.wait heterogéneo.
     List<dynamic> anticipatedResult = [];
     List<Map<String, dynamic>> reviewsResult = [];
     List<dynamic> wishlistResult = [];
+    List<Map<String, dynamic>> bundlesResult = [];
 
     await Future.wait([
       anticipatedFuture.then((v) => anticipatedResult = v),
       reviewsFuture.then((v) => reviewsResult = v),
       wishlistFuture().then((v) => wishlistResult = v),
+      bundlesFuture().then((v) => bundlesResult = v),
     ]);
 
     return _PhaseTwoData(
       anticipatedGames: anticipatedResult,
       latestReviews: reviewsResult,
       wishlistAnticipatedGames: wishlistResult,
+      bundlesEndingSoon: bundlesResult,
     );
   }
 
@@ -400,6 +452,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               );
+            } else if (sectionKey == 'bundles_ending_soon') {
+              final bundles = p2?.bundlesEndingSoon ?? [];
+              slivers.add(
+                SliverToBoxAdapter(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    child: _phaseTwoLoaded
+                        ? (bundles.isNotEmpty
+                            ? _buildBundlesEndingSoonSection(bundles)
+                            : const SizedBox.shrink(key: ValueKey('bundles_empty')))
+                        : const _SectionShimmer(
+                            key: ValueKey('bundles_shimmer'),
+                            label: 'Oportunidades Finales',
+                          ),
+                  ),
+                ),
+              );
             } else if (sectionKey == 'stash_activity') {
               slivers.add(
                 SliverToBoxAdapter(
@@ -427,6 +496,285 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildBundlesEndingSoonSection(List<Map<String, dynamic>> bundles) {
+    return Container(
+      key: const ValueKey('bundles_loaded'),
+      color: Colors.black,
+      padding: const EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Oportunidades Finales',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 220,
+            child: Stack(
+              children: [
+                PageView.builder(
+                  controller: _bundlesScrollController,
+                  itemCount: bundles.length,
+                  onPageChanged: (index) {
+                    _currentBundlePage.value = index;
+                  },
+                  itemBuilder: (context, index) {
+                    final bundle = bundles[index];
+                    final endDate = DateTime.parse(bundle['end_date']);
+                    final difference = endDate.difference(DateTime.now());
+                    final days = difference.inDays;
+                    final hours = difference.inHours % 24;
+
+                    // Extraer los primeros 4 juegos para mostrarlos
+                    List<Map<String, dynamic>> allGames = [];
+                    final tiers = bundle['tiers'] as List<dynamic>? ?? [];
+                    for (final tier in tiers) {
+                      final games = tier['games'] as List<dynamic>? ?? [];
+                      for (final game in games) {
+                        if (game is Map<String, dynamic>) {
+                          allGames.add(game);
+                        }
+                      }
+                    }
+                    
+                    // Ordenar por popularidad
+                    allGames.sort((a, b) {
+                      final aPop = (a['total_rating_count'] as num?)?.toInt() ?? 
+                                   (a['follows'] as num?)?.toInt() ?? 
+                                   (a['metacritic_score'] as num?)?.toInt() ?? 0;
+                      final bPop = (b['total_rating_count'] as num?)?.toInt() ?? 
+                                   (b['follows'] as num?)?.toInt() ?? 
+                                   (b['metacritic_score'] as num?)?.toInt() ?? 0;
+                      return bPop.compareTo(aPop);
+                    });
+                    final coverWidth = 125.0;
+                    
+                    final isHumble = (bundle['store_name'] ?? '').toLowerCase().contains('humble');
+                    final isFanatical = (bundle['store_name'] ?? '').toLowerCase().contains('fanatical');
+                    Widget storeIcon;
+                    if (isHumble) {
+                      storeIcon = Image.asset('assets/images/humble_logo.png', width: 48, height: 48);
+                    } else if (isFanatical) {
+                      storeIcon = Image.asset('assets/images/fanatical_logo.png', width: 48, height: 48);
+                    } else {
+                      storeIcon = Icon(Icons.local_offer, size: 48, color: Theme.of(context).colorScheme.primary);
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Row(
+                              children: [
+                                if (_isDesktop) ...[
+                                  storeIcon,
+                                  const SizedBox(width: 16),
+                                ],
+                                Flexible(
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        if (widget.onNavigateToBundles != null) {
+                                          widget.onNavigateToBundles!(bundle['title'] ?? '');
+                                        } else if (bundle['url'] != null) {
+                                          launchUrl(Uri.parse(bundle['url']));
+                                        }
+                                      },
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            bundle['store_name'] ?? 'Tienda',
+                                            style: TextStyle(
+                                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            bundle['title'] ?? 'Bundle',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            'Termina en $days días y $hours horas',
+                                            style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold, fontSize: 15),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                            if (allGames.isNotEmpty) ...[
+                              const SizedBox(width: 16),
+                              Expanded(
+                                flex: 5,
+                                child: _isDesktop
+                                    ? LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          final int maxFit = (constraints.maxWidth + 8) ~/ (coverWidth + 8);
+                                          final int renderCount = maxFit < allGames.length ? maxFit : allGames.length;
+                                          final visibleGames = allGames.take(renderCount).toList();
+
+                                          return Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              for (int i = 0; i < visibleGames.length; i++) ...[
+                                                if (i > 0) const SizedBox(width: 8),
+                                                SizedBox(
+                                                  width: coverWidth,
+                                                  child: GameCard(
+                                                    key: ValueKey(visibleGames[i]['steamAppId'] ?? visibleGames[i]['title'] ?? i),
+                                                    game: Game.fromMap(visibleGames[i]),
+                                                    onReturn: () {},
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          );
+                                        },
+                                      )
+                                    : Align(
+                                        alignment: Alignment.centerRight,
+                                        child: SizedBox(
+                                          width: 190,
+                                          child: GridView.builder(
+                                            padding: EdgeInsets.zero,
+                                            shrinkWrap: true,
+                                            physics: const NeverScrollableScrollPhysics(),
+                                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount: 3,
+                                              mainAxisSpacing: 6,
+                                              crossAxisSpacing: 6,
+                                              childAspectRatio: 0.7,
+                                            ),
+                                            itemCount: allGames.length > 6 ? 6 : allGames.length,
+                                            itemBuilder: (context, index) {
+                                              return GameCard(
+                                                key: ValueKey(allGames[index]['steamAppId'] ?? allGames[index]['title'] ?? index),
+                                                game: Game.fromMap(allGames[index]),
+                                                onReturn: () {},
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                ),
+                if (bundles.length > 1 && _isDesktop)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _canScrollBundlesLeft,
+                        builder: (context, canScroll, child) {
+                          if (!canScroll) return const SizedBox.shrink();
+                          return IconButton(
+                            icon: const Icon(Icons.chevron_left, size: 24),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black.withValues(alpha: 0.5),
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () {
+                              _bundlesScrollController.previousPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                if (bundles.length > 1 && _isDesktop)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _canScrollBundlesRight,
+                        builder: (context, canScroll, child) {
+                          if (!canScroll) return const SizedBox.shrink();
+                          return IconButton(
+                            icon: const Icon(Icons.chevron_right, size: 24),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black.withValues(alpha: 0.5),
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () {
+                              _bundlesScrollController.nextPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (bundles.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 16.0),
+              child: Center(
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _currentBundlePage,
+                  builder: (context, currentPage, child) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        bundles.length,
+                        (index) => Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: currentPage == index
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.white.withValues(alpha: 0.2),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
