@@ -244,11 +244,11 @@ CREATE TRIGGER update_active_bundles_modtime
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- 4. Programar la ejecución de la Edge Function cada 4 horas
+-- 4. Programar la ejecución de la Edge Function cada hora
 -- (Reemplaza TU_SERVICE_ROLE_KEY con tu clave secreta service_role)
 SELECT cron.schedule(
   'sync-bundles-cron',
-  '0 */4 * * *', -- Cada 4 horas en punto
+  '0 * * * *', -- Cada hora en punto
   $$
   SELECT net.http_post(
       url:='https://rhcgjiwmlqswlideqzid.supabase.co/functions/v1/sync-bundles',
