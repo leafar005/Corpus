@@ -14,6 +14,10 @@ class _ListRow {
   _ListRow.bundle(this.storeName, this.bundle) : isHeader = false;
 }
 
+class BundlesNavigation {
+  static final targetQuery = ValueNotifier<String?>(null);
+}
+
 class BundlesScreen extends StatefulWidget {
   const BundlesScreen({super.key});
 
@@ -29,15 +33,31 @@ class _BundlesScreenState extends State<BundlesScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
   final ScrollController _scrollController = ScrollController();
+  final Set<String> _collapsedStores = {};
 
   @override
   void initState() {
     super.initState();
     _fetchBundles();
+    BundlesNavigation.targetQuery.addListener(_onExternalSearch);
+    if (BundlesNavigation.targetQuery.value != null) {
+      _onExternalSearch();
+    }
+  }
+
+  void _onExternalSearch() {
+    final query = BundlesNavigation.targetQuery.value;
+    if (query != null && query.isNotEmpty) {
+      _searchController.text = query;
+      _searchQuery = query;
+      BundlesNavigation.targetQuery.value = null;
+      _refresh();
+    }
   }
 
   @override
   void dispose() {
+    BundlesNavigation.targetQuery.removeListener(_onExternalSearch);
     _debounce?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
@@ -69,6 +89,12 @@ class _BundlesScreenState extends State<BundlesScreen> {
       }
 
       final newBundles = List<Map<String, dynamic>>.from(response);
+      final now = DateTime.now();
+      newBundles.retainWhere((b) {
+        if (b['end_date'] == null) return true;
+        final endDate = DateTime.parse(b['end_date']);
+        return endDate.isAfter(now);
+      });
 
       if (mounted) {
         setState(() {
@@ -102,35 +128,62 @@ class _BundlesScreenState extends State<BundlesScreen> {
     final rows = <_ListRow>[];
     for (final store in orderedStores) {
       rows.add(_ListRow.header(store));
-      for (final bundle in grouped[store]!) {
-        rows.add(_ListRow.bundle(store, bundle));
+      if (!_collapsedStores.contains(store)) {
+        for (final bundle in grouped[store]!) {
+          rows.add(_ListRow.bundle(store, bundle));
+        }
       }
     }
     return rows;
   }
 
   Widget _buildStoreHeader(String storeName) {
-    final isHumble = storeName == 'Humble Bundle';
+    final isHumble = storeName.toLowerCase().contains('humble');
+    final isFanatical = storeName.toLowerCase().contains('fanatical');
     final badgeColor = isHumble ? Colors.redAccent : Colors.orangeAccent;
+    final isCollapsed = _collapsedStores.contains(storeName);
     return Padding(
       padding: const EdgeInsets.only(top: 24, bottom: 8),
-      child: Row(
-        children: [
-          Icon(
-            isHumble ? Icons.local_fire_department : Icons.storefront,
-            color: badgeColor,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            if (isCollapsed) {
+              _collapsedStores.remove(storeName);
+            } else {
+              _collapsedStores.add(storeName);
+            }
+          });
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              if (isHumble)
+                Image.asset('assets/images/humble_logo_full.png', height: 32, fit: BoxFit.contain)
+              else if (isFanatical)
+                Image.asset('assets/images/fanatical_logo_full.png', height: 32, fit: BoxFit.contain)
+              else ...[
+                Icon(Icons.storefront, color: badgeColor, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  storeName.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: badgeColor,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+              const Spacer(),
+              Icon(
+                isCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text(
-            storeName.toUpperCase(),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: badgeColor,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -139,6 +192,18 @@ class _BundlesScreenState extends State<BundlesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: _searchQuery.isNotEmpty 
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                  });
+                  _refresh();
+                },
+              )
+            : null,
         title: const Text('Bundles Activos'),
         actions: [
           IconButton(
@@ -264,6 +329,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
       onRefresh: _refresh,
       child: ListView.builder(
         controller: _scrollController,
+        cacheExtent: 5000,
         padding: const EdgeInsets.all(16),
         itemCount: rows.length,
         itemBuilder: (context, index) {
