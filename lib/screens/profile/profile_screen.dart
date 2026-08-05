@@ -8,7 +8,8 @@ import 'profile_games_list_screen.dart';
 import '../settings_screen.dart';
 import 'achievements_screen.dart';
 import '../../utils/level_calculator.dart';
-import 'package:corpus/widgets/game_card.dart';
+import '../../widgets/game_card.dart';
+import '../../models/models.dart';
 import '../social/friends_screen.dart';
 import 'profile_achievements_tab.dart';
 import 'profile_journal_tab.dart';
@@ -1264,7 +1265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildGameCard(Map<String, dynamic> game) {
     final userRating = (game['user_rating'] ?? 0).toDouble();
     return GameCard(
-      game: game,
+      game: Game.fromMap(game),
       isInLibrary: true,
       userRating: userRating,
       onReturn: _fetchProfileData,

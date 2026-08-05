@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/screens/library/game_details_screen.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 
+import 'package:corpus/models/models.dart';
+
 class GameCard extends StatefulWidget {
-  final Map<String, dynamic> game;
+  final Game game;
   final bool isInLibrary;
   final double userRating;
   final VoidCallback onReturn;
   final bool isGrayscale;
   final bool showMetacriticBadge;
-  final void Function(Map<String, dynamic>)? onTap;
+  final void Function(Game)? onTap;
 
   const GameCard({
     super.key,
@@ -107,19 +108,8 @@ class _GameCardState extends State<GameCard> {
 
   @override
   Widget build(BuildContext context) {
-    String coverUrl = '';
-    if (widget.game['cover_url'] != null) {
-      coverUrl = widget.game['cover_url'];
-    } else {
-      final coverImageId = widget.game['cover'] != null
-          ? widget.game['cover']['image_id']
-          : null;
-      coverUrl = IGDBService.getCoverUrl(coverImageId);
-    }
-
-    final String title =
-        widget.game['name'] ?? widget.game['title'] ?? 'Desconocido';
-    final igdbId = widget.game['igdb_id'] ?? widget.game['id'];
+    final String coverUrl = widget.game.coverUrl ?? '';
+    final String title = widget.game.title;
 
     return RepaintBoundary(
       child: MouseRegion(
@@ -127,138 +117,19 @@ class _GameCardState extends State<GameCard> {
         onExit: (_) => setState(() => _isHovered = false),
         child: InkWell(
           onTap: () {
-            final cleanData = Map<String, dynamic>.from(widget.game);
-            cleanData['igdb_id'] = igdbId;
-            cleanData['title'] = title;
-            cleanData['cover_url'] = coverUrl;
-            cleanData['release_date'] =
-                widget.game['first_release_date'] != null
-                ? DateTime.fromMillisecondsSinceEpoch(
-                    widget.game['first_release_date'] * 1000,
-                  ).toIso8601String()
-                : widget.game['release_date'];
-
-            if (widget.game['genres'] != null &&
-                widget.game['genres'] is List) {
-              cleanData['genres'] = (widget.game['genres'] as List)
-                  .map((g) => g is Map ? g['name'] : g)
-                  .toList();
-            } else if (widget.game['genres'] == null) {
-              cleanData['genres'] = [];
-            }
-
-            if (widget.game['screenshots'] != null &&
-                widget.game['screenshots'] is List) {
-              cleanData['screenshots'] = (widget.game['screenshots'] as List)
-                  .map((s) => s is Map ? s['image_id'] : s)
-                  .toList();
-            } else if (widget.game['screenshots'] == null) {
-              cleanData['screenshots'] = [];
-            }
-
-            if (widget.game['artworks'] != null &&
-                widget.game['artworks'] is List) {
-              cleanData['artworks'] = (widget.game['artworks'] as List)
-                  .map((a) => a is Map ? a['image_id'] : a)
-                  .toList();
-            } else if (widget.game['artworks'] == null) {
-              cleanData['artworks'] = [];
-            }
-
-            if (widget.game['videos'] != null &&
-                widget.game['videos'] is List) {
-              cleanData['videos'] = (widget.game['videos'] as List)
-                  .map((v) => v is Map ? v['video_id'] : v)
-                  .toList();
-            } else if (widget.game['videos'] == null) {
-              cleanData['videos'] = [];
-            }
-
-            if (widget.game['platforms'] != null &&
-                widget.game['platforms'] is List) {
-              cleanData['platforms'] = (widget.game['platforms'] as List)
-                  .map((p) => p is Map ? p['name'] : p)
-                  .toList();
-            } else if (widget.game['platforms'] == null) {
-              cleanData['platforms'] = [];
-            }
-
-            if (widget.game['collection'] != null) {
-              cleanData['collection'] = widget.game['collection'] is Map
-                  ? widget.game['collection']['name']
-                  : widget.game['collection'];
-            }
-
-            if (widget.game['franchises'] != null &&
-                widget.game['franchises'] is List) {
-              cleanData['franchises'] = (widget.game['franchises'] as List)
-                  .map((f) => f is Map ? f['name'] : f)
-                  .toList();
-            } else if (widget.game['franchises'] == null) {
-              cleanData['franchises'] = [];
-            }
-
-            if (widget.game['game_engines'] != null &&
-                widget.game['game_engines'] is List) {
-              cleanData['game_engines'] = (widget.game['game_engines'] as List)
-                  .map((e) => e is Map ? e['name'] : e)
-                  .toList();
-            } else if (widget.game['game_engines'] == null) {
-              cleanData['game_engines'] = [];
-            }
-
-            if (widget.game['involved_companies'] != null &&
-                (widget.game['involved_companies'] as List).isNotEmpty) {
-              final companies = widget.game['involved_companies'] as List;
-              try {
-                final dev = companies.firstWhere((c) => c['developer'] == true);
-                cleanData['developer'] = dev['company']['name'];
-              } catch (_) {
-                try {
-                  cleanData['developer'] = companies[0]['company']['name'];
-                } catch (_) {}
-              }
-            } else {
-              cleanData['developer'] =
-                  widget.game['developer'] ?? 'Desconocido';
-            }
-
             if (widget.onTap != null) {
-              widget.onTap!(cleanData);
+              widget.onTap!(widget.game);
               return;
             }
 
-            final isDesktop = MediaQuery.of(context).size.width > 800;
-            if (isDesktop) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => GameDetailsScreen(gameData: cleanData),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GameDetailsScreen(
+                  gameData: widget.game.toMap(),
                 ),
-              ).then((_) => widget.onReturn());
-            } else {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                useSafeArea: false,
-                enableDrag: true,
-                builder: (context) => DraggableScrollableSheet(
-                  initialChildSize: 1.0,
-                  minChildSize: 0.5,
-                  maxChildSize: 1.0,
-                  expand: false,
-                  snap: true,
-                  builder: (context, scrollController) {
-                    return GameDetailsScreen(
-                      gameData: cleanData,
-                      scrollController: scrollController,
-                    );
-                  },
-                ),
-              ).then((_) {
-                widget.onReturn();
-              });
-            }
+              ),
+            ).then((_) => widget.onReturn());
           },
           borderRadius: BorderRadius.circular(8),
           child: Stack(
@@ -319,20 +190,13 @@ class _GameCardState extends State<GameCard> {
                             left: 6,
                             child: Builder(
                               builder: (context) {
-                                final dynamic rawCat =
-                                    widget.game['category'] ??
-                                    widget.game['game_type'];
-                                final int? categoryId = (rawCat is num)
-                                    ? rawCat.toInt()
-                                    : int.tryParse(rawCat?.toString() ?? '');
                                 final int? resolved =
                                     IgdbConstants.resolveCategory(
-                                      categoryId,
+                                      widget.game.category,
                                       title,
                                       hasParentGame:
-                                          widget.game['parent_game'] != null,
-                                      summary: widget.game['summary']
-                                          ?.toString(),
+                                          widget.game.parentGameId != null,
+                                      summary: widget.game.summary,
                                     );
 
                                 if (IgdbConstants.isMainGame(resolved)) {
@@ -418,8 +282,7 @@ class _GameCardState extends State<GameCard> {
                                 ),
                               ),
                             ),
-
-                          if (widget.game['is_steam_only'] == true)
+                          if (widget.game.isSteamOnly)
                             Positioned(
                               top: 6,
                               left: 6,
@@ -455,49 +318,26 @@ class _GameCardState extends State<GameCard> {
                 ),
               ),
 
-              // Badge de Metacritic asomando por abajo, más pequeño y rectangular
-              if (widget.showMetacriticBadge &&
-                  widget.game['metacritic_score'] != null)
+              if (widget.showMetacriticBadge && widget.game.metacriticScore != null)
                 Positioned(
-                  bottom: -8, // Se sale 8px del GameCard por abajo
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Builder(
-                      builder: (context) {
-                        final score = widget.game['metacritic_score'] as int;
-                        final color = score >= 75
-                            ? const Color(0xFF4CAF50)
-                            : score >= 50
-                            ? const Color(0xFFFFC107)
-                            : const Color(0xFFF44336);
-
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: color,
-                            borderRadius: BorderRadius.circular(6),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.6),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            score.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        );
-                      },
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getMetacriticColor(widget.game.metacriticScore!),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${widget.game.metacriticScore}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -506,5 +346,11 @@ class _GameCardState extends State<GameCard> {
         ),
       ),
     );
+  }
+
+  Color _getMetacriticColor(int score) {
+    if (score >= 75) return Colors.green;
+    if (score >= 50) return Colors.orange;
+    return Colors.red;
   }
 }

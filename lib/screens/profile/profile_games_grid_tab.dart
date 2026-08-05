@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../widgets/game_card.dart';
+import 'package:corpus/widgets/game_card.dart';
+import 'package:corpus/models/models.dart';
 import '../../utils/igdb_constants.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../widgets/filter_bottom_sheet.dart';
@@ -366,7 +367,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           gameData['is_steam_only'] = item['is_steam_only'];
 
           return GameCard(
-            game: gameData,
+            game: Game.fromMap(gameData),
             isInLibrary: true,
             userRating: rating,
             showMetacriticBadge: _filters.sortBy == 'metacritic_score',

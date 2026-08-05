@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:corpus/services/igdb_service.dart';
-import 'package:corpus/widgets/game_card.dart';
+import '../../services/igdb_service.dart';
+import '../../widgets/game_card.dart';
+import '../../models/models.dart';
 
 class GroupGamesScreen extends StatefulWidget {
   final String title;
@@ -88,7 +89,7 @@ class _GroupGamesScreenState extends State<GroupGamesScreen> {
               itemCount: _games.length,
               itemBuilder: (context, index) {
                 return GameCard(
-                  game: _games[index] as Map<String, dynamic>,
+                  game: Game.fromMap(_games[index] as Map<String, dynamic>),
                   onReturn: () {},
                 );
               },
