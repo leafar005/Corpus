@@ -382,6 +382,7 @@ class SettingsScreen extends StatelessWidget {
         trailing: trailing ?? const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
+      ),
     );
   }
 
