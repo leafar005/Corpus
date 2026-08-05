@@ -23,6 +23,8 @@ class AnticipatedGamesSection extends StatefulWidget {
 class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
   Timer? _timer;
   late DateTime _now;
+  final PageController _pageController = PageController();
+  final ValueNotifier<int> _currentPage = ValueNotifier(0);
 
   @override
   void initState() {
@@ -40,6 +42,8 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
   @override
   void dispose() {
     _timer?.cancel();
+    _pageController.dispose();
+    _currentPage.dispose();
     super.dispose();
   }
 
@@ -59,21 +63,71 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          GridView.builder(
-            padding: EdgeInsets.zero,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isDesktop ? 2 : 1,
-              childAspectRatio: isDesktop ? 2.5 : 1.8,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+          if (isDesktop)
+            GridView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 2.5,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: widget.games.length,
+              itemBuilder: (context, index) {
+                return _buildGameCard(widget.games[index]);
+              },
+            )
+          else
+            Column(
+              children: [
+                SizedBox(
+                  height: 220,
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: widget.games.length,
+                    onPageChanged: (index) {
+                      _currentPage.value = index;
+                    },
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: _buildGameCard(widget.games[index]),
+                      );
+                    },
+                  ),
+                ),
+                if (widget.games.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: Center(
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: _currentPage,
+                        builder: (context, currentPage, child) {
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              widget.games.length,
+                              (index) => Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: currentPage == index
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Colors.white.withValues(alpha: 0.2),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            itemCount: widget.games.length,
-            itemBuilder: (context, index) {
-              return _buildGameCard(widget.games[index]);
-            },
-          ),
         ],
       ),
     );
