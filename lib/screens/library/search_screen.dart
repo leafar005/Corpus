@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/models/models.dart';
 import 'package:corpus/globals.dart';
 import 'dart:async';
 import '../../services/igdb_service.dart';
@@ -424,10 +425,10 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
                 );
               }
 
-              final game = gamesList[index];
-              final bool isInLibrary = _userGamesCache.containsKey(game['id']);
+              final game = Game.fromMap(gamesList[index]);
+              final bool isInLibrary = _userGamesCache.containsKey(game.igdbId);
               final double userRating = isInLibrary
-                  ? _userGamesCache[game['id']]!
+                  ? _userGamesCache[game.igdbId]!
                   : 0.0;
 
               return GameCard(

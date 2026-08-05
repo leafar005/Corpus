@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/models.dart';
 import '../../widgets/milestone_progress_bar.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/widgets/game_card.dart';
@@ -608,7 +609,7 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
                           final isBeaten = status == 'beaten';
                           final isGrayscale = !isBeaten;
                           return GameCard(
-                            game: game,
+                            game: Game.fromMap(game),
                             isInLibrary: status != null,
                             userRating: 0.0,
                             isGrayscale: isGrayscale,

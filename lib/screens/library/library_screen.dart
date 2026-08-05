@@ -4,6 +4,7 @@ import 'package:corpus/globals.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'search_screen.dart';
 import 'package:corpus/widgets/game_card.dart';
+import 'package:corpus/models/models.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -120,8 +121,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             itemCount: myGames.length,
             itemBuilder: (context, index) {
               final userGame = myGames[index];
-              // gameData contiene los datos que cruzamos de la tabla 'games'
-              final gameData = userGame['games'];
+              final gameData = Game.fromMap(userGame['games'] as Map<String, dynamic>);
               final rating = (userGame['rating'] ?? 0).toDouble();
 
               return GameCard(
