@@ -28,7 +28,7 @@ class SettingsScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: ListView(
-        padding: EdgeInsets.only(top: 8, bottom: getBottomSpacer(context)),
+        padding: EdgeInsets.only(top: 8, left: 16, right: 16, bottom: getBottomSpacer(context)),
         children: [
           _buildSettingsTile(
             context: context,
@@ -355,19 +355,33 @@ class SettingsScreen extends StatelessWidget {
     required VoidCallback onTap,
     Widget? trailing,
   }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          shape: BoxShape.circle,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
         ),
-        child: Icon(icon, size: 20),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(subtitle, style: const TextStyle()),
-      trailing: trailing ?? const Icon(Icons.chevron_right),
-      onTap: onTap,
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 20),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle, style: const TextStyle()),
+        trailing: trailing ?? const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
     );
   }
 

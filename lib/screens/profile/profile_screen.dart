@@ -487,7 +487,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Theme.of(context).shadowColor.withValues(alpha: 0.3),
                         blurRadius: 8,
                       ),
                     ],

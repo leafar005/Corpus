@@ -2090,38 +2090,52 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
             final domain = extractDomain(link['url'].toString());
 
-            return ListTile(
-              leading: Container(
-                width: 32,
-                height: 32,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Image.network(
-                    // 2. Usamos Google Favicons en PNG (100% compatible con Flutter y sin fallos CORS)
-                    'https://www.google.com/s2/favicons?domain=$domain&sz=64',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Icon(itemIcon, size: 18),
+              ),
+              child: Material(
+                type: MaterialType.transparency,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  leading: Container(
+                  width: 32,
+                  height: 32,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.network(
+                      // 2. Usamos Google Favicons en PNG (100% compatible con Flutter y sin fallos CORS)
+                      'https://www.google.com/s2/favicons?domain=$domain&sz=64',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Icon(itemIcon, size: 18),
+                    ),
                   ),
                 ),
-              ),
-              title: Text(name),
-              subtitle: Text(
-                _localizeUrlToSpain(link['url'].toString()),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: const Icon(Icons.open_in_new, size: 16),
-              onTap: () => launchUrl(
-                Uri.parse(_localizeUrlToSpain(link['url'].toString())),
-                mode: LaunchMode.externalApplication,
+                title: Text(name),
+                subtitle: Text(
+                  _localizeUrlToSpain(link['url'].toString()),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: const Icon(Icons.open_in_new, size: 16),
+                onTap: () => launchUrl(
+                  Uri.parse(_localizeUrlToSpain(link['url'].toString())),
+                  mode: LaunchMode.externalApplication,
+                ),
               ),
             );
           }),

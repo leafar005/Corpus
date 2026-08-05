@@ -503,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBundlesEndingSoonSection(List<Map<String, dynamic>> bundles) {
     return Container(
       key: const ValueKey('bundles_loaded'),
-      color: Colors.black,
+      color: Colors.transparent,
       padding: const EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -765,7 +765,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: BoxShape.circle,
                             color: currentPage == index
                                 ? Theme.of(context).colorScheme.primary
-                                : Colors.white.withValues(alpha: 0.2),
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
                           ),
                         ),
                       ),
@@ -782,7 +782,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildStashActivity(List<Map<String, dynamic>> latestReviews) {
     return Container(
       key: const ValueKey('stash_activity_loaded'),
-      color: Colors.black,
+      color: Colors.transparent,
       padding: const EdgeInsets.fromLTRB(16.0, 48.0, 16.0, 48.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -808,10 +808,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       margin: const EdgeInsets.only(right: 16),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: Theme.of(context).colorScheme.surfaceContainer,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.05),
+                          color: Theme.of(context).colorScheme.outlineVariant,
                         ),
                       ),
                       child: Column(
@@ -880,7 +880,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             review['stash_user_display_name'] ?? 'Usuario',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.white.withValues(alpha: 0.7),
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
