@@ -36,7 +36,13 @@ class _MainScreenState extends State<MainScreen> {
   Widget _getScreen(int index) {
     if (_screens[index] == null) {
       _screens[index] = switch (index) {
-        0 => HomeScreen(onNavigateToSearch: () => _onTabTapped(1)),
+        0 => HomeScreen(
+          onNavigateToSearch: () => _onTabTapped(1),
+          onNavigateToBundles: (query) {
+            BundlesNavigation.targetQuery.value = query;
+            _onTabTapped(3);
+          },
+        ),
         1 => const SearchScreen(),
         2 => const ActivityScreen(),
         3 => const BundlesScreen(),
