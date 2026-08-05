@@ -12,6 +12,7 @@ class HomeAppearanceScreen extends StatefulWidget {
 class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
   static const List<String> defaultOrder = [
     'hero',
+    'bundles_ending_soon',
     'stash_activity',
     'wishlist_anticipated',
     'anticipated_games',
@@ -19,6 +20,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
 
   static const Map<String, String> itemLabels = {
     'hero': 'Destacados / Jugando Actualmente',
+    'bundles_ending_soon': 'Oportunidades Finales (Bundles)',
     'stash_activity': 'Actividad global de Stash',
     'wishlist_anticipated': 'Próximos en tu Wishlist',
     'anticipated_games': 'Más Anticipados',
@@ -26,6 +28,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
 
   static const Map<String, IconData> itemIcons = {
     'hero': Icons.view_carousel_outlined,
+    'bundles_ending_soon': Icons.local_offer_outlined,
     'stash_activity': Icons.public_outlined,
     'wishlist_anticipated': Icons.favorite_border,
     'anticipated_games': Icons.event_available_outlined,
@@ -35,6 +38,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
   Set<String> _hiddenItems = {};
   String _anticipatedCountdownStyle = 'full';
   String _wishlistCountdownStyle = 'full';
+  int _bundlesEndingSoonDays = 3;
   bool _isLoading = true;
 
   @override
@@ -48,11 +52,13 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
     final savedOrder = prefs.getStringList('home_sections_order');
     final savedHidden = prefs.getStringList('home_sections_hidden') ?? [];
     final savedAnticipatedCountdownStyle =
-        prefs.getString('anticipated_countdown_style') ?? 'full';
+        prefs.getString('anticipated_countdown_style') ?? 'days_only';
     final savedWishlistCountdownStyle =
         prefs.getString('wishlist_countdown_style') ??
         prefs.getString('anticipated_countdown_style') ??
-        'full';
+        'days_only';
+    final savedBundlesEndingSoonDays = 
+        prefs.getInt('home_bundles_ending_soon_days') ?? 3;
 
     List<String> loadedOrder = [];
     if (savedOrder != null && savedOrder.isNotEmpty) {
@@ -76,6 +82,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
         _hiddenItems = savedHidden.toSet();
         _anticipatedCountdownStyle = savedAnticipatedCountdownStyle;
         _wishlistCountdownStyle = savedWishlistCountdownStyle;
+        _bundlesEndingSoonDays = savedBundlesEndingSoonDays;
         _isLoading = false;
       });
     }
@@ -93,6 +100,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
       'wishlist_countdown_style',
       _wishlistCountdownStyle,
     );
+    await prefs.setInt('home_bundles_ending_soon_days', _bundlesEndingSoonDays);
   }
 
   void _onReorderItem(int oldIndex, int newIndex) {
@@ -162,6 +170,59 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
         } else {
           _anticipatedCountdownStyle = result;
         }
+      });
+      _savePreferences();
+    }
+  }
+
+  Future<void> _showBundlesDaysDialog() async {
+    int tempDays = _bundlesEndingSoonDays;
+
+    final result = await showDialog<int>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Oportunidades Finales'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Mostrar bundles que terminen en los próximos $tempDays días:'),
+                  const SizedBox(height: 16),
+                  Slider(
+                    value: tempDays.toDouble(),
+                    min: 1,
+                    max: 5,
+                    divisions: 4,
+                    label: tempDays.toString(),
+                    onChanged: (value) {
+                      setStateDialog(() {
+                        tempDays = value.toInt();
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, tempDays),
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && result != _bundlesEndingSoonDays && mounted) {
+      setState(() {
+        _bundlesEndingSoonDays = result;
       });
       _savePreferences();
     }
@@ -251,6 +312,11 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                               IconButton(
                                 icon: const Icon(Icons.settings_outlined),
                                 onPressed: () => _showCountdownStyleDialog(key),
+                              ),
+                            if (key == 'bundles_ending_soon')
+                              IconButton(
+                                icon: const Icon(Icons.settings_outlined),
+                                onPressed: () => _showBundlesDaysDialog(),
                               ),
                             Switch(
                               value: !_hiddenItems.contains(key),
