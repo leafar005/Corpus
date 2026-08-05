@@ -2137,7 +2137,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   mode: LaunchMode.externalApplication,
                 ),
               ),
-            );
+            ),
+          );
           }),
           const SizedBox(height: 24),
         ],
