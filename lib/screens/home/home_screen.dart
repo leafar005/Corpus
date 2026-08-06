@@ -11,6 +11,7 @@ import '../../services/igdb_service.dart';
 import '../library/game_details_screen.dart';
 import 'hero_showcase.dart';
 import 'anticipated_games_section.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 // ─── Modelos de datos por fase ──────────────────────────────────────────────
 
@@ -1026,11 +1027,11 @@ class _SectionShimmerState extends State<_SectionShimmer>
         children: [
           AnimatedBuilder(
             animation: _anim,
-            builder: (_, child) => Container(
+            builder: (context, child) => Container(
               width: 220,
               height: 20,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: _anim.value),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: _anim.value),
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
@@ -1043,11 +1044,11 @@ class _SectionShimmerState extends State<_SectionShimmer>
               itemCount: 4,
               itemBuilder: (_, child) => AnimatedBuilder(
                 animation: _anim,
-                builder: (_, child2) => Container(
+                builder: (context, child2) => Container(
                   width: 260,
                   margin: const EdgeInsets.only(right: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: _anim.value),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: _anim.value),
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),

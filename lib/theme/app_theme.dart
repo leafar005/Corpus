@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'style_pack.dart';
+import 'style_pack_registry.dart';
+import 'corpus_theme_extension.dart';
 
-/// Notificador global para cambiar el tema en tiempo real
+/// Notificador global para cambiar el tema en tiempo real.
+///
+/// Gestiona el [ThemeMode], el color de acento (seed) y el [StylePack] activo.
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _currentMode = ThemeMode.system;
   Color _seedColor = Colors.deepPurpleAccent;
+  String _stylePackId = 'default';
 
   ThemeMode get currentMode => _currentMode;
   Color get seedColor => _seedColor;
+  String get stylePackId => _stylePackId;
+  StylePack get currentPack => StylePackRegistry.getById(_stylePackId);
 
   ThemeNotifier() {
     _loadTheme();
@@ -16,6 +25,7 @@ class ThemeNotifier extends ChangeNotifier {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
+
     final modeStr = prefs.getString('theme_mode') ?? 'system';
     _currentMode = ThemeMode.values.firstWhere(
       (e) => e.toString().split('.').last == modeStr,
@@ -26,6 +36,9 @@ class ThemeNotifier extends ChangeNotifier {
     if (colorVal != null) {
       _seedColor = Color(colorVal);
     }
+
+    _stylePackId = prefs.getString('style_pack_id') ?? 'default';
+
     notifyListeners();
   }
 
@@ -42,23 +55,38 @@ class ThemeNotifier extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('theme_color', color.toARGB32());
   }
-}
 
-/// Sistema de colores obsoleto. ¡No usar estáticos para fondos!
-/// Se mantiene solo para referencias a colores primarios fijos que no cambian (como el acento ámbar o morado puro).
-class AppColors {
-  static const Color primary = Colors.deepPurpleAccent;
-  static final Color primaryDark = Colors.deepPurple.shade900;
-  static const Color accent = Colors.amber;
-  static const Color danger = Colors.redAccent;
+  Future<void> setStylePack(String id) async {
+    _stylePackId = id;
+    final pack = currentPack;
+    _seedColor = pack.seedColor;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('style_pack_id', id);
+    await prefs.setInt('theme_color', pack.seedColor.toARGB32());
+  }
 }
 
 /// Definición de los distintos temas de la aplicación (Modo Oscuro, Claro, etc.)
 class AppTheme {
+  /// Build a [TextTheme] for the given [fontFamily].
+  /// If [fontFamily] is a Google Font name, uses [GoogleFonts]; otherwise
+  /// falls back to the default Material text theme with that family applied.
+  static TextTheme? _textThemeFor(String? fontFamily, Brightness brightness) {
+    if (fontFamily == null) return null;
+    try {
+      return GoogleFonts.getTextTheme(fontFamily);
+    } catch (_) {
+      return ThemeData(brightness: brightness).textTheme.apply(fontFamily: fontFamily);
+    }
+  }
+
   // TEMA OSCURO
-  static ThemeData getDarkTheme(Color seedColor) {
-    const bgColor = Colors.black;
-    final surfaceColor = Colors.grey.shade900;
+  static ThemeData getDarkTheme(Color seedColor, [StylePack? pack]) {
+    pack ??= StylePack.defaultPack();
+
+    final bgColor = pack.scaffoldDark ?? Colors.black;
+    final surfaceColor = pack.surfaceDark ?? Colors.grey.shade900;
 
     final colorScheme =
         ColorScheme.fromSeed(
@@ -66,17 +94,22 @@ class AppTheme {
           brightness: Brightness.dark,
         ).copyWith(
           primary: seedColor,
-          secondary: AppColors.accent,
+          secondary: pack.accentColor,
           surface: surfaceColor,
-          error: AppColors.danger,
-          onSurfaceVariant: Colors.grey, // Usado para textSecondary
+          error: Colors.redAccent,
+          onSurfaceVariant: Colors.grey,
         );
+
+    final ext = CorpusThemeExtension.fromPack(pack);
+    final textTheme = _textThemeFor(pack.fontFamily, Brightness.dark);
 
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: bgColor,
       primaryColor: colorScheme.primary,
       colorScheme: colorScheme,
+      textTheme: textTheme,
+      extensions: [ext],
       chipTheme: ChipThemeData(
         backgroundColor: surfaceColor,
         selectedColor: colorScheme.primary,
@@ -85,21 +118,24 @@ class AppTheme {
         secondarySelectedColor: colorScheme.primary,
         surfaceTintColor: colorScheme.primary,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: bgColor,
         elevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         titleTextStyle: TextStyle(
           color: Colors.white,
           fontSize: 20,
           fontWeight: FontWeight.bold,
+          fontFamily: pack.fontFamily,
         ),
       ),
       cardTheme: CardThemeData(
         color: surfaceColor,
         elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ext.borderRadiusMedium),
+        ),
         clipBehavior: Clip.antiAlias,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -107,17 +143,20 @@ class AppTheme {
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(ext.borderRadiusMedium),
           ),
           padding: const EdgeInsets.symmetric(vertical: 16),
-          textStyle: const TextStyle(fontWeight: FontWeight.bold),
+          textStyle: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontFamily: pack.fontFamily,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceColor,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(ext.borderRadiusMedium),
           borderSide: BorderSide.none,
         ),
         hintStyle: const TextStyle(color: Colors.grey),
@@ -143,9 +182,11 @@ class AppTheme {
   }
 
   // TEMA CLARO
-  static ThemeData getLightTheme(Color seedColor) {
-    const bgColor = Color(0xFFF5F5F5);
-    const surfaceColor = Colors.white;
+  static ThemeData getLightTheme(Color seedColor, [StylePack? pack]) {
+    pack ??= StylePack.defaultPack();
+
+    final bgColor = pack.scaffoldLight ?? const Color(0xFFF5F5F5);
+    final surfaceColor = pack.surfaceLight ?? Colors.white;
 
     final colorScheme =
         ColorScheme.fromSeed(
@@ -153,17 +194,22 @@ class AppTheme {
           brightness: Brightness.light,
         ).copyWith(
           primary: seedColor,
-          secondary: AppColors.accent,
+          secondary: pack.accentColor,
           surface: surfaceColor,
-          error: AppColors.danger,
-          onSurfaceVariant: Colors.grey.shade700, // Usado para textSecondary
+          error: Colors.redAccent,
+          onSurfaceVariant: Colors.grey.shade700,
         );
+
+    final ext = CorpusThemeExtension.fromPack(pack);
+    final textTheme = _textThemeFor(pack.fontFamily, Brightness.light);
 
     return ThemeData(
       brightness: Brightness.light,
       scaffoldBackgroundColor: bgColor,
       primaryColor: colorScheme.primary,
       colorScheme: colorScheme,
+      textTheme: textTheme,
+      extensions: [ext],
       chipTheme: ChipThemeData(
         backgroundColor: surfaceColor,
         selectedColor: colorScheme.primary,
@@ -173,8 +219,7 @@ class AppTheme {
         surfaceTintColor: colorScheme.primary,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor:
-            bgColor, // Usamos bgColor en lugar de primary para modo claro
+        backgroundColor: bgColor,
         elevation: 0,
         centerTitle: false,
         iconTheme: IconThemeData(color: colorScheme.onSurface),
@@ -182,13 +227,16 @@ class AppTheme {
           color: colorScheme.onSurface,
           fontSize: 20,
           fontWeight: FontWeight.bold,
+          fontFamily: pack.fontFamily,
         ),
       ),
       cardTheme: CardThemeData(
         color: surfaceColor,
         elevation: 2,
         shadowColor: Colors.black12,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ext.borderRadiusMedium),
+        ),
         clipBehavior: Clip.antiAlias,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -196,25 +244,28 @@ class AppTheme {
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(ext.borderRadiusMedium),
           ),
           padding: const EdgeInsets.symmetric(vertical: 16),
-          textStyle: const TextStyle(fontWeight: FontWeight.bold),
+          textStyle: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontFamily: pack.fontFamily,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceColor,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(ext.borderRadiusMedium),
           borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(ext.borderRadiusMedium),
           borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(ext.borderRadiusMedium),
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
         hintStyle: TextStyle(color: Colors.grey.shade500),
@@ -233,9 +284,7 @@ class AppTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surfaceColor,
         selectedItemColor: colorScheme.primary,
-        unselectedItemColor: Colors
-            .grey
-            .shade600, // Oscurecemos un poco los iconos no seleccionados
+        unselectedItemColor: Colors.grey.shade600,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),

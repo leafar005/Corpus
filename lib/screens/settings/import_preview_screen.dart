@@ -281,7 +281,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                       height: 60,
                       fit: BoxFit.cover,
                     )
-                  : Container(width: 45, height: 60, color: Colors.grey),
+                  : Container(width: 45, height: 60, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             title: Text(
               game['name'] ?? row.title,
@@ -321,9 +321,9 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Selecciona la opción correcta de IGDB:',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(

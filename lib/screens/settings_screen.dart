@@ -7,6 +7,7 @@ import 'appearance_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/screens/settings/integrations_screen.dart';
 import 'package:corpus/screens/settings/notifications_screen.dart';
+import 'package:corpus/theme/corpus_theme_extension.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Map<String, dynamic> userProfile;
@@ -103,12 +104,12 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
-          const Divider(color: Colors.white24, height: 32),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), height: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Text(
               'Preferencias',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
           FutureBuilder<SharedPreferences>(
@@ -165,7 +166,7 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
-          const Divider(color: Colors.white24, height: 32),
+          Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), height: 32),
 
           ListTile(
             leading: const Icon(Icons.delete_forever, color: Colors.orange),
@@ -322,7 +323,7 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
-          const Divider(color: Colors.white24, height: 32),
+          Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), height: 32),
           ListTile(
             leading: Icon(
               Icons.logout,
@@ -355,18 +356,19 @@ class SettingsScreen extends StatelessWidget {
     required VoidCallback onTap,
     Widget? trailing,
   }) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: ext.radiusMedium,
         border: Border.all(
           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
         ),
       ),
       child: Material(
         type: MaterialType.transparency,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: ext.radiusMedium,
         clipBehavior: Clip.antiAlias,
         child: ListTile(
           leading: Container(

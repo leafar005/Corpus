@@ -268,8 +268,8 @@ class GameReviewsCard extends StatelessWidget {
                         children: [
                           Text(
                             statusText,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),

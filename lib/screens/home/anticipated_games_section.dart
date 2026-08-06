@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/igdb_service.dart';
 import '../library/game_details_screen.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class AnticipatedGamesSection extends StatefulWidget {
   final List<dynamic> games;
@@ -185,8 +186,8 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
       },
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.grey[900],
+          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           image: backgroundUrl.isNotEmpty
               ? DecorationImage(
                   image: NetworkImage(backgroundUrl),

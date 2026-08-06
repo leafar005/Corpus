@@ -1327,18 +1327,18 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                   size: 18,
                                   color: _hasLiked
                                       ? Theme.of(context).colorScheme.primary
-                                      : Colors.white,
+                                      : Theme.of(context).colorScheme.onSurface,
                                 ),
                                 label: Text(
                                   _likesCount.toString(),
                                   style: TextStyle(
                                     color: _hasLiked
                                         ? Theme.of(context).colorScheme.primary
-                                        : Colors.white,
+                                        : Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: Theme.of(context).colorScheme.onSurface,
                                   side: BorderSide(
                                     color: _hasLiked
                                         ? Theme.of(context).colorScheme.primary
@@ -1366,7 +1366,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                 ),
                                 label: Text(_comments.length.toString()),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: Theme.of(context).colorScheme.onSurface,
                                   side: BorderSide(
                                     color: Theme.of(
                                       context,

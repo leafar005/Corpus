@@ -9,6 +9,8 @@ import 'profile/profile_screen.dart';
 import 'bundles/bundles_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import '../theme/corpus_theme_extension.dart';
+import '../theme/style_pack.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -161,6 +163,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildTopNavItem(int index, String label, IconData icon) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final isSelected = _currentIndex == index;
     final color = isSelected
         ? Theme.of(context).colorScheme.primary
@@ -168,7 +171,7 @@ class _MainScreenState extends State<MainScreen> {
 
     return InkWell(
       onTap: () => _onTabTapped(index),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: ext.radiusSmall,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
@@ -242,6 +245,66 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  Widget _buildSolidNavBar(BuildContext context) {
+    return BottomNavigationBar(
+      currentIndex: _currentIndex,
+      onTap: _onTabTapped,
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      selectedItemColor: Theme.of(context).colorScheme.primary,
+      unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
+        BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
+        BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Actividad'),
+        BottomNavigationBarItem(icon: Icon(Icons.local_offer), label: 'Bundles'),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+      ],
+    );
+  }
+
+  Widget _buildMinimalNavBar(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildMinimalNavItem(0, Icons.home),
+            _buildMinimalNavItem(1, Icons.search),
+            _buildMinimalNavItem(2, Icons.group),
+            _buildMinimalNavItem(3, Icons.local_offer),
+            _buildMinimalNavItem(4, Icons.person),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMinimalNavItem(int index, IconData icon) {
+    final isSelected = _currentIndex == index;
+    return IconButton(
+      onPressed: () => _onTabTapped(index),
+      icon: Icon(
+        icon,
+        color: isSelected
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.onSurfaceVariant,
+        size: isSelected ? 28 : 24,
+      ),
+    );
+  }
+
+  Widget _buildMobileNavBar(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>();
+    final style = ext?.navBarStyle ?? NavBarStyle.liquidGlass;
+    return switch (style) {
+      NavBarStyle.liquidGlass => _buildLiquidGlassNavBar(context),
+      NavBarStyle.solid => _buildSolidNavBar(context),
+      NavBarStyle.minimal => _buildMinimalNavBar(context),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
@@ -285,7 +348,7 @@ class _MainScreenState extends State<MainScreen> {
         ),
         bottomNavigationBar: isDesktop
             ? null
-            : _buildLiquidGlassNavBar(context),
+            : _buildMobileNavBar(context),
       ),
     );
   }
