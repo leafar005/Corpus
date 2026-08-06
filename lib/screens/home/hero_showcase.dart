@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
+import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../library/game_details_screen.dart';
 
@@ -287,9 +288,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
                     RichText(
                       text: TextSpan(
                         style: TextStyle(
-                          fontFamily: 'Helvetica',
+                          fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
                           fontSize: isPortrait ? 42 : 48,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontWeight ?? FontWeight.w900,
                           height: 1.1,
                           letterSpacing: -1,
                         ),
@@ -322,7 +323,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
                               overflow: TextOverflow.ellipsis,
                               text: TextSpan(
                                 style: TextStyle(
-                                  fontFamily: 'Helvetica',
+                                  fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
                                   fontSize: isPortrait ? 22 : 24,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -386,7 +387,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                         child: coverUrl.isNotEmpty
                             ? Image.network(
                                 coverUrl,
@@ -402,7 +403,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                 height: isPortrait
                                     ? (constraints.maxWidth * 0.38) * 1.4
                                     : 340,
-                                color: Colors.grey,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                               ),
                       ),
                     ),
@@ -763,9 +764,9 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                       RichText(
                         text: TextSpan(
                           style: TextStyle(
-                            fontFamily: 'Helvetica',
+                            fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
                             fontSize: isPortrait ? 42 : 48,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontWeight ?? FontWeight.w900,
                             height: 1.1,
                             letterSpacing: -1,
                             color: Colors.white,
@@ -797,7 +798,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                             vertical: 12,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                           ),
                           textStyle: const TextStyle(fontSize: 18),
                         ),
@@ -1049,9 +1050,9 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                   RichText(
                     text: TextSpan(
                       style: TextStyle(
-                        fontFamily: 'Helvetica',
+                        fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
                         fontSize: isPortrait ? 42 : 48,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontWeight ?? FontWeight.w900,
                         height: 1.1,
                         letterSpacing: -1,
                       ),
@@ -1073,7 +1074,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                   Text(
                     '¿Qué vas a jugar hoy?',
                     style: TextStyle(
-                      fontFamily: 'Helvetica',
+                      fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
                       fontSize: isPortrait ? 20 : 22,
                       fontWeight: FontWeight.w500,
                       color: Colors.white70,

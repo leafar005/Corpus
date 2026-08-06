@@ -5,6 +5,7 @@ import 'steam_import_setup_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:corpus/services/import_service.dart';
 import 'package:corpus/screens/settings/import_preview_screen.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class IntegrationsScreen extends StatefulWidget {
   const IntegrationsScreen({super.key});
@@ -124,6 +125,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     return Scaffold(
       appBar: AppBar(title: const Text('Integraciones')),
       body: _isLoading
@@ -137,17 +139,17 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                     ),
                     child: _steamId == null || _steamId!.isEmpty
                         ? Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Vincula tu cuenta de Steam para importar tus juegos y tiempo de juego. Pega tu URL de perfil de Steam (ej. https://steamcommunity.com/id/tunombre) o tu SteamID64.',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -240,11 +242,11 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Importar Biblioteca',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       TextButton.icon(
@@ -259,14 +261,14 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Migrar tu biblioteca de juegos y reseñas desde Stash utilizando un archivo JSON, HAR o CSV exportado desde la app.',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
@@ -349,9 +351,9 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                                                         status,
                                                         textAlign:
                                                             TextAlign.center,
-                                                        style: const TextStyle(
+                                                        style: TextStyle(
                                                           fontSize: 13,
-                                                          color: Colors.grey,
+                                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                         ),
                                                       ),
                                                 ),
@@ -430,7 +432,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.amber.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                       border: Border.all(
                         color: Colors.amber.withValues(alpha: 0.4),
                       ),
@@ -554,7 +556,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: ext.radiusMedium,
                           ),
                         ),
                         child: const Text(

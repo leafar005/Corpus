@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/game_card.dart';
 import '../../services/bundle_service.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class _ListRow {
   final bool isHeader;
@@ -138,6 +139,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
   }
 
   Widget _buildStoreHeader(String storeName) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final isHumble = storeName.toLowerCase().contains('humble');
     final isFanatical = storeName.toLowerCase().contains('fanatical');
     final badgeColor = isHumble ? Colors.redAccent : Colors.orangeAccent;
@@ -154,7 +156,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
             }
           });
         },
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: ext.radiusSmall,
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Row(
@@ -190,6 +192,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     return Scaffold(
       appBar: AppBar(
         leading: _searchQuery.isNotEmpty 
@@ -236,7 +239,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
                       )
                     : null,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: ext.radiusMedium,
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
@@ -287,7 +290,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -306,10 +309,10 @@ class _BundlesScreenState extends State<BundlesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.local_offer_outlined,
               size: 64,
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 16),
             const Text('No hay bundles activos en este momento.'),
@@ -427,7 +430,7 @@ class _BundleCardState extends State<_BundleCard> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: badgeColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
               border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
             ),
             child: Row(
@@ -458,7 +461,7 @@ class _BundleCardState extends State<_BundleCard> {
     final endDateStr = widget.bundle['end_date'];
 
     String timeRemaining = '';
-    Color timeColor = Colors.grey;
+    Color timeColor = Theme.of(context).colorScheme.onSurfaceVariant;
     IconData timeIcon = Icons.schedule;
 
     if (endDateStr != null) {
@@ -485,7 +488,7 @@ class _BundleCardState extends State<_BundleCard> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
