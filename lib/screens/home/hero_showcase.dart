@@ -287,7 +287,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
                     RichText(
                       text: TextSpan(
                         style: TextStyle(
-                          fontFamily: 'Helvetica',
+                          
                           fontSize: isPortrait ? 42 : 48,
                           fontWeight: FontWeight.w900,
                           height: 1.1,
@@ -322,7 +322,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
                               overflow: TextOverflow.ellipsis,
                               text: TextSpan(
                                 style: TextStyle(
-                                  fontFamily: 'Helvetica',
+                                  
                                   fontSize: isPortrait ? 22 : 24,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -763,7 +763,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                       RichText(
                         text: TextSpan(
                           style: TextStyle(
-                            fontFamily: 'Helvetica',
+                            
                             fontSize: isPortrait ? 42 : 48,
                             fontWeight: FontWeight.w900,
                             height: 1.1,
@@ -1049,7 +1049,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                   RichText(
                     text: TextSpan(
                       style: TextStyle(
-                        fontFamily: 'Helvetica',
+                        
                         fontSize: isPortrait ? 42 : 48,
                         fontWeight: FontWeight.w900,
                         height: 1.1,
@@ -1073,7 +1073,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                   Text(
                     '¿Qué vas a jugar hoy?',
                     style: TextStyle(
-                      fontFamily: 'Helvetica',
+                      
                       fontSize: isPortrait ? 20 : 22,
                       fontWeight: FontWeight.w500,
                       color: Colors.white70,
