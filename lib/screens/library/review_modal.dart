@@ -29,7 +29,7 @@ typedef OnSaveReview =
       required int? progressPercent,
       required List<XFile> newImages,
       required List<String> existingImages,
-      required String? partnerId,
+      required List<String> partnerIds,
     });
 
 /// Modal bottom sheet de creación/edición de reseña.
@@ -65,7 +65,7 @@ class ReviewModal {
     required Map<String, dynamic> gameData,
     required Map<String, dynamic> enrichedData,
     Review? existingReview,
-    String? currentPartnerId,
+    List<String>? currentPartnerIds,
     required bool isSaving,
     required double currentRating,
     required double currentRatingGameplay,
@@ -119,7 +119,8 @@ class ReviewModal {
       text: hasReview ? (r!.comment ?? '') : commentController.text,
     );
     final String? reviewId = hasReview ? r!.id : null;
-    String? reviewPartnerId = currentPartnerId;
+    final TextEditingController partnerSearchController = TextEditingController();
+    List<String> reviewPartnerIds = List<String>.from(currentPartnerIds ?? []);
     final Future<List<UserProfile>> friendsFuture = _fetchFriends();
 
     List<XFile> newImages = [];
@@ -791,67 +792,68 @@ class ReviewModal {
                                             ),
                                           ),
                                           const SizedBox(height: 8),
-                                          DropdownButtonFormField<String?>(
-                                            initialValue: reviewPartnerId,
-                                            decoration: const InputDecoration(
-                                              border: OutlineInputBorder(),
-                                              contentPadding:
-                                                  EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 8,
+                                          LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              final availableFriends = friends.where((f) => !reviewPartnerIds.contains(f.id)).toList();
+                                              return DropdownMenu<String>(
+                                                controller: partnerSearchController,
+                                                hintText: 'Buscar y añadir amigo...',
+                                                enableSearch: true,
+                                                enableFilter: true,
+                                                width: constraints.maxWidth,
+                                                dropdownMenuEntries: availableFriends.map<DropdownMenuEntry<String>>((f) => DropdownMenuEntry<String>(
+                                                  value: f.id,
+                                                  label: f.effectiveName,
+                                                  leadingIcon: CircleAvatar(
+                                                    radius: 12,
+                                                    backgroundImage: f.avatarUrl != null ? NetworkImage(f.avatarUrl!) : null,
+                                                    child: f.avatarUrl == null ? const Icon(Icons.person, size: 16) : null,
                                                   ),
-                                            ),
-                                            hint: const Text(
-                                              'Jugué en solitario',
-                                            ),
-                                            isExpanded: true,
-                                            items: [
-                                              const DropdownMenuItem<String?>(
-                                                value: null,
-                                                child: Text(
-                                                  'Jugué en solitario',
-                                                ),
-                                              ),
-                                              ...friends.map((friend) {
-                                                return DropdownMenuItem<
-                                                  String?
-                                                >(
-                                                  value: friend.id,
-                                                  child: Row(
-                                                    children: [
-                                                      CircleAvatar(
-                                                        radius: 12,
-                                                        backgroundImage:
-                                                            friend.avatarUrl != null
-                                                            ? NetworkImage(
-                                                                friend.avatarUrl!,
-                                                              )
-                                                            : null,
-                                                        child:
-                                                            friend.avatarUrl == null
-                                                            ? const Icon(
-                                                                Icons.person,
-                                                                size: 16,
-                                                              )
-                                                            : null,
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      Text(
-                                                        friend.effectiveName,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-                                              }),
-                                            ],
-                                            onChanged: (val) {
-                                              setModalState(() {
-                                                reviewPartnerId = val;
-                                              });
-                                            },
+                                                )).toList(),
+                                                onSelected: (selectedId) {
+                                                  if (selectedId != null) {
+                                                    setModalState(() {
+                                                      reviewPartnerIds.add(selectedId);
+                                                      partnerSearchController.clear();
+                                                    });
+                                                  }
+                                                },
+                                              );
+                                            }
                                           ),
+                                          if (reviewPartnerIds.isNotEmpty) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Column(
+                                                children: reviewPartnerIds.map<Widget>((id) {
+                                                  final friend = friends.firstWhere(
+                                                    (f) => f.id == id,
+                                                    orElse: () => UserProfile(id: id, username: 'Desconocido'),
+                                                  );
+                                                  return ListTile(
+                                                    leading: CircleAvatar(
+                                                      radius: 16,
+                                                      backgroundImage: friend.avatarUrl != null ? NetworkImage(friend.avatarUrl!) : null,
+                                                      child: friend.avatarUrl == null ? const Icon(Icons.person, size: 16) : null,
+                                                    ),
+                                                    title: Text(friend.effectiveName),
+                                                    trailing: IconButton(
+                                                      icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                                                      onPressed: () {
+                                                        setModalState(() {
+                                                          reviewPartnerIds.remove(id);
+                                                        });
+                                                      },
+                                                    ),
+                                                  );
+                                                }).toList(),
+                                              ),
+                                            ),
+                                          ],
                                           const SizedBox(height: 16),
                                         ],
                                       );
@@ -1115,7 +1117,7 @@ class ReviewModal {
                                   : null,
                               newImages: newImages,
                               existingImages: existingImages,
-                              partnerId: reviewPartnerId,
+                              partnerIds: reviewPartnerIds,
                             ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(

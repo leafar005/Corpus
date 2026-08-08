@@ -39,11 +39,18 @@ class _BundlesScreenState extends State<BundlesScreen> {
   @override
   void initState() {
     super.initState();
+    
+    final initialQuery = BundlesNavigation.targetQuery.value;
+    if (initialQuery != null && initialQuery.isNotEmpty) {
+      _searchController.text = initialQuery;
+      _searchQuery = initialQuery;
+      // We don't clear targetQuery.value here because _onExternalSearch might be triggered 
+      // immediately if we add the listener after, but actually it's fine to clear it.
+      BundlesNavigation.targetQuery.value = null;
+    }
+    
     _fetchBundles();
     BundlesNavigation.targetQuery.addListener(_onExternalSearch);
-    if (BundlesNavigation.targetQuery.value != null) {
-      _onExternalSearch();
-    }
   }
 
   void _onExternalSearch() {

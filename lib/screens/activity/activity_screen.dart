@@ -9,6 +9,7 @@ import '../activity/review_details_screen.dart';
 import '../profile/profile_screen.dart';
 import '../social/friends_screen.dart';
 import '../library/game_details_screen.dart';
+import '../../repositories/review_repository.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -194,17 +195,19 @@ class _ActivityScreenState extends State<ActivityScreen>
           final reviewsResp = await _supabase
               .from('reviews')
               .select(
-                '*, review_likes(user_id), review_comments(id), users!reviews_partner_id_fkey(id, username, avatar_url)',
+                '*, review_likes(user_id), review_comments(id)',
               )
               .inFilter('id', reviewIds);
-          for (final r in List<Map<String, dynamic>>.from(reviewsResp)) {
+          final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
+          await ReviewRepository().injectPartners(reviewsList);
+          for (final r in reviewsList) {
             reviewsById[r['id'] as String] = r;
           }
         } catch (_) {}
       }
 
-      // 3.5. Query batch para el partner (user_games)
-      final Map<String, Map<String, dynamic>> partnerByUserGame = {};
+      // 3.5. Query batch para los partners (user_games)
+      final Map<String, List<dynamic>> partnersByUserGame = {};
       final userIds = feedItems
           .map((e) => e['user_id'] as String?)
           .whereType<String>()
@@ -220,15 +223,27 @@ class _ActivityScreenState extends State<ActivityScreen>
           final ugResp = await _supabase
               .from('user_games')
               .select(
-                'user_id, game_id, partner:users!user_games_partner_id_fkey(id, username, avatar_url)',
+                'user_id, game_id, partner_ids',
               )
               .inFilter('user_id', userIds)
               .inFilter('game_id', gameIds);
-          for (final ug in List<Map<String, dynamic>>.from(ugResp)) {
-            final partner = ug['partner'];
-            if (partner != null) {
-              partnerByUserGame['${ug['user_id']}_${ug['game_id']}'] =
-                  partner as Map<String, dynamic>;
+
+          final items = List<Map<String, dynamic>>.from(ugResp);
+          final Set<String> allPartnerIds = {};
+          for (var ug in items) {
+            final ids = ug['partner_ids'];
+            if (ids is List) allPartnerIds.addAll(ids.map((e) => e.toString()));
+          }
+          final usersData = allPartnerIds.isNotEmpty 
+              ? await _supabase.from('users').select('id, username, avatar_url').inFilter('id', allPartnerIds.toList()) 
+              : [];
+          final userMap = {for (var u in usersData) u['id'] as String: u};
+
+          for (final ug in items) {
+            final ids = ug['partner_ids'];
+            if (ids is List && ids.isNotEmpty) {
+              partnersByUserGame['${ug['user_id']}_${ug['game_id']}'] =
+                  ids.map((id) => userMap[id.toString()]).where((u) => u != null).toList();
             }
           }
         } catch (_) {}
@@ -240,7 +255,7 @@ class _ActivityScreenState extends State<ActivityScreen>
         final uId = item['user_id'];
         final gId = item['game_id'];
         if (uId != null && gId != null) {
-          item['_partner'] = partnerByUserGame['${uId}_$gId'];
+          item['_partners'] = partnersByUserGame['${uId}_$gId'];
         }
 
         if (item['action_type'] == 'reviewed') {
@@ -531,7 +546,7 @@ class _ActivityScreenState extends State<ActivityScreen>
     final gameData = activity['games'] as Map<String, dynamic>? ?? {};
     final meta = activity['metadata'] as Map<String, dynamic>? ?? {};
     final review = activity['_review'] as Map<String, dynamic>?;
-    final partner = activity['_partner'] as Map<String, dynamic>?;
+    final partners = activity['_partners'] as List<dynamic>? ?? [];
 
     final displayName =
         userData['display_name'] as String? ??
@@ -851,13 +866,20 @@ class _ActivityScreenState extends State<ActivityScreen>
                           ],
                         ),
                       ],
-                      if (partner != null) ...[
+                      if (partners.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        CoopBadge(
-                          username: partner['username'] ?? 'Usuario',
-                          avatarUrl: partner['avatar_url'],
-                          size: 20,
-                          status: status,
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: partners.map((partner) {
+                            return CoopBadge(
+                              username: partner['username'] ?? 'Usuario',
+                              avatarUrl: partner['avatar_url'],
+                              size: 20,
+                              status: status,
+                              userId: partner['id'] as String?,
+                            );
+                          }).toList(),
                         ),
                       ],
                     ],

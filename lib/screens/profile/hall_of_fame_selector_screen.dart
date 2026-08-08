@@ -15,6 +15,7 @@ class HallOfFameSelectorScreen extends StatefulWidget {
 class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _beatenGames = [];
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -92,6 +93,11 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredGames = _beatenGames.where((game) {
+      final title = (game['title'] ?? game['name'] ?? '').toString().toLowerCase();
+      return title.contains(_searchQuery.toLowerCase());
+    }).toList();
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -114,31 +120,62 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
           ? const Center(
               child: Text('No tienes juegos completados para destacar.'),
             )
-          : GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 140,
-                childAspectRatio: 0.7,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: _beatenGames.length,
-              itemBuilder: (context, index) {
-                final game = _beatenGames[index];
-                final coverUrl =
-                    game['cover_url']?.replaceAll('t_cover_big', 't_1080p') ??
-                    '';
-
-                return GestureDetector(
-                  onTap: () => _selectGame(game['igdb_id'] ?? game['id']),
-                  child: ClipRRect(
-                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
-                    child: coverUrl.isNotEmpty
-                        ? Image.network(coverUrl, fit: BoxFit.cover)
-                        : Container(color: Theme.of(context).primaryColorDark),
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar juego...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
                   ),
-                );
-              },
+                ),
+                if (filteredGames.isEmpty)
+                  const Expanded(
+                    child: Center(
+                      child: Text('No se encontraron juegos con ese nombre.'),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 140,
+                        childAspectRatio: 0.7,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      itemCount: filteredGames.length,
+                      itemBuilder: (context, index) {
+                        final game = filteredGames[index];
+                        final coverUrl =
+                            game['cover_url']?.replaceAll('t_cover_big', 't_1080p') ??
+                            '';
+
+                        return GestureDetector(
+                          onTap: () => _selectGame(game['igdb_id'] ?? game['id']),
+                          child: ClipRRect(
+                            borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                            child: coverUrl.isNotEmpty
+                                ? Image.network(coverUrl, fit: BoxFit.cover)
+                                : Container(color: Theme.of(context).primaryColorDark),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
     );
   }

@@ -11,7 +11,7 @@ class GameReviewsCard extends StatelessWidget {
     required this.reviews,
     required this.gameData,
     required this.userData,
-    required this.partnerData,
+    required this.partnersData,
     this.onEditReview,
     this.onDeleteReview,
     this.onShowFullScreenGallery,
@@ -22,7 +22,7 @@ class GameReviewsCard extends StatelessWidget {
   final List<Review> reviews;
   final Map<String, dynamic> gameData;
   final UserProfile? userData;
-  final UserProfile? partnerData;
+  final List<UserProfile> partnersData;
   final bool isDesktop;
   final Function(Review)? onEditReview;
   final Function(Review)? onDeleteReview;
@@ -332,17 +332,24 @@ class GameReviewsCard extends StatelessWidget {
                   ],
                 ),
                 const Divider(height: 24),
-                if (partnerData != null) ...[
+                if (partnersData.isNotEmpty) ...[
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: CoopBadge(
-                      username: partnerData!.effectiveName,
-                      avatarUrl: partnerData!.avatarUrl,
-                      size: 20,
-                      status: rStatus,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: partnersData.map((partner) {
+                        return CoopBadge(
+                          username: partner.effectiveName,
+                          avatarUrl: partner.avatarUrl,
+                          size: 20,
+                          status: rStatus,
+                          userId: partner.id,
+                        );
+                      }).toList(),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                 ],
                 if (rating > 0) ...[
                   Row(

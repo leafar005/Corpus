@@ -57,15 +57,50 @@ class ReviewRepository {
     required String userId,
     required dynamic gameId,
   }) async {
-    return await _client
+    final result = await _client
         .from('user_games')
         .select(
-          '*, users!user_games_user_id_fkey(*), '
-          'partner:users!user_games_partner_id_fkey(id, username, avatar_url)',
+          '*, users!user_games_user_id_fkey(*)',
         )
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .maybeSingle();
+
+    if (result != null) {
+      await injectPartners([result]);
+    }
+    return result;
+  }
+
+  /// Injecta la información del perfil en la propiedad `partners` dado un arreglo `partner_ids`
+  Future<void> injectPartners(List<Map<String, dynamic>> items) async {
+    final Set<String> allIds = {};
+    for (final item in items) {
+      final ids = item['partner_ids'];
+      if (ids is List) {
+        allIds.addAll(ids.map((e) => e.toString()));
+      }
+    }
+    if (allIds.isEmpty) return;
+
+    final users = await _client
+        .from('users')
+        .select('id, username, avatar_url, display_name')
+        .inFilter('id', allIds.toList());
+    
+    final Map<String, Map<String, dynamic>> userMap = {
+      for (final u in users) u['id'] as String: u
+    };
+
+    for (final item in items) {
+      final ids = item['partner_ids'];
+      if (ids is List) {
+        item['partners'] = ids
+            .map((id) => userMap[id.toString()])
+            .where((u) => u != null)
+            .toList();
+      }
+    }
   }
 
   /// Devuelve el perfil del usuario (solo columnas de `users`).
@@ -87,14 +122,16 @@ class ReviewRepository {
     final response = await _client
         .from('reviews')
         .select(
-          '*, review_likes(user_id), review_comments(id), users!reviews_partner_id_fkey(id, username, avatar_url)',
+          '*, review_likes(user_id), review_comments(id)',
         )
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(
-      response,
-    ).map(Review.fromMap).toList();
+    
+    final items = List<Map<String, dynamic>>.from(response);
+    await injectPartners(items);
+    
+    return items.map(Review.fromMap).toList();
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -121,7 +158,7 @@ class ReviewRepository {
     required DateTime? playedUntil,
     required int? progressPercent,
     required List<String> imageUrls,
-    required String? partnerId,
+    required List<String> partnerIds,
   }) {
     final isWishlist = status == 'wishlist';
     return <String, dynamic>{
@@ -159,7 +196,7 @@ class ReviewRepository {
           : playedUntil?.toIso8601String().split('T')[0],
       'progress_percent': isWishlist ? null : progressPercent,
       'image_urls': isWishlist ? <String>[] : imageUrls,
-      'partner_id': isWishlist ? null : partnerId,
+      'partner_ids': isWishlist ? [] : partnerIds,
     };
   }
 
@@ -338,7 +375,7 @@ class ReviewRepository {
     required int? progressPercent,
     required List<XFile> newImages,
     required List<String> existingImages,
-    required String? partnerId,
+    required List<String> partnerIds,
   }) async {
     // Snapshot de logros antes de la operación
     Set<String> beforeAchievements = {};
@@ -390,7 +427,7 @@ class ReviewRepository {
       playedUntil: playedUntil,
       progressPercent: progressPercent,
       imageUrls: finalImageUrls,
-      partnerId: partnerId,
+      partnerIds: partnerIds,
     );
 
     // Insert o update según si ya existe la reseña
