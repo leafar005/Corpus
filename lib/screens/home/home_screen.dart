@@ -779,6 +779,128 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  bool _isTextTruncated(String text, TextStyle style, double maxWidth, int maxLines) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      maxLines: maxLines,
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: maxWidth);
+    return painter.didExceedMaxLines;
+  }
+
+  void _showFullReviewSheet(Map<String, dynamic> review, Map<String, dynamic>? game) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            final bottomPadding = MediaQuery.of(context).padding.bottom;
+            return SingleChildScrollView(
+              controller: scrollController,
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 32 + bottomPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      if (game?['cover_url'] != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            game!['cover_url'],
+                            width: 44,
+                            height: 56,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(Icons.videogame_asset),
+                          ),
+                        ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              game?['title'] ?? 'Juego Desconocido',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                if (review['stash_user_avatar_url'] != null)
+                                  CircleAvatar(
+                                    radius: 9,
+                                    backgroundImage: NetworkImage(review['stash_user_avatar_url']),
+                                    onBackgroundImageError: (_, __) {},
+                                  )
+                                else
+                                  const Icon(Icons.person, size: 18),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    review['stash_user_display_name'] ?? 'Usuario',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (review['rating'] != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star, size: 16, color: Colors.amber),
+                            const SizedBox(width: 4),
+                            Text(
+                              review['rating'].toString(),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    review['comment'] ?? '',
+                    style: const TextStyle(fontSize: 15, height: 1.5),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildStashActivity(List<Map<String, dynamic>> latestReviews) {
     return Container(
       key: const ValueKey('stash_activity_loaded'),
@@ -803,121 +925,141 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, index) {
                     final review = latestReviews[index];
                     final game = review['games'];
-                    return Container(
-                      width: 280,
-                      margin: const EdgeInsets.only(right: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outlineVariant,
+                    final comment = review['comment'] ?? '';
+                    const commentStyle = TextStyle(fontSize: 13);
+                    // Ancho real disponible para el texto: 280 (card) - 24 (padding horizontal)
+                    final isTruncated = _isTextTruncated(comment, commentStyle, 280 - 24, 4);
+
+                    return GestureDetector(
+                      onTap: () => _showFullReviewSheet(review, game),
+                      child: Container(
+                        width: 280,
+                        margin: const EdgeInsets.only(right: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              if (game?['cover_url'] != null)
-                                InkWell(
-                                  onTap: () {
-                                    if (review['game_id'] != null) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => GameDetailsScreen(
-                                            gameData: {
-                                              'id': review['game_id'],
-                                              if (game?['title'] != null)
-                                                'title': game!['title'],
-                                              if (game?['cover_url'] != null)
-                                                'cover_url': game!['cover_url'],
-                                            },
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      game['cover_url'],
-                                      width: 40,
-                                      height: 50,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) =>
-                                          const Icon(Icons.videogame_asset),
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      game?['title'] ?? 'Juego Desconocido',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Row(
-                                      children: [
-                                        if (review['stash_user_avatar_url'] != null)
-                                          CircleAvatar(
-                                            radius: 8,
-                                            backgroundImage: NetworkImage(
-                                              review['stash_user_avatar_url'],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (game?['cover_url'] != null)
+                                  InkWell(
+                                    onTap: () {
+                                      if (review['game_id'] != null) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => GameDetailsScreen(
+                                              gameData: {
+                                                'id': review['game_id'],
+                                                if (game?['title'] != null)
+                                                  'title': game!['title'],
+                                                if (game?['cover_url'] != null)
+                                                  'cover_url': game!['cover_url'],
+                                              },
                                             ),
-                                            onBackgroundImageError: (_, _) {},
-                                          )
-                                        else
-                                          const Icon(Icons.person, size: 16),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            review['stash_user_display_name'] ?? 'Usuario',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (review['rating'] != null)
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.star, size: 14, color: Colors.amber),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      review['rating'].toString(),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
+                                        );
+                                      }
+                                    },
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        game['cover_url'],
+                                        width: 40,
+                                        height: 50,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, _, _) =>
+                                            const Icon(Icons.videogame_asset),
                                       ),
                                     ),
-                                  ],
+                                  ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        game?['title'] ?? 'Juego Desconocido',
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Row(
+                                        children: [
+                                          if (review['stash_user_avatar_url'] != null)
+                                            CircleAvatar(
+                                              radius: 8,
+                                              backgroundImage: NetworkImage(
+                                                review['stash_user_avatar_url'],
+                                              ),
+                                              onBackgroundImageError: (_, _) {},
+                                            )
+                                          else
+                                            const Icon(Icons.person, size: 16),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              review['stash_user_display_name'] ?? 'Usuario',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Expanded(
-                            child: Text(
-                              review['comment'] ?? '',
-                              style: const TextStyle(fontSize: 13),
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
+                                if (review['rating'] != null)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star, size: 14, color: Colors.amber),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        review['rating'].toString(),
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 12),
+                            Expanded(
+                              child: Text(
+                                comment,
+                                style: commentStyle,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isTruncated)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Leer más',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     );
                   },
