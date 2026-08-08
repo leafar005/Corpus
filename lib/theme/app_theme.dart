@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Notificador global para cambiar el tema en tiempo real
 class ThemeNotifier extends ChangeNotifier {
@@ -77,6 +78,8 @@ class AppTheme {
       scaffoldBackgroundColor: bgColor,
       primaryColor: colorScheme.primary,
       colorScheme: colorScheme,
+      fontFamily: GoogleFonts.inter().fontFamily,
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       chipTheme: ChipThemeData(
         backgroundColor: surfaceColor,
         selectedColor: colorScheme.primary,
@@ -164,6 +167,8 @@ class AppTheme {
       scaffoldBackgroundColor: bgColor,
       primaryColor: colorScheme.primary,
       colorScheme: colorScheme,
+      fontFamily: GoogleFonts.inter().fontFamily,
+      textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
       chipTheme: ChipThemeData(
         backgroundColor: surfaceColor,
         selectedColor: colorScheme.primary,
