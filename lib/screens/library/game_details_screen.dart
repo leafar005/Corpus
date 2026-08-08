@@ -61,7 +61,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   double _ratingSoundtrack = 0;
   double _ratingVisuals = 0;
   UserProfile? _userData;
-  UserProfile? _partnerData;
+  List<UserProfile> _partnersData = [];
 
   // Datos enriquecidos desde IGDB (para cuando venimos de la biblioteca y faltan summary/developer)
   Map<String, dynamic> _enrichedData = {};
@@ -75,6 +75,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   String? _metacriticUrl;
   double? _metacriticUserScore;
   int? _metacriticCriticCount;
+  int? _metacriticUserRatingCount;
   bool _isLoadingMetacritic = false;
 
   // Juegos relacionados (DLCs, remakes, ports, etc.)
@@ -234,6 +235,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 ? (data['user_score'] as num).toDouble()
                 : null;
             _metacriticCriticCount = data['critic_review_count'] as int?;
+            _metacriticUserRatingCount = data['user_rating_count'] as int?;
           });
         }
       } else {
@@ -1000,8 +1002,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           if (response['users'] != null) {
             _userData = UserProfile.fromMap(response['users']);
           }
-          if (response['partner'] != null) {
-            _partnerData = UserProfile.fromMap(response['partner']);
+          if (response['partners'] != null && response['partners'] is List) {
+            _partnersData = (response['partners'] as List)
+                .whereType<Map<String, dynamic>>()
+                .map((p) => UserProfile.fromMap(p))
+                .toList();
           }
           if (_rating > 0) _ratingController.text = _rating.toStringAsFixed(1);
         });
@@ -1096,7 +1101,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       gameData: widget.gameData,
       enrichedData: _enrichedData,
       existingReview: existingReview,
-      currentPartnerId: _partnerData?.id,
+      currentPartnerIds: _partnersData.map((e) => e.id).toList(),
       isSaving: _isSaving,
       currentRating: _rating,
       currentRatingGameplay: _ratingGameplay,
@@ -1128,7 +1133,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     required int? progressPercent,
     required List<XFile> newImages,
     required List<String> existingImages,
-    required String? partnerId,
+    required List<String> partnerIds,
   }) async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
@@ -1160,7 +1165,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         progressPercent: progressPercent,
         newImages: newImages,
         existingImages: existingImages,
-        partnerId: partnerId,
+        partnerIds: partnerIds,
       );
 
       // Mostrar toasts de logros recién desbloqueados
@@ -2497,7 +2502,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               reviews: _reviews,
               gameData: widget.gameData,
               userData: _userData,
-              partnerData: _partnerData,
+              partnersData: _partnersData,
               isDesktop: MediaQuery.of(context).size.width >= 800,
               onEditReview: (review) => _showReviewModal(existingReview: review),
               onDeleteReview: (review) => _deleteReview(review),
@@ -2564,6 +2569,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           metacriticScore: _metacriticScore,
           metacriticUserScore: _metacriticUserScore,
           metacriticCriticCount: _metacriticCriticCount,
+          metacriticUserRatingCount: _metacriticUserRatingCount,
           metacriticUrl: _metacriticUrl,
           isLoadingStashStats: _isLoadingStashStats,
           stashStats: _stashStats,

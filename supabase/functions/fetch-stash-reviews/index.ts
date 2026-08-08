@@ -100,9 +100,8 @@ Deno.serve(async (req) => {
 
     const data = await res.json();
     const allItems = data.items || [];
-    const reviewsTotal = typeof data.total === 'number' ? data.total : null;
     
-    log('INFO', 'Reseñas recibidas de la API de Stash', { igdbId, itemsCount: allItems.length, reviewsTotal });
+    log('INFO', 'Reseñas recibidas de la API de Stash', { igdbId, itemsCount: allItems.length });
 
     const gamesMap = new Map();
     const reviewsMap = new Map();
@@ -180,25 +179,9 @@ Deno.serve(async (req) => {
       log('ERROR', 'Error en upsert de metadata de caché', { error: metaError.message });
     }
 
-    if (reviewsTotal !== null) {
-      const { error: statsError } = await supabase
-        .from('stash_game_stats')
-        .upsert(
-          {
-            game_id: igdbId,
-            reviews_count: reviewsTotal,
-            last_reviews_total_checked_at: new Date().toISOString(),
-          },
-          { onConflict: 'game_id' }
-        );
-      if (statsError) {
-        log('ERROR', 'Error al guardar reviews_count en stash_game_stats', { error: statsError.message });
-      }
-    }
+    log('INFO', 'Sincronización de reseñas completada', { igdbId, upsertedCount: insertedCount });
 
-    log('INFO', 'Sincronización de reseñas completada', { igdbId, upsertedCount: insertedCount, reviewsTotal });
-
-    return new Response(JSON.stringify({ success: true, processed: insertedCount, total: reviewsTotal }), {
+    return new Response(JSON.stringify({ success: true, processed: insertedCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });

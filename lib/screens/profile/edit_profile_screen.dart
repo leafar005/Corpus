@@ -704,6 +704,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       ),
                                     ),
                                   ),
+                                  SizedBox(
+                                    height: MediaQuery.of(context).padding.bottom + 20,
+                                  ),
                                 ],
                               ),
                             ),

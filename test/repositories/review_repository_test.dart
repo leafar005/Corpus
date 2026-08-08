@@ -25,7 +25,7 @@ void main() {
           playedUntil: DateTime(2025, 1, 10),
           progressPercent: 100,
           imageUrls: ['https://ejemplo.com/foto1.jpg'],
-          partnerId: null,
+          partnerIds: const [],
         );
 
         expect(sanitized['status'], 'wishlist');
@@ -69,7 +69,7 @@ void main() {
           playedUntil: DateTime(2025, 1, 10),
           progressPercent: 100,
           imageUrls: ['https://ejemplo.com/foto1.jpg'],
-          partnerId: null,
+          partnerIds: const [],
         );
 
         expect(sanitized['status'], 'beaten');

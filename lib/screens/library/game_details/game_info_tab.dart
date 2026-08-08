@@ -24,6 +24,7 @@ class GameInfoTab extends StatelessWidget {
     this.metacriticScore,
     this.metacriticUserScore,
     this.metacriticCriticCount,
+    this.metacriticUserRatingCount,
     this.metacriticUrl,
     required this.isLoadingStashStats,
     this.stashStats,
@@ -47,6 +48,7 @@ class GameInfoTab extends StatelessWidget {
   final int? metacriticScore;
   final double? metacriticUserScore;
   final int? metacriticCriticCount;
+  final int? metacriticUserRatingCount;
   final String? metacriticUrl;
   final bool isLoadingStashStats;
   final Map<String, dynamic>? stashStats;
@@ -81,6 +83,7 @@ Widget _buildMetacriticSection(BuildContext context) {
       required String value,
       required Color color,
       required BuildContext context,
+      bool isCircle = false,
     }) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -90,7 +93,10 @@ Widget _buildMetacriticSection(BuildContext context) {
             height: 44,
             decoration: BoxDecoration(
               color: color,
-              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+              borderRadius: isCircle
+                  ? null
+                  : Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+              shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
             ),
             alignment: Alignment.center,
             child: FittedBox(
@@ -177,19 +183,30 @@ Widget _buildMetacriticSection(BuildContext context) {
                       value: metacriticUserScore!.toStringAsFixed(1),
                       color: userColor(metacriticUserScore!),
                       context: context,
+                      isCircle: true,
                     ),
                     const SizedBox(width: 12),
-                    const Column(
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
+                        const Text(
                           'User Score',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
                         ),
+                        if (metacriticUserRatingCount != null)
+                          Text(
+                            '$metacriticUserRatingCount valoraciones',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                       ],
                     ),
                   ],
@@ -222,13 +239,11 @@ Widget _buildStashStatsSection(BuildContext context) {
     final want = stashStats!['want_count'] as int?;
     final playing = stashStats!['playing_count'] as int?;
     final played = stashStats!['played_count'] as int?;
-    final reviewsTotal = stashStats!['reviews_count'] as int?;
 
     if (rating == null &&
         want == null &&
         playing == null &&
-        played == null &&
-        reviewsTotal == null) {
+        played == null) {
       return const SizedBox.shrink();
     }
 
@@ -310,13 +325,7 @@ Widget _buildStashStatsSection(BuildContext context) {
                 'Jugado',
                 Colors.blueAccent,
               ),
-            if (reviewsTotal != null)
-              statCard(
-                Icons.forum,
-                reviewsTotal.toString(),
-                'Reseñas',
-                Colors.purpleAccent,
-              ),
+
           ],
         ),
         const SizedBox(height: 28),
