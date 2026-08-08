@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/corpus_theme_extension.dart';
 import 'p5r_ransom_title.dart';
+import 'typewriter_text.dart';
 
 /// Standard section heading — picks pack-specific title treatment automatically.
 ///
@@ -42,11 +43,17 @@ class CorpusSectionTitle extends StatelessWidget {
 class CorpusHeroTitle extends StatelessWidget {
   final String prefix;
   final String highlight;
+  final bool animated;
+  final bool instant;
+  final VoidCallback? onAnimationComplete;
 
   const CorpusHeroTitle({
     super.key,
     required this.prefix,
     required this.highlight,
+    this.animated = false,
+    this.instant = false,
+    this.onAnimationComplete,
   });
 
   @override
@@ -58,6 +65,35 @@ class CorpusHeroTitle extends StatelessWidget {
     final primary = Theme.of(context).colorScheme.primary;
 
     if (ext.useDynamicFrames) {
+      if (animated) {
+        const separator = '\n';
+        return TypewriterText(
+          instant: instant,
+          onComplete: onAnimationComplete,
+          spans: [TextSpan(text: '$prefix$separator$highlight')],
+          customBuilder: (context, visible, finished) {
+            final parts = _splitHeroVisible(prefix, highlight, visible);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (parts.$1.isNotEmpty)
+                  P5rRansomTitle(
+                    text: parts.$1,
+                    baseFontSize: baseSize * 0.82,
+                  ),
+                if (parts.$2.isNotEmpty)
+                  P5rRansomTitle(
+                    text: parts.$2,
+                    baseFontSize: baseSize,
+                    color: primary,
+                  ),
+              ],
+            );
+          },
+        );
+      }
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -75,15 +111,35 @@ class CorpusHeroTitle extends StatelessWidget {
       );
     }
 
+    final baseStyle = TextStyle(
+      fontFamily: ext.heroFontFamily,
+      fontSize: baseSize,
+      fontWeight: ext.heroFontWeight,
+      height: 1.1,
+      letterSpacing: -1,
+    );
+
+    if (animated) {
+      return TypewriterText(
+        instant: instant,
+        onComplete: onAnimationComplete,
+        style: baseStyle,
+        spans: [
+          TextSpan(
+            text: '$prefix\n',
+            style: const TextStyle(color: Colors.white),
+          ),
+          TextSpan(
+            text: highlight,
+            style: TextStyle(color: primary),
+          ),
+        ],
+      );
+    }
+
     return RichText(
       text: TextSpan(
-        style: TextStyle(
-          fontFamily: ext.heroFontFamily,
-          fontSize: baseSize,
-          fontWeight: ext.heroFontWeight,
-          height: 1.1,
-          letterSpacing: -1,
-        ),
+        style: baseStyle,
         children: [
           TextSpan(
             text: '$prefix\n',
@@ -97,4 +153,19 @@ class CorpusHeroTitle extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Divide el texto visible del typewriter en prefijo y nombre destacado.
+(String, String) _splitHeroVisible(
+  String prefix,
+  String highlight,
+  String visible,
+) {
+  if (visible.length <= prefix.length) {
+    return (visible, '');
+  }
+  if (visible.length <= prefix.length + 1) {
+    return (prefix, '');
+  }
+  return (prefix, visible.substring(prefix.length + 1));
 }
