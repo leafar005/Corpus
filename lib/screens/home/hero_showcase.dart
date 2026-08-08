@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../widgets/typewriter_text.dart';
 import '../library/game_details_screen.dart';
-
 class HeroShowcase extends StatefulWidget {
   final List<Map<String, dynamic>> playingGames;
   final String userName;
@@ -29,6 +29,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
     with TickerProviderStateMixin {
   Timer? _timer;
   int _currentGameIndex = 0;
+  bool _titleTyped = false;
 
   Map<String, dynamic>? _previousGame;
   String? _previousScreenshotUrl;
@@ -230,10 +231,6 @@ class _HeroShowcaseState extends State<HeroShowcase>
     String? screenshotUrl,
     double panValue,
   ) {
-    final gameData = game['games'] ?? {};
-    final coverUrl = gameData['cover_url'] as String? ?? '';
-    final title = gameData['title'] as String? ?? 'Desconocido';
-
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -245,219 +242,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
           )
         else
           Container(color: Colors.black),
-
         Container(color: Colors.black.withValues(alpha: 0.7)),
-
-        // Tap zones for previous and next game
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _pickPreviousGame,
-                child: Container(),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _pickNextGame(manual: true),
-                child: Container(),
-              ),
-            ),
-          ],
-        ),
-
-        // Degradado inferior para fundir a negro suavemente
-        const _BottomFadeGradient(),
-
-        RepaintBoundary(
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isPortrait = constraints.maxHeight > constraints.maxWidth;
-
-                final textSection = Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize
-                      .min, // El texto ocupa solo lo que necesita hacia abajo
-                  children: [
-                    RichText(
-                      text: TextSpan(
-                        style: TextStyle(
-                          
-                          fontSize: isPortrait ? 42 : 48,
-                          fontWeight: FontWeight.w900,
-                          height: 1.1,
-                          letterSpacing: -1,
-                        ),
-                        children: [
-                          const TextSpan(
-                            text: 'Bienvenido,\n',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          TextSpan(
-                            text: widget.userName,
-                            style: TextStyle(
-                              color: Theme.of(context).primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: isPortrait ? 56 : null,
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () =>
-                                _navigateToGameDetails(gameData, coverUrl, false),
-                            child: RichText(
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              text: TextSpan(
-                                style: TextStyle(
-                                  
-                                  fontSize: isPortrait ? 22 : 24,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text: _randomPrefix,
-                                    style: const TextStyle(color: Colors.white70),
-                                  ),
-                                  TextSpan(
-                                    text: title,
-                                    style: TextStyle(
-                                      color: Theme.of(context).primaryColor,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const TextSpan(
-                                    text: '?',
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: () =>
-                          _navigateToGameDetails(gameData, coverUrl, true),
-                      icon: const Icon(Icons.edit, size: 20),
-                      label: const Text('Editar reseña'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-
-                final coverSection = MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    onTap: () =>
-                        _navigateToGameDetails(gameData, coverUrl, false),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            blurRadius: 40,
-                            offset: const Offset(0, 20),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: coverUrl.isNotEmpty
-                            ? Image.network(
-                                coverUrl,
-                                fit: BoxFit.cover,
-                                width: isPortrait
-                                    ? constraints.maxWidth * 0.38
-                                    : 240,
-                              )
-                            : Container(
-                                width: isPortrait
-                                    ? constraints.maxWidth * 0.38
-                                    : 240,
-                                height: isPortrait
-                                    ? (constraints.maxWidth * 0.38) * 1.4
-                                    : 340,
-                                color: Colors.grey,
-                              ),
-                      ),
-                    ),
-                  ),
-                );
-
-                if (isPortrait) {
-                  // Layout fijo para móvil: el texto anclado arriba y la carátula anclada abajo a la derecha
-                  return Stack(
-                    children: [
-                      Positioned(
-                        top: constraints.maxHeight * 0.10, // Sube el texto
-                        left: 24,
-                        right: 24,
-                        child: textSection,
-                      ),
-                      Positioned(
-                        bottom:
-                            32, // Bajamos la carátula para que no colisione con el texto
-                        right: 16,
-                        child: coverSection,
-                      ),
-                    ],
-                  );
-                } else {
-                  // Layout de escritorio
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 48.0,
-                      vertical: 32.0,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: textSection,
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: coverSection,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-              },
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -547,6 +332,10 @@ class _HeroShowcaseState extends State<HeroShowcase>
         // child NO se reconstruye en cada frame: contiene el overlay estático
         child: staticOverlay,
         builder: (context, child) {
+          final gameData = _currentGame!['games'] ?? {};
+          final coverUrl = gameData['cover_url'] as String? ?? '';
+          final title = gameData['title'] as String? ?? 'Desconocido';
+
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -566,8 +355,209 @@ class _HeroShowcaseState extends State<HeroShowcase>
                 ),
               ),
 
-              // El overlay estático (barras de progreso) viene del child
-              ?child,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _pickPreviousGame,
+                      child: Container(),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _pickNextGame(manual: true),
+                      child: Container(),
+                    ),
+                  ),
+                ],
+              ),
+
+              const _BottomFadeGradient(),
+
+              RepaintBoundary(
+                child: SafeArea(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isPortrait = constraints.maxHeight > constraints.maxWidth;
+
+                      final textSection = Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TypewriterText(
+                            instant: _titleTyped,
+                            onComplete: () {
+                              if (!_titleTyped && mounted) {
+                                setState(() => _titleTyped = true);
+                              }
+                            },
+                            style: TextStyle(
+                              fontSize: isPortrait ? 42 : 48,
+                              fontWeight: FontWeight.w900,
+                              height: 1.1,
+                              letterSpacing: -1,
+                            ),
+                            spans: [
+                              const TextSpan(
+                                text: 'Bienvenido,\n',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              TextSpan(
+                                text: widget.userName,
+                                style: TextStyle(
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: isPortrait ? 56 : null,
+                            child: Align(
+                              alignment: Alignment.topLeft,
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: GestureDetector(
+                                  onTap: () => _navigateToGameDetails(gameData, coverUrl, false),
+                                  child: TypewriterText(
+                                    baseCharDuration: const Duration(milliseconds: 15),
+                                    instant: false,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: isPortrait ? 22 : 24,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    spans: [
+                                      TextSpan(
+                                        text: _randomPrefix,
+                                        style: const TextStyle(color: Colors.white70),
+                                      ),
+                                      TextSpan(
+                                        text: title,
+                                        style: TextStyle(
+                                          color: Theme.of(context).primaryColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const TextSpan(
+                                        text: '?',
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () => _navigateToGameDetails(gameData, coverUrl, true),
+                            icon: const Icon(Icons.edit, size: 20),
+                            label: const Text('Editar reseña'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+
+                      final coverSection = AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 600),
+                        child: MouseRegion(
+                          key: ValueKey(coverUrl),
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () => _navigateToGameDetails(gameData, coverUrl, false),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    blurRadius: 40,
+                                    offset: const Offset(0, 20),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: coverUrl.isNotEmpty
+                                    ? Image.network(
+                                        coverUrl,
+                                        fit: BoxFit.cover,
+                                        width: isPortrait ? constraints.maxWidth * 0.38 : 240,
+                                      )
+                                    : Container(
+                                        width: isPortrait ? constraints.maxWidth * 0.38 : 240,
+                                        height: isPortrait ? (constraints.maxWidth * 0.38) * 1.4 : 340,
+                                        color: Colors.grey,
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+
+                      if (isPortrait) {
+                        return Stack(
+                          children: [
+                            Positioned(
+                              top: constraints.maxHeight * 0.10,
+                              left: 24,
+                              right: 24,
+                              child: textSection,
+                            ),
+                            Positioned(
+                              bottom: 32,
+                              right: 16,
+                              child: coverSection,
+                            ),
+                          ],
+                        );
+                      } else {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 48.0,
+                            vertical: 32.0,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: textSection,
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: coverSection,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ),
+
+              if (child != null) child,
             ],
           );
         },
@@ -760,29 +750,27 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                            
-                            fontSize: isPortrait ? 42 : 48,
-                            fontWeight: FontWeight.w900,
-                            height: 1.1,
-                            letterSpacing: -1,
-                            color: Colors.white,
-                          ),
-                          children: [
-                            const TextSpan(
-                              text: 'Comienza a registrar\ntus juegos ',
-                            ),
-                            TextSpan(
-                              text: 'ahora',
-                              style: TextStyle(
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                            const TextSpan(text: '.'),
-                          ],
+                      TypewriterText(
+                        style: TextStyle(
+                          
+                          fontSize: isPortrait ? 42 : 48,
+                          fontWeight: FontWeight.w900,
+                          height: 1.1,
+                          letterSpacing: -1,
+                          color: Colors.white,
                         ),
+                        spans: [
+                          const TextSpan(
+                            text: 'Comienza a registrar\ntus juegos ',
+                          ),
+                          TextSpan(
+                            text: 'ahora',
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                          const TextSpan(text: '.'),
+                        ],
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
@@ -1046,38 +1034,39 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        
-                        fontSize: isPortrait ? 42 : 48,
-                        fontWeight: FontWeight.w900,
-                        height: 1.1,
-                        letterSpacing: -1,
-                      ),
-                      children: [
-                        const TextSpan(
-                          text: 'Bienvenido,\n',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        TextSpan(
-                          text: widget.userName,
-                          style: TextStyle(
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ],
+                  TypewriterText(
+                    style: TextStyle(
+                      
+                      fontSize: isPortrait ? 42 : 48,
+                      fontWeight: FontWeight.w900,
+                      height: 1.1,
+                      letterSpacing: -1,
                     ),
+                    spans: [
+                      const TextSpan(
+                        text: 'Bienvenido,\n',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      TextSpan(
+                        text: widget.userName,
+                        style: TextStyle(
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    '¿Qué vas a jugar hoy?',
+                  TypewriterText(
+                    baseCharDuration: const Duration(milliseconds: 15),
                     style: TextStyle(
                       
                       fontSize: isPortrait ? 20 : 22,
                       fontWeight: FontWeight.w500,
                       color: Colors.white70,
                     ),
+                    spans: const [
+                      TextSpan(text: '¿Qué vas a jugar hoy?'),
+                    ],
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
