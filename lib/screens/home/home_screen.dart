@@ -824,14 +824,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     children: [
                       if (game?['cover_url'] != null)
-                        ClipRRect(
+                        InkWell(
+                          onTap: () {
+                            if (review['game_id'] != null) {
+                              Navigator.pop(context); // Close the bottom sheet first
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => GameDetailsScreen(
+                                    gameData: {
+                                      'id': review['game_id'],
+                                      if (game?['title'] != null) 'title': game!['title'],
+                                      if (game?['cover_url'] != null) 'cover_url': game!['cover_url'],
+                                    },
+                                  ),
+                                ),
+                              );
+                            }
+                          },
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            game!['cover_url'],
-                            width: 44,
-                            height: 56,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.videogame_asset),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              game!['cover_url'],
+                              width: 44,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(Icons.videogame_asset),
+                            ),
                           ),
                         ),
                       const SizedBox(width: 12),
