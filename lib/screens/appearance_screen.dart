@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../globals.dart';
+import '../services/style_pack_music_service.dart';
 import '../theme/style_pack_registry.dart';
 import 'settings/info_tab_appearance_screen.dart';
 import 'settings/home_appearance_screen.dart';
@@ -111,6 +112,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         return GestureDetector(
           onTap: () {
             themeNotifier.setStylePack(pack.id);
+            StylePackMusicService.instance.syncWithCurrentPack(force: true);
             setState(() {});
           },
           child: AnimatedContainer(
@@ -185,6 +187,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       final pack = StylePackRegistry.importFromJson(json);
 
       themeNotifier.setStylePack(pack.id);
+      StylePackMusicService.instance.syncWithCurrentPack(force: true);
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(

@@ -9,6 +9,7 @@ import 'theme/app_theme.dart';
 import 'theme/style_pack.dart';
 import 'theme/style_pack_registry.dart';
 import 'services/notification_service.dart';
+import 'services/style_pack_music_service.dart';
 
 import 'globals.dart';
 
@@ -70,6 +71,7 @@ void main() async {
 
   await StylePackRegistry.loadImported();
   await themeNotifier.initialize();
+  await StylePackMusicService.instance.init(themeNotifier);
 
   // 6. Inicializa el servicio de notificaciones (Android + Windows + Web)
   await NotificationService().init();
@@ -78,8 +80,21 @@ void main() async {
   runApp(const CorpusApp());
 }
 
-class CorpusApp extends StatelessWidget {
+class CorpusApp extends StatefulWidget {
   const CorpusApp({super.key});
+
+  @override
+  State<CorpusApp> createState() => _CorpusAppState();
+}
+
+class _CorpusAppState extends State<CorpusApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      StylePackMusicService.instance.syncWithCurrentPack(force: true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
