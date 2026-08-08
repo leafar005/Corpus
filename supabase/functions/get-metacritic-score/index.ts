@@ -177,27 +177,40 @@ interface MetacriticData {
   parse_strategy: 'next_data' | 'json_ld' | 'regex_fallback' | 'none';
 }
 
-function tryParseNextData(html: string): Partial<MetacriticData> | null {
-  const m = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
-  if (!m) return null;
+function deepFindAll(obj: unknown, key: string, results: unknown[] = []): unknown[] {
+  if (obj === null || typeof obj !== 'object') return results;
+  if (key in (obj as Record<string, unknown>)) {
+    results.push((obj as Record<string, unknown>)[key]);
+  }
+  for (const k of Object.keys(obj as Record<string, unknown>)) {
+    deepFindAll((obj as Record<string, unknown>)[k], key, results);
+  }
+  return results;
+}
 
+function deepFindScoreSummary(json: unknown, key: string): any {
+  const candidates = deepFindAll(json, key);
+  return candidates.find(
+    (c) => c !== null && typeof c === 'object' && typeof (c as any).score === 'number',
+  ) ?? null;
+}
+
+function tryParseNextData(html: string): Partial<MetacriticData> | null {
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) return null;
   try {
     const json = JSON.parse(m[1]);
-    const raw = JSON.stringify(json);
-    const metascoreMatch = raw.match(/"criticScoreSummary":\s*\{[^}]*"score":\s*(\d+)/);
-    const userScoreMatch = raw.match(/"userScoreSummary":\s*\{[^}]*"score":\s*([\d.]+)/);
-    const criticCountMatch = raw.match(/"criticReviewCount":\s*(\d+)/);
-    const userCountMatch = raw.match(/"userReviewCount":\s*(\d+)/);
-    const labelMatch = raw.match(/"criticScoreSummary":\s*\{[^}]*"label":\s*"([^"]+)"/);
+    const critic = deepFindScoreSummary(json, 'criticScoreSummary');
+    const user = deepFindScoreSummary(json, 'userScoreSummary');
 
-    if (!metascoreMatch && !userScoreMatch) return null;
+    if (!critic && !user) return null;
 
     return {
-      metascore: metascoreMatch ? parseInt(metascoreMatch[1]) : null,
-      user_score: userScoreMatch ? parseFloat(userScoreMatch[1]) : null,
-      critic_review_count: criticCountMatch ? parseInt(criticCountMatch[1]) : null,
-      user_rating_count: userCountMatch ? parseInt(userCountMatch[1]) : null,
-      metascore_label: labelMatch ? labelMatch[1] : null,
+      metascore: critic ? critic.score : null,
+      user_score: user ? user.score : null,
+      critic_review_count: typeof critic?.reviewCount === 'number' ? critic.reviewCount : null,
+      user_rating_count: typeof user?.reviewCount === 'number' ? user.reviewCount : null,
+      metascore_label: typeof critic?.label === 'string' ? critic.label : null,
       parse_strategy: 'next_data',
     };
   } catch (e) {
@@ -212,10 +225,12 @@ function tryParseJsonLd(html: string): Partial<MetacriticData> | null {
     try {
       const json = JSON.parse(s[1]);
       const rating = json.aggregateRating;
-      if (rating && rating.ratingValue) {
+      // El campo real es "reviewCount", no "ratingCount".
+      const reviewCount = Number(rating?.reviewCount ?? 0);
+      if (rating && rating.ratingValue != null && reviewCount >= 4) {
         return {
           metascore: Math.round(parseFloat(rating.ratingValue)),
-          critic_review_count: rating.reviewCount ? parseInt(rating.reviewCount) : null,
+          critic_review_count: reviewCount || null,
           parse_strategy: 'json_ld',
         };
       }
@@ -227,21 +242,15 @@ function tryParseJsonLd(html: string): Partial<MetacriticData> | null {
 }
 
 function tryParseRegexFallback(html: string): Partial<MetacriticData> | null {
-  const metascoreMatch = html.match(/Metascore[\s\S]{0,80}?(\d{1,3})/i);
-  const labelMatch = html.match(
-    /(Universal Acclaim|Generally Favorable|Mixed or Average|Generally Unfavorable|Overwhelming Dislike|Must-Play)/i,
-  );
-  const criticCountMatch = html.match(/Based on ([\d,]+) Critic Reviews?/i);
+  // Metascore: demasiado propenso a falsos positivos, lo desactivamos aquí.
+  // Solo confiamos en next_data / json_ld para el número de crítica.
   const userScoreMatch = html.match(/User [Ss]core[\s\S]{0,80}?(\d{1,2}(?:\.\d)?)/);
   const userCountMatch = html.match(/Based on ([\d,]+) User Ratings?/i);
 
-  if (!metascoreMatch && !userScoreMatch) return null;
+  if (!userScoreMatch) return null;
 
   return {
-    metascore: metascoreMatch ? parseInt(metascoreMatch[1]) : null,
-    metascore_label: labelMatch ? labelMatch[1] : null,
-    critic_review_count: criticCountMatch ? parseInt(criticCountMatch[1].replace(/,/g, '')) : null,
-    user_score: userScoreMatch ? parseFloat(userScoreMatch[1]) : null,
+    user_score: parseFloat(userScoreMatch[1]),
     user_rating_count: userCountMatch ? parseInt(userCountMatch[1].replace(/,/g, '')) : null,
     parse_strategy: 'regex_fallback',
   };
@@ -259,6 +268,8 @@ async function scrapeMetacriticGame(slug: string, url: string): Promise<Metacrit
     throw new Error(`Ficha no encontrada (404) para el slug "${slug}"`);
   }
 
+
+
   const base: MetacriticData = {
     slug,
     url,
@@ -270,22 +281,48 @@ async function scrapeMetacriticGame(slug: string, url: string): Promise<Metacrit
     parse_strategy: 'none',
   };
 
-  const strategies = [tryParseNextData, tryParseJsonLd, tryParseRegexFallback];
-  for (const strategy of strategies) {
-    const result = strategy(html);
-    if (result) {
-      log('INFO', 'Parseo exitoso', { slug, strategy: result.parse_strategy });
-      return { ...base, ...result } as MetacriticData;
+  // Ejecutamos SIEMPRE las tres, en orden de fiabilidad
+  const nextData = tryParseNextData(html);
+  const jsonLd = tryParseJsonLd(html);
+  const fallback = tryParseRegexFallback(html);
+  const results = [nextData, jsonLd, fallback];
+
+  const merged: MetacriticData = { ...base };
+  let metascoreStrategy: MetacriticData['parse_strategy'] = 'none';
+  let userScoreStrategy: MetacriticData['parse_strategy'] = 'none';
+
+  for (const r of results) {
+    if (!r) continue;
+    if (merged.metascore === null && r.metascore != null) {
+      merged.metascore = r.metascore;
+      merged.metascore_label = r.metascore_label ?? merged.metascore_label;
+      merged.critic_review_count = r.critic_review_count ?? merged.critic_review_count;
+      metascoreStrategy = r.parse_strategy!;
+    }
+    if (merged.user_score === null && r.user_score != null) {
+      merged.user_score = r.user_score;
+      merged.user_rating_count = r.user_rating_count ?? merged.user_rating_count;
+      userScoreStrategy = r.parse_strategy!;
     }
   }
 
-  // Ninguna estrategia funcionó — log HTML truncado para diagnóstico
-  log('ERROR', 'Ninguna estrategia de parseo encontró datos', {
-    slug,
-    htmlPreview: html.slice(0, 1500),
-  });
+  // Si NINGÚN campo se resolvió, es 'none' de verdad
+  merged.parse_strategy = metascoreStrategy !== 'none' ? metascoreStrategy
+                          : userScoreStrategy !== 'none' ? userScoreStrategy
+                          : 'none';
 
-  return base; // todo null, pero con parse_strategy: 'none' explícito
+  // No confiamos en el metascore si SOLO vino del regex de última instancia:
+  // lo devolvemos igual al front (mejor un dato dudoso visible que nada),
+  // pero marcamos que no se debe persistir en BD.
+  (merged as any)._metascoreLowConfidence = metascoreStrategy === 'regex_fallback';
+
+  if (results.every((r) => r === null)) {
+    log('ERROR', 'Ninguna estrategia de parseo encontró datos', { slug, htmlPreview: html.slice(0, 1500) });
+  } else {
+    log('INFO', 'Parseo exitoso', { slug, metascoreStrategy, userScoreStrategy });
+  }
+
+  return merged;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,7 +393,7 @@ Deno.serve(async (req) => {
     const data = await scrapeMetacriticGame(resolved.slug, resolved.url);
 
     // Guardar en BD si tenemos datos válidos (lazy backfill)
-    if (gameId && data.parse_strategy !== 'none') {
+    if (gameId && data.parse_strategy !== 'none' && !(data as any)._metascoreLowConfidence) {
       const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SERVICE_ROLE_KEY') ?? '';
       const supabase = createClient(supabaseUrl, SUPABASE_SERVICE_ROLE_KEY);
 
