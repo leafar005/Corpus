@@ -20,7 +20,7 @@ class GameHeroSection extends StatefulWidget {
   final String status;
   final List<Review> reviews;
   final UserProfile? userData;
-  final UserProfile? partnerData;
+  final List<UserProfile> partnersData;
   final List<Map<String, dynamic>> friendsWithGame;
   final bool isGuest;
   final Map<String, dynamic> enrichedData;
@@ -41,7 +41,7 @@ class GameHeroSection extends StatefulWidget {
     required this.status,
     required this.reviews,
     required this.userData,
-    required this.partnerData,
+    required this.partnersData,
     required this.friendsWithGame,
     required this.isGuest,
     required this.enrichedData,
@@ -588,7 +588,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
           reviews: widget.reviews,
           gameData: widget.gameData,
           userData: widget.userData,
-          partnerData: widget.partnerData,
+          partnersData: widget.partnersData,
           isDesktop: widget.isDesktop,
           onEditReview: widget.onEditReview,
           onDeleteReview: widget.onDeleteReview,

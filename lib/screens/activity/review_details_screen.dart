@@ -47,7 +47,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   bool _isSubmitting = false;
   XFile? _commentImage;
   Map<String, dynamic>? _selectedGameForComment;
-  Map<String, dynamic>? _partnerData;
+  List<Map<String, dynamic>> _partnersData = [];
 
   @override
   void initState() {
@@ -77,13 +77,20 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       final row = await Supabase.instance.client
           .from('user_games')
           .select(
-            'partner:users!user_games_partner_id_fkey(id, username, avatar_url)',
+            'partner_ids',
           )
           .eq('user_id', userId)
           .eq('game_id', gameId)
           .maybeSingle();
-      if (mounted) {
-        setState(() => _partnerData = row?['partner']);
+      if (mounted && row != null) {
+        final ids = row['partner_ids'];
+        if (ids is List && ids.isNotEmpty) {
+          final usersData = await Supabase.instance.client
+              .from('users')
+              .select('id, username, avatar_url')
+              .inFilter('id', ids.map((e) => e.toString()).toList());
+          setState(() => _partnersData = List<Map<String, dynamic>>.from(usersData));
+        }
       }
     } catch (_) {}
   }
@@ -440,7 +447,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       gameData: widget.gameData,
       enrichedData: widget.gameData,
       existingReview: Review.fromMap(_currentReviewData),
-      currentPartnerId: _partnerData?['id'],
+      currentPartnerIds: _partnersData.map((e) => e['id'] as String).toList(),
       isSaving: _isSubmitting,
       currentRating: rating,
       currentRatingGameplay: ratingGameplay,
@@ -477,7 +484,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     required int? progressPercent,
     required List<XFile> newImages,
     required List<String> existingImages,
-    required String? partnerId,
+    required List<String> partnerIds,
   }) async {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
@@ -513,7 +520,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         progressPercent: progressPercent,
         newImages: newImages,
         existingImages: existingImages,
-        partnerId: partnerId,
+        partnerIds: partnerIds,
       );
 
       // Mostrar toasts de logros si se han desbloqueado al editar
@@ -1140,14 +1147,19 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         ),
                                       ],
                                     ),
-                                    if (_partnerData != null) ...[
+                                    if (_partnersData.isNotEmpty) ...[
                                       const SizedBox(height: 12),
-                                      CoopBadge(
-                                        username:
-                                            _partnerData!['username'] ??
-                                            'Usuario',
-                                        avatarUrl: _partnerData!['avatar_url'],
-                                        status: status,
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: _partnersData.map((partner) {
+                                          return CoopBadge(
+                                            username: partner['username'] ?? 'Usuario',
+                                            avatarUrl: partner['avatar_url'],
+                                            status: status,
+                                            userId: partner['id'] as String?,
+                                          );
+                                        }).toList(),
                                       ),
                                     ],
                                   ],

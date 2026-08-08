@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../screens/profile/profile_screen.dart';
 
 class CoopBadge extends StatelessWidget {
   final String username;
   final String? avatarUrl;
   final double size;
   final String? status;
+  final String? userId;
 
   const CoopBadge({
     super.key,
@@ -12,6 +14,7 @@ class CoopBadge extends StatelessWidget {
     this.avatarUrl,
     this.size = 24.0,
     this.status,
+    this.userId,
   });
 
   @override
@@ -20,7 +23,19 @@ class CoopBadge extends StatelessWidget {
         ? 'Jugando con @$username'
         : 'Jugado con @$username';
 
-    return Container(
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: userId != null
+          ? () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfileScreen(userId: userId!),
+                ),
+              );
+            }
+          : null,
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: Theme.of(
@@ -61,6 +76,7 @@ class CoopBadge extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

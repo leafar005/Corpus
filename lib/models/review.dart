@@ -31,8 +31,8 @@ class Review {
     this.replayNumber,
     this.isReplay = false,
     this.imageUrls = const [],
-    this.partnerId,
-    this.partner,
+    this.partnerIds = const [],
+    this.partners = const [],
     this.user,
     this.createdAt,
     this.updatedAt,
@@ -61,9 +61,9 @@ class Review {
   final bool isReplay;
   final List<String> imageUrls;
 
-  // Copiloto de juego cooperativo
-  final String? partnerId;
-  final UserProfile? partner;
+  // Copilotos de juego cooperativo
+  final List<String> partnerIds;
+  final List<UserProfile> partners;
 
   // Datos del autor (cuando se hace join)
   final UserProfile? user;
@@ -85,10 +85,13 @@ class Review {
 
   /// Construye un [Review] desde una fila de Supabase.
   factory Review.fromMap(Map<String, dynamic> map) {
-    UserProfile? partner;
-    final partnerRaw = map['partner'];
-    if (partnerRaw is Map<String, dynamic>) {
-      partner = UserProfile.fromMap(partnerRaw);
+    List<UserProfile> partners = [];
+    final partnersRaw = map['partners'];
+    if (partnersRaw is List) {
+      partners = partnersRaw
+          .whereType<Map<String, dynamic>>()
+          .map((p) => UserProfile.fromMap(p))
+          .toList();
     }
 
     UserProfile? user;
@@ -125,9 +128,9 @@ class Review {
       progressPercent: (map['progress_percent'] as num?)?.toInt(),
       replayNumber: (map['replay_number'] as num?)?.toInt(),
       isReplay: map['is_replay'] as bool? ?? false,
-      imageUrls: imageUrls,
-      partnerId: map['partner_id'] as String?,
-      partner: partner,
+      imageUrls: List<String>.from(map['image_urls'] ?? []),
+      partnerIds: List<String>.from(map['partner_ids'] ?? []),
+      partners: partners,
       user: user,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String)
@@ -157,7 +160,7 @@ class Review {
     if (replayNumber != null) 'replay_number': replayNumber,
     'is_replay': isReplay,
     if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
-    if (partnerId != null) 'partner_id': partnerId,
+    if (partnerIds.isNotEmpty) 'partner_ids': partnerIds,
   };
 
   Map<String, dynamic> toMap() => {
@@ -180,8 +183,8 @@ class Review {
     if (replayNumber != null) 'replay_number': replayNumber,
     'is_replay': isReplay,
     if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
-    if (partnerId != null) 'partner_id': partnerId,
-    if (partner != null) 'partner': partner!.toMap(),
+    if (partnerIds.isNotEmpty) 'partner_ids': partnerIds,
+    if (partners.isNotEmpty) 'partners': partners.map((p) => p.toMap()).toList(),
     if (user != null) 'users': user!.toMap(),
     if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
     if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
@@ -204,8 +207,9 @@ class Review {
     int? replayNumber,
     bool? isReplay,
     List<String>? imageUrls,
-    String? partnerId,
-    UserProfile? partner,
+    List<String>? partnerIds,
+    List<UserProfile>? partners,
+    UserProfile? user,
   }) {
     return Review(
       id: id,
@@ -227,9 +231,9 @@ class Review {
       replayNumber: replayNumber ?? this.replayNumber,
       isReplay: isReplay ?? this.isReplay,
       imageUrls: imageUrls ?? this.imageUrls,
-      partnerId: partnerId ?? this.partnerId,
-      partner: partner ?? this.partner,
-      user: user,
+      partnerIds: partnerIds ?? this.partnerIds,
+      partners: partners ?? this.partners,
+      user: user ?? this.user,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

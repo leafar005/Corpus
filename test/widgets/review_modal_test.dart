@@ -56,7 +56,7 @@ void main() {
                               required int? progressPercent,
                               required dynamic newImages,
                               required List<String> existingImages,
-                              required String? partnerId,
+                              required List<String> partnerIds,
                             }) async {},
                       );
                     },

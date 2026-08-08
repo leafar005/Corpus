@@ -457,7 +457,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
             required progressPercent,
             required newImages,
             required existingImages,
-            required partnerId,
+            required partnerIds,
             reviewId,
           }) async {
             setState(() {
