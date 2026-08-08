@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../activity/review_details_screen.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 /// Pestaña "Reseñas" del perfil: feed de reseñas con comentario escrito,
 /// más recientes primero, con scroll infinito.
@@ -194,7 +195,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
               )
             : null,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
           borderSide: BorderSide.none,
         ),
         filled: true,
@@ -265,14 +266,14 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       padding: const EdgeInsets.only(bottom: 16),
       child: InkWell(
         onTap: () => _openReview(review),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Theme.of(
               context,
             ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/auth/login_screen.dart';
+import '../theme/corpus_theme_extension.dart';
 
 /// Aviso reutilizable para zonas de la app en "modo invitado":
 /// icono + mensaje + botón que abre la pantalla de login.
@@ -49,7 +50,7 @@ class GuestLoginPrompt extends StatelessWidget {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               textStyle: const TextStyle(fontSize: 18),
             ),
@@ -88,7 +89,7 @@ class GuestLoginButton extends StatelessWidget {
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium),
         textStyle: const TextStyle(fontSize: 18),
       ),
       icon: const Icon(Icons.login),

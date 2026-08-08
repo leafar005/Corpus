@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'screens/main_screen.dart';
 import 'env.dart';
 import 'theme/app_theme.dart';
+import 'theme/style_pack.dart';
 import 'theme/style_pack_registry.dart';
 import 'services/notification_service.dart';
 
@@ -44,8 +45,31 @@ void main() async {
     publishableKey: Env.supabaseAnonKey,
   );
 
-  // 5. Carga los packs de estilo importados por el usuario
+  // 5. Registra packs built-in y carga los importados por el usuario
+  StylePackRegistry.registerBuiltIn(const StylePack(
+    id: 'persona_5_royal',
+    name: 'Persona 5 Royal',
+    description:
+        'Estilo inspirado en la identidad visual de Persona 5 Royal: rojo intenso, negro profundo, tipografía agresiva y formas angulares.',
+    seedColor: Color(0xFFD3112D),
+    scaffoldLight: Color(0xFFFFFFFF),
+    scaffoldDark: Color(0xFF000000),
+    surfaceLight: Color(0xFFFFFFFF),
+    surfaceDark: Color(0xFF121212),
+    accentColor: Color(0xFFFFD400),
+    fontFamily: 'Archivo Black',
+    heroFontFamily: 'Archivo Black',
+    heroFontSize: 52,
+    heroFontWeight: FontWeight.w900,
+    borderRadiusSmall: 0,
+    borderRadiusMedium: 2,
+    borderRadiusLarge: 4,
+    navBarStyle: NavBarStyle.persona5Royal,
+    useDynamicFrames: true,
+  ));
+
   await StylePackRegistry.loadImported();
+  await themeNotifier.initialize();
 
   // 6. Inicializa el servicio de notificaciones (Android + Windows + Web)
   await NotificationService().init();

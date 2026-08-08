@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 /// Callback invocado cuando el usuario pulsa "Guardar/Publicar Reseña".
 /// Firma idéntica a [_GameDetailsScreenState._saveReview].
@@ -182,7 +183,7 @@ class ReviewModal {
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                 ),
                 side: BorderSide(
                   color: sel
@@ -202,7 +203,7 @@ class ReviewModal {
                   Container(
                     margin: const EdgeInsets.only(right: 8, top: 8),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                     ),
                     clipBehavior: Clip.hardEdge,
                     child: imageWidget,

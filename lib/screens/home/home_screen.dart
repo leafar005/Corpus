@@ -12,6 +12,8 @@ import '../library/game_details_screen.dart';
 import 'hero_showcase.dart';
 import 'anticipated_games_section.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
+import '../../widgets/p5r_styled_panel.dart';
 
 // ─── Modelos de datos por fase ──────────────────────────────────────────────
 
@@ -509,13 +511,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Oportunidades Finales',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          CorpusSectionTitle('Oportunidades Finales'),
           const SizedBox(height: 16),
           SizedBox(
-            height: 220,
+            height: _isDesktop ? 220 : 240,
             child: Stack(
               children: [
                 PageView.builder(
@@ -529,7 +528,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     final endDate = DateTime.parse(bundle['end_date']);
                     final difference = endDate.difference(DateTime.now());
                     final days = difference.inDays;
-                    final hours = difference.inHours % 24;
 
                     // Extraer los primeros 4 juegos para mostrarlos
                     List<Map<String, dynamic>> allGames = [];
@@ -566,16 +564,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       storeIcon = Icon(Icons.local_offer, size: 48, color: Theme.of(context).colorScheme.primary);
                     }
 
-                    return Container(
+                    final isP5r = Theme.of(context)
+                        .extension<CorpusThemeExtension>()!
+                        .useDynamicFrames;
+
+                    return CorpusStyledPanel(
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                        ),
-                      ),
                       child: Row(
                         children: [
                           Expanded(
@@ -605,22 +600,48 @@ class _HomeScreenState extends State<HomeScreen> {
                                           Text(
                                             bundle['store_name'] ?? 'Tienda',
                                             style: TextStyle(
-                                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                                              fontSize: 14,
+                                              color: isP5r
+                                                  ? Colors.white54
+                                                  : Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withValues(alpha: 0.7),
+                                              fontSize: 13,
+                                              letterSpacing: isP5r ? 1.0 : 0,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 6),
                                           Text(
                                             bundle['title'] ?? 'Bundle',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: isP5r ? 20 : 22,
+                                              color: isP5r
+                                                  ? Colors.white
+                                                  : Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface,
+                                            ),
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           const SizedBox(height: 12),
-                                          Text(
-                                            'Termina en $days días y $hours horas',
-                                            style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold, fontSize: 15),
-                                          ),
+                                          if (isP5r)
+                                            P5rTextBadge(
+                                              text: '$days días',
+                                            )
+                                          else
+                                            Text(
+                                              '$days días',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.orangeAccent,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                height: 1.2,
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ),
@@ -784,38 +805,36 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       key: const ValueKey('stash_activity_loaded'),
       color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(16.0, 48.0, 16.0, 48.0),
+      padding: const EdgeInsets.symmetric(vertical: 48.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Actividad Global de Stash',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: CorpusSectionTitle('Actividad Global de Stash'),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           SizedBox(
             height: 180,
             child: Stack(
+              clipBehavior: Clip.none,
               children: [
                 ListView.builder(
+                  clipBehavior: Clip.none,
                   controller: _latestReviewsScrollController,
                   scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(left: 16.0),
                   itemCount: latestReviews.length,
                   itemBuilder: (context, index) {
                     final review = latestReviews[index];
                     final game = review['games'];
-                    return Container(
-                      width: 280,
-                      margin: const EdgeInsets.only(right: 16),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
-                      child: Column(
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: SizedBox(
+                        width: 280,
+                        child: CorpusStyledPanel(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
@@ -841,7 +860,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     }
                                   },
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                                     child: Image.network(
                                       game['cover_url'],
                                       width: 40,
@@ -919,6 +938,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ],
+                      ),
+                        ),
                       ),
                     );
                   },
@@ -1021,18 +1042,21 @@ class _SectionShimmerState extends State<_SectionShimmer>
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 48, 16, 48),
+      padding: const EdgeInsets.symmetric(vertical: 48),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AnimatedBuilder(
-            animation: _anim,
-            builder: (context, child) => Container(
-              width: 220,
-              height: 20,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: _anim.value),
-                borderRadius: BorderRadius.circular(6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: AnimatedBuilder(
+              animation: _anim,
+              builder: (context, child) => Container(
+                width: 220,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: _anim.value),
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
           ),
@@ -1040,7 +1064,9 @@ class _SectionShimmerState extends State<_SectionShimmer>
           SizedBox(
             height: 160,
             child: ListView.builder(
+              clipBehavior: Clip.none,
               scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(left: 16),
               itemCount: 4,
               itemBuilder: (_, child) => AnimatedBuilder(
                 animation: _anim,
@@ -1049,7 +1075,7 @@ class _SectionShimmerState extends State<_SectionShimmer>
                   margin: const EdgeInsets.only(right: 16),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: _anim.value),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                   ),
                 ),
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/style_pack_url_override.dart';
 import 'style_pack.dart';
 import 'style_pack_registry.dart';
 import 'corpus_theme_extension.dart';
@@ -19,11 +20,16 @@ class ThemeNotifier extends ChangeNotifier {
   String get stylePackId => _stylePackId;
   StylePack get currentPack => StylePackRegistry.getById(_stylePackId);
 
-  ThemeNotifier() {
-    _loadTheme();
-  }
+  bool _initialized = false;
 
-  Future<void> _loadTheme() async {
+  /// Load saved theme prefs, then apply an optional `?style=` URL override.
+  ///
+  /// Call once from [main] after style packs are registered. URL overrides are
+  /// not persisted so they are safe for side-by-side style debugging.
+  Future<void> initialize() async {
+    if (_initialized) return;
+    _initialized = true;
+
     final prefs = await SharedPreferences.getInstance();
 
     final modeStr = prefs.getString('theme_mode') ?? 'system';
@@ -38,6 +44,11 @@ class ThemeNotifier extends ChangeNotifier {
     }
 
     _stylePackId = prefs.getString('style_pack_id') ?? 'default';
+
+    final urlPackId = StylePackUrlOverride.packIdFromUri(Uri.base);
+    if (urlPackId != null) {
+      _applyStylePack(urlPackId, persist: false);
+    }
 
     notifyListeners();
   }
@@ -57,13 +68,20 @@ class ThemeNotifier extends ChangeNotifier {
   }
 
   Future<void> setStylePack(String id) async {
+    _applyStylePack(id, persist: true);
+    notifyListeners();
+  }
+
+  void _applyStylePack(String id, {required bool persist}) {
     _stylePackId = id;
     final pack = currentPack;
     _seedColor = pack.seedColor;
-    notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('style_pack_id', id);
-    await prefs.setInt('theme_color', pack.seedColor.toARGB32());
+    if (persist) {
+      SharedPreferences.getInstance().then((prefs) async {
+        await prefs.setString('style_pack_id', id);
+        await prefs.setInt('theme_color', pack.seedColor.toARGB32());
+      });
+    }
   }
 }
 
@@ -74,10 +92,14 @@ class AppTheme {
   /// falls back to the default Material text theme with that family applied.
   static TextTheme? _textThemeFor(String? fontFamily, Brightness brightness) {
     if (fontFamily == null) return null;
+    final base = ThemeData(brightness: brightness).textTheme;
+    if (fontFamily == 'Archivo Black') {
+      return GoogleFonts.archivoBlackTextTheme(base);
+    }
     try {
       return GoogleFonts.getTextTheme(fontFamily);
     } catch (_) {
-      return ThemeData(brightness: brightness).textTheme.apply(fontFamily: fontFamily);
+      return base.apply(fontFamily: fontFamily);
     }
   }
 

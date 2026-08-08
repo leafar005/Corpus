@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum NavBarStyle { liquidGlass, solid, minimal }
+enum NavBarStyle { liquidGlass, solid, minimal, persona5Royal }
 
 /// Describes a complete visual style for the app.
 ///
@@ -35,6 +35,9 @@ class StylePack {
   // ── Navigation bar ───────────────────────────────────────────────────────
   final NavBarStyle navBarStyle;
 
+  // ── P5R-style dynamic frames on buttons / nav ────────────────────────────
+  final bool useDynamicFrames;
+
   const StylePack({
     required this.id,
     required this.name,
@@ -53,6 +56,7 @@ class StylePack {
     this.borderRadiusMedium = 12,
     this.borderRadiusLarge = 16,
     this.navBarStyle = NavBarStyle.liquidGlass,
+    this.useDynamicFrames = false,
   });
 
   /// The pack that reproduces the current Corpus UI exactly.
@@ -107,6 +111,7 @@ class StylePack {
       borderRadiusLarge:
           (json['borderRadiusLarge'] as num?)?.toDouble() ?? 16,
       navBarStyle: _navBarStyleFromString(json['navBarStyle'] as String?),
+      useDynamicFrames: json['useDynamicFrames'] as bool? ?? false,
     );
   }
 
@@ -128,6 +133,7 @@ class StylePack {
     'borderRadiusMedium': borderRadiusMedium,
     'borderRadiusLarge': borderRadiusLarge,
     'navBarStyle': navBarStyle.name,
+    'useDynamicFrames': useDynamicFrames,
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────

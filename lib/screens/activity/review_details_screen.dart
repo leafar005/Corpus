@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import '../../utils/storage_utils.dart';
 import '../profile/profile_screen.dart';
+import '../../theme/corpus_theme_extension.dart';
 import '../library/search_screen.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/coop_badge.dart';
@@ -743,7 +744,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
@@ -769,7 +770,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1030,7 +1031,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     width: 100,
                                     height: 140,
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                                       color: Theme.of(context).primaryColorDark,
                                       image: coverUrl.isNotEmpty
                                           ? DecorationImage(
@@ -1186,7 +1187,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         );
                                       },
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
+                                        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                                         child: Image.network(
                                           imageUrls[idx],
                                           height: isDesktop ? 280 : 140,
@@ -1212,7 +1213,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     .colorScheme
                                     .surfaceContainerHighest
                                     .withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                               ),
                               child: Column(
                                 children: [
@@ -1351,7 +1352,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             .withValues(alpha: 0.1)
                                       : null,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                                   ),
                                 ),
                               ),
@@ -1373,7 +1374,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     ).colorScheme.surfaceContainerHighest,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                                   ),
                                 ),
                               ),
@@ -1745,7 +1746,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                 clipBehavior: Clip.none,
                                 children: [
                                   ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                                     child: kIsWeb
                                         ? Image.network(
                                             _commentImage!.path,
@@ -1799,7 +1800,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     width: 80,
                                     height: 110,
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                                       color: Theme.of(context).primaryColorDark,
                                       image:
                                           (_selectedGameForComment!['cover_url'] !=

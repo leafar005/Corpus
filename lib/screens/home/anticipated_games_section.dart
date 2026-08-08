@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../services/igdb_service.dart';
 import '../library/game_details_screen.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
+import '../../widgets/p5r_styled_panel.dart';
+import '../../widgets/p5r_dynamic_frame.dart';
 
 class AnticipatedGamesSection extends StatefulWidget {
   final List<dynamic> games;
@@ -59,10 +62,7 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          CorpusSectionTitle(widget.title),
           const SizedBox(height: 8),
           if (isDesktop)
             GridView.builder(
@@ -84,7 +84,7 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
             Column(
               children: [
                 SizedBox(
-                  height: 220,
+                  height: 240,
                   child: PageView.builder(
                     controller: _pageController,
                     itemCount: widget.games.length,
@@ -184,84 +184,86 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
           );
         }
       },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          image: backgroundUrl.isNotEmpty
-              ? DecorationImage(
-                  image: NetworkImage(backgroundUrl),
-                  fit: BoxFit.cover,
+      child: CorpusStyledPanel(
+        padding: EdgeInsets.zero,
+        backgroundColor: const Color(0xFF0A0A0A),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (backgroundUrl.isNotEmpty)
+              Positioned.fill(
+                child: ColorFiltered(
                   colorFilter: ColorFilter.mode(
-                    Colors.black.withValues(alpha: 0.6),
+                    Colors.black.withValues(alpha: 0.55),
                     BlendMode.srcOver,
                   ),
-                )
-              : null,
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).shadowColor.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+                  child: Image.network(
+                    backgroundUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              dateStr,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const Spacer(),
-            if (widget.countdownStyle == 'days_only')
-              Row(children: [_buildCountdownSection(days, 'DÍAS RESTANTES')])
-            else
-              Row(
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildCountdownSection(days, 'DAYS'),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      '|',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w300,
-                      ),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    dateStr,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  _buildCountdownSection(hours, 'HOURS'),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      '|',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w300,
-                      ),
+                  const Spacer(),
+                  if (widget.countdownStyle == 'days_only')
+                    Row(children: [_buildCountdownSection(days, 'DÍAS RESTANTES')])
+                  else
+                    Row(
+                      children: [
+                        _buildCountdownSection(days, 'DAYS'),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            '|',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300,
+                            ),
+                          ),
+                        ),
+                        _buildCountdownSection(hours, 'HOURS'),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            '|',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300,
+                            ),
+                          ),
+                        ),
+                        _buildCountdownSection(minutes, 'MINUTES'),
+                      ],
                     ),
-                  ),
-                  _buildCountdownSection(minutes, 'MINUTES'),
                 ],
               ),
+            ),
           ],
         ),
       ),
@@ -292,20 +294,43 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
   }
 
   Widget _buildDigitBox(String digit) {
+    final isP5r =
+        Theme.of(context).extension<CorpusThemeExtension>()!.useDynamicFrames;
+
+    if (isP5r) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: P5rDynamicFrame(
+          backgroundColor: Colors.black,
+          borderColor: Colors.white,
+          borderWidth: 1,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Text(
+            digit,
+            style: const TextStyle(
+              fontSize: 22,
+              height: 1.0,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 2),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.15,
-        ), // Efecto cristal translúcido
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Text(
         digit,
         style: const TextStyle(
-          fontSize: 28,
+          fontSize: 24,
+          height: 1.0,
           fontWeight: FontWeight.w300,
           color: Colors.white,
         ),

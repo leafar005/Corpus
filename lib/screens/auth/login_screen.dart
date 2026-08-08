@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -65,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     return Scaffold(
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: Center(
@@ -94,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Correo electrónico',
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                     ),
                   ),
                   keyboardType: TextInputType.emailAddress,
@@ -107,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Contraseña',
                     prefixIcon: const Icon(Icons.lock),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                     ),
                   ),
                   obscureText: true,
@@ -120,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                     ),
                   ),
                   child: _isLoading

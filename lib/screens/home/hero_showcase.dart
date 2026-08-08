@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../globals.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../widgets/corpus_primary_button.dart';
+import '../../widgets/corpus_section_title.dart';
 import '../library/game_details_screen.dart';
 
 class HeroShowcase extends StatefulWidget {
@@ -285,28 +287,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
                   mainAxisSize: MainAxisSize
                       .min, // El texto ocupa solo lo que necesita hacia abajo
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: TextStyle(
-                          fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
-                          fontSize: isPortrait ? 42 : 48,
-                          fontWeight: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontWeight ?? FontWeight.w900,
-                          height: 1.1,
-                          letterSpacing: -1,
-                        ),
-                        children: [
-                          const TextSpan(
-                            text: 'Bienvenido,\n',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          TextSpan(
-                            text: widget.userName,
-                            style: TextStyle(
-                              color: Theme.of(context).primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
+                    CorpusHeroTitle(
+                      prefix: 'Bienvenido,',
+                      highlight: widget.userName,
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
@@ -351,22 +334,11 @@ class _HeroShowcaseState extends State<HeroShowcase>
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
+                    CorpusPrimaryButton(
                       onPressed: () =>
                           _navigateToGameDetails(gameData, coverUrl, true),
-                      icon: const Icon(Icons.edit, size: 20),
-                      label: const Text('Editar reseña'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
+                      icon: Icons.edit,
+                      label: 'Editar reseña',
                     ),
                   ],
                 );
@@ -786,21 +758,13 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                         ),
                       ),
                       const SizedBox(height: 24),
-                      ElevatedButton.icon(
+                      CorpusPrimaryButton(
                         onPressed: () => openLoginScreen(context),
-                        icon: const Icon(Icons.login, size: 20),
-                        label: const Text('Iniciar sesión'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
-                          ),
-                          textStyle: const TextStyle(fontSize: 18),
+                        icon: Icons.login,
+                        label: 'Iniciar sesión',
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
                         ),
                       ),
                     ],
@@ -1047,28 +1011,9 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
-                        fontSize: isPortrait ? 42 : 48,
-                        fontWeight: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontWeight ?? FontWeight.w900,
-                        height: 1.1,
-                        letterSpacing: -1,
-                      ),
-                      children: [
-                        const TextSpan(
-                          text: 'Bienvenido,\n',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        TextSpan(
-                          text: widget.userName,
-                          style: TextStyle(
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
+                  CorpusHeroTitle(
+                    prefix: 'Bienvenido,',
+                    highlight: widget.userName,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -1081,21 +1026,10 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                     ),
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton.icon(
+                  CorpusPrimaryButton(
                     onPressed: widget.onSearchPressed,
-                    icon: const Icon(Icons.search, size: 20),
-                    label: const Text('Buscar un juego'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
+                    icon: Icons.search,
+                    label: 'Buscar un juego',
                   ),
                 ],
               );

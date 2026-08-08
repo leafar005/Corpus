@@ -18,6 +18,7 @@ class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
   final double borderRadiusMedium;
   final double borderRadiusLarge;
   final NavBarStyle navBarStyle;
+  final bool useDynamicFrames;
 
   const CorpusThemeExtension({
     this.heroFontFamily,
@@ -27,6 +28,7 @@ class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
     this.borderRadiusMedium = 12,
     this.borderRadiusLarge = 16,
     this.navBarStyle = NavBarStyle.liquidGlass,
+    this.useDynamicFrames = false,
   });
 
   /// Build from a [StylePack].
@@ -39,6 +41,7 @@ class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
       borderRadiusMedium: pack.borderRadiusMedium,
       borderRadiusLarge: pack.borderRadiusLarge,
       navBarStyle: pack.navBarStyle,
+      useDynamicFrames: pack.useDynamicFrames,
     );
   }
 
@@ -59,6 +62,7 @@ class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
     double? borderRadiusMedium,
     double? borderRadiusLarge,
     NavBarStyle? navBarStyle,
+    bool? useDynamicFrames,
   }) {
     return CorpusThemeExtension(
       heroFontFamily: heroFontFamily ?? this.heroFontFamily,
@@ -68,6 +72,7 @@ class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
       borderRadiusMedium: borderRadiusMedium ?? this.borderRadiusMedium,
       borderRadiusLarge: borderRadiusLarge ?? this.borderRadiusLarge,
       navBarStyle: navBarStyle ?? this.navBarStyle,
+      useDynamicFrames: useDynamicFrames ?? this.useDynamicFrames,
     );
   }
 
@@ -85,6 +90,7 @@ class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
       borderRadiusLarge:
           lerpDouble(borderRadiusLarge, other.borderRadiusLarge, t)!,
       navBarStyle: t < 0.5 ? navBarStyle : other.navBarStyle,
+      useDynamicFrames: t < 0.5 ? useDynamicFrames : other.useDynamicFrames,
     );
   }
 }

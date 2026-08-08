@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../services/igdb_service.dart';
 import '../../../widgets/full_screen_gallery.dart';
+import '../../../theme/corpus_theme_extension.dart';
 
 class GameMediaTab extends StatefulWidget {
   const GameMediaTab({
@@ -115,9 +116,9 @@ class _GameMediaTabState extends State<GameMediaTab> {
                       .toList();
                   showFullScreenGallery(context, urls, index);
                 },
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                   child: Image.network(url, fit: BoxFit.cover),
                 ),
               );
@@ -143,18 +144,18 @@ class _GameMediaTabState extends State<GameMediaTab> {
                   Uri.parse(videoUrl),
                   mode: LaunchMode.externalApplication,
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                       child: Image.network(thumbUrl, fit: BoxFit.cover),
                     ),
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                       ),
                       child: const Center(
                         child: Icon(
@@ -191,9 +192,9 @@ class _GameMediaTabState extends State<GameMediaTab> {
                       .toList();
                   showFullScreenGallery(context, urls, index);
                 },
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                   child: Image.network(url, fit: BoxFit.cover),
                 ),
               );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class HallOfFameSelectorScreen extends StatefulWidget {
   final int pinOrder;
@@ -131,7 +132,7 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                 return GestureDetector(
                   onTap: () => _selectGame(game['igdb_id'] ?? game['id']),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                     child: coverUrl.isNotEmpty
                         ? Image.network(coverUrl, fit: BoxFit.cover)
                         : Container(color: Theme.of(context).primaryColorDark),

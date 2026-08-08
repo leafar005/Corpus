@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/level_calculator.dart';
 import 'package:corpus/screens/profile/achievement_games_screen.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class AchievementsScreen extends StatefulWidget {
   final String userId;
@@ -860,7 +861,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
             child: SizedBox(
               width: double.infinity,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 12,
@@ -1028,7 +1029,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                               )
                             : null,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
@@ -1127,11 +1128,11 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                         elevation: isUnlocked ? 4 : 0,
                         color: Theme.of(context).colorScheme.surface,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                           side: BorderSide(color: borderColor, width: 1),
                         ),
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                           onTap: () {
                             int? companyId;
                             int? collectionId;
@@ -1291,7 +1292,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: bgColor,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                                     border: Border.all(color: badgeColor),
                                   ),
                                   child: Text(

@@ -8,6 +8,7 @@ import '../../widgets/game_card.dart';
 import '../../widgets/filter_bottom_sheet.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
@@ -274,15 +275,15 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
                 vertical: 0,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                 borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                 borderSide: BorderSide.none,
               ),
               hintStyle: TextStyle(

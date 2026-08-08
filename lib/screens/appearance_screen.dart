@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../globals.dart';
-import '../theme/style_pack.dart';
 import '../theme/style_pack_registry.dart';
 import 'settings/info_tab_appearance_screen.dart';
 import 'settings/home_appearance_screen.dart';
@@ -171,7 +170,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
 
   Future<void> _importPack() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
         withData: true,
