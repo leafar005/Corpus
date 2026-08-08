@@ -391,31 +391,16 @@ class _HeroShowcaseState extends State<HeroShowcase>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          TypewriterText(
+                          CorpusHeroTitle(
+                            prefix: 'Bienvenido,',
+                            highlight: widget.userName,
+                            animated: true,
                             instant: _titleTyped,
-                            onComplete: () {
+                            onAnimationComplete: () {
                               if (!_titleTyped && mounted) {
                                 setState(() => _titleTyped = true);
                               }
                             },
-                            style: TextStyle(
-                              fontSize: isPortrait ? 42 : 48,
-                              fontWeight: FontWeight.w900,
-                              height: 1.1,
-                              letterSpacing: -1,
-                            ),
-                            spans: [
-                              const TextSpan(
-                                text: 'Bienvenido,\n',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              TextSpan(
-                                text: widget.userName,
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ],
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
