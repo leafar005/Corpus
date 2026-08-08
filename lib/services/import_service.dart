@@ -131,8 +131,6 @@ class ImportService {
       if (parsed != null && parsed > 0.0) {
         if (parsed > 10.0 && parsed <= 100.0) {
           cleanRating = parsed / 10.0;
-        } else if (parsed <= 5.0) {
-          cleanRating = parsed * 2.0;
         } else if (parsed <= 10.0) {
           cleanRating = parsed;
         }
