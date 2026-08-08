@@ -11,6 +11,7 @@ import '../social/friends_screen.dart';
 import '../library/game_details_screen.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 /// Feed de actividad social en tiempo real.
 /// Muestra la actividad del usuario actual y la de sus amigos aceptados.
@@ -732,7 +733,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                     width: 100,
                     height: 140,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                       color: Theme.of(
                         context,
                       ).colorScheme.surfaceContainerHighest,
@@ -895,7 +896,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                           showFullScreenGallery(context, strUrls, idx);
                         },
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                           child: Image.network(
                             imageUrls[idx] as String,
                             height: 120,

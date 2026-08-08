@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../theme/corpus_theme_extension.dart';
 
 class AchievementToast {
   /// Muestra el banner emergente estilo Xbox en la parte superior de la pantalla.
@@ -194,7 +195,7 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
                           ),
                           decoration: BoxDecoration(
                             color: widget.color.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                           ),
                           child: Text(
                             '+${widget.xpReward} XP',

@@ -10,6 +10,7 @@ import '../../../models/models.dart';
 import '../../../services/igdb_service.dart';
 import '../../../repositories/review_repository.dart';
 import '../../../widgets/full_screen_gallery.dart';
+import '../../../theme/corpus_theme_extension.dart';
 
 class GameHeroSection extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -405,7 +406,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 backgroundColor: color,
                 foregroundColor: textColor,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                 ),
                 elevation: widget.inLibrary ? 0 : 2,
               ),
@@ -471,9 +472,10 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       } catch (_) {}
     }
 
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final coverArtWidget = Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: ext.radiusMedium,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.5),
@@ -483,7 +485,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: ext.radiusMedium,
         child: AspectRatio(
           aspectRatio: 3 / 4,
           child: coverUrl != null

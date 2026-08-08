@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'hall_of_fame_selector_screen.dart';
 import '../../utils/image_compressor.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userProfile;
@@ -274,6 +275,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -456,7 +458,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: ext.radiusMedium,
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
@@ -484,7 +486,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: ext.radiusMedium,
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
@@ -526,7 +528,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: ext.radiusMedium,
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
@@ -560,7 +562,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         context,
                                       ).colorScheme.surface,
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: ext.radiusMedium,
                                         borderSide: BorderSide.none,
                                       ),
                                     ),

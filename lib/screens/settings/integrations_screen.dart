@@ -556,7 +556,9 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: ext.radiusMedium,
+                            borderRadius: Theme.of(context)
+                                .extension<CorpusThemeExtension>()!
+                                .radiusMedium,
                           ),
                         ),
                         child: const Text(

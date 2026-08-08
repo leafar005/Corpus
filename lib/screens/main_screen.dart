@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../theme/style_pack.dart';
+import '../widgets/p5r_dynamic_frame.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -118,6 +119,11 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildTopNavigationBar(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    if (ext.navBarStyle == NavBarStyle.persona5Royal) {
+      return _buildPersona5RoyalTopNav(context);
+    }
+
     return Container(
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -159,6 +165,109 @@ class _MainScreenState extends State<MainScreen> {
           _buildTopNavItem(4, 'Perfil', Icons.person),
         ],
       ),
+    );
+  }
+
+  static const Color _p5rRed = Color(0xFFD3112D);
+
+  Widget _buildPersona5RoyalTopNav(BuildContext context) {
+    return ClipRect(
+      child: SizedBox(
+        height: 60,
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            const Positioned.fill(
+              child: P5rDynamicBackground(
+                backgroundColor: _p5rRed,
+                borderColor: Colors.black,
+                borderWidth: 2,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Row(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.gamepad, color: Colors.white),
+                      const SizedBox(width: 12),
+                      Text(
+                        'CORPUS',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          letterSpacing: 2,
+                          color: Colors.white,
+                          fontFamily:
+                              Theme.of(context)
+                                  .extension<CorpusThemeExtension>()!
+                                  .heroFontFamily,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  _buildPersona5RoyalTopNavItem(0, 'Inicio', Icons.home),
+                  const SizedBox(width: 16),
+                  _buildPersona5RoyalTopNavItem(1, 'Buscar', Icons.search),
+                  const SizedBox(width: 16),
+                  _buildPersona5RoyalTopNavItem(2, 'Actividad', Icons.group),
+                  const SizedBox(width: 16),
+                  _buildPersona5RoyalTopNavItem(3, 'Bundles', Icons.local_offer),
+                  const SizedBox(width: 16),
+                  _buildPersona5RoyalTopNavItem(4, 'Perfil', Icons.person),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPersona5RoyalTopNavItem(int index, String label, IconData icon) {
+    final isSelected = _currentIndex == index;
+    final color = isSelected ? Colors.white : Colors.white70;
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return InkWell(
+      onTap: () => _onTabTapped(index),
+      child: isSelected
+          ? SizedBox(
+              height: 44,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  const Positioned.fill(
+                    child: P5rDynamicBackground(
+                      backgroundColor: Colors.black,
+                      borderColor: Colors.white,
+                      borderWidth: 1,
+                    ),
+                  ),
+                  content,
+                ],
+              ),
+            )
+          : content,
     );
   }
 
@@ -245,6 +354,102 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  Widget _buildPersona5RoyalNavBar(BuildContext context) {
+    const items = [
+      (Icons.home, 'Inicio'),
+      (Icons.search, 'Buscar'),
+      (Icons.group, 'Actividad'),
+      (Icons.local_offer, 'Bundles'),
+      (Icons.person, 'Perfil'),
+    ];
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+        child: ClipRect(
+          child: SizedBox(
+            height: 80,
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                const Positioned.fill(
+                  child: P5rDynamicBackground(
+                    backgroundColor: _p5rRed,
+                    borderColor: Colors.black,
+                    borderWidth: 2,
+                  ),
+                ),
+                Row(
+                  children: List.generate(items.length, (index) {
+                    final (icon, label) = items[index];
+                    final isSelected = _currentIndex == index;
+                    final color = isSelected ? Colors.white : Colors.white70;
+
+                    final itemContent = Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          icon,
+                          color: color,
+                          size: isSelected ? 28 : 24,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 11,
+                            height: 1.1,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    );
+
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => _onTabTapped(index),
+                        behavior: HitTestBehavior.opaque,
+                        child: Center(
+                          child: isSelected
+                              ? SizedBox(
+                                  width: 56,
+                                  height: 64,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    clipBehavior: Clip.hardEdge,
+                                    children: [
+                                      const Positioned.fill(
+                                        child: P5rDynamicBackground(
+                                          backgroundColor: Colors.black,
+                                          borderColor: Colors.white,
+                                          borderWidth: 1,
+                                        ),
+                                      ),
+                                      itemContent,
+                                    ],
+                                  ),
+                                )
+                              : itemContent,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSolidNavBar(BuildContext context) {
     return BottomNavigationBar(
       currentIndex: _currentIndex,
@@ -302,6 +507,7 @@ class _MainScreenState extends State<MainScreen> {
       NavBarStyle.liquidGlass => _buildLiquidGlassNavBar(context),
       NavBarStyle.solid => _buildSolidNavBar(context),
       NavBarStyle.minimal => _buildMinimalNavBar(context),
+      NavBarStyle.persona5Royal => _buildPersona5RoyalNavBar(context),
     };
   }
 

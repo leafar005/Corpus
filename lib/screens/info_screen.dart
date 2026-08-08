@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme/corpus_theme_extension.dart';
 
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
@@ -71,7 +72,7 @@ class InfoScreen extends StatelessWidget {
             Card(
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               child: ListTile(
                 leading: CircleAvatar(
@@ -115,7 +116,7 @@ class InfoScreen extends StatelessWidget {
             Card(
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               child: Column(
                 children: [

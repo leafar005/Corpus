@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../utils/igdb_constants.dart';
 import '../group_games_screen.dart';
+import '../../../theme/corpus_theme_extension.dart';
 
 class GameInfoTab extends StatelessWidget {
   const GameInfoTab({
@@ -89,7 +90,7 @@ Widget _buildMetacriticSection(BuildContext context) {
             height: 44,
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
             ),
             alignment: Alignment.center,
             child: FittedBox(
@@ -239,7 +240,7 @@ Widget _buildStashStatsSection(BuildContext context) {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
           border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
@@ -323,6 +324,7 @@ Widget _buildStashStatsSection(BuildContext context) {
     );
   }
 Widget _buildTimeToBeatCard(
+    BuildContext context,
     String title,
     num? rawValue,
     Color color,
@@ -342,7 +344,7 @@ Widget _buildTimeToBeatCard(
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           border: Border.all(color: color.withValues(alpha: 0.3)),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
         ),
         child: Column(
           children: [
@@ -387,6 +389,7 @@ Widget _buildTimeToBeatCard(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildTimeToBeatCard(
+          context,
           'Principal',
           principal,
           Colors.blueAccent,
@@ -394,6 +397,7 @@ Widget _buildTimeToBeatCard(
         ),
         const SizedBox(width: 8),
         _buildTimeToBeatCard(
+          context,
           'Extras',
           extras,
           Colors.purpleAccent,
@@ -401,6 +405,7 @@ Widget _buildTimeToBeatCard(
         ),
         const SizedBox(width: 8),
         _buildTimeToBeatCard(
+          context,
           'Completista',
           completionist,
           Colors.amber,
@@ -442,7 +447,7 @@ Widget _buildTimeToBeatCard(
                           ).colorScheme.primary.withValues(alpha: 0.5),
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                         ),
                         onPressed: () {
                           Navigator.push(
@@ -470,7 +475,7 @@ Widget _buildTimeToBeatCard(
                           ).colorScheme.primary.withValues(alpha: 0.5),
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                         ),
                       ),
               ...franchisesData
@@ -491,7 +496,7 @@ Widget _buildTimeToBeatCard(
                               ).colorScheme.tertiary.withValues(alpha: 0.5),
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                             ),
                             onPressed: () {
                               Navigator.push(
@@ -520,7 +525,7 @@ Widget _buildTimeToBeatCard(
                               ).colorScheme.tertiary.withValues(alpha: 0.5),
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                             ),
                           ),
                   ),
@@ -566,7 +571,7 @@ Widget _buildTimeToBeatCard(
                     ).colorScheme.primary.withValues(alpha: 0.3),
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                   ),
                 );
               }),
@@ -584,7 +589,7 @@ Widget _buildTimeToBeatCard(
                     ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                   ),
                 );
               }),
@@ -628,7 +633,7 @@ Widget _buildTimeToBeatCard(
                 backgroundColor: style['color'],
                 side: BorderSide.none,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                 ),
               );
             }).toList(),

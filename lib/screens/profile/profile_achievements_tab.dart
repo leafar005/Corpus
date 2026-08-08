@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/screens/profile/achievement_games_screen.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class ProfileAchievementsTab extends StatefulWidget {
   final String userId;
@@ -1129,11 +1130,11 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
               elevation: 2,
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                 side: BorderSide(color: borderColor, width: 1.5),
               ),
               child: InkWell(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                 onTap: widget.isOwnProfile
                     ? () => _onAchievementTap(achievement)
                     : null,

@@ -16,6 +16,7 @@ import 'profile_journal_tab.dart';
 import 'profile_reviews_tab.dart';
 import 'profile_games_grid_tab.dart';
 import 'currently_playing_badge.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -575,7 +576,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         right: isDesktop ? 40 : 16,
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
         onTap: _isOwnProfile
             ? () {
                 final userId =
@@ -620,7 +621,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                 child: LinearProgressIndicator(
                   value: LevelCalculator.getProgressFraction(
                     (_userProfile?['xp'] as num?)?.toInt() ?? 0,
@@ -1322,7 +1323,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
       ),
       child: imagePath != null
           ? Image.asset(imagePath, width: 24, height: 24, color: color)

@@ -6,6 +6,7 @@ import 'package:corpus/models/models.dart';
 import '../../utils/igdb_constants.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../widgets/filter_bottom_sheet.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 /// Pestaña "Juegos" del perfil: feed de juegos del usuario
 /// con scroll infinito y carga paginada.
@@ -274,7 +275,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
                     )
                   : null,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                 borderSide: BorderSide.none,
               ),
               filled: true,
@@ -304,7 +305,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
               ).colorScheme.surfaceContainerHighest,
               foregroundColor: Theme.of(context).colorScheme.onSurface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               minimumSize: const Size(
                 0,

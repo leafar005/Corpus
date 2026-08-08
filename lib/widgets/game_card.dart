@@ -3,6 +3,7 @@ import 'package:corpus/screens/library/game_details_screen.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 
 import 'package:corpus/models/models.dart';
+import 'package:corpus/theme/corpus_theme_extension.dart';
 
 class GameCard extends StatefulWidget {
   final Game game;
@@ -131,7 +132,7 @@ class _GameCardState extends State<GameCard> {
               ),
             ).then((_) => widget.onReturn());
           },
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -139,7 +140,7 @@ class _GameCardState extends State<GameCard> {
                 child: Card(
                   clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                   ),
                   elevation: 4,
                   margin: EdgeInsets.zero,
