@@ -39,7 +39,18 @@ class StashJsonToCsvConverter {
     try {
       return utf8.decode(latin1.encode(text));
     } catch (_) {
-      return text;
+      // Si falla por caracteres > 255 (ej: emojis reales en la cadena), 
+      // decodificamos a mano las secuencias UTF-8 de 2, 3 o 4 bytes.
+      return text.replaceAllMapped(RegExp(r'[\xC2-\xDF][\x80-\xBF]'), (match) {
+        final str = match.group(0)!;
+        try { return utf8.decode(latin1.encode(str)); } catch (_) { return str; }
+      }).replaceAllMapped(RegExp(r'[\xE0-\xEF][\x80-\xBF]{2}'), (match) {
+        final str = match.group(0)!;
+        try { return utf8.decode(latin1.encode(str)); } catch (_) { return str; }
+      }).replaceAllMapped(RegExp(r'[\xF0-\xF7][\x80-\xBF]{3}'), (match) {
+        final str = match.group(0)!;
+        try { return utf8.decode(latin1.encode(str)); } catch (_) { return str; }
+      });
     }
   }
 
