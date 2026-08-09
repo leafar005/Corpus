@@ -158,7 +158,7 @@ class GameReviewsCard extends StatelessWidget {
       case 'story_extras':
         return 'Historia + Extras';
       case '100_percent':
-        return '100%';
+        return 'Platino';
       case 'endless':
         return 'Sin Fin';
       case 'on_hold':
@@ -175,7 +175,7 @@ class GameReviewsCard extends StatelessWidget {
       case 'story_extras':
         return Icons.extension;
       case '100_percent':
-        return Icons.stars;
+        return Icons.emoji_events;
       case 'endless':
         return Icons.all_inclusive;
       case 'on_hold':

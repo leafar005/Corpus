@@ -697,7 +697,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'beaten':
-        return Icons.emoji_events;
+        return Icons.check_circle;
       case 'playing':
         return Icons.sports_esports;
       case 'wishlist':
@@ -718,7 +718,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       case 'story_extras':
         return 'Historia + Extras';
       case '100_percent':
-        return '100%';
+        return 'Platino';
       case 'endless':
         return 'Sin Fin';
       case 'on_hold':
@@ -735,7 +735,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       case 'story_extras':
         return Icons.extension;
       case '100_percent':
-        return Icons.stars;
+        return Icons.emoji_events;
       case 'endless':
         return Icons.all_inclusive;
       case 'on_hold':

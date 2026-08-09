@@ -458,7 +458,7 @@ class _ActivityScreenState extends State<ActivityScreen>
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'beaten':
-        return Icons.emoji_events;
+        return Icons.check_circle;
       case 'playing':
         return Icons.sports_esports;
       case 'wishlist':
@@ -507,7 +507,7 @@ class _ActivityScreenState extends State<ActivityScreen>
     if (actionType == 'achievement') return Icons.emoji_events_rounded;
     switch (status) {
       case 'beaten':
-        return Icons.emoji_events;
+        return Icons.check_circle;
       case 'playing':
         return Icons.sports_esports;
       case 'wishlist':
