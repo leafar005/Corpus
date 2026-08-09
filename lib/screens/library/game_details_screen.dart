@@ -391,7 +391,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       case 'playing':
         return Icons.sports_esports;
       case 'beaten':
-        return Icons.emoji_events;
+        return Icons.check_circle;
       case 'abandoned':
         return Icons.close;
       case 'on_hold':
@@ -761,6 +761,32 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 : [],
           };
         });
+
+        // Backfill perezoso: si la fila de `games` no tenía cover_url (u otros
+        // campos clave) y ahora los hemos resuelto vía IGDB, los persistimos
+        // para que listas y carruseles (que leen directo de la tabla, sin
+        // pasar por este enrichment) dejen de mostrar el placeholder.
+        final bool missingCoverInDb =
+            widget.gameData['cover_url'] == null ||
+            widget.gameData['cover_url'].toString().isEmpty;
+
+        if (missingCoverInDb && _enrichedData['cover_url'] != null) {
+          try {
+            await Supabase.instance.client
+                .from('games')
+                .update({
+                  'cover_url': _enrichedData['cover_url'],
+                  if (_enrichedData['summary'] != null)
+                    'summary': _enrichedData['summary'],
+                  if (_enrichedData['developer'] != null)
+                    'developer': _enrichedData['developer'],
+                })
+                .eq('igdb_id', igdbId);
+          } catch (e) {
+            debugPrint('[CORPUS DEBUG] Error en backfill de cover_url: $e');
+          }
+        }
+
 
         final List enrichedScreenshots = _enrichedData['screenshots'] ?? [];
         if (enrichedScreenshots.isNotEmpty) {
@@ -1289,7 +1315,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'beaten':
-        return Icons.emoji_events;
+        return Icons.check_circle;
       case 'playing':
         return Icons.videogame_asset;
       case 'wishlist':
