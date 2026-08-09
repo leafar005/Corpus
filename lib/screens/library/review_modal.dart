@@ -449,8 +449,8 @@ class ReviewModal {
                                 ),
                                 chip(
                                   '100_percent',
-                                  '100%',
-                                  Icons.stars,
+                                  'Platino',
+                                  Icons.emoji_events,
                                   reviewCompletionType,
                                   Theme.of(modalContext).colorScheme.primary,
                                   (v) => reviewCompletionType = v,

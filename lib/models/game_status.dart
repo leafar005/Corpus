@@ -44,7 +44,7 @@ enum GameStatus {
     GameStatus.wishlist   => 'Quiero jugarlo',
     GameStatus.playing    => 'Jugando',
     GameStatus.beaten     => 'Terminado',
-    GameStatus.completed  => 'Completado al 100%',
+    GameStatus.completed  => 'Platino',
     GameStatus.abandoned  => 'Abandonado',
     GameStatus.paused     => 'En pausa',
   };
