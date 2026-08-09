@@ -5,7 +5,8 @@ import '../profile/profile_screen.dart';
 /// Pantalla de gestión de amigos: buscar por username, ver solicitudes,
 /// ver amigos aceptados y eliminar amistades.
 class FriendsScreen extends StatefulWidget {
-  const FriendsScreen({super.key});
+  final int initialIndex;
+  const FriendsScreen({super.key, this.initialIndex = 2});
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
@@ -36,7 +37,11 @@ class _FriendsScreenState extends State<FriendsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialIndex,
+    );
     _loadRequests();
     _loadFriends();
   }
@@ -328,6 +333,30 @@ class _FriendsScreenState extends State<FriendsScreen>
                           user['display_name'] as String? ??
                           user['username'] as String? ??
                           'Usuario';
+                      final isFriend = _friends.any((f) => f['friend']?['id'] == userId);
+                      final isPending = alreadySentOrFriend && !isFriend;
+                      
+                      Widget? trailingWidget;
+                      if (isFriend) {
+                        trailingWidget = Chip(
+                          label: const Text('Amigos', style: TextStyle(fontSize: 12)),
+                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                          side: BorderSide.none,
+                        );
+                      } else if (isPending) {
+                        trailingWidget = Chip(
+                          label: const Text('Enviado', style: TextStyle(fontSize: 12)),
+                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          side: BorderSide.none,
+                        );
+                      } else {
+                        trailingWidget = FilledButton.icon(
+                          icon: const Icon(Icons.person_add, size: 18),
+                          label: const Text('Añadir'),
+                          onPressed: () => _sendRequest(userId),
+                        );
+                      }
+
                       return ListTile(
                         leading: _buildUserAvatar(
                           user['avatar_url'] as String?,
@@ -352,21 +381,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                             ),
                           );
                         },
-                        trailing: alreadySentOrFriend
-                            ? Chip(
-                                label: const Text(
-                                  'Enviado',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainerHighest,
-                              )
-                            : FilledButton.icon(
-                                icon: const Icon(Icons.person_add, size: 18),
-                                label: const Text('Añadir'),
-                                onPressed: () => _sendRequest(userId),
-                              ),
+                        trailing: trailingWidget,
                       );
                     },
                   ),
