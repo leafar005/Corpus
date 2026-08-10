@@ -7,12 +7,15 @@ class CurrentlyPlayingBadge extends StatefulWidget {
   final Map<String, dynamic> initialProfile;
   /// Versión más baja para el header sticky de móvil.
   final bool compact;
+  /// Cuando se usa inline (al lado del @) elimina el margin top.
+  final bool inline;
 
   const CurrentlyPlayingBadge({
     super.key,
     required this.userId,
     required this.initialProfile,
     this.compact = false,
+    this.inline = false,
   });
 
   @override
@@ -83,7 +86,7 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
         }
       },
       child: Container(
-        margin: EdgeInsets.only(top: widget.compact ? 2 : 8),
+        margin: EdgeInsets.only(top: widget.inline ? 0 : (widget.compact ? 2 : 8)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
