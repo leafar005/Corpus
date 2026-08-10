@@ -2,6 +2,7 @@
 // Origen: _buildMediaTab -> líneas 3465-3644.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../services/igdb_service.dart';
 import '../../../widgets/full_screen_gallery.dart';
@@ -142,7 +143,7 @@ class _GameMediaTabState extends State<GameMediaTab> {
               return InkWell(
                 onTap: () => launchUrl(
                   Uri.parse(videoUrl),
-                  mode: LaunchMode.externalApplication,
+                  mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
                 ),
                 borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                 child: Stack(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../widgets/corpus_section_title.dart';
@@ -8,7 +9,7 @@ class InfoScreen extends StatelessWidget {
 
   Future<void> _launchUrl(String urlString) async {
     final url = Uri.parse(urlString);
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+    if (!await launchUrl(url, mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication)) {
       debugPrint('No se pudo abrir el enlace $url');
     }
   }
@@ -44,7 +45,7 @@ class InfoScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Versión 1.1.2',
+              'Versión 1.1.3',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 14,
