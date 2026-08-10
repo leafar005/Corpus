@@ -23,7 +23,7 @@ class Achievement {
   final int xpReward;
   final String rarity;
   final String iconName;
-  
+
   /// Fecha de desbloqueo, presente si esta instancia proviene de un JOIN con `user_achievements`
   final DateTime? unlockedAt;
 
@@ -40,8 +40,8 @@ class Achievement {
       xpReward: (achMap['xp_reward'] as num?)?.toInt() ?? 0,
       rarity: achMap['rarity'] as String? ?? 'common',
       iconName: achMap['icon_name'] as String? ?? 'star',
-      unlockedAt: map['unlocked_at'] != null 
-          ? DateTime.tryParse(map['unlocked_at'] as String) 
+      unlockedAt: map['unlocked_at'] != null
+          ? DateTime.tryParse(map['unlocked_at'] as String)
           : null,
     );
   }
@@ -62,7 +62,9 @@ class Achievement {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Achievement && runtimeType == other.runtimeType && id == other.id;
+      other is Achievement &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 
   @override
   int get hashCode => id.hashCode;

@@ -29,7 +29,12 @@ class SettingsScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: ListView(
-        padding: EdgeInsets.only(top: 8, left: 16, right: 16, bottom: getBottomSpacer(context)),
+        padding: EdgeInsets.only(
+          top: 8,
+          left: 16,
+          right: 16,
+          bottom: getBottomSpacer(context),
+        ),
         children: [
           _buildSettingsTile(
             context: context,
@@ -363,7 +368,9 @@ class SettingsScreen extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         borderRadius: ext.radiusMedium,
         border: Border.all(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.05),
         ),
       ),
       child: Material(
@@ -372,21 +379,22 @@ class SettingsScreen extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: ListTile(
           leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            shape: BoxShape.circle,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 20),
           ),
-          child: Icon(icon, size: 20),
+          title: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(subtitle, style: const TextStyle()),
+          trailing: trailing ?? const Icon(Icons.chevron_right),
+          onTap: onTap,
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: const TextStyle()),
-        trailing: trailing ?? const Icon(Icons.chevron_right),
-        onTap: onTap,
-      ),
       ),
     );
   }
-
-
 }

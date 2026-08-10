@@ -47,7 +47,6 @@ class GameReviewsCard extends StatelessWidget {
     return months[month - 1];
   }
 
-
   String _formatDateRange(DateTime? from, DateTime? until) {
     if (from == null) return '';
     try {
@@ -64,7 +63,6 @@ class GameReviewsCard extends StatelessWidget {
       return '';
     }
   }
-
 
   String _formatDate(String isoString) {
     try {
@@ -89,8 +87,11 @@ class GameReviewsCard extends StatelessWidget {
     }
   }
 
-
-  Widget _buildSubRatingBadge(BuildContext context, String label, double value) {
+  Widget _buildSubRatingBadge(
+    BuildContext context,
+    String label,
+    double value,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -123,7 +124,6 @@ class GameReviewsCard extends StatelessWidget {
       ),
     );
   }
-
 
   Widget _buildInfoBadge(String label, IconData icon, Color color) {
     return Container(
@@ -159,7 +159,7 @@ class GameReviewsCard extends StatelessWidget {
       case 'story_extras':
         return 'Historia + Extras';
       case '100_percent':
-        return '100%';
+        return 'Platino';
       case 'endless':
         return 'Sin Fin';
       case 'on_hold':
@@ -176,7 +176,7 @@ class GameReviewsCard extends StatelessWidget {
       case 'story_extras':
         return Icons.extension;
       case '100_percent':
-        return Icons.stars;
+        return Icons.emoji_events;
       case 'endless':
         return Icons.all_inclusive;
       case 'on_hold':
@@ -207,7 +207,9 @@ class GameReviewsCard extends StatelessWidget {
         final rSoundtrack = review.ratingSoundtrack ?? 0.0;
         final rVisuals = review.ratingVisuals ?? 0.0;
         final List<String> imageUrls = review.imageUrls;
-        final dateStr = createdAt != null ? _formatDate(createdAt.toIso8601String()) : '';
+        final dateStr = createdAt != null
+            ? _formatDate(createdAt.toIso8601String())
+            : '';
         final rStatus = review.status.dbValue;
         String statusText;
         switch (rStatus) {
@@ -238,7 +240,8 @@ class GameReviewsCard extends StatelessWidget {
                 builder: (context) => ReviewDetailsScreen(
                   gameData: gameData,
                   userData: userData?.toMap() ?? {}, // Assuming it expects map
-                  reviewData: review.toMap(), // Need to add toMap to Review, or update ReviewDetailsScreen
+                  reviewData: review
+                      .toMap(), // Need to add toMap to Review, or update ReviewDetailsScreen
                 ),
               ),
             );
@@ -311,8 +314,7 @@ class GameReviewsCard extends StatelessWidget {
                             padding: const EdgeInsets.only(right: 12),
                             constraints: const BoxConstraints(),
                             tooltip: 'Editar reseña',
-                            onPressed: () =>
-                                onEditReview?.call(review),
+                            onPressed: () => onEditReview?.call(review),
                           ),
                           IconButton(
                             icon: Icon(
@@ -521,7 +523,6 @@ class GameReviewsCard extends StatelessWidget {
       }).toList(),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {

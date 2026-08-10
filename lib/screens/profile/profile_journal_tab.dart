@@ -445,7 +445,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'beaten':
-        return Icons.emoji_events;
+        return Icons.check_circle;
       case 'playing':
         return Icons.sports_esports;
       case 'wishlist':

@@ -29,9 +29,10 @@ import 'package:flutter/material.dart';
 mixin PaginatedScrollMixin<T extends StatefulWidget> on State<T> {
   ScrollController? _externalScrollController;
   final ScrollController _internalScrollController = ScrollController();
-  
-  ScrollController get scrollController => _externalScrollController ?? _internalScrollController;
-  
+
+  ScrollController get scrollController =>
+      _externalScrollController ?? _internalScrollController;
+
   bool isLoadingMore = false;
   bool hasMore = true;
 

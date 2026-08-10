@@ -153,7 +153,12 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                 Expanded(
                   child: ReorderableListView.builder(
                     buildDefaultDragHandles: false,
-                    padding: EdgeInsets.only(top: 8, bottom: getBottomSpacer(context), left: 16, right: 16),
+                    padding: EdgeInsets.only(
+                      top: 8,
+                      bottom: getBottomSpacer(context),
+                      left: 16,
+                      right: 16,
+                    ),
                     itemCount: _order.length,
                     onReorderItem: _onReorderItem,
                     itemBuilder: (context, index) {

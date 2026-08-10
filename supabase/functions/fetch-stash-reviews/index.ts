@@ -114,11 +114,14 @@ Deno.serve(async (req) => {
       }
 
       if (game && game.id) {
-        gamesMap.set(game.id, {
+        const gameEntry: Record<string, unknown> = {
           igdb_id: game.id,
           title: game.name || 'Desconocido',
-          cover_url: game.cover?.url || null
-        });
+        };
+        if (game.cover?.url) {
+          gameEntry.cover_url = game.cover.url;
+        }
+        gamesMap.set(game.id, gameEntry);
       }
   
       const stashCreatedAt = review.modificationDate 

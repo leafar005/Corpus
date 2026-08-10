@@ -59,7 +59,11 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSearch;
   final Function(String)? onNavigateToBundles;
 
-  const HomeScreen({super.key, this.onNavigateToSearch, this.onNavigateToBundles});
+  const HomeScreen({
+    super.key,
+    this.onNavigateToSearch,
+    this.onNavigateToBundles,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -69,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _latestReviewsScrollController = ScrollController();
   final ValueNotifier<bool> _canScrollLeft = ValueNotifier(false);
   final ValueNotifier<bool> _canScrollRight = ValueNotifier(true);
-  
+
   final PageController _bundlesScrollController = PageController();
   final ValueNotifier<bool> _canScrollBundlesLeft = ValueNotifier(false);
   final ValueNotifier<bool> _canScrollBundlesRight = ValueNotifier(true);
@@ -131,7 +135,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted || !_bundlesScrollController.hasClients) return;
     final position = _bundlesScrollController.position;
     _canScrollBundlesLeft.value = position.pixels > 1.0;
-    _canScrollBundlesRight.value = position.pixels < (position.maxScrollExtent - 1.0);
+    _canScrollBundlesRight.value =
+        position.pixels < (position.maxScrollExtent - 1.0);
   }
 
   @override
@@ -214,7 +219,9 @@ class _HomeScreenState extends State<HomeScreen> {
             final id = item['id'] as int;
             final screenshots = item['screenshots'] as List<dynamic>? ?? [];
             screenshotsMap[id] = screenshots
-                .map((s) => IGDBService.getScreenshotUrl(s['image_id'] as String?))
+                .map(
+                  (s) => IGDBService.getScreenshotUrl(s['image_id'] as String?),
+                )
                 .where((url) => url.isNotEmpty)
                 .toList();
           }
@@ -223,13 +230,16 @@ class _HomeScreenState extends State<HomeScreen> {
             game['screenshots_list'] = screenshotsMap[id] ?? [];
           }
         } catch (e) {
-          debugPrint('Error obteniendo capturas para la pantalla de inicio: $e');
+          debugPrint(
+            'Error obteniendo capturas para la pantalla de inicio: $e',
+          );
         }
       }
     }
 
     final prefs = await prefsFuture;
-    final savedOrder = prefs.getStringList('home_sections_order') ??
+    final savedOrder =
+        prefs.getStringList('home_sections_order') ??
         ['hero', 'stash_activity', 'anticipated_games'];
     final savedHidden = prefs.getStringList('home_sections_hidden') ?? [];
     final anticipatedCountdownStyle =
@@ -238,7 +248,8 @@ class _HomeScreenState extends State<HomeScreen> {
         prefs.getString('wishlist_countdown_style') ??
         prefs.getString('anticipated_countdown_style') ??
         'days_only';
-    final bundlesEndingSoonDays = prefs.getInt('home_bundles_ending_soon_days') ?? 3;
+    final bundlesEndingSoonDays =
+        prefs.getInt('home_bundles_ending_soon_days') ?? 3;
 
     const defaultOrder = [
       'hero',
@@ -270,7 +281,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<_PhaseTwoData> _fetchPhaseTwo() async {
     final currentUser = Supabase.instance.client.auth.currentUser;
 
-    final anticipatedFuture = IGDBService.getMostAnticipatedGames().catchError((e) {
+    final anticipatedFuture = IGDBService.getMostAnticipatedGames().catchError((
+      e,
+    ) {
       debugPrint('Error obteniendo anticipated games: $e');
       return <dynamic>[];
     });
@@ -297,9 +310,9 @@ class _HomeScreenState extends State<HomeScreen> {
             .select('game_id')
             .eq('user_id', currentUser.id)
             .eq('status', 'wishlist');
-        final wishlistGameIds = List<Map<String, dynamic>>.from(wishlistResp)
-            .map((g) => g['game_id'] as int)
-            .toList();
+        final wishlistGameIds = List<Map<String, dynamic>>.from(
+          wishlistResp,
+        ).map((g) => g['game_id'] as int).toList();
         if (wishlistGameIds.isEmpty) return [];
         return await IGDBService.getUpcomingGamesByIds(wishlistGameIds);
       } catch (e) {
@@ -312,8 +325,10 @@ class _HomeScreenState extends State<HomeScreen> {
       try {
         final p1 = await _phaseOneFuture;
         if (p1.sectionsHidden.contains('bundles_ending_soon')) return [];
-        
-        final limitDate = DateTime.now().add(Duration(days: p1.bundlesEndingSoonDays));
+
+        final limitDate = DateTime.now().add(
+          Duration(days: p1.bundlesEndingSoonDays),
+        );
         final resp = await Supabase.instance.client
             .from('active_bundles')
             .select()
@@ -392,18 +407,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         _isGuest
                             ? GuestHeroShowcase(
-                                switchDuration: GuestHeroShowcase.defaultSwitchDuration,
+                                switchDuration:
+                                    GuestHeroShowcase.defaultSwitchDuration,
                               )
                             : p1.games.isEmpty
                             ? EmptyPlayingHero(
                                 userName: p1.displayName,
-                                onSearchPressed: widget.onNavigateToSearch ?? () {},
-                                switchDuration: EmptyPlayingHero.defaultSwitchDuration,
+                                onSearchPressed:
+                                    widget.onNavigateToSearch ?? () {},
+                                switchDuration:
+                                    EmptyPlayingHero.defaultSwitchDuration,
                               )
                             : HeroShowcase(
                                 playingGames: p1.games,
                                 userName: p1.displayName,
-                                switchDuration: HeroShowcase.defaultSwitchDuration,
+                                switchDuration:
+                                    HeroShowcase.defaultSwitchDuration,
                               ),
                       ],
                     ),
@@ -417,17 +436,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: const Duration(milliseconds: 400),
                     child: _phaseTwoLoaded
                         ? (wishlistAnticipatedGames.isNotEmpty
-                            ? AnticipatedGamesSection(
-                                key: const ValueKey(
-                                  'wishlist_anticipated_loaded',
-                                ),
-                                games: wishlistAnticipatedGames,
-                                countdownStyle: p1.wishlistCountdownStyle,
-                                title: 'Proximos en tu Wishlist',
-                              )
-                            : const SizedBox.shrink(
-                                key: ValueKey('wishlist_empty'),
-                              ))
+                              ? AnticipatedGamesSection(
+                                  key: const ValueKey(
+                                    'wishlist_anticipated_loaded',
+                                  ),
+                                  games: wishlistAnticipatedGames,
+                                  countdownStyle: p1.wishlistCountdownStyle,
+                                  title: 'Proximos en tu Wishlist',
+                                )
+                              : const SizedBox.shrink(
+                                  key: ValueKey('wishlist_empty'),
+                                ))
                         : const _SectionShimmer(
                             key: ValueKey('wishlist_shimmer'),
                             label: 'Proximos en tu Wishlist',
@@ -442,12 +461,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: const Duration(milliseconds: 400),
                     child: _phaseTwoLoaded
                         ? (anticipatedGames.isNotEmpty
-                            ? AnticipatedGamesSection(
-                                key: const ValueKey('anticipated_loaded'),
-                                games: anticipatedGames,
-                                countdownStyle: p1.anticipatedCountdownStyle,
-                              )
-                            : const SizedBox.shrink(key: ValueKey('anticipated_empty')))
+                              ? AnticipatedGamesSection(
+                                  key: const ValueKey('anticipated_loaded'),
+                                  games: anticipatedGames,
+                                  countdownStyle: p1.anticipatedCountdownStyle,
+                                )
+                              : const SizedBox.shrink(
+                                  key: ValueKey('anticipated_empty'),
+                                ))
                         : const _SectionShimmer(
                             key: ValueKey('anticipated_shimmer'),
                             label: 'Juegos mas anticipados',
@@ -463,8 +484,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: const Duration(milliseconds: 400),
                     child: _phaseTwoLoaded
                         ? (bundles.isNotEmpty
-                            ? _buildBundlesEndingSoonSection(bundles)
-                            : const SizedBox.shrink(key: ValueKey('bundles_empty')))
+                              ? _buildBundlesEndingSoonSection(bundles)
+                              : const SizedBox.shrink(
+                                  key: ValueKey('bundles_empty'),
+                                ))
                         : const _SectionShimmer(
                             key: ValueKey('bundles_shimmer'),
                             label: 'Oportunidades Finales',
@@ -479,8 +502,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: const Duration(milliseconds: 400),
                     child: _phaseTwoLoaded
                         ? (latestReviews.isNotEmpty
-                            ? _buildStashActivity(latestReviews)
-                            : const SizedBox.shrink(key: ValueKey('stash_empty')))
+                              ? _buildStashActivity(latestReviews)
+                              : const SizedBox.shrink(
+                                  key: ValueKey('stash_empty'),
+                                ))
                         : const _SectionShimmer(
                             key: ValueKey('stash_shimmer'),
                             label: 'Actividad Global de Stash',
@@ -490,7 +515,11 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
           }
-          slivers.add(SliverPadding(padding: EdgeInsets.only(bottom: getBottomSpacer(context))));
+          slivers.add(
+            SliverPadding(
+              padding: EdgeInsets.only(bottom: getBottomSpacer(context)),
+            ),
+          );
           return RefreshIndicator(
             onRefresh: _handleRefresh,
             child: CustomScrollView(
@@ -528,6 +557,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     final endDate = DateTime.parse(bundle['end_date']);
                     final difference = endDate.difference(DateTime.now());
                     final days = difference.inDays;
+                    final hours = difference.inHours % 24;
 
                     // Extraer los primeros 4 juegos para mostrarlos
                     List<Map<String, dynamic>> allGames = [];
@@ -540,28 +570,48 @@ class _HomeScreenState extends State<HomeScreen> {
                         }
                       }
                     }
-                    
+
                     // Ordenar por popularidad
                     allGames.sort((a, b) {
-                      final aPop = (a['total_rating_count'] as num?)?.toInt() ?? 
-                                   (a['follows'] as num?)?.toInt() ?? 
-                                   (a['metacritic_score'] as num?)?.toInt() ?? 0;
-                      final bPop = (b['total_rating_count'] as num?)?.toInt() ?? 
-                                   (b['follows'] as num?)?.toInt() ?? 
-                                   (b['metacritic_score'] as num?)?.toInt() ?? 0;
+                      final aPop =
+                          (a['total_rating_count'] as num?)?.toInt() ??
+                          (a['follows'] as num?)?.toInt() ??
+                          (a['metacritic_score'] as num?)?.toInt() ??
+                          0;
+                      final bPop =
+                          (b['total_rating_count'] as num?)?.toInt() ??
+                          (b['follows'] as num?)?.toInt() ??
+                          (b['metacritic_score'] as num?)?.toInt() ??
+                          0;
                       return bPop.compareTo(aPop);
                     });
-                    final coverWidth = 125.0;
-                    
-                    final isHumble = (bundle['store_name'] ?? '').toLowerCase().contains('humble');
-                    final isFanatical = (bundle['store_name'] ?? '').toLowerCase().contains('fanatical');
+                    const coverWidth = 125.0;
+
+                    final isHumble = (bundle['store_name'] ?? '')
+                        .toLowerCase()
+                        .contains('humble');
+                    final isFanatical = (bundle['store_name'] ?? '')
+                        .toLowerCase()
+                        .contains('fanatical');
                     Widget storeIcon;
                     if (isHumble) {
-                      storeIcon = Image.asset('assets/images/humble_logo.png', width: 48, height: 48);
+                      storeIcon = Image.asset(
+                        'assets/images/humble_logo.png',
+                        width: 48,
+                        height: 48,
+                      );
                     } else if (isFanatical) {
-                      storeIcon = Image.asset('assets/images/fanatical_logo.png', width: 48, height: 48);
+                      storeIcon = Image.asset(
+                        'assets/images/fanatical_logo.png',
+                        width: 48,
+                        height: 48,
+                      );
                     } else {
-                      storeIcon = Icon(Icons.local_offer, size: 48, color: Theme.of(context).colorScheme.primary);
+                      storeIcon = Icon(
+                        Icons.local_offer,
+                        size: 48,
+                        color: Theme.of(context).colorScheme.primary,
+                      );
                     }
 
                     final isP5r = Theme.of(context)
@@ -586,15 +636,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                     cursor: SystemMouseCursors.click,
                                     child: GestureDetector(
                                       onTap: () {
-                                        if (widget.onNavigateToBundles != null) {
-                                          widget.onNavigateToBundles!(bundle['title'] ?? '');
+                                        if (widget.onNavigateToBundles !=
+                                            null) {
+                                          widget.onNavigateToBundles!(
+                                            bundle['title'] ?? '',
+                                          );
                                         } else if (bundle['url'] != null) {
                                           launchUrl(Uri.parse(bundle['url']));
                                         }
                                       },
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
@@ -632,7 +687,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             )
                                           else
                                             Text(
-                                              '$days días',
+                                              'Termina en $days días y $hours horas',
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(
@@ -650,66 +705,95 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
-                            if (allGames.isNotEmpty) ...[
-                              const SizedBox(width: 16),
-                              Expanded(
-                                flex: 5,
-                                child: _isDesktop
-                                    ? LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          final int maxFit = (constraints.maxWidth + 8) ~/ (coverWidth + 8);
-                                          final int renderCount = maxFit < allGames.length ? maxFit : allGames.length;
-                                          final visibleGames = allGames.take(renderCount).toList();
+                          if (allGames.isNotEmpty) ...[
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 5,
+                              child: _isDesktop
+                                  ? LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final int maxFit =
+                                            (constraints.maxWidth + 8) ~/
+                                            (coverWidth + 8);
+                                        final int renderCount =
+                                            maxFit < allGames.length
+                                            ? maxFit
+                                            : allGames.length;
+                                        final visibleGames = allGames
+                                            .take(renderCount)
+                                            .toList();
 
-                                          return Row(
-                                            mainAxisAlignment: MainAxisAlignment.end,
-                                            children: [
-                                              for (int i = 0; i < visibleGames.length; i++) ...[
-                                                if (i > 0) const SizedBox(width: 8),
-                                                SizedBox(
-                                                  width: coverWidth,
-                                                  child: GameCard(
-                                                    key: ValueKey(visibleGames[i]['steamAppId'] ?? visibleGames[i]['title'] ?? i),
-                                                    game: Game.fromMap(visibleGames[i]),
-                                                    onReturn: () {},
+                                        return Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            for (
+                                              int i = 0;
+                                              i < visibleGames.length;
+                                              i++
+                                            ) ...[
+                                              if (i > 0)
+                                                const SizedBox(width: 8),
+                                              SizedBox(
+                                                width: coverWidth,
+                                                child: GameCard(
+                                                  key: ValueKey(
+                                                    visibleGames[i]['steamAppId'] ??
+                                                        visibleGames[i]['title'] ??
+                                                        i,
                                                   ),
+                                                  game: Game.fromMap(
+                                                    visibleGames[i],
+                                                  ),
+                                                  onReturn: () {},
                                                 ),
-                                              ],
+                                              ),
                                             ],
-                                          );
-                                        },
-                                      )
-                                    : Align(
-                                        alignment: Alignment.centerRight,
-                                        child: SizedBox(
-                                          width: 190,
-                                          child: GridView.builder(
-                                            padding: EdgeInsets.zero,
-                                            shrinkWrap: true,
-                                            physics: const NeverScrollableScrollPhysics(),
-                                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                              crossAxisCount: 3,
-                                              mainAxisSpacing: 6,
-                                              crossAxisSpacing: 6,
-                                              childAspectRatio: 0.7,
-                                            ),
-                                            itemCount: allGames.length > 6 ? 6 : allGames.length,
-                                            itemBuilder: (context, index) {
-                                              return GameCard(
-                                                key: ValueKey(allGames[index]['steamAppId'] ?? allGames[index]['title'] ?? index),
-                                                game: Game.fromMap(allGames[index]),
-                                                onReturn: () {},
-                                              );
-                                            },
-                                          ),
+                                          ],
+                                        );
+                                      },
+                                    )
+                                  : Align(
+                                      alignment: Alignment.centerRight,
+                                      child: SizedBox(
+                                        width: 190,
+                                        child: GridView.builder(
+                                          padding: EdgeInsets.zero,
+                                          shrinkWrap: true,
+                                          physics:
+                                              const NeverScrollableScrollPhysics(),
+                                          gridDelegate:
+                                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                                crossAxisCount: 3,
+                                                mainAxisSpacing: 6,
+                                                crossAxisSpacing: 6,
+                                                childAspectRatio: 0.7,
+                                              ),
+                                          itemCount: allGames.length > 6
+                                              ? 6
+                                              : allGames.length,
+                                          itemBuilder: (context, index) {
+                                            return GameCard(
+                                              key: ValueKey(
+                                                allGames[index]['steamAppId'] ??
+                                                    allGames[index]['title'] ??
+                                                    index,
+                                              ),
+                                              game: Game.fromMap(
+                                                allGames[index],
+                                              ),
+                                              onReturn: () {},
+                                            );
+                                          },
                                         ),
                                       ),
-                              ),
-                            ],
+                                    ),
+                            ),
                           ],
-                        ),
-                      );
-                    },
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 if (bundles.length > 1 && _isDesktop)
                   Positioned(
@@ -724,7 +808,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           return IconButton(
                             icon: const Icon(Icons.chevron_left, size: 24),
                             style: IconButton.styleFrom(
-                              backgroundColor: Colors.black.withValues(alpha: 0.5),
+                              backgroundColor: Colors.black.withValues(
+                                alpha: 0.5,
+                              ),
                               foregroundColor: Colors.white,
                             ),
                             onPressed: () {
@@ -751,7 +837,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           return IconButton(
                             icon: const Icon(Icons.chevron_right, size: 24),
                             style: IconButton.styleFrom(
-                              backgroundColor: Colors.black.withValues(alpha: 0.5),
+                              backgroundColor: Colors.black.withValues(
+                                alpha: 0.5,
+                              ),
                               foregroundColor: Colors.white,
                             ),
                             onPressed: () {
@@ -787,7 +875,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: BoxShape.circle,
                             color: currentPage == index
                                 ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                                : Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.2),
                           ),
                         ),
                       ),
@@ -801,7 +890,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  bool _isTextTruncated(String text, TextStyle style, double maxWidth, int maxLines) {
+  bool _isTextTruncated(
+    String text,
+    TextStyle style,
+    double maxWidth,
+    int maxLines,
+  ) {
     final painter = TextPainter(
       text: TextSpan(text: text, style: style),
       maxLines: maxLines,
@@ -810,7 +904,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return painter.didExceedMaxLines;
   }
 
-  void _showFullReviewSheet(Map<String, dynamic> review, Map<String, dynamic>? game) {
+  void _showFullReviewSheet(
+    Map<String, dynamic> review,
+    Map<String, dynamic>? game,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -838,7 +935,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 4,
                       margin: const EdgeInsets.only(bottom: 20),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -849,15 +948,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         InkWell(
                           onTap: () {
                             if (review['game_id'] != null) {
-                              Navigator.pop(context); // Close the bottom sheet first
+                              Navigator.pop(
+                                context,
+                              ); // Close the bottom sheet first
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => GameDetailsScreen(
                                     gameData: {
                                       'id': review['game_id'],
-                                      if (game?['title'] != null) 'title': game!['title'],
-                                      if (game?['cover_url'] != null) 'cover_url': game!['cover_url'],
+                                      if (game['title'] != null)
+                                        'title': game['title'],
+                                      if (game['cover_url'] != null)
+                                        'cover_url': game['cover_url'],
                                     },
                                   ),
                                 ),
@@ -872,7 +975,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               width: 44,
                               height: 56,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.videogame_asset),
+                              errorBuilder: (_, _, _) =>
+                                  const Icon(Icons.videogame_asset),
                             ),
                           ),
                         ),
@@ -883,7 +987,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Text(
                               game?['title'] ?? 'Juego Desconocido',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -893,18 +1000,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                 if (review['stash_user_avatar_url'] != null)
                                   CircleAvatar(
                                     radius: 9,
-                                    backgroundImage: NetworkImage(review['stash_user_avatar_url']),
-                                    onBackgroundImageError: (_, __) {},
+                                    backgroundImage: NetworkImage(
+                                      review['stash_user_avatar_url'],
+                                    ),
+                                    onBackgroundImageError: (_, _) {},
                                   )
                                 else
                                   const Icon(Icons.person, size: 18),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
-                                    review['stash_user_display_name'] ?? 'Usuario',
+                                    review['stash_user_display_name'] ??
+                                        'Usuario',
                                     style: TextStyle(
                                       fontSize: 13,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -919,11 +1031,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.star, size: 16, color: Colors.amber),
+                            const Icon(
+                              Icons.star,
+                              size: 16,
+                              color: Colors.amber,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               review['rating'].toString(),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
                             ),
                           ],
                         ),
@@ -1110,7 +1229,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (context, canLeft, _) {
                     if (!_isDesktop || !canLeft) return const SizedBox.shrink();
                     return Positioned(
-                      left: 0, top: 0, bottom: 0,
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
                       child: Center(
                         child: Container(
                           decoration: BoxDecoration(
@@ -1118,7 +1239,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.chevron_left, color: Colors.white),
+                            icon: const Icon(
+                              Icons.chevron_left,
+                              color: Colors.white,
+                            ),
                             onPressed: () {
                               _latestReviewsScrollController.animateTo(
                                 _latestReviewsScrollController.offset - 500,
@@ -1135,9 +1259,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 ValueListenableBuilder<bool>(
                   valueListenable: _canScrollRight,
                   builder: (context, canRight, _) {
-                    if (!_isDesktop || !canRight) return const SizedBox.shrink();
+                    if (!_isDesktop || !canRight) {
+                      return const SizedBox.shrink();
+                    }
                     return Positioned(
-                      right: 0, top: 0, bottom: 0,
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
                       child: Center(
                         child: Container(
                           decoration: BoxDecoration(
@@ -1145,7 +1273,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.chevron_right, color: Colors.white),
+                            icon: const Icon(
+                              Icons.chevron_right,
+                              color: Colors.white,
+                            ),
                             onPressed: () {
                               _latestReviewsScrollController.animateTo(
                                 _latestReviewsScrollController.offset + 500,
@@ -1189,9 +1320,10 @@ class _SectionShimmerState extends State<_SectionShimmer>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _anim = Tween<double>(begin: 0.04, end: 0.12).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _anim = Tween<double>(
+      begin: 0.04,
+      end: 0.12,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override

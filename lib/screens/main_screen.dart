@@ -33,7 +33,9 @@ class _MainScreenState extends State<MainScreen> {
 
   // Lazy loading: las pantallas solo se instancian la primera vez que se visitan.
   // Un Set rastrea qué pestañas ya han sido inicializadas.
-  final Set<int> _initializedTabs = {0}; // La pestaña 0 (Inicio) siempre se carga de entrada.
+  final Set<int> _initializedTabs = {
+    0,
+  }; // La pestaña 0 (Inicio) siempre se carga de entrada.
   late final List<Widget?> _screens = List.filled(5, null);
 
   Widget _getScreen(int index) {
@@ -321,32 +323,37 @@ class _MainScreenState extends State<MainScreen> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(35),
             child: LiquidGlassBottomNavBar(
-            itemStyle: LiquidGlassNavItemStyle(
-              selectedColor: isDark ? Theme.of(context).colorScheme.primary : Colors.black,
-              unselectedColor: isDark ? Colors.white70 : Colors.black54,
-            ),
-            items: const [
-              LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
-              LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
-              LiquidGlassTabBarItem(icon: Icons.group, label: 'Actividad'),
-              LiquidGlassTabBarItem(icon: Icons.local_offer, label: 'Bundles'),
-              LiquidGlassTabBarItem(icon: Icons.person, label: 'Perfil'),
-            ],
-            selectedIndex: _currentIndex,
-            onChanged: (index) => _onTabTapped(index),
-            pillStyle: const LiquidGlassNavPillStyle(
-              animated: true,
-              mode: LiquidGlassPillMode.both,
-              enableInnerRadiusTransparent: true,
-              magnification: 1.25,
-              glassStyle: LiquidGlassStyle(
-                refraction: LiquidGlassRefraction(
-                  distortion: 0.15,
-                  distortionWidth: 24.0,
-                  chromaticAberration: 0.025,
+              itemStyle: LiquidGlassNavItemStyle(
+                selectedColor: isDark
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.black,
+                unselectedColor: isDark ? Colors.white70 : Colors.black54,
+              ),
+              items: const [
+                LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
+                LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
+                LiquidGlassTabBarItem(icon: Icons.group, label: 'Actividad'),
+                LiquidGlassTabBarItem(
+                  icon: Icons.local_offer,
+                  label: 'Bundles',
+                ),
+                LiquidGlassTabBarItem(icon: Icons.person, label: 'Perfil'),
+              ],
+              selectedIndex: _currentIndex,
+              onChanged: (index) => _onTabTapped(index),
+              pillStyle: const LiquidGlassNavPillStyle(
+                animated: true,
+                mode: LiquidGlassPillMode.both,
+                enableInnerRadiusTransparent: true,
+                magnification: 1.25,
+                glassStyle: LiquidGlassStyle(
+                  refraction: LiquidGlassRefraction(
+                    distortion: 0.15,
+                    distortionWidth: 24.0,
+                    chromaticAberration: 0.025,
+                  ),
                 ),
               ),
-            ),
             ),
           ),
         ),

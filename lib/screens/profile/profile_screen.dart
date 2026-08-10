@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../library/game_details_screen.dart';
-import 'profile_games_list_screen.dart';
 import '../settings_screen.dart';
 import 'achievements_screen.dart';
 import '../../utils/level_calculator.dart';
@@ -35,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _allGames = [];
   List<Map<String, dynamic>> _userReviews = [];
   int _selectedTab = 0;
+  String? _juegosStatusFilter;
   List<Map<String, dynamic>?> _hallOfFame = List.filled(5, null);
   StreamSubscription<AuthState>? _authSub;
 
@@ -50,6 +50,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Supabase.instance.client.auth.currentUser == null;
 
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _tabsKey = GlobalKey();
+
+  void _scrollToTabs() {
+    if (_tabsKey.currentContext != null) {
+      Scrollable.ensureVisible(
+        _tabsKey.currentContext!,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        alignment: 0.0,
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -171,7 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final rating = (row['rating'] ?? 0).toDouble();
       // Incluimos la nota dentro del gameData para mostrarla en la UI
       gameData['user_rating'] = rating;
-      
+
       final updatedAt = row['updated_at']?.toString() ?? '';
       final lastPlayedAt = row['last_played_at']?.toString() ?? updatedAt;
 
@@ -187,9 +199,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
-    wishlist.sort((a, b) => (b['_sort_date'] as String).compareTo(a['_sort_date'] as String));
-    playing.sort((a, b) => (b['_sort_date'] as String).compareTo(a['_sort_date'] as String));
-    beaten.sort((a, b) => (b['_sort_date'] as String).compareTo(a['_sort_date'] as String));
+    wishlist.sort(
+      (a, b) =>
+          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
+    );
+    playing.sort(
+      (a, b) =>
+          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
+    );
+    beaten.sort(
+      (a, b) =>
+          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
+    );
 
     if (mounted) {
       setState(() {
@@ -289,6 +310,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SliverToBoxAdapter(child: _buildMobileBanner()),
               SliverMainAxisGroup(
                 slivers: [
+                  SliverToBoxAdapter(child: SizedBox.shrink(key: _tabsKey)),
                   SliverPersistentHeader(
                     pinned: true,
                     delegate: _MobileProfileHeaderDelegate(
@@ -777,7 +799,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Theme.of(context).shadowColor.withValues(alpha: 0.3),
+                        color: Theme.of(
+                          context,
+                        ).shadowColor.withValues(alpha: 0.3),
                         blurRadius: 8,
                       ),
                     ],
@@ -1036,6 +1060,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Juegos
       return ProfileGamesGridTab(
         userId: userId,
+        status: _juegosStatusFilter,
         onReturn: _fetchProfileData,
         scrollController: _scrollController,
       );
@@ -1234,16 +1259,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'Completados',
             () {
               if (_allGames.isNotEmpty) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProfileGamesListScreen(
-                      title: 'Completados',
-                      userId: _userProfile?['id'] ?? '',
-                      status: 'beaten',
-                    ),
-                  ),
-                ).then((_) => _fetchProfileData());
+                setState(() {
+                  _juegosStatusFilter = 'beaten';
+                  _selectedTab = 1;
+                });
+                _scrollToTabs();
               }
             },
           ),
@@ -1252,16 +1272,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'Jugando',
             () {
               if (_playingGames.isNotEmpty) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProfileGamesListScreen(
-                      title: 'Jugando',
-                      userId: _userProfile?['id'] ?? '',
-                      status: 'playing',
-                    ),
-                  ),
-                ).then((_) => _fetchProfileData());
+                setState(() {
+                  _juegosStatusFilter = 'playing';
+                  _selectedTab = 1;
+                });
+                _scrollToTabs();
               }
             },
           ),
@@ -1270,16 +1285,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'En Wishlist',
             () {
               if (_wishlistGames.isNotEmpty) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProfileGamesListScreen(
-                      title: 'Quiero',
-                      userId: _userProfile?['id'] ?? '',
-                      status: 'wishlist',
-                    ),
-                  ),
-                ).then((_) => _fetchProfileData());
+                setState(() {
+                  _juegosStatusFilter = 'wishlist';
+                  _selectedTab = 1;
+                });
+                _scrollToTabs();
               }
             },
           ),
@@ -1489,38 +1499,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _juegosStatusFilter = status;
+                  _selectedTab = 1;
+                });
+                _scrollToTabs();
+              },
+              child: Row(
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$count',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(
-                '$count',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+            ),
           ),
           MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProfileGamesListScreen(
-                      title: title,
-                      userId: _userProfile?['id'] ?? '',
-                      status: status,
-                    ),
-                  ),
-                ).then((_) => _fetchProfileData());
+                setState(() {
+                  _juegosStatusFilter = status;
+                  _selectedTab = 1;
+                });
+                _scrollToTabs();
               },
               child: Text(
                 'Ver todo',

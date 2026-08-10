@@ -104,11 +104,16 @@ Deno.serve(async (req) => {
       }
 
       // Prepare Game to upsert in public.games
-      gamesMap.set(game.id, {
+      // Solo incluimos cover_url si Stash realmente nos lo dio.
+      // Así nunca pisamos un cover_url bueno que ya exista en games.
+      const gameEntry: Record<string, unknown> = {
         igdb_id: game.id,
         title: game.name || 'Desconocido',
-        cover_url: game.cover?.url || null
-      });
+      };
+      if (game.cover?.url) {
+        gameEntry.cover_url = game.cover.url;
+      }
+      gamesMap.set(game.id, gameEntry);
   
       if (!review.comment || review.comment.trim() === '') {
         continue; 

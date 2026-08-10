@@ -77,9 +77,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     try {
       final row = await Supabase.instance.client
           .from('user_games')
-          .select(
-            'partner_ids',
-          )
+          .select('partner_ids')
           .eq('user_id', userId)
           .eq('game_id', gameId)
           .maybeSingle();
@@ -90,7 +88,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
               .from('users')
               .select('id, username, avatar_url')
               .inFilter('id', ids.map((e) => e.toString()).toList());
-          setState(() => _partnersData = List<Map<String, dynamic>>.from(usersData));
+          setState(
+            () => _partnersData = List<Map<String, dynamic>>.from(usersData),
+          );
         }
       }
     } catch (_) {}
@@ -698,7 +698,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'beaten':
-        return Icons.emoji_events;
+        return Icons.check_circle;
       case 'playing':
         return Icons.sports_esports;
       case 'wishlist':
@@ -719,7 +719,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       case 'story_extras':
         return 'Historia + Extras';
       case '100_percent':
-        return '100%';
+        return 'Platino';
       case 'endless':
         return 'Sin Fin';
       case 'on_hold':
@@ -736,7 +736,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       case 'story_extras':
         return Icons.extension;
       case '100_percent':
-        return Icons.stars;
+        return Icons.emoji_events;
       case 'endless':
         return Icons.all_inclusive;
       case 'on_hold':
@@ -1155,7 +1155,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         runSpacing: 8,
                                         children: _partnersData.map((partner) {
                                           return CoopBadge(
-                                            username: partner['username'] ?? 'Usuario',
+                                            username:
+                                                partner['username'] ??
+                                                'Usuario',
                                             avatarUrl: partner['avatar_url'],
                                             status: status,
                                             userId: partner['id'] as String?,
