@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/game_card.dart';
 import '../../services/bundle_service.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class _ListRow {
   final bool isHeader;
@@ -226,7 +227,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
                 },
               )
             : null,
-        title: const Text('Bundles Activos'),
+        title: const CorpusScreenTitle('Bundles Activos'),
         actions: [
           IconButton(
             icon: const Padding(

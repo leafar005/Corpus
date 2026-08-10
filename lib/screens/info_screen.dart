@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/corpus_theme_extension.dart';
+import '../widgets/corpus_section_title.dart';
 
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
@@ -17,7 +18,7 @@ class InfoScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Información'),
+        title: const CorpusScreenTitle('Información'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),

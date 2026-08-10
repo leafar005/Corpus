@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/screens/settings/integrations_screen.dart';
 import 'package:corpus/screens/settings/notifications_screen.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
+import 'package:corpus/widgets/corpus_section_title.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Map<String, dynamic> userProfile;
@@ -24,7 +25,7 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Ajustes'),
+        title: const CorpusScreenTitle('Ajustes'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),

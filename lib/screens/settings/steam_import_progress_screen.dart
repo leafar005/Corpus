@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/services/import_service.dart';
 import 'import_preview_screen.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class SteamImportProgressScreen extends StatefulWidget {
   final int minPlaytimeMinutes;
@@ -183,7 +184,7 @@ class _SteamImportProgressScreenState extends State<SteamImportProgressScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Progreso de Importación'),
+        title: const CorpusScreenTitle('Progreso de Importación'),
         automaticallyImplyLeading:
             _isDone || _isError, // Solo permitir salir si acabó o falló
       ),

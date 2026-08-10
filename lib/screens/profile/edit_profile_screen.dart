@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'hall_of_fame_selector_screen.dart';
 import '../../utils/image_compressor.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userProfile;
@@ -279,7 +280,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Editar Perfil'),
+        title: const CorpusScreenTitle('Editar Perfil'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),

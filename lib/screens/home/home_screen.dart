@@ -372,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: kIsWeb
           ? null
           : AppBar(
-              title: const Text('Inicio'),
+              title: const CorpusScreenTitle('Inicio'),
               backgroundColor: Colors.black.withValues(alpha: 0.5),
               elevation: 0,
             ),
@@ -618,179 +618,173 @@ class _HomeScreenState extends State<HomeScreen> {
                         .extension<CorpusThemeExtension>()!
                         .useDynamicFrames;
 
+                    final bundleInfo = MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (widget.onNavigateToBundles != null) {
+                            widget.onNavigateToBundles!(
+                              bundle['title'] ?? '',
+                            );
+                          } else if (bundle['url'] != null) {
+                            launchUrl(Uri.parse(bundle['url']));
+                          }
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              bundle['store_name'] ?? 'Tienda',
+                              style: TextStyle(
+                                color: isP5r
+                                    ? Colors.white54
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.7),
+                                fontSize: 13,
+                                letterSpacing: isP5r ? 1.0 : 0,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              bundle['title'] ?? 'Bundle',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isP5r ? 20 : 22,
+                                color: isP5r
+                                    ? Colors.white
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurface,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 12),
+                            if (isP5r)
+                              P5rTextBadge(
+                                text: '$days días',
+                              )
+                            else
+                              Text(
+                                'Termina en $days días y $hours horas',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.orangeAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  height: 1.2,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+
                     return CorpusStyledPanel(
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: Row(
-                              children: [
-                                if (_isDesktop) ...[
-                                  storeIcon,
-                                  const SizedBox(width: 16),
-                                ],
-                                Flexible(
-                                  child: MouseRegion(
-                                    cursor: SystemMouseCursors.click,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        if (widget.onNavigateToBundles !=
-                                            null) {
-                                          widget.onNavigateToBundles!(
-                                            bundle['title'] ?? '',
-                                          );
-                                        } else if (bundle['url'] != null) {
-                                          launchUrl(Uri.parse(bundle['url']));
-                                        }
-                                      },
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            bundle['store_name'] ?? 'Tienda',
-                                            style: TextStyle(
-                                              color: isP5r
-                                                  ? Colors.white54
-                                                  : Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurface
-                                                      .withValues(alpha: 0.7),
-                                              fontSize: 13,
-                                              letterSpacing: isP5r ? 1.0 : 0,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            bundle['title'] ?? 'Bundle',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: isP5r ? 20 : 22,
-                                              color: isP5r
-                                                  ? Colors.white
-                                                  : Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurface,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 12),
-                                          if (isP5r)
-                                            P5rTextBadge(
-                                              text: '$days días',
-                                            )
-                                          else
-                                            Text(
-                                              'Termina en $days días y $hours horas',
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                color: Colors.orangeAccent,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                                height: 1.2,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (allGames.isNotEmpty) ...[
-                            const SizedBox(width: 16),
-                            Expanded(
-                              flex: 5,
-                              child: _isDesktop
-                                  ? LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        final int maxFit =
-                                            (constraints.maxWidth + 8) ~/
-                                            (coverWidth + 8);
-                                        final int renderCount =
-                                            maxFit < allGames.length
-                                            ? maxFit
-                                            : allGames.length;
-                                        final visibleGames = allGames
-                                            .take(renderCount)
-                                            .toList();
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          const coverGap = 8.0;
+                          const minTextWidth = 150.0;
+                          final storeIconWidth = _isDesktop ? 48.0 + 12.0 : 0.0;
+                          final mobileCoverGridWidth = 132.0;
 
-                                        return Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          children: [
-                                            for (
-                                              int i = 0;
-                                              i < visibleGames.length;
-                                              i++
-                                            ) ...[
-                                              if (i > 0)
-                                                const SizedBox(width: 8),
-                                              SizedBox(
-                                                width: coverWidth,
-                                                child: GameCard(
-                                                  key: ValueKey(
-                                                    visibleGames[i]['steamAppId'] ??
-                                                        visibleGames[i]['title'] ??
-                                                        i,
-                                                  ),
-                                                  game: Game.fromMap(
-                                                    visibleGames[i],
-                                                  ),
-                                                  onReturn: () {},
-                                                ),
-                                              ),
-                                            ],
-                                          ],
+                          int desktopCoverCount = allGames.length;
+                          if (_isDesktop && allGames.isNotEmpty) {
+                            desktopCoverCount = 1;
+                            for (
+                              int count = allGames.length;
+                              count >= 1;
+                              count--
+                            ) {
+                              final coversWidth =
+                                  count * coverWidth + (count - 1) * coverGap;
+                              final reservedWidth =
+                                  storeIconWidth + 12 + coversWidth;
+                              if (constraints.maxWidth - reservedWidth >=
+                                  minTextWidth) {
+                                desktopCoverCount = count;
+                                break;
+                              }
+                            }
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              if (_isDesktop) ...[
+                                storeIcon,
+                                const SizedBox(width: 12),
+                              ],
+                              Expanded(child: bundleInfo),
+                              if (allGames.isNotEmpty) ...[
+                                const SizedBox(width: 12),
+                                if (_isDesktop)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      for (
+                                        int i = 0;
+                                        i < desktopCoverCount;
+                                        i++
+                                      ) ...[
+                                        if (i > 0) const SizedBox(width: 8),
+                                        SizedBox(
+                                          width: coverWidth,
+                                          child: GameCard(
+                                            key: ValueKey(
+                                              allGames[i]['steamAppId'] ??
+                                                  allGames[i]['title'] ??
+                                                  i,
+                                            ),
+                                            game: Game.fromMap(allGames[i]),
+                                            onReturn: () {},
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  )
+                                else
+                                  SizedBox(
+                                    width: mobileCoverGridWidth,
+                                    child: GridView.builder(
+                                      padding: EdgeInsets.zero,
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      gridDelegate:
+                                          const SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: 2,
+                                            mainAxisSpacing: 6,
+                                            crossAxisSpacing: 6,
+                                            childAspectRatio: 0.7,
+                                          ),
+                                      itemCount: allGames.length > 4
+                                          ? 4
+                                          : allGames.length,
+                                      itemBuilder: (context, index) {
+                                        return GameCard(
+                                          key: ValueKey(
+                                            allGames[index]['steamAppId'] ??
+                                                allGames[index]['title'] ??
+                                                index,
+                                          ),
+                                          game: Game.fromMap(allGames[index]),
+                                          onReturn: () {},
                                         );
                                       },
-                                    )
-                                  : Align(
-                                      alignment: Alignment.centerRight,
-                                      child: SizedBox(
-                                        width: 190,
-                                        child: GridView.builder(
-                                          padding: EdgeInsets.zero,
-                                          shrinkWrap: true,
-                                          physics:
-                                              const NeverScrollableScrollPhysics(),
-                                          gridDelegate:
-                                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                                crossAxisCount: 3,
-                                                mainAxisSpacing: 6,
-                                                crossAxisSpacing: 6,
-                                                childAspectRatio: 0.7,
-                                              ),
-                                          itemCount: allGames.length > 6
-                                              ? 6
-                                              : allGames.length,
-                                          itemBuilder: (context, index) {
-                                            return GameCard(
-                                              key: ValueKey(
-                                                allGames[index]['steamAppId'] ??
-                                                    allGames[index]['title'] ??
-                                                    index,
-                                              ),
-                                              game: Game.fromMap(
-                                                allGames[index],
-                                              ),
-                                              onReturn: () {},
-                                            );
-                                          },
-                                        ),
-                                      ),
                                     ),
-                            ),
-                          ],
-                        ],
+                                  ),
+                              ],
+                            ],
+                          );
+                        },
                       ),
                     );
                   },

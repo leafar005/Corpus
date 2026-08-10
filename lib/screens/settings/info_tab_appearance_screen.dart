@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class InfoTabAppearanceScreen extends StatefulWidget {
   const InfoTabAppearanceScreen({super.key});
@@ -123,7 +124,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Personalizar pestaña Información'),
+        title: const CorpusScreenTitle('Personalizar pestaña Información'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         actions: [

@@ -13,6 +13,7 @@ import '../../repositories/review_repository.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 /// Feed de actividad social en tiempo real.
 /// Muestra la actividad del usuario actual y la de sus amigos aceptados.
@@ -1267,7 +1268,7 @@ class _ActivityScreenState extends State<ActivityScreen>
   Widget build(BuildContext context) {
     if (_isGuest) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Actividad')),
+        appBar: AppBar(title: const CorpusScreenTitle('Actividad')),
         body: const Center(
           child: GuestLoginPrompt(
             icon: Icons.people_outline_rounded,
@@ -1279,7 +1280,7 @@ class _ActivityScreenState extends State<ActivityScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Actividad'),
+        title: const CorpusScreenTitle('Actividad'),
         actions: [
           IconButton(
             icon: Badge(

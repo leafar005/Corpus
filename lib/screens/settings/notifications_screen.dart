@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import '../../services/notification_service.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 /// Pantalla de ajustes de notificaciones.
 /// Lee y escribe las preferencias del usuario en `notification_preferences` de Supabase.
@@ -132,7 +133,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Notificaciones'),
+        title: const CorpusScreenTitle('Notificaciones'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         actions: [

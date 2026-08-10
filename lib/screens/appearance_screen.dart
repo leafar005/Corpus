@@ -8,6 +8,7 @@ import '../theme/style_pack_registry.dart';
 import 'settings/info_tab_appearance_screen.dart';
 import 'settings/home_appearance_screen.dart';
 import '../theme/corpus_theme_extension.dart';
+import '../widgets/corpus_section_title.dart';
 
 class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
@@ -33,7 +34,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Apariencia'),
+        title: const CorpusScreenTitle('Apariencia'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: const BackButton(),
