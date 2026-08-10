@@ -350,7 +350,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         .scaffoldBackgroundColor
                                         .withValues(alpha: 0.54),
                                     radius: 24,
-                                    child: const Icon(Icons.camera_alt, size: 24),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      size: 24,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -703,7 +706,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     ),
                                   ),
                                   SizedBox(
-                                    height: MediaQuery.of(context).padding.bottom + 20,
+                                    height:
+                                        MediaQuery.of(context).padding.bottom +
+                                        20,
                                   ),
                                 ],
                               ),

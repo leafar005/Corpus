@@ -203,7 +203,7 @@ class AlwaysScrollbarBehavior extends MaterialScrollBehavior {
     if (axisDirectionToAxis(details.direction) == Axis.horizontal) {
       return child;
     }
-    
+
     final controller = details.controller;
     if (controller != null) {
       try {

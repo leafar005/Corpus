@@ -129,7 +129,12 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: EdgeInsets.only(top: 16.0, bottom: getBottomSpacer(context), left: 16.0, right: 16.0),
+              padding: EdgeInsets.only(
+                top: 16.0,
+                bottom: getBottomSpacer(context),
+                left: 16.0,
+                right: 16.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -461,9 +466,9 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                                 'Si importas juegos que ya tienes en tu biblioteca de Corpus, se creará una segunda reseña para cada uno de ellos. Tenlo en cuenta por si quieres revisarlas o borrar una de las dos más adelante.',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   height: 1.4,
                                 ),
                               ),
@@ -475,7 +480,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                   ),
                 ],
               ),
-      ),
+            ),
     );
   }
 

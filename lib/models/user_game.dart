@@ -32,14 +32,14 @@ class UserGame {
   final String userId;
   final int gameId;
   final GameStatus status;
-  
+
   final double? rating;
   final double? ratingGameplay;
   final double? ratingNarrative;
   final double? ratingSoundtrack;
   final double? ratingVisuals;
   final String? comment;
-  
+
   final String? partnerId;
   final int playCount;
   final double? playTimeHours;
@@ -49,16 +49,19 @@ class UserGame {
   // Relaciones (JOINs)
   final Game? game;
   final UserProfile? partner;
-  
+
   // Logros (JSONB array en user_games)
   final List<Achievement> achievements;
 
   /// Rating global calculado como promedio de los ratings individuales,
   /// o el rating global si no hay individuales.
   double? get effectiveRating {
-    final individual = [ratingGameplay, ratingNarrative, ratingSoundtrack, ratingVisuals]
-        .whereType<double>()
-        .toList();
+    final individual = [
+      ratingGameplay,
+      ratingNarrative,
+      ratingSoundtrack,
+      ratingVisuals,
+    ].whereType<double>().toList();
     if (individual.isNotEmpty) {
       return individual.reduce((a, b) => a + b) / individual.length;
     }
@@ -88,7 +91,10 @@ class UserGame {
     return UserGame(
       userId: map['user_id'] as String? ?? '',
       gameId: (map['game_id'] as num?)?.toInt() ?? 0,
-      status: GameStatus.fromStringOrDefault(map['status'] as String?, fallback: GameStatus.wishlist),
+      status: GameStatus.fromStringOrDefault(
+        map['status'] as String?,
+        fallback: GameStatus.wishlist,
+      ),
       rating: (map['rating'] as num?)?.toDouble(),
       ratingGameplay: (map['rating_gameplay'] as num?)?.toDouble(),
       ratingNarrative: (map['rating_narrative'] as num?)?.toDouble(),
@@ -98,8 +104,12 @@ class UserGame {
       partnerId: map['partner_id'] as String?,
       playCount: (map['play_count'] as num?)?.toInt() ?? 1,
       playTimeHours: (map['play_time_hours'] as num?)?.toDouble(),
-      lastPlayedAt: map['last_played_at'] != null ? DateTime.tryParse(map['last_played_at'] as String) : null,
-      updatedAt: map['updated_at'] != null ? DateTime.tryParse(map['updated_at'] as String) : null,
+      lastPlayedAt: map['last_played_at'] != null
+          ? DateTime.tryParse(map['last_played_at'] as String)
+          : null,
+      updatedAt: map['updated_at'] != null
+          ? DateTime.tryParse(map['updated_at'] as String)
+          : null,
       game: game,
       partner: partner,
       achievements: achievements,
@@ -120,9 +130,11 @@ class UserGame {
       if (partnerId != null) 'partner_id': partnerId,
       'play_count': playCount,
       if (playTimeHours != null) 'play_time_hours': playTimeHours,
-      if (lastPlayedAt != null) 'last_played_at': lastPlayedAt?.toIso8601String(),
+      if (lastPlayedAt != null)
+        'last_played_at': lastPlayedAt?.toIso8601String(),
       if (updatedAt != null) 'updated_at': updatedAt?.toIso8601String(),
-      if (achievements.isNotEmpty) 'achievements': achievements.map((e) => e.toMap()).toList(),
+      if (achievements.isNotEmpty)
+        'achievements': achievements.map((e) => e.toMap()).toList(),
     };
   }
 }

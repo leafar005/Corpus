@@ -13,7 +13,7 @@ class IGDBService {
       final res = await Supabase.instance.client.functions
           .invoke('igdb-proxy', body: {'endpoint': endpoint, 'query': query})
           .timeout(const Duration(seconds: 15));
-          
+
       if (res.status == 200 && res.data != null) {
         final bodyString = res.data is String ? res.data : jsonEncode(res.data);
         return http.Response.bytes(
@@ -22,7 +22,9 @@ class IGDBService {
           headers: {'content-type': 'application/json; charset=utf-8'},
         );
       } else {
-        throw Exception('Error del proxy IGDB: status ${res.status}, data: ${res.data}');
+        throw Exception(
+          'Error del proxy IGDB: status ${res.status}, data: ${res.data}',
+        );
       }
     } catch (e) {
       debugPrint('[IGDB Proxy] Error de conexión: $e');

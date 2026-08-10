@@ -57,7 +57,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
         prefs.getString('wishlist_countdown_style') ??
         prefs.getString('anticipated_countdown_style') ??
         'days_only';
-    final savedBundlesEndingSoonDays = 
+    final savedBundlesEndingSoonDays =
         prefs.getInt('home_bundles_ending_soon_days') ?? 3;
 
     List<String> loadedOrder = [];
@@ -96,10 +96,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
       'anticipated_countdown_style',
       _anticipatedCountdownStyle,
     );
-    await prefs.setString(
-      'wishlist_countdown_style',
-      _wishlistCountdownStyle,
-    );
+    await prefs.setString('wishlist_countdown_style', _wishlistCountdownStyle);
     await prefs.setInt('home_bundles_ending_soon_days', _bundlesEndingSoonDays);
   }
 
@@ -188,7 +185,9 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Mostrar bundles que terminen en los próximos $tempDays días:'),
+                  Text(
+                    'Mostrar bundles que terminen en los próximos $tempDays días:',
+                  ),
                   const SizedBox(height: 16),
                   Slider(
                     value: tempDays.toDouble(),
@@ -257,7 +256,12 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
           Expanded(
             child: ReorderableListView(
               buildDefaultDragHandles: false,
-              padding: EdgeInsets.only(top: 8, bottom: getBottomSpacer(context), left: 16, right: 16),
+              padding: EdgeInsets.only(
+                top: 8,
+                bottom: getBottomSpacer(context),
+                left: 16,
+                right: 16,
+              ),
               onReorderItem: (oldIndex, newIndex) {
                 _onReorderItem(oldIndex, newIndex);
               },
@@ -265,7 +269,9 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                   (Widget child, int index, Animation<double> animation) {
                     return Material(
                       color: Colors.transparent,
-                      shadowColor: Theme.of(context).shadowColor.withValues(alpha: 0.2),
+                      shadowColor: Theme.of(
+                        context,
+                      ).shadowColor.withValues(alpha: 0.2),
                       elevation: 8,
                       child: child,
                     );

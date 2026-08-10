@@ -38,16 +38,16 @@ class _BundlesScreenState extends State<BundlesScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     final initialQuery = BundlesNavigation.targetQuery.value;
     if (initialQuery != null && initialQuery.isNotEmpty) {
       _searchController.text = initialQuery;
       _searchQuery = initialQuery;
-      // We don't clear targetQuery.value here because _onExternalSearch might be triggered 
+      // We don't clear targetQuery.value here because _onExternalSearch might be triggered
       // immediately if we add the listener after, but actually it's fine to clear it.
       BundlesNavigation.targetQuery.value = null;
     }
-    
+
     _fetchBundles();
     BundlesNavigation.targetQuery.addListener(_onExternalSearch);
   }
@@ -167,9 +167,17 @@ class _BundlesScreenState extends State<BundlesScreen> {
           child: Row(
             children: [
               if (isHumble)
-                Image.asset('assets/images/humble_logo_full.png', height: 32, fit: BoxFit.contain)
+                Image.asset(
+                  'assets/images/humble_logo_full.png',
+                  height: 32,
+                  fit: BoxFit.contain,
+                )
               else if (isFanatical)
-                Image.asset('assets/images/fanatical_logo_full.png', height: 32, fit: BoxFit.contain)
+                Image.asset(
+                  'assets/images/fanatical_logo_full.png',
+                  height: 32,
+                  fit: BoxFit.contain,
+                )
               else ...[
                 Icon(Icons.storefront, color: badgeColor, size: 24),
                 const SizedBox(width: 8),
@@ -185,8 +193,12 @@ class _BundlesScreenState extends State<BundlesScreen> {
               ],
               const Spacer(),
               Icon(
-                isCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                isCollapsed
+                    ? Icons.keyboard_arrow_down
+                    : Icons.keyboard_arrow_up,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ],
           ),
@@ -199,7 +211,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: _searchQuery.isNotEmpty 
+        leading: _searchQuery.isNotEmpty
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
@@ -336,7 +348,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
       onRefresh: _refresh,
       child: ListView.builder(
         controller: _scrollController,
-        cacheExtent: 5000,
         padding: const EdgeInsets.all(16),
         itemCount: rows.length,
         itemBuilder: (context, index) {

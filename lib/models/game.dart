@@ -71,12 +71,15 @@ class Game {
     return Game(
       igdbId: (map['igdb_id'] ?? map['id']) as int,
       title: map['title'] as String? ?? map['name'] as String? ?? '',
-      coverUrl: map['cover_url'] as String? ?? 
-          (map['cover'] != null && map['cover']['image_id'] != null 
-              ? 'https://images.igdb.com/igdb/image/upload/t_cover_big/${map['cover']['image_id']}.jpg' 
+      coverUrl:
+          map['cover_url'] as String? ??
+          (map['cover'] != null && map['cover']['image_id'] != null
+              ? 'https://images.igdb.com/igdb/image/upload/t_cover_big/${map['cover']['image_id']}.jpg'
               : null),
       releaseDate: map['first_release_date'] != null
-          ? DateTime.fromMillisecondsSinceEpoch((map['first_release_date'] as num).toInt() * 1000).toIso8601String()
+          ? DateTime.fromMillisecondsSinceEpoch(
+              (map['first_release_date'] as num).toInt() * 1000,
+            ).toIso8601String()
           : map['release_date'] as String?,
       summary: map['summary'] as String?,
       genres: _parseStringList(map['genres']),
@@ -119,7 +122,8 @@ class Game {
     if (isSteamOnly) 'is_steam_only': true,
     if (metacriticScore != null) 'metacritic_score': metacriticScore,
     if (metacriticUrl != null) 'metacritic_url': metacriticUrl,
-    if (metacriticUserScore != null) 'metacritic_user_score': metacriticUserScore,
+    if (metacriticUserScore != null)
+      'metacritic_user_score': metacriticUserScore,
     if (metacriticSlug != null) 'metacritic_slug': metacriticSlug,
     if (metacriticUpdatedAt != null)
       'metacritic_updated_at': metacriticUpdatedAt!.toIso8601String(),
@@ -130,10 +134,13 @@ class Game {
   static List<String> _parseStringList(dynamic raw) {
     if (raw == null) return const [];
     if (raw is List) {
-      return raw.map((e) {
-        if (e is Map) return e['name']?.toString() ?? '';
-        return e.toString();
-      }).where((s) => s.isNotEmpty).toList();
+      return raw
+          .map((e) {
+            if (e is Map) return e['name']?.toString() ?? '';
+            return e.toString();
+          })
+          .where((s) => s.isNotEmpty)
+          .toList();
     }
     if (raw is String && raw.isNotEmpty) return [raw];
     return const [];
@@ -149,7 +156,9 @@ class Game {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Game && runtimeType == other.runtimeType && igdbId == other.igdbId;
+      other is Game &&
+          runtimeType == other.runtimeType &&
+          igdbId == other.igdbId;
 
   @override
   int get hashCode => igdbId.hashCode;
