@@ -44,6 +44,9 @@ class ThemeNotifier extends ChangeNotifier {
     }
 
     _stylePackId = prefs.getString('style_pack_id') ?? 'default';
+    if (!StylePackRegistry.exists(_stylePackId)) {
+      _stylePackId = 'default';
+    }
 
     final urlPackId = StylePackUrlOverride.packIdFromUri(Uri.base);
     if (urlPackId != null) {

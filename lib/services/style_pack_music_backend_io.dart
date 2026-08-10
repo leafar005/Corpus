@@ -17,9 +17,15 @@ class _AudioplayersStylePackMusicBackend implements StylePackMusicBackend {
   }
 
   @override
-  Future<void> play(String assetPath) async {
+  Future<void> playAsset(String assetPath) async {
     await _player.stop();
     await _player.play(AssetSource(assetPath));
+  }
+
+  @override
+  Future<void> playFile(String filePath) async {
+    await _player.stop();
+    await _player.play(DeviceFileSource(filePath));
   }
 
   @override
