@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'search_screen.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/models/models.dart';
+import 'package:corpus/widgets/corpus_section_title.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -29,7 +30,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mi Biblioteca'),
+        title: const CorpusScreenTitle('Mi Biblioteca'),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),

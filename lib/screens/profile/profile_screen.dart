@@ -15,6 +15,7 @@ import 'profile_journal_tab.dart';
 import 'profile_reviews_tab.dart';
 import 'profile_games_grid_tab.dart';
 import 'currently_playing_badge.dart';
+import '../../theme/corpus_theme_extension.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -244,6 +245,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Scrollbar(
@@ -252,17 +255,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(isDesktop),
-                  _buildLevelProgressBar(isDesktop),
-                  SizedBox(height: isDesktop ? 24 : 0),
-                ],
+            if (isDesktop) ...[
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(isDesktop: true),
+                    _buildLevelProgressBar(isDesktop: true),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-            ),
-            if (isDesktop)
+              // Tabs fuera del CrossAxisGroup: anidar pinned header
+              // ahi en web dejaba el contenido a altura 0.
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                sliver: SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SliverNavBarDelegate(
+                    height: 56.0,
+                    topPadding: 0,
+                    child: _buildNavBar(isDesktop: true),
+                  ),
+                ),
+              ),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 40),
                 sliver: SliverCrossAxisGroup(
@@ -285,48 +301,319 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     SliverCrossAxisExpanded(
                       flex: 1,
-                      sliver: SliverMainAxisGroup(
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: SizedBox.shrink(key: _tabsKey),
-                          ),
-                          SliverPersistentHeader(
-                            pinned: true,
-                            delegate: _SliverNavBarDelegate(
-                              height: 56.0,
-                              topPadding: MediaQuery.of(context).padding.top,
-                              child: _buildNavBar(isDesktop),
-                            ),
-                          ),
-                          _buildCurrentTabContent(isMobile: false),
-                        ],
-                      ),
+                      sliver: _buildCurrentTabContent(isMobile: false),
                     ),
                   ],
                 ),
-              )
-            else
+              ),
+            ] else ...[
+              SliverToBoxAdapter(child: _buildMobileBanner()),
               SliverMainAxisGroup(
                 slivers: [
                   SliverToBoxAdapter(child: SizedBox.shrink(key: _tabsKey)),
                   SliverPersistentHeader(
                     pinned: true,
-                    delegate: _SliverNavBarDelegate(
-                      height: 56.0,
-                      topPadding: MediaQuery.of(context).padding.top,
-                      child: _buildNavBar(isDesktop),
+                    delegate: _MobileProfileHeaderDelegate(
+                      topPadding: topPadding,
+                      hasCurrentlyPlaying:
+                          _userProfile?['currently_playing_appid'] != null,
+                      profileBuilder: _buildMobileProfileRow,
+                      tabBarBuilder: () => _buildNavBar(isDesktop: false),
                     ),
                   ),
                   _buildCurrentTabContent(isMobile: true),
                 ],
               ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(bool isDesktop) {
+  Widget _buildMobileBanner() {
+    final bannerUrl = _userProfile?['banner_url'];
+    final isMe =
+        _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
+    // Misma altura de layout y de imagen: no pintar fuera de la caja
+    // (eso tapaba el avatar/nombre del header sticky).
+    const bannerHeight = 150.0;
+    final topInset = MediaQuery.of(context).padding.top;
+
+    return SizedBox(
+      height: bannerHeight,
+      child: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.hardEdge,
+        children: [
+          if (bannerUrl == null)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.deepPurple.shade800,
+                    Colors.red.shade900,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            )
+          else
+            Image.network(
+              bannerUrl.replaceAll('t_cover_big', 't_1080p'),
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              errorBuilder: (context, error, stackTrace) {
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.deepPurple.shade800,
+                        Colors.red.shade900,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                );
+              },
+            ),
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.55, 0.78, 1.0],
+                  colors: [
+                    Theme.of(
+                      context,
+                    ).scaffoldBackgroundColor.withValues(alpha: 0.0),
+                    Theme.of(
+                      context,
+                    ).scaffoldBackgroundColor.withValues(alpha: 0.15),
+                    Theme.of(
+                      context,
+                    ).scaffoldBackgroundColor.withValues(alpha: 0.55),
+                    Theme.of(context).scaffoldBackgroundColor,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (Navigator.canPop(context))
+            Positioned(
+              top: topInset + 4.0,
+              left: 4,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          if (isMe)
+            Positioned(
+              top: topInset + 4.0,
+              right: 4,
+              child: Row(
+                children: [
+                  _FriendsBadgeButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FriendsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.settings,
+                      color: Colors.white,
+                      shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SettingsScreen(
+                            userProfile: _userProfile!,
+                            hallOfFame: _hallOfFame,
+                          ),
+                        ),
+                      ).then((_) => _fetchProfileData());
+                    },
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileProfileRow(double collapseProgress) {
+    final username = _userProfile?['username'] ?? 'Jugador';
+    final displayName = _userProfile?['display_name'] ?? username;
+    final avatarUrl = _userProfile?['avatar_url'];
+    final t = collapseProgress.clamp(0.0, 1.0);
+
+    final nameFontSize = 22.0 - (4.0 * t);
+    final handleFontSize = 13.0 - (1.0 * t);
+    final nameHandleGap = 2.0;
+    // Colapsado: misma altura que nombre + @.
+    const expandedAvatarRadius = 40.0;
+    final collapsedAvatarRadius =
+        (nameFontSize * 1.1 + nameHandleGap + handleFontSize * 1.1) / 2;
+    final avatarRadius = expandedAvatarRadius -
+        (expandedAvatarRadius - collapsedAvatarRadius) * t;
+    final showLevel = t < 0.5;
+    final showPlaying = t < 0.35 && _userProfile != null;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 8.0 - (2.0 * t), 16, 8.0 - (2.0 * t)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                width: 2.5 - (0.5 * t),
+              ),
+            ),
+            child: CircleAvatar(
+              radius: avatarRadius,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+              backgroundImage:
+                  avatarUrl != null ? NetworkImage(avatarUrl) : null,
+              child: avatarUrl == null
+                  ? Icon(Icons.person, size: avatarRadius)
+                  : null,
+            ),
+          ),
+          SizedBox(width: 12.0 - (2.0 * t)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: nameFontSize,
+                    fontWeight: FontWeight.bold,
+                    height: 1.1,
+                  ),
+                ),
+                SizedBox(height: nameHandleGap),
+                Text(
+                  '@$username',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: handleFontSize,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    height: 1.1,
+                  ),
+                ),
+                if (showPlaying) ...[
+                  CurrentlyPlayingBadge(
+                    userId: _userProfile!['id'],
+                    initialProfile: _userProfile!,
+                    compact: true,
+                  ),
+                ],
+                if (showLevel) ...[
+                  SizedBox(height: 4.0 - (1.0 * t)),
+                  _buildInlineLevelProgress(compact: t > 0.25),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineLevelProgress({bool compact = false}) {
+    final xp = (_userProfile?['xp'] as num?)?.toInt() ?? 0;
+    final levelLabelSize = compact ? 13.0 : 15.0;
+    final progressLabelSize = compact ? 12.0 : 13.0;
+    final barHeight = compact ? 6.0 : 8.0;
+    final spacing = compact ? 4.0 : 6.0;
+
+    return InkWell(
+      borderRadius: Theme.of(
+        context,
+      ).extension<CorpusThemeExtension>()!.radiusSmall,
+      onTap: _isOwnProfile
+          ? () {
+              final userId =
+                  _userProfile?['id'] ??
+                  Supabase.instance.client.auth.currentUser!.id;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      AchievementsScreen(userId: userId, initialXp: xp),
+                ),
+              ).then((_) => _fetchProfileData());
+            }
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Nivel ${LevelCalculator.getLevel(xp)}',
+                style: TextStyle(
+                  fontSize: levelLabelSize,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                LevelCalculator.getProgressString(xp),
+                style: TextStyle(
+                  fontSize: progressLabelSize,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: spacing),
+          ClipRRect(
+            borderRadius: Theme.of(
+              context,
+            ).extension<CorpusThemeExtension>()!.radiusSmall,
+            child: LinearProgressIndicator(
+              value: LevelCalculator.getProgressFraction(xp),
+              minHeight: barHeight,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader({required bool isDesktop}) {
     final username = _userProfile?['username'] ?? 'Jugador';
     final displayName = _userProfile?['display_name'] ?? username;
     final avatarUrl = _userProfile?['avatar_url'];
@@ -594,7 +881,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildLevelProgressBar(bool isDesktop) {
+  Widget _buildLevelProgressBar({required bool isDesktop}) {
     return Padding(
       padding: EdgeInsets.only(
         top: 60, // Clear the avatar's overflow
@@ -602,7 +889,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         right: isDesktop ? 40 : 16,
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
         onTap: _isOwnProfile
             ? () {
                 final userId =
@@ -647,7 +934,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                 child: LinearProgressIndicator(
                   value: LevelCalculator.getProgressFraction(
                     (_userProfile?['xp'] as num?)?.toInt() ?? 0,
@@ -666,17 +953,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildNavBar(bool isDesktop) {
+  Widget _buildNavBar({required bool isDesktop}) {
     return Container(
       margin: EdgeInsets.only(
-        top: 0,
         left: isDesktop ? 40 : 16,
         right: isDesktop ? 40 : 16,
       ),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -685,25 +971,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _buildNavTab('Perfil', 0),
-            _buildNavTab('Juegos', 1),
-            _buildNavTab('Diario', 2),
-            _buildNavTab('Reseñas', 3),
-            _buildNavTab('Logros', 4),
+            _buildNavTab('Perfil', 0, compact: !isDesktop),
+            _buildNavTab('Juegos', 1, compact: !isDesktop),
+            _buildNavTab('Diario', 2, compact: !isDesktop),
+            _buildNavTab('Reseñas', 3, compact: !isDesktop),
+            _buildNavTab('Logros', 4, compact: !isDesktop),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavTab(String title, int index) {
+  Widget _buildNavTab(String title, int index, {bool compact = false}) {
     final isSelected = _selectedTab == index;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: () => setState(() => _selectedTab = index),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          padding: EdgeInsets.symmetric(
+            vertical: compact ? 12 : 16,
+            horizontal: compact ? 16 : 20,
+          ),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
@@ -717,7 +1006,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Text(
             title,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: compact ? 15 : 16,
+              height: 1.0,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
               color: isSelected
                   ? Theme.of(context).colorScheme.onSurface
@@ -1342,7 +1632,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
       ),
       child: imagePath != null
           ? Image.asset(imagePath, width: 24, height: 24, color: color)
@@ -1436,6 +1726,82 @@ class _FriendsBadgeButtonState extends State<_FriendsBadgeButton> {
         },
       ),
     );
+  }
+}
+
+class _MobileProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
+  // Tabs: padding 12*2 + text 15 + borde 3 ≈ 42 → reservamos 48
+  static const double _tabBarHeight = 48.0;
+  // Expandido: avatar 80 + padding + nivel ≈ 120; +~22 si hay "Jugando"
+  static const double _expandedProfileHeight = 120.0;
+  static const double _playingExtraHeight = 22.0;
+  // Colapsado: avatar ≈ nombre+@ (~40) + padding ≈ 60
+  static const double _collapsedProfileHeight = 60.0;
+
+  final double topPadding;
+  final bool hasCurrentlyPlaying;
+  final Widget Function(double collapseProgress) profileBuilder;
+  final Widget Function() tabBarBuilder;
+
+  _MobileProfileHeaderDelegate({
+    required this.topPadding,
+    this.hasCurrentlyPlaying = false,
+    required this.profileBuilder,
+    required this.tabBarBuilder,
+  });
+
+  double get _expandedProfile =>
+      _expandedProfileHeight +
+      (hasCurrentlyPlaying ? _playingExtraHeight : 0.0);
+
+  @override
+  double get minExtent =>
+      topPadding + _collapsedProfileHeight + _tabBarHeight;
+
+  @override
+  double get maxExtent =>
+      topPadding + _expandedProfile + _tabBarHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final collapseRange = maxExtent - minExtent;
+    final collapseProgress = collapseRange > 0
+        ? (shrinkOffset / collapseRange).clamp(0.0, 1.0)
+        : 0.0;
+    final profileHeight = _expandedProfile -
+        ((_expandedProfile - _collapsedProfileHeight) * collapseProgress);
+
+    return Material(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      elevation: overlapsContent ? 1 : 0,
+      shadowColor: Colors.black26,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: topPadding),
+          SizedBox(
+            height: profileHeight,
+            child: ClipRect(child: profileBuilder(collapseProgress)),
+          ),
+          SizedBox(
+            height: _tabBarHeight,
+            child: ClipRect(child: tabBarBuilder()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _MobileProfileHeaderDelegate oldDelegate) {
+    return oldDelegate.topPadding != topPadding ||
+        oldDelegate.hasCurrentlyPlaying != hasCurrentlyPlaying ||
+        oldDelegate.profileBuilder != profileBuilder ||
+        oldDelegate.tabBarBuilder != tabBarBuilder;
   }
 }
 

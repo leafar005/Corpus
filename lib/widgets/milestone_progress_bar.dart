@@ -65,7 +65,7 @@ class MilestoneProgressBar extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 color: current >= target
                     ? segmentColor
-                    : Colors.grey.withValues(alpha: 0.8),
+                    : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
               ),
             ),
           ),

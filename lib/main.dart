@@ -6,7 +6,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'screens/main_screen.dart';
 import 'env.dart';
 import 'theme/app_theme.dart';
+import 'theme/style_pack_registry.dart';
 import 'services/notification_service.dart';
+import 'services/style_pack_music_service.dart';
 
 import 'globals.dart';
 
@@ -43,15 +45,33 @@ void main() async {
     publishableKey: Env.supabaseAnonKey,
   );
 
-  // 5. Inicializa el servicio de notificaciones (Android + Windows + Web)
+  // 5. Carga packs importados por el usuario
+  await StylePackRegistry.loadImported();
+  await themeNotifier.initialize();
+  await StylePackMusicService.instance.init(themeNotifier);
+
+  // 6. Inicializa el servicio de notificaciones (Android + Windows + Web)
   await NotificationService().init();
 
-  // 6. Arranca la interfaz gráfica
+  // 7. Arranca la interfaz gráfica
   runApp(const CorpusApp());
 }
 
-class CorpusApp extends StatelessWidget {
+class CorpusApp extends StatefulWidget {
   const CorpusApp({super.key});
+
+  @override
+  State<CorpusApp> createState() => _CorpusAppState();
+}
+
+class _CorpusAppState extends State<CorpusApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      StylePackMusicService.instance.syncWithCurrentPack(force: true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,8 +81,8 @@ class CorpusApp extends StatelessWidget {
         return MaterialApp(
           title: 'Corpus',
           // Aplicamos nuestros temas y el modo seleccionado
-          theme: AppTheme.getLightTheme(themeNotifier.seedColor),
-          darkTheme: AppTheme.getDarkTheme(themeNotifier.seedColor),
+          theme: AppTheme.getLightTheme(themeNotifier.seedColor, themeNotifier.currentPack),
+          darkTheme: AppTheme.getDarkTheme(themeNotifier.seedColor, themeNotifier.currentPack),
           themeMode: themeNotifier.currentMode,
           scrollBehavior: const AlwaysScrollbarBehavior(),
           home: const AuthGate(),

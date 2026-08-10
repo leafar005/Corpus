@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
 import '../../models/models.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class GroupGamesScreen extends StatefulWidget {
   final String title;
@@ -63,10 +64,7 @@ class _GroupGamesScreenState extends State<GroupGamesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: CorpusScreenTitle(widget.title),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import '../../../widgets/guest_login_prompt.dart';
+import '../../../theme/corpus_theme_extension.dart';
 
 class GameStashTab extends StatefulWidget {
   const GameStashTab({
@@ -76,7 +77,7 @@ class _GameStashTabState extends State<GameStashTab> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
               border: Border.all(
                 color: Theme.of(context).colorScheme.outlineVariant,
               ),

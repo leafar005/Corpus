@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/profile/profile_screen.dart';
+import '../theme/corpus_theme_extension.dart';
 
 class CoopBadge extends StatelessWidget {
   final String username;
@@ -41,7 +42,9 @@ class CoopBadge extends StatelessWidget {
           color: Theme.of(
             context,
           ).colorScheme.primaryContainer.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: Theme.of(context)
+              .extension<CorpusThemeExtension>()!
+              .radiusLarge,
           border: Border.all(
             color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
           ),

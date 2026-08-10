@@ -12,6 +12,8 @@ import '../library/game_details_screen.dart';
 import '../../repositories/review_repository.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
+import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 /// Feed de actividad social en tiempo real.
 /// Muestra la actividad del usuario actual y la de sus amigos aceptados.
@@ -748,7 +750,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                     width: 100,
                     height: 140,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                       color: Theme.of(
                         context,
                       ).colorScheme.surfaceContainerHighest,
@@ -918,7 +920,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                           showFullScreenGallery(context, strUrls, idx);
                         },
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                           child: Image.network(
                             imageUrls[idx] as String,
                             height: 120,
@@ -1245,14 +1247,14 @@ class _ActivityScreenState extends State<ActivityScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Text(
             'Amigos',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -1266,7 +1268,7 @@ class _ActivityScreenState extends State<ActivityScreen>
   Widget build(BuildContext context) {
     if (_isGuest) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Actividad')),
+        appBar: AppBar(title: const CorpusScreenTitle('Actividad')),
         body: const Center(
           child: GuestLoginPrompt(
             icon: Icons.people_outline_rounded,
@@ -1278,7 +1280,7 @@ class _ActivityScreenState extends State<ActivityScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Actividad'),
+        title: const CorpusScreenTitle('Actividad'),
         actions: [
           IconButton(
             icon: Badge(

@@ -1,8 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
+import '../services/style_pack_import_service.dart';
+import '../services/style_pack_music_service.dart';
+import '../theme/style_pack_registry.dart';
 import 'settings/info_tab_appearance_screen.dart';
 import 'settings/home_appearance_screen.dart';
-
+import '../theme/corpus_theme_extension.dart';
+import '../theme/style_pack.dart';
+import '../widgets/corpus_section_title.dart';
 class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
 
@@ -11,16 +17,15 @@ class AppearanceScreen extends StatefulWidget {
 }
 
 class _AppearanceScreenState extends State<AppearanceScreen> {
-  // Lista de colores base disponibles
   final List<Color> _availableColors = const [
-    Colors.deepPurpleAccent, // Morado (Default)
-    Colors.blueAccent, // Azul
-    Colors.teal, // Turquesa
-    Colors.green, // Verde
-    Colors.amber, // Ámbar
-    Colors.orange, // Naranja
-    Colors.redAccent, // Rojo
-    Colors.pinkAccent, // Rosa
+    Colors.deepPurpleAccent,
+    Colors.blueAccent,
+    Colors.teal,
+    Colors.green,
+    Colors.amber,
+    Colors.orange,
+    Colors.redAccent,
+    Colors.pinkAccent,
   ];
 
   @override
@@ -28,7 +33,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Apariencia'),
+        title: const CorpusScreenTitle('Apariencia'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: const BackButton(),
@@ -41,25 +46,48 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           right: 16,
         ),
         children: [
+          // ── Style Pack selector ─────────────────────────────────────
           const SizedBox(height: 16),
+          const Text(
+            'Paquete de estilo',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Cambia toda la apariencia de Corpus de una vez.',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 16),
+          _buildStylePackSection(),
+          if (!kIsWeb) ...[
+            const SizedBox(height: 12),
+            _buildImportPackButton(),
+          ],
+
+          // ── Theme mode ──────────────────────────────────────────────
+          const SizedBox(height: 32),
           const Text(
             'Tema de la aplicación',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           _buildThemeOptions(),
+
+          // ── Accent colour ───────────────────────────────────────────
           const SizedBox(height: 32),
           const Text(
             'Color principal',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Elige el tono que dominará los elementos visuales de Corpus.',
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 24),
           _buildColorPicker(),
+
+          // ── Screen customisation ────────────────────────────────────
           const SizedBox(height: 32),
           const Text(
             'Personalización de pantallas',
@@ -75,11 +103,219 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     );
   }
 
+  // ── Style Pack section ─────────────────────────────────────────────────
+
+  Widget _buildStylePackSection() {
+    final imported = StylePackRegistry.imported;
+    final activeId = themeNotifier.stylePackId;
+    final isClassicActive = activeId == 'default';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildPackTile(
+          pack: StylePack.defaultPack(),
+          isActive: isClassicActive,
+          isImported: false,
+        ),
+        if (imported.isEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius:
+                  Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.extension_outlined,
+                  size: 40,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'No hay addons instalados',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  kIsWeb
+                      ? 'Los paquetes de estilo se importan desde la app móvil o de escritorio.'
+                      : 'Importa un archivo .corpuspack para añadir temas como Persona 5 Royal.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          const SizedBox(height: 12),
+          ...imported.map((entry) {
+            final pack = entry.pack;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildPackTile(
+                pack: pack,
+                isActive: pack.id == activeId,
+                isImported: true,
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPackTile({
+    required StylePack pack,
+    required bool isActive,
+    required bool isImported,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius:
+            Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+        border: Border.all(
+          color: isActive
+              ? Theme.of(context).colorScheme.primary
+              : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: pack.seedColor,
+            shape: BoxShape.circle,
+          ),
+          child: isActive
+              ? const Icon(Icons.check, color: Colors.white, size: 20)
+              : null,
+        ),
+        title: Text(
+          pack.name,
+          style: TextStyle(
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        subtitle: Text(
+          isImported
+              ? (pack.description ?? 'Addon importado')
+              : 'Tema predeterminado de Corpus',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: isImported
+            ? IconButton(
+                tooltip: 'Eliminar addon',
+                icon: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                onPressed: () => _confirmRemovePack(pack),
+              )
+            : (isActive
+                ? Icon(
+                    Icons.check_circle,
+                    color: Theme.of(context).colorScheme.primary,
+                  )
+                : null),
+        onTap: () {
+          themeNotifier.setStylePack(pack.id);
+          StylePackMusicService.instance.syncWithCurrentPack(force: true);
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  Future<void> _confirmRemovePack(StylePack pack) async {
+    final remove = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Eliminar "${pack.name}"?'),
+        content: const Text(
+          'Se quitará el addon de este dispositivo. Podrás volver a importarlo cuando quieras.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (remove != true || !mounted) return;
+
+    final wasActive = themeNotifier.stylePackId == pack.id;
+    await StylePackRegistry.removeImported(pack.id);
+    if (wasActive) {
+      await themeNotifier.setStylePack('default');
+      StylePackMusicService.instance.syncWithCurrentPack(force: true);
+    }
+    if (mounted) setState(() {});
+  }
+
+  Widget _buildImportPackButton() {
+    return FilledButton.icon(
+      onPressed: _importPack,
+      icon: const Icon(Icons.file_download_outlined),
+      label: const Text('Importar addon (.corpuspack)'),
+    );
+  }
+
+  Future<void> _importPack() async {
+    try {
+      final result = await StylePackImportService.pickAndImport();
+      if (result == null) return;
+
+      await themeNotifier.setStylePack(result.pack.id);
+      StylePackMusicService.instance.syncWithCurrentPack(force: true);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.isBundle
+                  ? 'Addon "${result.pack.name}" instalado'
+                  : 'Pack "${result.pack.name}" importado',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al importar: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  // ── Existing builders (unchanged logic) ────────────────────────────────
+
   Widget _buildHomeTabTile() {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
       ),
       child: ListTile(
         leading: Icon(
@@ -92,7 +328,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         ),
         subtitle: const Text('Orden y visibilidad de las secciones'),
         trailing: const Icon(Icons.chevron_right),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge),
         onTap: () {
           Navigator.push(
             context,
@@ -109,7 +345,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
       ),
       child: ListTile(
         leading: Icon(
@@ -122,7 +358,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         ),
         subtitle: const Text('Orden y visibilidad de los campos'),
         trailing: const Icon(Icons.chevron_right),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge),
         onTap: () {
           Navigator.push(
             context,
@@ -139,7 +375,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
       ),
       child: Column(
         children: [
@@ -174,7 +410,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+        color: isSelected
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
       title: Text(
         title,
@@ -188,10 +426,10 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
               color: Theme.of(context).colorScheme.primary,
             )
           : null,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge),
       onTap: () {
         themeNotifier.setTheme(mode);
-        setState(() {}); // Actualiza la UI de esta pantalla
+        setState(() {});
       },
     );
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme/corpus_theme_extension.dart';
+import '../widgets/corpus_section_title.dart';
 
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
@@ -16,7 +18,7 @@ class InfoScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Información'),
+        title: const CorpusScreenTitle('Información'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
@@ -41,9 +43,12 @@ class InfoScreen extends StatelessWidget {
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Versión 1.1.2',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -55,12 +60,12 @@ class InfoScreen extends StatelessWidget {
             const SizedBox(height: 40),
 
             // Sección Desarrollador
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 'DESARROLLO',
                 style: TextStyle(
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                   letterSpacing: 1.2,
@@ -71,7 +76,7 @@ class InfoScreen extends StatelessWidget {
             Card(
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               child: ListTile(
                 leading: CircleAvatar(
@@ -83,13 +88,13 @@ class InfoScreen extends StatelessWidget {
                   'leafar005',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Creador y Desarrollador',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
-                trailing: const Icon(
+                trailing: Icon(
                   Icons.open_in_new,
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   size: 20,
                 ),
                 onTap: () => _launchUrl('https://github.com/leafar005'),
@@ -99,12 +104,12 @@ class InfoScreen extends StatelessWidget {
             const SizedBox(height: 32),
 
             // Tecnologías
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 'TECNOLOGÍAS UTILIZADAS',
                 style: TextStyle(
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                   letterSpacing: 1.2,
@@ -115,7 +120,7 @@ class InfoScreen extends StatelessWidget {
             Card(
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               child: Column(
                 children: [
@@ -168,8 +173,8 @@ class InfoScreen extends StatelessWidget {
     return ListTile(
       leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey)),
-      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+      subtitle: Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
       onTap: () => _launchUrl(url),
     );
   }

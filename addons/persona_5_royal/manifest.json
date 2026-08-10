@@ -1,0 +1,21 @@
+{
+  "id": "persona_5_royal",
+  "name": "Persona 5 Royal",
+  "description": "Estilo inspirado en la identidad visual de Persona 5 Royal: rojo intenso, negro profundo, tipografía agresiva y formas angulares.",
+  "seedColor": "#D3112D",
+  "scaffoldLight": "#FFFFFF",
+  "scaffoldDark": "#000000",
+  "surfaceLight": "#FFFFFF",
+  "surfaceDark": "#121212",
+  "accentColor": "#FFD400",
+  "fontFamily": "Archivo Black",
+  "heroFontFamily": "Archivo Black",
+  "heroFontSize": 52,
+  "heroFontWeight": 900,
+  "borderRadiusSmall": 0,
+  "borderRadiusMedium": 2,
+  "borderRadiusLarge": 4,
+  "navBarStyle": "persona5Royal",
+  "useDynamicFrames": true,
+  "musicFile": "music/persona5royal.m4a"
+}

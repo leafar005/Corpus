@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/globals.dart';
+import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class InfoTabAppearanceScreen extends StatefulWidget {
   const InfoTabAppearanceScreen({super.key});
@@ -122,7 +124,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Personalizar pestaña Información'),
+        title: const CorpusScreenTitle('Personalizar pestaña Información'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         actions: [
@@ -138,14 +140,14 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(
+                Padding(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: 16.0,
                     vertical: 12.0,
                   ),
                   child: Text(
                     'Arrastra para reordenar las secciones y usa el interruptor para ocultar o mostrar cada una en los detalles del juego.',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -171,7 +173,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                           border: Border.all(
                             color: isVisible
                                 ? Theme.of(
@@ -185,7 +187,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                             icon,
                             color: isVisible
                                 ? Theme.of(context).colorScheme.primary
-                                : Colors.grey,
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           title: Text(
                             label,
@@ -195,7 +197,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                                   : FontWeight.normal,
                               color: isVisible
                                   ? Theme.of(context).colorScheme.onSurface
-                                  : Colors.grey,
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           trailing: Row(
@@ -212,9 +214,9 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                               const SizedBox(width: 8),
                               ReorderableDragStartListener(
                                 index: index,
-                                child: const Icon(
+                                child: Icon(
                                   Icons.drag_handle,
-                                  color: Colors.grey,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
