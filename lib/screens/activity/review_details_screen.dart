@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/utils/format_utils.dart';
 import '../library/game_details_screen.dart';
 import '../library/review_modal.dart';
 import '../../widgets/full_screen_gallery.dart';
@@ -795,7 +796,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
           ),
           const SizedBox(width: 4),
           Text(
-            rating.toStringAsFixed(1),
+            formatRating(rating),
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
         ],
@@ -1080,7 +1081,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            rating.toStringAsFixed(1),
+                                            formatRating(rating),
                                             style: const TextStyle(
                                               fontSize: 20,
                                               fontWeight: FontWeight.bold,

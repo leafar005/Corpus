@@ -4,6 +4,7 @@ import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/screens/library/review_modal.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
+import 'package:corpus/utils/format_utils.dart';
 
 class ImportPreviewScreen extends StatefulWidget {
   final List<CsvGameRow> rows;
@@ -289,7 +290,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              'Estado: ${row.status.toUpperCase()} ${row.rating != null ? "• Nota: ${row.rating!.toStringAsFixed(1).replaceAll(RegExp(r'\\.0\$'), '')}" : ""}',
+              'Estado: ${row.status.toUpperCase()} ${row.rating != null ? "• Nota: ${formatRating(row.rating!)}" : ""}',
             ),
             trailing: const Icon(Icons.check_circle, color: Colors.green),
           ),

@@ -16,6 +16,7 @@ import 'profile_reviews_tab.dart';
 import 'profile_games_grid_tab.dart';
 import 'currently_playing_badge.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../utils/format_utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -1250,7 +1251,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                '${ratings.length} | ${avgRating.toStringAsFixed(1)} ★ Media',
+                '${ratings.length} | ${formatRating(avgRating)} ★ Media',
                 style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(

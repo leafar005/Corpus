@@ -23,6 +23,7 @@ import 'review_modal.dart';
 import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../utils/format_utils.dart';
 import '../../widgets/corpus_primary_button.dart';
 import '../../widgets/full_screen_gallery.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -1034,7 +1035,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 .map((p) => UserProfile.fromMap(p))
                 .toList();
           }
-          if (_rating > 0) _ratingController.text = _rating.toStringAsFixed(1);
+          if (_rating > 0) _ratingController.text = formatRating(_rating);
         });
       } else {
         final userResp = await _repo.fetchUserProfile(userId);

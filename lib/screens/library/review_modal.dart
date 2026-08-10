@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:corpus/globals.dart';
+import 'package:corpus/utils/format_utils.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../repositories/review_repository.dart';
@@ -264,14 +265,14 @@ class ReviewModal {
                           max: 10,
                           divisions: 100,
                           activeColor: Theme.of(context).colorScheme.primary,
-                          label: value > 0 ? value.toStringAsFixed(1) : '-',
+                          label: value > 0 ? formatRating(value) : '-',
                           onChanged: onChange,
                         ),
                       ),
                       SizedBox(
                         width: 32,
                         child: Text(
-                          value > 0 ? value.toStringAsFixed(1) : '-',
+                          value > 0 ? formatRating(value) : '-',
                           textAlign: TextAlign.right,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -535,7 +536,7 @@ class ReviewModal {
                                           modalContext,
                                         ).colorScheme.secondary,
                                         label: reviewRating > 0
-                                            ? reviewRating.toStringAsFixed(1)
+                                            ? formatRating(reviewRating)
                                             : '-',
                                         onChanged: (val) => setModalState(
                                           () => reviewRating = val,
@@ -546,7 +547,7 @@ class ReviewModal {
                                       width: 40,
                                       child: Text(
                                         reviewRating > 0
-                                            ? reviewRating.toStringAsFixed(1)
+                                            ? formatRating(reviewRating)
                                             : '-',
                                         textAlign: TextAlign.right,
                                         style: TextStyle(

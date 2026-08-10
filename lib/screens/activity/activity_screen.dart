@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/utils/format_utils.dart';
 import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/full_screen_gallery.dart';
@@ -819,7 +820,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                rating.toStringAsFixed(1),
+                                formatRating(rating),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
