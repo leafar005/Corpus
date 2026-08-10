@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:corpus/screens/library/game_details_screen.dart';
 import 'package:corpus/utils/igdb_constants.dart';
+import 'package:corpus/utils/format_utils.dart';
 
 import 'package:corpus/models/models.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
@@ -254,7 +255,9 @@ class _GameCardState extends State<GameCard> {
                               top: 6,
                               right: 6,
                               child: Container(
-                                padding: const EdgeInsets.all(6),
+                                width: 28,
+                                height: 28,
+                                alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: Theme.of(
                                     context,
@@ -271,12 +274,12 @@ class _GameCardState extends State<GameCard> {
                                   ],
                                 ),
                                 child: Text(
-                                  widget.userRating.toStringAsFixed(1),
+                                  formatRating(widget.userRating),
                                   style: TextStyle(
                                     color: Theme.of(
                                       context,
                                     ).colorScheme.surface,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w900,
                                     fontSize: 12,
                                   ),
                                 ),

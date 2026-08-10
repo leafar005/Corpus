@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../utils/igdb_constants.dart';
+import '../../../utils/format_utils.dart';
 import '../group_games_screen.dart';
 import '../../../theme/corpus_theme_extension.dart';
 
@@ -180,7 +181,7 @@ class GameInfoTab extends StatelessWidget {
                     ),
                     const SizedBox(width: 16),
                     scoreBadge(
-                      value: metacriticUserScore!.toStringAsFixed(1),
+                      value: formatRating(metacriticUserScore!),
                       color: userColor(metacriticUserScore!),
                       context: context,
                       isCircle: true,
@@ -298,7 +299,7 @@ class GameInfoTab extends StatelessWidget {
             if (rating != null)
               statCard(
                 Icons.emoji_events,
-                rating.toStringAsFixed(1),
+                formatRating(rating),
                 'Críticas',
                 Colors.amber,
               ),

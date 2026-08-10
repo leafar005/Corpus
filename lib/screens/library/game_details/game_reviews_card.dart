@@ -4,6 +4,7 @@ import '../../activity/review_details_screen.dart';
 import '../../../models/models.dart';
 import '../../../widgets/coop_badge.dart';
 import '../../../theme/corpus_theme_extension.dart';
+import '../../../utils/format_utils.dart';
 
 class GameReviewsCard extends StatelessWidget {
   const GameReviewsCard({
@@ -113,7 +114,7 @@ class GameReviewsCard extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            value.toStringAsFixed(1),
+            formatRating(value),
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
@@ -363,7 +364,7 @@ class GameReviewsCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        rating.toStringAsFixed(1),
+                        formatRating(rating),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,

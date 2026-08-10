@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import '../../../widgets/guest_login_prompt.dart';
 import '../../../theme/corpus_theme_extension.dart';
+import '../../../utils/format_utils.dart';
 
 class GameStashTab extends StatefulWidget {
   const GameStashTab({
@@ -112,7 +113,7 @@ class _GameStashTabState extends State<GameStashTab> {
                           const Icon(Icons.star, color: Colors.amber, size: 16),
                           const SizedBox(width: 4),
                           Text(
-                            rating.toStringAsFixed(1),
+                            formatRating(rating),
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],

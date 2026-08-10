@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/utils/format_utils.dart';
 import '../library/game_details_screen.dart';
 import '../activity/review_details_screen.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
@@ -233,7 +234,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
         ),
         const SizedBox(width: 4),
         Text(
-          rating.toStringAsFixed(1),
+          formatRating(rating),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ],
