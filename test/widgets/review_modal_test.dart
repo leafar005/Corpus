@@ -8,7 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
-    await Supabase.initialize(url: 'https://mock.supabase.co', publishableKey: 'mock-key');
+    await Supabase.initialize(
+      url: 'https://mock.supabase.co',
+      publishableKey: 'mock-key',
+    );
   });
 
   group('ReviewModal Widget Tests (Prioridad 4 - Modal de Reseñas)', () {

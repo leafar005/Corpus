@@ -6,6 +6,7 @@ import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/typewriter_text.dart';
 import '../library/game_details_screen.dart';
+
 class HeroShowcase extends StatefulWidget {
   final List<Map<String, dynamic>> playingGames;
   final String userName;
@@ -381,7 +382,8 @@ class _HeroShowcaseState extends State<HeroShowcase>
                 child: SafeArea(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final isPortrait = constraints.maxHeight > constraints.maxWidth;
+                      final isPortrait =
+                          constraints.maxHeight > constraints.maxWidth;
 
                       final textSection = Column(
                         mainAxisAlignment: MainAxisAlignment.start,
@@ -422,9 +424,15 @@ class _HeroShowcaseState extends State<HeroShowcase>
                               child: MouseRegion(
                                 cursor: SystemMouseCursors.click,
                                 child: GestureDetector(
-                                  onTap: () => _navigateToGameDetails(gameData, coverUrl, false),
+                                  onTap: () => _navigateToGameDetails(
+                                    gameData,
+                                    coverUrl,
+                                    false,
+                                  ),
                                   child: TypewriterText(
-                                    baseCharDuration: const Duration(milliseconds: 15),
+                                    baseCharDuration: const Duration(
+                                      milliseconds: 15,
+                                    ),
                                     instant: false,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -435,7 +443,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                     spans: [
                                       TextSpan(
                                         text: _randomPrefix,
-                                        style: const TextStyle(color: Colors.white70),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                        ),
                                       ),
                                       TextSpan(
                                         text: title,
@@ -456,7 +466,11 @@ class _HeroShowcaseState extends State<HeroShowcase>
                           ),
                           const SizedBox(height: 24),
                           ElevatedButton.icon(
-                            onPressed: () => _navigateToGameDetails(gameData, coverUrl, true),
+                            onPressed: () => _navigateToGameDetails(
+                              gameData,
+                              coverUrl,
+                              true,
+                            ),
                             icon: const Icon(Icons.edit, size: 20),
                             label: const Text('Editar reseña'),
                             style: ElevatedButton.styleFrom(
@@ -480,7 +494,11 @@ class _HeroShowcaseState extends State<HeroShowcase>
                           key: ValueKey(coverUrl),
                           cursor: SystemMouseCursors.click,
                           child: GestureDetector(
-                            onTap: () => _navigateToGameDetails(gameData, coverUrl, false),
+                            onTap: () => _navigateToGameDetails(
+                              gameData,
+                              coverUrl,
+                              false,
+                            ),
                             child: Container(
                               decoration: BoxDecoration(
                                 boxShadow: [
@@ -497,11 +515,18 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                     ? Image.network(
                                         coverUrl,
                                         fit: BoxFit.cover,
-                                        width: isPortrait ? constraints.maxWidth * 0.38 : 240,
+                                        width: isPortrait
+                                            ? constraints.maxWidth * 0.38
+                                            : 240,
                                       )
                                     : Container(
-                                        width: isPortrait ? constraints.maxWidth * 0.38 : 240,
-                                        height: isPortrait ? (constraints.maxWidth * 0.38) * 1.4 : 340,
+                                        width: isPortrait
+                                            ? constraints.maxWidth * 0.38
+                                            : 240,
+                                        height: isPortrait
+                                            ? (constraints.maxWidth * 0.38) *
+                                                  1.4
+                                            : 340,
                                         color: Colors.grey,
                                       ),
                               ),
@@ -556,8 +581,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
                   ),
                 ),
               ),
-
-              if (child != null) child,
+              ?child,
             ],
           );
         },
@@ -743,7 +767,8 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
             child: SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final isPortrait = constraints.maxHeight > constraints.maxWidth;
+                  final isPortrait =
+                      constraints.maxHeight > constraints.maxWidth;
 
                   final textSection = Column(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -752,7 +777,6 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                     children: [
                       TypewriterText(
                         style: TextStyle(
-                          
                           fontSize: isPortrait ? 42 : 48,
                           fontWeight: FontWeight.w900,
                           height: 1.1,
@@ -885,9 +909,15 @@ class _BottomFadeGradient extends StatelessWidget {
               end: Alignment.bottomCenter,
               stops: const [0.0, 0.4, 0.7, 1.0],
               colors: [
-                Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.0),
-                Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.4),
-                Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.8),
+                Theme.of(
+                  context,
+                ).scaffoldBackgroundColor.withValues(alpha: 0.0),
+                Theme.of(
+                  context,
+                ).scaffoldBackgroundColor.withValues(alpha: 0.4),
+                Theme.of(
+                  context,
+                ).scaffoldBackgroundColor.withValues(alpha: 0.8),
                 Theme.of(context).scaffoldBackgroundColor,
               ],
             ),
@@ -1036,7 +1066,6 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                 children: [
                   TypewriterText(
                     style: TextStyle(
-                      
                       fontSize: isPortrait ? 42 : 48,
                       fontWeight: FontWeight.w900,
                       height: 1.1,
@@ -1049,9 +1078,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                       ),
                       TextSpan(
                         text: widget.userName,
-                        style: TextStyle(
-                          color: Theme.of(context).primaryColor,
-                        ),
+                        style: TextStyle(color: Theme.of(context).primaryColor),
                       ),
                     ],
                   ),
@@ -1059,14 +1086,11 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                   TypewriterText(
                     baseCharDuration: const Duration(milliseconds: 15),
                     style: TextStyle(
-                      
                       fontSize: isPortrait ? 20 : 22,
                       fontWeight: FontWeight.w500,
                       color: Colors.white70,
                     ),
-                    spans: const [
-                      TextSpan(text: '¿Qué vas a jugar hoy?'),
-                    ],
+                    spans: const [TextSpan(text: '¿Qué vas a jugar hoy?')],
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(

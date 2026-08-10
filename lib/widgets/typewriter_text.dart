@@ -47,7 +47,6 @@ class _TypewriterTextState extends State<TypewriterText>
   int _totalChars = 0;
   bool _finished = false;
 
-
   List<TextSpan> _currentSpans = [];
 
   late final AnimationController _cursorController;
@@ -141,7 +140,9 @@ class _TypewriterTextState extends State<TypewriterText>
     }
 
     // El borrado es más rápido y constante que el tipeo
-    final delayMs = (widget.baseCharDuration.inMilliseconds * 0.4).clamp(5, 20).round();
+    final delayMs = (widget.baseCharDuration.inMilliseconds * 0.4)
+        .clamp(5, 20)
+        .round();
 
     _timer = Timer(Duration(milliseconds: delayMs), () {
       if (!mounted) return;
@@ -215,7 +216,9 @@ class _TypewriterTextState extends State<TypewriterText>
         result.add(TextSpan(text: text, style: span.style));
         remaining -= text.length;
       } else {
-        result.add(TextSpan(text: text.substring(0, remaining), style: span.style));
+        result.add(
+          TextSpan(text: text.substring(0, remaining), style: span.style),
+        );
         remaining = 0;
       }
     }

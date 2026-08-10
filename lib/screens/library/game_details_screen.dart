@@ -787,7 +787,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           }
         }
 
-
         final List enrichedScreenshots = _enrichedData['screenshots'] ?? [];
         if (enrichedScreenshots.isNotEmpty) {
           if (_selectedScreenshotUrl == null || _carouselTimer == null) {
@@ -976,7 +975,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     if (!mounted) return;
 
     // Abrimos la pantalla con el 100% de los datos listos
-            if (MediaQuery.of(context).size.width >= 800) {
+    if (MediaQuery.of(context).size.width >= 800) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -1113,10 +1112,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (mounted) setState(() => _isLoadingStashStats = false);
     }
   }
-
-
-
-
 
   /// Abre el bottom sheet de creación/edición de reseña.
   /// La lógica del formulario vive en [ReviewModal] (review_modal.dart).
@@ -1260,7 +1255,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           _ratingNarrative = ratingNarrative;
           _ratingSoundtrack = ratingSoundtrack;
           _ratingVisuals = ratingVisuals;
-          // Fetch reviews to get the updated review list. 
+          // Fetch reviews to get the updated review list.
           // We don't fetch user data here to avoid race conditions with the DB trigger,
           // since we already updated the local state variables above.
           _fetchReviews();
@@ -1280,7 +1275,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (mounted) setState(() => _isSaving = false);
     }
   }
-
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -1432,7 +1426,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-  // ignore: unused_element
+          // ignore: unused_element
         ).showSnackBar(SnackBar(content: Text('Error al eliminar reseña: $e')));
       }
     }
@@ -1568,9 +1562,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     );
   }
   // ignore: unused_element
-
-
-
 
   // ─────────────────────────────────────────────────────────────────────────
   // Helpers de UI extraídos del build() para mantenerlo legible
@@ -1842,7 +1833,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         .map((gen) => gen is Map ? gen['name'] : gen)
                         .toList();
                   }
-                                    if (MediaQuery.of(context).size.width >= 800) {
+                  if (MediaQuery.of(context).size.width >= 800) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -2127,7 +2118,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.05),
                 ),
               ),
               child: Material(
@@ -2136,40 +2129,41 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 clipBehavior: Clip.antiAlias,
                 child: ListTile(
                   leading: Container(
-                  width: 32,
-                  height: 32,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Image.network(
-                      // 2. Usamos Google Favicons en PNG (100% compatible con Flutter y sin fallos CORS)
-                      'https://www.google.com/s2/favicons?domain=$domain&sz=64',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Icon(itemIcon, size: 18),
+                    width: 32,
+                    height: 32,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.network(
+                        // 2. Usamos Google Favicons en PNG (100% compatible con Flutter y sin fallos CORS)
+                        'https://www.google.com/s2/favicons?domain=$domain&sz=64',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Icon(itemIcon, size: 18),
+                      ),
                     ),
                   ),
-                ),
-                title: Text(name),
-                subtitle: Text(
-                  _localizeUrlToSpain(link['url'].toString()),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: const Icon(Icons.open_in_new, size: 16),
-                onTap: () => launchUrl(
-                  Uri.parse(_localizeUrlToSpain(link['url'].toString())),
-                  mode: LaunchMode.externalApplication,
+                  title: Text(name),
+                  subtitle: Text(
+                    _localizeUrlToSpain(link['url'].toString()),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.open_in_new, size: 16),
+                  onTap: () => launchUrl(
+                    Uri.parse(_localizeUrlToSpain(link['url'].toString())),
+                    mode: LaunchMode.externalApplication,
+                  ),
                 ),
               ),
-            ),
-          );
+            );
           }),
           const SizedBox(height: 24),
         ],
@@ -2402,7 +2396,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         ),
                       );
                     }
-  // ignore: unused_element
+                  // ignore: unused_element
                   : null,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -2518,20 +2512,25 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       ],
     );
 
-        final Widget interactiveWidget = _isLoadingUserData
+    final Widget interactiveWidget = _isLoadingUserData
         ? const Center(child: CircularProgressIndicator())
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [_buildStatusButton(), GameReviewsCard(
-              reviews: _reviews,
-              gameData: widget.gameData,
-              userData: _userData,
-              partnersData: _partnersData,
-              isDesktop: MediaQuery.of(context).size.width >= 800,
-              onEditReview: (review) => _showReviewModal(existingReview: review),
-              onDeleteReview: (review) => _deleteReview(review),
-              onShowFullScreenGallery: (context, urls, index) => showFullScreenGallery(context, urls, index),
-            )],
+            children: [
+              _buildStatusButton(),
+              GameReviewsCard(
+                reviews: _reviews,
+                gameData: widget.gameData,
+                userData: _userData,
+                partnersData: _partnersData,
+                isDesktop: MediaQuery.of(context).size.width >= 800,
+                onEditReview: (review) =>
+                    _showReviewModal(existingReview: review),
+                onDeleteReview: (review) => _deleteReview(review),
+                onShowFullScreenGallery: (context, urls, index) =>
+                    showFullScreenGallery(context, urls, index),
+              ),
+            ],
           );
 
     final List screenshotsList =

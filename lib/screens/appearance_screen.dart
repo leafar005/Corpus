@@ -34,7 +34,12 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         leading: const BackButton(),
       ),
       body: ListView(
-        padding: EdgeInsets.only(top: 8, bottom: getBottomSpacer(context), left: 16, right: 16),
+        padding: EdgeInsets.only(
+          top: 8,
+          bottom: getBottomSpacer(context),
+          left: 16,
+          right: 16,
+        ),
         children: [
           const SizedBox(height: 16),
           const Text(

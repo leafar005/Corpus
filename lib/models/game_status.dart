@@ -41,21 +41,21 @@ enum GameStatus {
 
   /// Etiqueta legible para mostrar en UI.
   String get label => switch (this) {
-    GameStatus.wishlist   => 'Quiero jugarlo',
-    GameStatus.playing    => 'Jugando',
-    GameStatus.beaten     => 'Terminado',
-    GameStatus.completed  => 'Platino',
-    GameStatus.abandoned  => 'Abandonado',
-    GameStatus.paused     => 'En pausa',
+    GameStatus.wishlist => 'Quiero jugarlo',
+    GameStatus.playing => 'Jugando',
+    GameStatus.beaten => 'Terminado',
+    GameStatus.completed => 'Platino',
+    GameStatus.abandoned => 'Abandonado',
+    GameStatus.paused => 'En pausa',
   };
 
   /// Icono emoji representativo para UI compacta.
   String get emoji => switch (this) {
-    GameStatus.wishlist   => '🎮',
-    GameStatus.playing    => '▶️',
-    GameStatus.beaten     => '✅',
-    GameStatus.completed  => '🏆',
-    GameStatus.abandoned  => '❌',
-    GameStatus.paused     => '⏸️',
+    GameStatus.wishlist => '🎮',
+    GameStatus.playing => '▶️',
+    GameStatus.beaten => '✅',
+    GameStatus.completed => '🏆',
+    GameStatus.abandoned => '❌',
+    GameStatus.paused => '⏸️',
   };
 }

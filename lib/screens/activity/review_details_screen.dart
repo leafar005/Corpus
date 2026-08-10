@@ -76,9 +76,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     try {
       final row = await Supabase.instance.client
           .from('user_games')
-          .select(
-            'partner_ids',
-          )
+          .select('partner_ids')
           .eq('user_id', userId)
           .eq('game_id', gameId)
           .maybeSingle();
@@ -89,7 +87,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
               .from('users')
               .select('id, username, avatar_url')
               .inFilter('id', ids.map((e) => e.toString()).toList());
-          setState(() => _partnersData = List<Map<String, dynamic>>.from(usersData));
+          setState(
+            () => _partnersData = List<Map<String, dynamic>>.from(usersData),
+          );
         }
       }
     } catch (_) {}
@@ -1154,7 +1154,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         runSpacing: 8,
                                         children: _partnersData.map((partner) {
                                           return CoopBadge(
-                                            username: partner['username'] ?? 'Usuario',
+                                            username:
+                                                partner['username'] ??
+                                                'Usuario',
                                             avatarUrl: partner['avatar_url'],
                                             status: status,
                                             userId: partner['id'] as String?,

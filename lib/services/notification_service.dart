@@ -217,7 +217,9 @@ class NotificationService {
 
     try {
       final token = kIsWeb
-          ? await FirebaseMessaging.instance.getToken(vapidKey: Env.firebaseVapidKey)
+          ? await FirebaseMessaging.instance.getToken(
+              vapidKey: Env.firebaseVapidKey,
+            )
           : await FirebaseMessaging.instance.getToken();
       if (token == null) return;
       await Supabase.instance.client

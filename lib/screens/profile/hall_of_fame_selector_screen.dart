@@ -93,7 +93,9 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredGames = _beatenGames.where((game) {
-      final title = (game['title'] ?? game['name'] ?? '').toString().toLowerCase();
+      final title = (game['title'] ?? game['name'] ?? '')
+          .toString()
+          .toLowerCase();
       return title.contains(_searchQuery.toLowerCase());
     }).toList();
 
@@ -149,26 +151,33 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                   Expanded(
                     child: GridView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 140,
-                        childAspectRatio: 0.7,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 140,
+                            childAspectRatio: 0.7,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
                       itemCount: filteredGames.length,
                       itemBuilder: (context, index) {
                         final game = filteredGames[index];
                         final coverUrl =
-                            game['cover_url']?.replaceAll('t_cover_big', 't_1080p') ??
+                            game['cover_url']?.replaceAll(
+                              't_cover_big',
+                              't_1080p',
+                            ) ??
                             '';
 
                         return GestureDetector(
-                          onTap: () => _selectGame(game['igdb_id'] ?? game['id']),
+                          onTap: () =>
+                              _selectGame(game['igdb_id'] ?? game['id']),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: coverUrl.isNotEmpty
                                 ? Image.network(coverUrl, fit: BoxFit.cover)
-                                : Container(color: Theme.of(context).primaryColorDark),
+                                : Container(
+                                    color: Theme.of(context).primaryColorDark,
+                                  ),
                           ),
                         );
                       },

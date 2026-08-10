@@ -112,12 +112,15 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
                               (index) => Container(
                                 width: 8,
                                 height: 8,
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: currentPage == index
                                       ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                                      : Theme.of(context).colorScheme.onSurface
+                                            .withValues(alpha: 0.2),
                                 ),
                               ),
                             ),

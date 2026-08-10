@@ -49,25 +49,25 @@ void main() {
         },
       );
 
-      testWidgets('Redirige a LoginScreen tras emitir initialSession nula',
-          skip: true,
-          (
-        WidgetTester tester,
-      ) async {
-        final controller = StreamController<AuthState>.broadcast();
+      testWidgets(
+        'Redirige a LoginScreen tras emitir initialSession nula',
+        skip: true,
+        (WidgetTester tester) async {
+          final controller = StreamController<AuthState>.broadcast();
 
-        await tester.pumpWidget(
-          MaterialApp(home: AuthGate(authStream: controller.stream)),
-        );
+          await tester.pumpWidget(
+            MaterialApp(home: AuthGate(authStream: controller.stream)),
+          );
 
-        controller.add(const AuthState(AuthChangeEvent.initialSession, null));
-        await tester.pumpAndSettle();
+          controller.add(const AuthState(AuthChangeEvent.initialSession, null));
+          await tester.pumpAndSettle();
 
-        expect(find.byType(LoginScreen), findsOneWidget);
-        expect(find.text('Bienvenido a Corpus'), findsOneWidget);
+          expect(find.byType(LoginScreen), findsOneWidget);
+          expect(find.text('Bienvenido a Corpus'), findsOneWidget);
 
-        await controller.close();
-      });
+          await controller.close();
+        },
+      );
     },
   );
 }

@@ -333,20 +333,32 @@ class _FriendsScreenState extends State<FriendsScreen>
                           user['display_name'] as String? ??
                           user['username'] as String? ??
                           'Usuario';
-                      final isFriend = _friends.any((f) => f['friend']?['id'] == userId);
+                      final isFriend = _friends.any(
+                        (f) => f['friend']?['id'] == userId,
+                      );
                       final isPending = alreadySentOrFriend && !isFriend;
-                      
+
                       Widget? trailingWidget;
                       if (isFriend) {
                         trailingWidget = Chip(
-                          label: const Text('Amigos', style: TextStyle(fontSize: 12)),
-                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                          label: const Text(
+                            'Amigos',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer,
                           side: BorderSide.none,
                         );
                       } else if (isPending) {
                         trailingWidget = Chip(
-                          label: const Text('Enviado', style: TextStyle(fontSize: 12)),
-                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          label: const Text(
+                            'Enviado',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           side: BorderSide.none,
                         );
                       } else {
@@ -377,7 +389,8 @@ class _FriendsScreenState extends State<FriendsScreen>
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => _FriendProfileScreen(userId: userId),
+                              builder: (_) =>
+                                  _FriendProfileScreen(userId: userId),
                             ),
                           );
                         },
