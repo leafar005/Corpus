@@ -5,11 +5,14 @@ import '../library/game_details_screen.dart';
 class CurrentlyPlayingBadge extends StatefulWidget {
   final String userId;
   final Map<String, dynamic> initialProfile;
+  /// Versión más baja para el header sticky de móvil.
+  final bool compact;
 
   const CurrentlyPlayingBadge({
     super.key,
     required this.userId,
     required this.initialProfile,
+    this.compact = false,
   });
 
   @override
@@ -80,45 +83,48 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
         }
       },
       child: Container(
-        margin: const EdgeInsets.only(top: 8),
+        margin: EdgeInsets.only(top: widget.compact ? 2 : 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.videogame_asset,
-              size: 18,
+              size: widget.compact ? 14 : 18,
               color: Colors.greenAccent[400],
             ),
-            const SizedBox(width: 6),
+            SizedBox(width: widget.compact ? 4 : 6),
             Flexible(
               child: Text(
                 'Jugando: ${_appName ?? 'Juego de Steam'}',
                 style: TextStyle(
                   color: Colors.greenAccent[400],
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  shadows: const [
-                    Shadow(
-                      offset: Offset(-1, -1),
-                      color: Colors.black,
-                      blurRadius: 2,
-                    ),
-                    Shadow(
-                      offset: Offset(1, -1),
-                      color: Colors.black,
-                      blurRadius: 2,
-                    ),
-                    Shadow(
-                      offset: Offset(1, 1),
-                      color: Colors.black,
-                      blurRadius: 2,
-                    ),
-                    Shadow(
-                      offset: Offset(-1, 1),
-                      color: Colors.black,
-                      blurRadius: 2,
-                    ),
-                  ],
+                  fontSize: widget.compact ? 12 : 14,
+                  height: 1.1,
+                  shadows: widget.compact
+                      ? null
+                      : const [
+                          Shadow(
+                            offset: Offset(-1, -1),
+                            color: Colors.black,
+                            blurRadius: 2,
+                          ),
+                          Shadow(
+                            offset: Offset(1, -1),
+                            color: Colors.black,
+                            blurRadius: 2,
+                          ),
+                          Shadow(
+                            offset: Offset(1, 1),
+                            color: Colors.black,
+                            blurRadius: 2,
+                          ),
+                          Shadow(
+                            offset: Offset(-1, 1),
+                            color: Colors.black,
+                            blurRadius: 2,
+                          ),
+                        ],
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
