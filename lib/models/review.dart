@@ -74,9 +74,12 @@ class Review {
   /// Rating global calculado como promedio de los ratings individuales,
   /// o el rating global si no hay individuales.
   double? get effectiveRating {
-    final individual = [ratingGameplay, ratingNarrative, ratingSoundtrack, ratingVisuals]
-        .whereType<double>()
-        .toList();
+    final individual = [
+      ratingGameplay,
+      ratingNarrative,
+      ratingSoundtrack,
+      ratingVisuals,
+    ].whereType<double>().toList();
     if (individual.isNotEmpty) {
       return individual.reduce((a, b) => a + b) / individual.length;
     }
@@ -123,12 +126,16 @@ class Review {
       completionType: map['completion_type'] as String?,
       platform: map['platform'] as String?,
       playTimeHours: (map['play_time_hours'] as num?)?.toDouble(),
-      playedFrom: map['played_from'] != null ? DateTime.tryParse(map['played_from'] as String) : null,
-      playedUntil: map['played_until'] != null ? DateTime.tryParse(map['played_until'] as String) : null,
+      playedFrom: map['played_from'] != null
+          ? DateTime.tryParse(map['played_from'] as String)
+          : null,
+      playedUntil: map['played_until'] != null
+          ? DateTime.tryParse(map['played_until'] as String)
+          : null,
       progressPercent: (map['progress_percent'] as num?)?.toInt(),
       replayNumber: (map['replay_number'] as num?)?.toInt(),
       isReplay: map['is_replay'] as bool? ?? false,
-      imageUrls: List<String>.from(map['image_urls'] ?? []),
+      imageUrls: imageUrls,
       partnerIds: List<String>.from(map['partner_ids'] ?? []),
       partners: partners,
       user: user,
@@ -154,8 +161,10 @@ class Review {
     if (completionType != null) 'completion_type': completionType,
     if (platform != null) 'platform': platform,
     if (playTimeHours != null) 'play_time_hours': playTimeHours,
-    if (playedFrom != null) 'played_from': playedFrom!.toIso8601String().split('T')[0],
-    if (playedUntil != null) 'played_until': playedUntil!.toIso8601String().split('T')[0],
+    if (playedFrom != null)
+      'played_from': playedFrom!.toIso8601String().split('T')[0],
+    if (playedUntil != null)
+      'played_until': playedUntil!.toIso8601String().split('T')[0],
     if (progressPercent != null) 'progress_percent': progressPercent,
     if (replayNumber != null) 'replay_number': replayNumber,
     'is_replay': isReplay,
@@ -177,14 +186,17 @@ class Review {
     if (completionType != null) 'completion_type': completionType,
     if (platform != null) 'platform': platform,
     if (playTimeHours != null) 'play_time_hours': playTimeHours,
-    if (playedFrom != null) 'played_from': playedFrom!.toIso8601String().split('T')[0],
-    if (playedUntil != null) 'played_until': playedUntil!.toIso8601String().split('T')[0],
+    if (playedFrom != null)
+      'played_from': playedFrom!.toIso8601String().split('T')[0],
+    if (playedUntil != null)
+      'played_until': playedUntil!.toIso8601String().split('T')[0],
     if (progressPercent != null) 'progress_percent': progressPercent,
     if (replayNumber != null) 'replay_number': replayNumber,
     'is_replay': isReplay,
     if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
     if (partnerIds.isNotEmpty) 'partner_ids': partnerIds,
-    if (partners.isNotEmpty) 'partners': partners.map((p) => p.toMap()).toList(),
+    if (partners.isNotEmpty)
+      'partners': partners.map((p) => p.toMap()).toList(),
     if (user != null) 'users': user!.toMap(),
     if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
     if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),

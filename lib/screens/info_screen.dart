@@ -43,8 +43,11 @@ class InfoScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Versión 1.1.1',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+              'Versión 1.1.2',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -152,7 +155,7 @@ class InfoScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 100),
           ],
         ),
       ),

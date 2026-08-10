@@ -28,7 +28,8 @@ class UserProfile {
   final int? level;
 
   /// Nombre visible: preferimos `display_name` si existe, si no `username`.
-  String get effectiveName => displayName?.isNotEmpty == true ? displayName! : username;
+  String get effectiveName =>
+      displayName?.isNotEmpty == true ? displayName! : username;
 
   /// Construye un [UserProfile] desde una fila de Supabase.
   factory UserProfile.fromMap(Map<String, dynamic> map) {
@@ -75,7 +76,9 @@ class UserProfile {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is UserProfile && runtimeType == other.runtimeType && id == other.id;
+      other is UserProfile &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 
   @override
   int get hashCode => id.hashCode;

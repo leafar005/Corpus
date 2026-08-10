@@ -126,9 +126,8 @@ class _GameCardState extends State<GameCard> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => GameDetailsScreen(
-                  gameData: widget.game.toMap(),
-                ),
+                builder: (context) =>
+                    GameDetailsScreen(gameData: widget.game.toMap()),
               ),
             ).then((_) => widget.onReturn());
           },
@@ -319,7 +318,8 @@ class _GameCardState extends State<GameCard> {
                 ),
               ),
 
-              if (widget.showMetacriticBadge && widget.game.metacriticScore != null)
+              if (widget.showMetacriticBadge &&
+                  widget.game.metacriticScore != null)
                 Positioned(
                   top: 8,
                   left: 8,

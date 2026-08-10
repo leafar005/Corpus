@@ -87,7 +87,11 @@ class GameDetailsHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => 250.0 + topPadding;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     // TODO: portar cuerpo exacto (líneas 4294-4348).
     throw UnimplementedError();
   }
@@ -112,7 +116,11 @@ class GameDetailsTabBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => child;
 
   @override
   bool shouldRebuild(covariant GameDetailsTabBarDelegate oldDelegate) {

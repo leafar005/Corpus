@@ -54,7 +54,7 @@ class GameInfoTab extends StatelessWidget {
   final Map<String, dynamic>? stashStats;
   final Map<String, dynamic>? timeToBeat;
 
-Widget _buildMetacriticSection(BuildContext context) {
+  Widget _buildMetacriticSection(BuildContext context) {
     if (isLoadingMetacritic && metacriticScore == null) {
       return const Padding(
         padding: EdgeInsets.only(bottom: 16),
@@ -226,7 +226,8 @@ Widget _buildMetacriticSection(BuildContext context) {
       ),
     );
   }
-Widget _buildStashStatsSection(BuildContext context) {
+
+  Widget _buildStashStatsSection(BuildContext context) {
     if (isLoadingStashStats && stashStats == null) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
@@ -240,10 +241,7 @@ Widget _buildStashStatsSection(BuildContext context) {
     final playing = stashStats!['playing_count'] as int?;
     final played = stashStats!['played_count'] as int?;
 
-    if (rating == null &&
-        want == null &&
-        playing == null &&
-        played == null) {
+    if (rating == null && want == null && playing == null && played == null) {
       return const SizedBox.shrink();
     }
 
@@ -325,14 +323,14 @@ Widget _buildStashStatsSection(BuildContext context) {
                 'Jugado',
                 Colors.blueAccent,
               ),
-
           ],
         ),
         const SizedBox(height: 28),
       ],
     );
   }
-Widget _buildTimeToBeatCard(
+
+  Widget _buildTimeToBeatCard(
     BuildContext context,
     String title,
     num? rawValue,
@@ -342,8 +340,9 @@ Widget _buildTimeToBeatCard(
     String timeText = '--';
     if (rawValue != null && rawValue > 0) {
       final isDD = timeToBeat?['_source'] == 'duracionde';
-      final double hours =
-          isDD ? rawValue.toDouble() : rawValue.toDouble() / 3600;
+      final double hours = isDD
+          ? rawValue.toDouble()
+          : rawValue.toDouble() / 3600;
       timeText = '${hours.toStringAsFixed(1).replaceAll('.0', '')} h';
     }
 
@@ -382,6 +381,7 @@ Widget _buildTimeToBeatCard(
       ),
     );
   }
+
   Widget _buildTimeToBeatRow(BuildContext context) {
     // Soporta dos esquemas de claves:
     // - IGDB: hastily / normally / completely
@@ -423,6 +423,7 @@ Widget _buildTimeToBeatCard(
       ],
     );
   }
+
   Widget _buildInfoSection(String key, BuildContext context) {
     if (key == 'franchise') {
       if (collectionName == null && franchisesData.isEmpty) {
@@ -494,7 +495,9 @@ Widget _buildTimeToBeatCard(
                         ? ActionChip(
                             label: Text(
                               f['name'].toString(),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             backgroundColor: Theme.of(
                               context,
@@ -523,7 +526,9 @@ Widget _buildTimeToBeatCard(
                         : Chip(
                             label: Text(
                               f['name'].toString(),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             backgroundColor: Theme.of(
                               context,

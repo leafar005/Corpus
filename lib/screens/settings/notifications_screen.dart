@@ -150,7 +150,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: EdgeInsets.only(top: 16.0, bottom: getBottomSpacer(context), left: 16.0, right: 16.0),
+              padding: EdgeInsets.only(
+                top: 16.0,
+                bottom: getBottomSpacer(context),
+                left: 16.0,
+                right: 16.0,
+              ),
               children: [
                 // ── Amigos ────────────────────────────────────────────────
                 _buildSectionHeader('Amigos'),

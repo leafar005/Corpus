@@ -121,7 +121,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
             itemCount: myGames.length,
             itemBuilder: (context, index) {
               final userGame = myGames[index];
-              final gameData = Game.fromMap(userGame['games'] as Map<String, dynamic>);
+              final gameData = Game.fromMap(
+                userGame['games'] as Map<String, dynamic>,
+              );
               final rating = (userGame['rating'] ?? 0).toDouble();
 
               return GameCard(

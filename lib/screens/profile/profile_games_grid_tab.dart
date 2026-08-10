@@ -42,6 +42,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   bool _isInitialLoading = true;
   String? _error;
   String _searchQuery = '';
+  String? _currentStatus;
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
   GameFilters _filters = GameFilters(
@@ -52,8 +53,18 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   @override
   void initState() {
     super.initState();
+    _currentStatus = widget.status ?? 'beaten';
     initPagination(externalController: widget.scrollController);
     loadMore();
+  }
+
+  @override
+  void didUpdateWidget(ProfileGamesGridTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.status != oldWidget.status) {
+      _currentStatus = widget.status ?? 'beaten';
+      _refresh();
+    }
   }
 
   @override
@@ -145,9 +156,27 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
         }
       }
 
-      query = query.eq('status', widget.status ?? 'beaten');
-      if (widget.status == 'wishlist') {
-        query = query.neq('is_steam_only', true);
+      if (_currentStatus == 'completed') {
+        // Platino: filtramos buscando los game_ids en reviews que tengan completion_type = '100_percent'
+        final platinoReviews = await Supabase.instance.client
+            .from('reviews')
+            .select('game_id')
+            .eq('user_id', widget.userId)
+            .eq('completion_type', '100_percent');
+
+        final platinoGameIds = platinoReviews
+            .map((r) => r['game_id'] as int)
+            .toList();
+        if (platinoGameIds.isEmpty) {
+          query = query.inFilter('game_id', [-1]); // Forzar lista vacía
+        } else {
+          query = query.inFilter('game_id', platinoGameIds);
+        }
+      } else if (_currentStatus != null) {
+        query = query.eq('status', _currentStatus!);
+        if (_currentStatus == 'wishlist') {
+          query = query.neq('is_steam_only', true);
+        }
       }
 
       // Ordenar según los filtros (usando referencedTable y evitando reasignar el FilterBuilder a TransformBuilder)
@@ -244,9 +273,21 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     return SliverMainAxisGroup(
       slivers: [
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: _buildSearchBar(),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildStatusChips(),
+                    const SizedBox(height: 12),
+                    _buildSearchBar(),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
         _buildGridSliver(),
@@ -319,16 +360,74 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     );
   }
 
+  IconData _getIconForStatus(GameStatus status) {
+    switch (status) {
+      case GameStatus.wishlist:
+        return Icons.bookmark;
+      case GameStatus.playing:
+        return Icons.sports_esports;
+      case GameStatus.beaten:
+        return Icons.check_circle;
+      case GameStatus.completed:
+        return Icons.emoji_events;
+      case GameStatus.abandoned:
+        return Icons.cancel;
+      case GameStatus.paused:
+        return Icons.pause;
+    }
+  }
+
+  Widget _buildStatusChips() {
+    final validStatuses = GameStatus.values.where(
+      (s) => s != GameStatus.paused,
+    );
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: validStatuses.map((status) {
+          final isSelected = _currentStatus == status.dbValue;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ChoiceChip(
+              showCheckmark: false,
+              avatar: Icon(
+                _getIconForStatus(status),
+                size: 18,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              label: Text(status.label),
+              selected: isSelected,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() => _currentStatus = status.dbValue);
+                  _refresh();
+                }
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildGridSliver() {
     if (_isInitialLoading) {
-      return const SliverFillRemaining(
-        child: Center(child: CircularProgressIndicator()),
+      return SliverToBoxAdapter(
+        child: Container(
+          height: MediaQuery.of(context).size.height,
+          alignment: Alignment.center,
+          child: const CircularProgressIndicator(),
+        ),
       );
     }
 
     if (_games.isEmpty) {
-      return SliverFillRemaining(
-        child: Center(
+      return SliverToBoxAdapter(
+        child: Container(
+          height: MediaQuery.of(context).size.height,
+          alignment: Alignment.center,
           child: Padding(
             padding: const EdgeInsets.all(32.0),
             child: Text(
@@ -343,7 +442,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
       );
     }
 
-    return SliverPadding(
+    final grid = SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -380,5 +479,18 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
         }, childCount: _games.length + (hasMore ? 1 : 0)),
       ),
     );
+
+    if (_games.length < 20) {
+      return SliverMainAxisGroup(
+        slivers: [
+          grid,
+          SliverToBoxAdapter(
+            child: SizedBox(height: MediaQuery.of(context).size.height),
+          ),
+        ],
+      );
+    }
+
+    return grid;
   }
 }

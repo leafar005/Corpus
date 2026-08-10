@@ -99,10 +99,7 @@ class GameDetailsController extends ChangeNotifier {
 
   /// Origen: _fetchMetacritic, líneas 186-272.
   Future<void> fetchMetacritic() async {
-    final gameModel = Game.fromMap({
-      ...gameData,
-      ...enrichedData,
-    });
+    final gameModel = Game.fromMap({...gameData, ...enrichedData});
 
     if (gameModel.hasRecentMetacriticData) {
       metacriticScore = gameModel.metacriticScore;
@@ -116,7 +113,8 @@ class GameDetailsController extends ChangeNotifier {
     if (title.isEmpty) return;
 
     final gameId = gameData['id']?.toString();
-    final cachedSlug = gameData['metacritic_slug'] ?? enrichedData['metacritic_slug'];
+    final cachedSlug =
+        gameData['metacritic_slug'] ?? enrichedData['metacritic_slug'];
 
     isLoadingMetacritic = true;
     notifyListeners();
@@ -126,13 +124,18 @@ class GameDetailsController extends ChangeNotifier {
       if (gameId != null) payload['gameId'] = gameId;
       if (cachedSlug != null) payload['metacriticSlug'] = cachedSlug.toString();
 
-      final response = await _repo.client.functions.invoke('get-metacritic-score', body: payload);
+      final response = await _repo.client.functions.invoke(
+        'get-metacritic-score',
+        body: payload,
+      );
 
       if (response.status == 200 && response.data != null) {
         final data = response.data as Map<String, dynamic>;
         metacriticScore = data['metascore'] as int?;
         metacriticUrl = data['url'] as String?;
-        metacriticUserScore = data['user_score'] != null ? (data['user_score'] as num).toDouble() : null;
+        metacriticUserScore = data['user_score'] != null
+            ? (data['user_score'] as num).toDouble()
+            : null;
         metacriticCriticCount = data['critic_review_count'] as int?;
       }
     } catch (e) {

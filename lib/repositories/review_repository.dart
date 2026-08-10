@@ -59,9 +59,7 @@ class ReviewRepository {
   }) async {
     final result = await _client
         .from('user_games')
-        .select(
-          '*, users!user_games_user_id_fkey(*)',
-        )
+        .select('*, users!user_games_user_id_fkey(*)')
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .maybeSingle();
@@ -87,9 +85,9 @@ class ReviewRepository {
         .from('users')
         .select('id, username, avatar_url, display_name')
         .inFilter('id', allIds.toList());
-    
+
     final Map<String, Map<String, dynamic>> userMap = {
-      for (final u in users) u['id'] as String: u
+      for (final u in users) u['id'] as String: u,
     };
 
     for (final item in items) {
@@ -121,16 +119,14 @@ class ReviewRepository {
   }) async {
     final response = await _client
         .from('reviews')
-        .select(
-          '*, review_likes(user_id), review_comments(id)',
-        )
+        .select('*, review_likes(user_id), review_comments(id)')
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .order('created_at', ascending: false);
-    
+
     final items = List<Map<String, dynamic>>.from(response);
     await injectPartners(items);
-    
+
     return items.map(Review.fromMap).toList();
   }
 

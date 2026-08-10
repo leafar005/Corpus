@@ -76,7 +76,11 @@ void main() {
     testWidgets(
       'Muestra un icono genérico (Icons.videogame_asset) cuando la URL de la carátula es nula o vacía',
       (WidgetTester tester) async {
-        final gameMock = {'id': 3, 'title': 'Juego Sin Carátula', 'cover_url': ''};
+        final gameMock = {
+          'id': 3,
+          'title': 'Juego Sin Carátula',
+          'cover_url': '',
+        };
 
         await tester.pumpWidget(
           MaterialApp(

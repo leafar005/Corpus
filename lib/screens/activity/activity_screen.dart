@@ -194,9 +194,7 @@ class _ActivityScreenState extends State<ActivityScreen>
         try {
           final reviewsResp = await _supabase
               .from('reviews')
-              .select(
-                '*, review_likes(user_id), review_comments(id)',
-              )
+              .select('*, review_likes(user_id), review_comments(id)')
               .inFilter('id', reviewIds);
           final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
           await ReviewRepository().injectPartners(reviewsList);
@@ -222,9 +220,7 @@ class _ActivityScreenState extends State<ActivityScreen>
         try {
           final ugResp = await _supabase
               .from('user_games')
-              .select(
-                'user_id, game_id, partner_ids',
-              )
+              .select('user_id, game_id, partner_ids')
               .inFilter('user_id', userIds)
               .inFilter('game_id', gameIds);
 
@@ -234,16 +230,21 @@ class _ActivityScreenState extends State<ActivityScreen>
             final ids = ug['partner_ids'];
             if (ids is List) allPartnerIds.addAll(ids.map((e) => e.toString()));
           }
-          final usersData = allPartnerIds.isNotEmpty 
-              ? await _supabase.from('users').select('id, username, avatar_url').inFilter('id', allPartnerIds.toList()) 
+          final usersData = allPartnerIds.isNotEmpty
+              ? await _supabase
+                    .from('users')
+                    .select('id, username, avatar_url')
+                    .inFilter('id', allPartnerIds.toList())
               : [];
           final userMap = {for (var u in usersData) u['id'] as String: u};
 
           for (final ug in items) {
             final ids = ug['partner_ids'];
             if (ids is List && ids.isNotEmpty) {
-              partnersByUserGame['${ug['user_id']}_${ug['game_id']}'] =
-                  ids.map((id) => userMap[id.toString()]).where((u) => u != null).toList();
+              partnersByUserGame['${ug['user_id']}_${ug['game_id']}'] = ids
+                  .map((id) => userMap[id.toString()])
+                  .where((u) => u != null)
+                  .toList();
             }
           }
         } catch (_) {}
@@ -459,7 +460,7 @@ class _ActivityScreenState extends State<ActivityScreen>
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'beaten':
-        return Icons.emoji_events;
+        return Icons.check_circle;
       case 'playing':
         return Icons.sports_esports;
       case 'wishlist':
@@ -508,7 +509,7 @@ class _ActivityScreenState extends State<ActivityScreen>
     if (actionType == 'achievement') return Icons.emoji_events_rounded;
     switch (status) {
       case 'beaten':
-        return Icons.emoji_events;
+        return Icons.check_circle;
       case 'playing':
         return Icons.sports_esports;
       case 'wishlist':
@@ -1299,7 +1300,9 @@ class _ActivityScreenState extends State<ActivityScreen>
                   ? ListView(
                       controller: scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.only(bottom: getBottomSpacer(context)),
+                      padding: EdgeInsets.only(
+                        bottom: getBottomSpacer(context),
+                      ),
 
                       children: [
                         _buildFriendsHeaderSection(),
@@ -1309,7 +1312,9 @@ class _ActivityScreenState extends State<ActivityScreen>
                   : ListView.builder(
                       controller: scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.only(bottom: getBottomSpacer(context)),
+                      padding: EdgeInsets.only(
+                        bottom: getBottomSpacer(context),
+                      ),
 
                       itemCount: _activities.length + 1 + (hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
