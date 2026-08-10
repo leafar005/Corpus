@@ -22,6 +22,11 @@ class TypewriterText extends StatefulWidget {
   /// (o inmediatamente, tras el primer frame, si [instant] es true).
   final VoidCallback? onComplete;
 
+  /// Renderizado personalizado del texto visible. Si se define, sustituye al
+  /// [RichText] por defecto — útil para estilos por letra (p. ej. P5R).
+  final Widget Function(BuildContext context, String visibleText, bool finished)?
+      customBuilder;
+
   const TypewriterText({
     super.key,
     required this.spans,
@@ -33,6 +38,7 @@ class TypewriterText extends StatefulWidget {
     this.overflow = TextOverflow.clip,
     this.instant = false,
     this.onComplete,
+    this.customBuilder,
   });
 
   @override
@@ -243,8 +249,42 @@ class _TypewriterTextState extends State<TypewriterText>
     return result;
   }
 
+  String get _visiblePlainText {
+    final end = _visibleChars.clamp(0, _currentPlainText.length);
+    return _currentPlainText.substring(0, end);
+  }
+
+  Widget _buildCursor() {
+    return FadeTransition(
+      opacity: _cursorController,
+      child: Container(
+        width: 3,
+        height: (widget.style?.fontSize ?? 24) * 0.85,
+        margin: const EdgeInsets.only(left: 2, top: 4),
+        color: widget.style?.color ?? Colors.white,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.customBuilder != null) {
+      final content = widget.customBuilder!(
+        context,
+        _visiblePlainText,
+        _finished,
+      );
+      if (!widget.showCursor || _finished) return content;
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          content,
+          _buildCursor(),
+        ],
+      );
+    }
+
     return RichText(
       textAlign: widget.textAlign,
       maxLines: widget.maxLines,

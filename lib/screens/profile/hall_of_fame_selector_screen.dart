@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class HallOfFameSelectorScreen extends StatefulWidget {
   final int pinOrder;
@@ -102,10 +104,7 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(
-          'Pin #${widget.pinOrder}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: CorpusScreenTitle('Pin #${widget.pinOrder}'),
         backgroundColor: Theme.of(context).colorScheme.surface,
         actions: [
           IconButton(
@@ -172,7 +171,7 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                           onTap: () =>
                               _selectGame(game['igdb_id'] ?? game['id']),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                             child: coverUrl.isNotEmpty
                                 ? Image.network(coverUrl, fit: BoxFit.cover)
                                 : Container(

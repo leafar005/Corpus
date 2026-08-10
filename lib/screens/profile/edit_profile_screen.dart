@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'hall_of_fame_selector_screen.dart';
 import '../../utils/image_compressor.dart';
+import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userProfile;
@@ -274,10 +276,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Editar Perfil'),
+        title: const CorpusScreenTitle('Editar Perfil'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -438,10 +441,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Nombre a mostrar (Público)',
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -454,22 +457,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       fillColor: Theme.of(
                                         context,
                                       ).colorScheme.surface,
-                                      prefixIcon: const Icon(
+                                      prefixIcon: Icon(
                                         Icons.person,
-                                        color: Colors.grey,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: ext.radiusMedium,
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
                                   ),
                                   const SizedBox(height: 24),
 
-                                  const Text(
+                                  Text(
                                     'Nombre de usuario (Único)',
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -482,12 +485,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       fillColor: Theme.of(
                                         context,
                                       ).colorScheme.surface,
-                                      prefixIcon: const Icon(
+                                      prefixIcon: Icon(
                                         Icons.alternate_email,
-                                        color: Colors.grey,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: ext.radiusMedium,
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
@@ -507,10 +510,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   ),
                                   const SizedBox(height: 24),
 
-                                  const Text(
+                                  Text(
                                     'Correo Electrónico (Inicio de sesión)',
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -524,12 +527,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       fillColor: Theme.of(
                                         context,
                                       ).colorScheme.surface,
-                                      prefixIcon: const Icon(
+                                      prefixIcon: Icon(
                                         Icons.email,
-                                        color: Colors.grey,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: ext.radiusMedium,
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
@@ -544,10 +547,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   ),
                                   const SizedBox(height: 24),
 
-                                  const Text(
+                                  Text(
                                     'Biografía',
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -563,17 +566,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         context,
                                       ).colorScheme.surface,
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: ext.radiusMedium,
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
                                   ),
                                   const SizedBox(height: 24),
 
-                                  const Text(
+                                  Text(
                                     'Plataformas (Mantén pulsado para ordenar)',
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -607,7 +610,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           case 'pc':
                                             return _buildPlatformBadge(
                                               'pc',
-                                              Colors.grey.shade300,
+                                              Theme.of(context).colorScheme.onSurfaceVariant,
                                               icon: Icons.computer,
                                               key: const ValueKey('pc'),
                                             );
@@ -648,7 +651,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           case 'wii':
                                             return _buildPlatformBadge(
                                               'wii',
-                                              Colors.grey.shade400,
+                                              Theme.of(context).colorScheme.onSurfaceVariant,
                                               imagePath:
                                                   'assets/images/wii.png',
                                               key: const ValueKey('wii'),
@@ -656,7 +659,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           case 'mac':
                                             return _buildPlatformBadge(
                                               'mac',
-                                              Colors.grey.shade800,
+                                              Theme.of(context).colorScheme.onSurfaceVariant,
                                               imagePath:
                                                   'assets/images/mac.png',
                                               key: const ValueKey('mac'),
@@ -761,11 +764,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 imagePath,
                 width: 30,
                 height: 30,
-                color: isSelected ? activeColor : Colors.grey,
+                color: isSelected ? activeColor : Theme.of(context).colorScheme.onSurfaceVariant,
               )
             : Icon(
                 icon,
-                color: isSelected ? activeColor : Colors.grey,
+                color: isSelected ? activeColor : Theme.of(context).colorScheme.onSurfaceVariant,
                 size: 30,
               ),
       ),
@@ -778,9 +781,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Hall of Fame (Toca para editar)',
-            style: TextStyle(color: Colors.grey, fontSize: 14),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
           ),
           const SizedBox(height: 12),
           Center(
@@ -873,7 +876,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                                   ? Colors.amber.withValues(
                                                       alpha: 0.8,
                                                     )
-                                                  : Colors.grey,
+                                                  : Theme.of(context).colorScheme.onSurfaceVariant,
                                             ),
                                           ),
                                   ),

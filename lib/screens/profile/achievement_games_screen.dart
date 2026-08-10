@@ -5,6 +5,7 @@ import '../../models/models.dart';
 import '../../widgets/milestone_progress_bar.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/widgets/game_card.dart';
+import 'package:corpus/widgets/corpus_section_title.dart';
 
 class AchievementGamesScreen extends StatefulWidget {
   final String achievementId;
@@ -577,7 +578,7 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.achievementName)),
+      appBar: AppBar(title: CorpusScreenTitle(widget.achievementName)),
       body: _results.isEmpty && _isLoading
           ? const Center(child: CircularProgressIndicator())
           : CustomScrollView(

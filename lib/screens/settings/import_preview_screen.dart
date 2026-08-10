@@ -3,6 +3,7 @@ import 'package:corpus/services/import_service.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/screens/library/review_modal.dart';
+import 'package:corpus/widgets/corpus_section_title.dart';
 
 class ImportPreviewScreen extends StatefulWidget {
   final List<CsvGameRow> rows;
@@ -124,7 +125,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Revisar Importación'),
+        title: const CorpusScreenTitle('Revisar Importación'),
         bottom: hasTabs
             ? TabBar(
                 controller: _tabController,
@@ -281,7 +282,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                       height: 60,
                       fit: BoxFit.cover,
                     )
-                  : Container(width: 45, height: 60, color: Colors.grey),
+                  : Container(width: 45, height: 60, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             title: Text(
               game['name'] ?? row.title,
@@ -321,9 +322,9 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Selecciona la opción correcta de IGDB:',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(

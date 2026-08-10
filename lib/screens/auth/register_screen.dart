@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -77,8 +79,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Crear cuenta')),
+      appBar: AppBar(title: const CorpusScreenTitle('Crear cuenta')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
@@ -95,7 +98,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: 'Nombre de usuario (ej: MasterChief99)',
                     prefixIcon: const Icon(Icons.person),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                     ),
                   ),
                   textInputAction: TextInputAction.next,
@@ -108,7 +111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: 'Correo electrónico',
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                     ),
                   ),
                   keyboardType: TextInputType.emailAddress,
@@ -122,7 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: 'Contraseña (mínimo 6 caracteres)',
                     prefixIcon: const Icon(Icons.lock),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                     ),
                   ),
                   obscureText: true,
@@ -135,7 +138,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                     ),
                   ),
                   child: _isLoading

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/globals.dart';
+import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class HomeAppearanceScreen extends StatefulWidget {
   const HomeAppearanceScreen({super.key});
@@ -235,7 +237,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Personalizar Inicio'),
+        title: const CorpusScreenTitle('Personalizar Inicio'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -285,7 +287,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                         border: Border.all(
                           color: Theme.of(
                             context,
@@ -296,14 +298,14 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                         leading: Icon(
                           itemIcons[key],
                           color: _hiddenItems.contains(key)
-                              ? Colors.grey
+                              ? Theme.of(context).colorScheme.onSurfaceVariant
                               : Theme.of(context).colorScheme.primary,
                         ),
                         title: Text(
                           itemLabels[key] ?? key,
                           style: TextStyle(
                             color: _hiddenItems.contains(key)
-                                ? Colors.grey
+                                ? Theme.of(context).colorScheme.onSurfaceVariant
                                 : null,
                             decoration: _hiddenItems.contains(key)
                                 ? TextDecoration.lineThrough

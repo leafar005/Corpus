@@ -3,7 +3,10 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
+import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../widgets/corpus_primary_button.dart';
+import '../../widgets/corpus_section_title.dart';
 import '../../widgets/typewriter_text.dart';
 import '../library/game_details_screen.dart';
 
@@ -390,31 +393,16 @@ class _HeroShowcaseState extends State<HeroShowcase>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          TypewriterText(
+                          CorpusHeroTitle(
+                            prefix: 'Bienvenido,',
+                            highlight: widget.userName,
+                            animated: true,
                             instant: _titleTyped,
-                            onComplete: () {
+                            onAnimationComplete: () {
                               if (!_titleTyped && mounted) {
                                 setState(() => _titleTyped = true);
                               }
                             },
-                            style: TextStyle(
-                              fontSize: isPortrait ? 42 : 48,
-                              fontWeight: FontWeight.w900,
-                              height: 1.1,
-                              letterSpacing: -1,
-                            ),
-                            spans: [
-                              const TextSpan(
-                                text: 'Bienvenido,\n',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              TextSpan(
-                                text: widget.userName,
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ],
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
@@ -465,25 +453,10 @@ class _HeroShowcaseState extends State<HeroShowcase>
                             ),
                           ),
                           const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: () => _navigateToGameDetails(
-                              gameData,
-                              coverUrl,
-                              true,
-                            ),
-                            icon: const Icon(Icons.edit, size: 20),
-                            label: const Text('Editar reseña'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
+                          CorpusPrimaryButton(
+                            onPressed: () => _navigateToGameDetails(gameData, coverUrl, true),
+                            icon: Icons.edit,
+                            label: 'Editar reseña',
                           ),
                         ],
                       );
@@ -510,7 +483,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                 ],
                               ),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                                 child: coverUrl.isNotEmpty
                                     ? Image.network(
                                         coverUrl,
@@ -520,14 +493,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                             : 240,
                                       )
                                     : Container(
-                                        width: isPortrait
-                                            ? constraints.maxWidth * 0.38
-                                            : 240,
-                                        height: isPortrait
-                                            ? (constraints.maxWidth * 0.38) *
-                                                  1.4
-                                            : 340,
-                                        color: Colors.grey,
+                                        width: isPortrait ? constraints.maxWidth * 0.38 : 240,
+                                        height: isPortrait ? (constraints.maxWidth * 0.38) * 1.4 : 340,
+                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                       ),
                               ),
                             ),
@@ -777,8 +745,9 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                     children: [
                       TypewriterText(
                         style: TextStyle(
+                          fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
+                          fontWeight: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontWeight ?? FontWeight.w900,
                           fontSize: isPortrait ? 42 : 48,
-                          fontWeight: FontWeight.w900,
                           height: 1.1,
                           letterSpacing: -1,
                           color: Colors.white,
@@ -797,21 +766,13 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                         ],
                       ),
                       const SizedBox(height: 24),
-                      ElevatedButton.icon(
+                      CorpusPrimaryButton(
                         onPressed: () => openLoginScreen(context),
-                        icon: const Icon(Icons.login, size: 20),
-                        label: const Text('Iniciar sesión'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          textStyle: const TextStyle(fontSize: 18),
+                        icon: Icons.login,
+                        label: 'Iniciar sesión',
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
                         ),
                       ),
                     ],
@@ -1064,28 +1025,15 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TypewriterText(
-                    style: TextStyle(
-                      fontSize: isPortrait ? 42 : 48,
-                      fontWeight: FontWeight.w900,
-                      height: 1.1,
-                      letterSpacing: -1,
-                    ),
-                    spans: [
-                      const TextSpan(
-                        text: 'Bienvenido,\n',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      TextSpan(
-                        text: widget.userName,
-                        style: TextStyle(color: Theme.of(context).primaryColor),
-                      ),
-                    ],
+                  CorpusHeroTitle(
+                    prefix: 'Bienvenido,',
+                    highlight: widget.userName,
                   ),
                   const SizedBox(height: 16),
                   TypewriterText(
                     baseCharDuration: const Duration(milliseconds: 15),
                     style: TextStyle(
+                      fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
                       fontSize: isPortrait ? 20 : 22,
                       fontWeight: FontWeight.w500,
                       color: Colors.white70,
@@ -1093,21 +1041,10 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                     spans: const [TextSpan(text: '¿Qué vas a jugar hoy?')],
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton.icon(
+                  CorpusPrimaryButton(
                     onPressed: widget.onSearchPressed,
-                    icon: const Icon(Icons.search, size: 20),
-                    label: const Text('Buscar un juego'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
+                    icon: Icons.search,
+                    label: 'Buscar un juego',
                   ),
                 ],
               );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../profile/profile_screen.dart';
+import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 /// Pantalla de gestión de amigos: buscar por username, ver solicitudes,
 /// ver amigos aceptados y eliminar amistades.
@@ -297,7 +299,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                     )
                   : null,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               filled: true,
             ),
@@ -559,7 +561,7 @@ class _FriendsScreenState extends State<FriendsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Amigos'),
+        title: const CorpusScreenTitle('Amigos'),
         bottom: TabBar(
           controller: _tabController,
           tabs: [

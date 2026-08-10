@@ -11,6 +11,9 @@ import '../../services/igdb_service.dart';
 import '../library/game_details_screen.dart';
 import 'hero_showcase.dart';
 import 'anticipated_games_section.dart';
+import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
+import '../../widgets/p5r_styled_panel.dart';
 
 // ─── Modelos de datos por fase ──────────────────────────────────────────────
 
@@ -369,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: kIsWeb
           ? null
           : AppBar(
-              title: const Text('Inicio'),
+              title: const CorpusScreenTitle('Inicio'),
               backgroundColor: Colors.black.withValues(alpha: 0.5),
               elevation: 0,
             ),
@@ -537,13 +540,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Oportunidades Finales',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          CorpusSectionTitle('Oportunidades Finales'),
           const SizedBox(height: 16),
           SizedBox(
-            height: 220,
+            height: _isDesktop ? 220 : 240,
             child: Stack(
               children: [
                 PageView.builder(
@@ -614,172 +614,177 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }
 
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.3),
+                    final isP5r = Theme.of(context)
+                        .extension<CorpusThemeExtension>()!
+                        .useDynamicFrames;
+
+                    final bundleInfo = MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (widget.onNavigateToBundles != null) {
+                            widget.onNavigateToBundles!(
+                              bundle['title'] ?? '',
+                            );
+                          } else if (bundle['url'] != null) {
+                            launchUrl(Uri.parse(bundle['url']));
+                          }
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              bundle['store_name'] ?? 'Tienda',
+                              style: TextStyle(
+                                color: isP5r
+                                    ? Colors.white54
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.7),
+                                fontSize: 13,
+                                letterSpacing: isP5r ? 1.0 : 0,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              bundle['title'] ?? 'Bundle',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isP5r ? 20 : 22,
+                                color: isP5r
+                                    ? Colors.white
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurface,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 12),
+                            if (isP5r)
+                              P5rTextBadge(
+                                text: '$days días',
+                              )
+                            else
+                              Text(
+                                'Termina en $days días y $hours horas',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.orangeAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  height: 1.2,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: Row(
-                              children: [
-                                if (_isDesktop) ...[
-                                  storeIcon,
-                                  const SizedBox(width: 16),
-                                ],
-                                Flexible(
-                                  child: MouseRegion(
-                                    cursor: SystemMouseCursors.click,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        if (widget.onNavigateToBundles !=
-                                            null) {
-                                          widget.onNavigateToBundles!(
-                                            bundle['title'] ?? '',
-                                          );
-                                        } else if (bundle['url'] != null) {
-                                          launchUrl(Uri.parse(bundle['url']));
-                                        }
-                                      },
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            bundle['store_name'] ?? 'Tienda',
-                                            style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface
-                                                  .withValues(alpha: 0.7),
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            bundle['title'] ?? 'Bundle',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 22,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            'Termina en $days días y $hours horas',
-                                            style: const TextStyle(
-                                              color: Colors.orangeAccent,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (allGames.isNotEmpty) ...[
-                            const SizedBox(width: 16),
-                            Expanded(
-                              flex: 5,
-                              child: _isDesktop
-                                  ? LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        final int maxFit =
-                                            (constraints.maxWidth + 8) ~/
-                                            (coverWidth + 8);
-                                        final int renderCount =
-                                            maxFit < allGames.length
-                                            ? maxFit
-                                            : allGames.length;
-                                        final visibleGames = allGames
-                                            .take(renderCount)
-                                            .toList();
+                    );
 
-                                        return Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          children: [
-                                            for (
-                                              int i = 0;
-                                              i < visibleGames.length;
-                                              i++
-                                            ) ...[
-                                              if (i > 0)
-                                                const SizedBox(width: 8),
-                                              SizedBox(
-                                                width: coverWidth,
-                                                child: GameCard(
-                                                  key: ValueKey(
-                                                    visibleGames[i]['steamAppId'] ??
-                                                        visibleGames[i]['title'] ??
-                                                        i,
-                                                  ),
-                                                  game: Game.fromMap(
-                                                    visibleGames[i],
-                                                  ),
-                                                  onReturn: () {},
-                                                ),
-                                              ),
-                                            ],
-                                          ],
+                    return CorpusStyledPanel(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.all(16),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          const coverGap = 8.0;
+                          const minTextWidth = 150.0;
+                          final storeIconWidth = _isDesktop ? 48.0 + 12.0 : 0.0;
+                          final mobileCoverGridWidth = 132.0;
+
+                          int desktopCoverCount = allGames.length;
+                          if (_isDesktop && allGames.isNotEmpty) {
+                            desktopCoverCount = 1;
+                            for (
+                              int count = allGames.length;
+                              count >= 1;
+                              count--
+                            ) {
+                              final coversWidth =
+                                  count * coverWidth + (count - 1) * coverGap;
+                              final reservedWidth =
+                                  storeIconWidth + 12 + coversWidth;
+                              if (constraints.maxWidth - reservedWidth >=
+                                  minTextWidth) {
+                                desktopCoverCount = count;
+                                break;
+                              }
+                            }
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              if (_isDesktop) ...[
+                                storeIcon,
+                                const SizedBox(width: 12),
+                              ],
+                              Expanded(child: bundleInfo),
+                              if (allGames.isNotEmpty) ...[
+                                const SizedBox(width: 12),
+                                if (_isDesktop)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      for (
+                                        int i = 0;
+                                        i < desktopCoverCount;
+                                        i++
+                                      ) ...[
+                                        if (i > 0) const SizedBox(width: 8),
+                                        SizedBox(
+                                          width: coverWidth,
+                                          child: GameCard(
+                                            key: ValueKey(
+                                              allGames[i]['steamAppId'] ??
+                                                  allGames[i]['title'] ??
+                                                  i,
+                                            ),
+                                            game: Game.fromMap(allGames[i]),
+                                            onReturn: () {},
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  )
+                                else
+                                  SizedBox(
+                                    width: mobileCoverGridWidth,
+                                    child: GridView.builder(
+                                      padding: EdgeInsets.zero,
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      gridDelegate:
+                                          const SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: 2,
+                                            mainAxisSpacing: 6,
+                                            crossAxisSpacing: 6,
+                                            childAspectRatio: 0.7,
+                                          ),
+                                      itemCount: allGames.length > 4
+                                          ? 4
+                                          : allGames.length,
+                                      itemBuilder: (context, index) {
+                                        return GameCard(
+                                          key: ValueKey(
+                                            allGames[index]['steamAppId'] ??
+                                                allGames[index]['title'] ??
+                                                index,
+                                          ),
+                                          game: Game.fromMap(allGames[index]),
+                                          onReturn: () {},
                                         );
                                       },
-                                    )
-                                  : Align(
-                                      alignment: Alignment.centerRight,
-                                      child: SizedBox(
-                                        width: 190,
-                                        child: GridView.builder(
-                                          padding: EdgeInsets.zero,
-                                          shrinkWrap: true,
-                                          physics:
-                                              const NeverScrollableScrollPhysics(),
-                                          gridDelegate:
-                                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                                crossAxisCount: 3,
-                                                mainAxisSpacing: 6,
-                                                crossAxisSpacing: 6,
-                                                childAspectRatio: 0.7,
-                                              ),
-                                          itemCount: allGames.length > 6
-                                              ? 6
-                                              : allGames.length,
-                                          itemBuilder: (context, index) {
-                                            return GameCard(
-                                              key: ValueKey(
-                                                allGames[index]['steamAppId'] ??
-                                                    allGames[index]['title'] ??
-                                                    index,
-                                              ),
-                                              game: Game.fromMap(
-                                                allGames[index],
-                                              ),
-                                              onReturn: () {},
-                                            );
-                                          },
-                                        ),
-                                      ),
                                     ),
-                            ),
-                          ],
-                        ],
+                                  ),
+                              ],
+                            ],
+                          );
+                        },
                       ),
                     );
                   },
@@ -1055,181 +1060,159 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       key: const ValueKey('stash_activity_loaded'),
       color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(16.0, 48.0, 16.0, 48.0),
+      padding: const EdgeInsets.symmetric(vertical: 48.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Actividad Global de Stash',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: CorpusSectionTitle('Actividad Global de Stash'),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           SizedBox(
             height: 180,
             child: Stack(
+              clipBehavior: Clip.none,
               children: [
                 ListView.builder(
+                  clipBehavior: Clip.none,
                   controller: _latestReviewsScrollController,
                   scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(left: 16.0),
                   itemCount: latestReviews.length,
                   itemBuilder: (context, index) {
                     final review = latestReviews[index];
                     final game = review['games'];
                     final comment = review['comment'] ?? '';
                     const commentStyle = TextStyle(fontSize: 13);
-                    // Ancho real disponible para el texto: 280 (card) - 24 (padding horizontal)
-                    final isTruncated = _isTextTruncated(
-                      comment,
-                      commentStyle,
-                      280 - 24,
-                      4,
-                    );
+                    final isTruncated = _isTextTruncated(comment, commentStyle, 280 - 24, 4);
 
                     return GestureDetector(
                       onTap: () => _showFullReviewSheet(review, game),
-                      child: Container(
-                        width: 280,
-                        margin: const EdgeInsets.only(right: 16),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainer,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.outlineVariant,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: SizedBox(
+                          width: 280,
+                          child: CorpusStyledPanel(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (game?['cover_url'] != null)
-                                  InkWell(
-                                    onTap: () {
-                                      if (review['game_id'] != null) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                GameDetailsScreen(
+                                Row(
+                                  children: [
+                                    if (game?['cover_url'] != null)
+                                      InkWell(
+                                        onTap: () {
+                                          if (review['game_id'] != null) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => GameDetailsScreen(
                                                   gameData: {
                                                     'id': review['game_id'],
                                                     if (game?['title'] != null)
                                                       'title': game!['title'],
-                                                    if (game?['cover_url'] !=
-                                                        null)
-                                                      'cover_url':
-                                                          game!['cover_url'],
+                                                    if (game?['cover_url'] != null)
+                                                      'cover_url': game!['cover_url'],
                                                   },
                                                 ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        child: ClipRRect(
+                                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                                          child: Image.network(
+                                            game['cover_url'],
+                                            width: 40,
+                                            height: 50,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) =>
+                                                const Icon(Icons.videogame_asset),
                                           ),
-                                        );
-                                      }
-                                    },
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        game['cover_url'],
-                                        width: 40,
-                                        height: 50,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, _, _) =>
-                                            const Icon(Icons.videogame_asset),
+                                        ),
+                                      ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            game?['title'] ?? 'Juego Desconocido',
+                                            style: const TextStyle(fontWeight: FontWeight.bold),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Row(
+                                            children: [
+                                              if (review['stash_user_avatar_url'] != null)
+                                                CircleAvatar(
+                                                  radius: 8,
+                                                  backgroundImage: NetworkImage(
+                                                    review['stash_user_avatar_url'],
+                                                  ),
+                                                  onBackgroundImageError: (_, _) {},
+                                                )
+                                              else
+                                                const Icon(Icons.person, size: 16),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  review['stash_user_display_name'] ?? 'Usuario',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        game?['title'] ?? 'Juego Desconocido',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                    if (review['rating'] != null)
                                       Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          if (review['stash_user_avatar_url'] !=
-                                              null)
-                                            CircleAvatar(
-                                              radius: 8,
-                                              backgroundImage: NetworkImage(
-                                                review['stash_user_avatar_url'],
-                                              ),
-                                              onBackgroundImageError: (_, _) {},
-                                            )
-                                          else
-                                            const Icon(Icons.person, size: 16),
+                                          const Icon(Icons.star, size: 14, color: Colors.amber),
                                           const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              review['stash_user_display_name'] ??
-                                                  'Usuario',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.onSurfaceVariant,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
+                                          Text(
+                                            review['rating'].toString(),
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Expanded(
+                                  child: Text(
+                                    comment,
+                                    style: commentStyle,
+                                    maxLines: 4,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (review['rating'] != null)
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.star,
-                                        size: 14,
-                                        color: Colors.amber,
+                                if (isTruncated)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Leer más',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context).colorScheme.primary,
                                       ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        review['rating'].toString(),
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 12),
-                            Expanded(
-                              child: Text(
-                                comment,
-                                style: commentStyle,
-                                maxLines: 4,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (isTruncated)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  'Leer más',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                  ),
-                                ),
-                              ),
-                          ],
+                          ),
                         ),
                       ),
                     );
@@ -1346,18 +1329,21 @@ class _SectionShimmerState extends State<_SectionShimmer>
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 48, 16, 48),
+      padding: const EdgeInsets.symmetric(vertical: 48),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AnimatedBuilder(
-            animation: _anim,
-            builder: (_, child) => Container(
-              width: 220,
-              height: 20,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: _anim.value),
-                borderRadius: BorderRadius.circular(6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: AnimatedBuilder(
+              animation: _anim,
+              builder: (context, child) => Container(
+                width: 220,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: _anim.value),
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
           ),
@@ -1365,16 +1351,18 @@ class _SectionShimmerState extends State<_SectionShimmer>
           SizedBox(
             height: 160,
             child: ListView.builder(
+              clipBehavior: Clip.none,
               scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(left: 16),
               itemCount: 4,
               itemBuilder: (_, child) => AnimatedBuilder(
                 animation: _anim,
-                builder: (_, child2) => Container(
+                builder: (context, child2) => Container(
                   width: 260,
                   margin: const EdgeInsets.only(right: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: _anim.value),
-                    borderRadius: BorderRadius.circular(16),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: _anim.value),
+                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
                   ),
                 ),
               ),

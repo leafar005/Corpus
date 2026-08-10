@@ -18,10 +18,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'group_games_screen.dart';
 import '../../widgets/achievement_toast.dart';
+import '../../theme/corpus_theme_extension.dart';
 import 'review_modal.dart';
 import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../widgets/corpus_primary_button.dart';
 import '../../widgets/full_screen_gallery.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -1452,35 +1454,23 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     return Row(
       children: [
         Expanded(
-          child: SizedBox(
+          child: CorpusPrimaryButton(
+            onPressed: () {
+              if (_inLibrary) {
+                _showReviewModal(
+                  existingReview: _reviews.isNotEmpty ? _reviews.first : null,
+                );
+              } else {
+                _showReviewModal();
+              }
+            },
+            icon: icon,
+            label: text,
+            backgroundColor: color,
+            foregroundColor: textColor,
+            expand: true,
             height: 50,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                if (_inLibrary) {
-                  _showReviewModal(
-                    existingReview: _reviews.isNotEmpty ? _reviews.first : null,
-                  );
-                } else {
-                  _showReviewModal();
-                }
-              },
-              icon: Icon(icon, color: textColor),
-              label: Text(
-                text,
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
+            elevation: _inLibrary ? 0 : 2,
           ),
         ),
         if (_inLibrary) ...[
@@ -1491,14 +1481,14 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
               ),
               child: PopupMenuButton<String>(
                 padding: EdgeInsets.zero,
                 icon: const Icon(Icons.more_vert),
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                 ),
                 onSelected: (value) {
                   if (value == 'edit') {
@@ -1639,7 +1629,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -2116,7 +2106,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               margin: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                 border: Border.all(
                   color: Theme.of(
                     context,
@@ -2125,7 +2115,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               ),
               child: Material(
                 type: MaterialType.transparency,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
                 clipBehavior: Clip.antiAlias,
                 child: ListTile(
                   leading: Container(
@@ -2133,11 +2123,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     height: 32,
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(8),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: Theme.of(context)
+                          .extension<CorpusThemeExtension>()!
+                          .radiusSmall,
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
@@ -2345,9 +2336,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       } catch (_) {}
     }
 
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final Widget coverArtWidget = Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: ext.radiusMedium,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.5),
@@ -2357,7 +2349,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: ext.radiusMedium,
         child: highResCoverUrl.isNotEmpty
             ? Image.network(highResCoverUrl, fit: BoxFit.cover)
             : Container(color: Theme.of(context).primaryColorDark, height: 350),
@@ -2459,7 +2451,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: catColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ext.radiusMedium,
                       border: Border.all(
                         color: catColor.withValues(alpha: 0.5),
                       ),
@@ -2503,7 +2495,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 ).colorScheme.primary.withValues(alpha: 0.4),
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: ext.radiusLarge,
               ),
               onPressed: () =>
                   _navigateToOriginalGame(originalGame.id, originalGame.name),

@@ -59,9 +59,9 @@ class _SteamImportSetupScreenState extends State<SteamImportSetupScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Solo se importarán los juegos que superen el tiempo mínimo de juego que elijas. Esto evita llenar tu biblioteca de juegos que apenas probaste.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 32),
             Row(

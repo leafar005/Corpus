@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../activity/review_details_screen.dart';
 import '../../../models/models.dart';
 import '../../../widgets/coop_badge.dart';
+import '../../../theme/corpus_theme_extension.dart';
 
 class GameReviewsCard extends StatelessWidget {
   const GameReviewsCard({
@@ -95,7 +96,7 @@ class GameReviewsCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
         border: Border.all(
           color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
         ),
@@ -252,7 +253,7 @@ class GameReviewsCard extends StatelessWidget {
               color: Theme.of(
                 context,
               ).colorScheme.surface.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
               border: Border.all(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
@@ -271,8 +272,8 @@ class GameReviewsCard extends StatelessWidget {
                         children: [
                           Text(
                             statusText,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
@@ -416,7 +417,7 @@ class GameReviewsCard extends StatelessWidget {
                               idx,
                             ),
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
                               child: Image.network(
                                 imageUrls[idx],
                                 height: 100,

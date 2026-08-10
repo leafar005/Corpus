@@ -14,6 +14,7 @@ void main() {
       'Actualiza currentMode a ThemeMode.dark y emite evento de cambio',
       () async {
         final notifier = ThemeNotifier();
+        await notifier.initialize();
         bool notified = false;
         notifier.addListener(() {
           notified = true;
@@ -30,6 +31,7 @@ void main() {
       'Actualiza seedColor a Colors.green y emite evento de cambio',
       () async {
         final notifier = ThemeNotifier();
+        await notifier.initialize();
         bool notified = false;
         notifier.addListener(() {
           notified = true;
