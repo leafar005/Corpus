@@ -1270,8 +1270,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ValueListenableBuilder<bool>(
                   valueListenable: _canScrollRight,
                   builder: (context, canRight, _) {
-                    if (!_isDesktop || !canRight)
+                    if (!_isDesktop || !canRight) {
                       return const SizedBox.shrink();
+                    }
                     return Positioned(
                       right: 0,
                       top: 0,
