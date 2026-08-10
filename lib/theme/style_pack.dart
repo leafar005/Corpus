@@ -38,6 +38,9 @@ class StylePack {
   // ── P5R-style dynamic frames on buttons / nav ────────────────────────────
   final bool useDynamicFrames;
 
+  /// Relative path inside an imported `.corpuspack` bundle (e.g. `music/theme.m4a`).
+  final String? musicFile;
+
   const StylePack({
     required this.id,
     required this.name,
@@ -57,6 +60,7 @@ class StylePack {
     this.borderRadiusLarge = 16,
     this.navBarStyle = NavBarStyle.liquidGlass,
     this.useDynamicFrames = false,
+    this.musicFile,
   });
 
   /// The pack that reproduces the current Corpus UI exactly.
@@ -112,6 +116,7 @@ class StylePack {
           (json['borderRadiusLarge'] as num?)?.toDouble() ?? 16,
       navBarStyle: _navBarStyleFromString(json['navBarStyle'] as String?),
       useDynamicFrames: json['useDynamicFrames'] as bool? ?? false,
+      musicFile: json['musicFile'] as String?,
     );
   }
 
@@ -134,6 +139,7 @@ class StylePack {
     'borderRadiusLarge': borderRadiusLarge,
     'navBarStyle': navBarStyle.name,
     'useDynamicFrames': useDynamicFrames,
+    if (musicFile != null) 'musicFile': musicFile,
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────

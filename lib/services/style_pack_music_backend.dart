@@ -2,7 +2,9 @@
 abstract class StylePackMusicBackend {
   Future<void> init({required double volume});
 
-  Future<void> play(String assetPath);
+  Future<void> playAsset(String assetPath);
+
+  Future<void> playFile(String filePath);
 
   Future<void> stop();
 

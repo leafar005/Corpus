@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/style_pack_registry.dart';
 import 'style_pack_music_backend.dart';
 import 'style_pack_music_backend_io.dart'
     if (dart.library.html) 'style_pack_music_backend_web.dart' as backend;
@@ -11,10 +14,6 @@ import 'style_pack_music_backend_io.dart'
 class StylePackMusicService with WidgetsBindingObserver {
   StylePackMusicService._();
   static final StylePackMusicService instance = StylePackMusicService._();
-
-  static const _packMusicAssets = <String, String>{
-    'persona_5_royal': 'ost/persona5royal.m4a',
-  };
 
   static const _volume = 0.35;
 
@@ -67,9 +66,13 @@ class StylePackMusicService with WidgetsBindingObserver {
   /// the browser still counts it as a user gesture.
   Future<void> syncWithCurrentPack({bool force = false}) async {
     final packId = _themeNotifier?.stylePackId;
-    final asset = packId != null ? _packMusicAssets[packId] : null;
+    if (packId == null) {
+      await _stop();
+      return;
+    }
 
-    if (asset == null) {
+    final musicFile = StylePackRegistry.resolveMusicFilePath(packId);
+    if (musicFile == null) {
       await _stop();
       return;
     }
@@ -77,11 +80,21 @@ class StylePackMusicService with WidgetsBindingObserver {
     if (!force && _playingPackId == packId) return;
 
     try {
-      await _player.play(asset);
+      if (kIsWeb) {
+        await _player.playAsset(musicFile);
+      } else {
+        final file = File(musicFile);
+        if (!file.existsSync()) {
+          debugPrint('[StylePackMusic] Archivo no encontrado: $musicFile');
+          _playingPackId = null;
+          return;
+        }
+        await _player.playFile(musicFile);
+      }
       _playingPackId = packId;
       _pausedByLifecycle = false;
     } catch (e, st) {
-      debugPrint('[StylePackMusic] No se pudo reproducir $asset: $e\n$st');
+      debugPrint('[StylePackMusic] No se pudo reproducir $musicFile: $e\n$st');
       _playingPackId = packId;
     }
   }

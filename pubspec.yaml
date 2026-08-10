@@ -52,6 +52,9 @@ dependencies:
   google_fonts: ^8.2.1
   audioplayers: ^6.8.1
   web: ^1.1.1
+  archive: ^4.0.7
+  path_provider: ^2.1.5
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:
@@ -77,7 +80,6 @@ flutter:
   assets:
     - assets/images/
     - assets/guest_showcase/
-    - assets/ost/
 
 # flutter_launcher_icons
 flutter_launcher_icons:

@@ -42,7 +42,7 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
       if (_pendingAsset == null) return;
       final asset = _pendingAsset!;
       _pendingAsset = null;
-      play(asset);
+      playAsset(asset);
     }
 
     final listener = onUserGesture.toJS;
@@ -52,7 +52,7 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
   }
 
   @override
-  Future<void> play(String assetPath) async {
+  Future<void> playAsset(String assetPath) async {
     _ensureAudioElement();
     final audio = _audio!;
     final src = 'assets/$assetPath';
@@ -73,6 +73,11 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
       _pendingAsset = assetPath;
       rethrow;
     }
+  }
+
+  @override
+  Future<void> playFile(String filePath) async {
+    throw UnsupportedError('Reproducción local no disponible en web.');
   }
 
   @override

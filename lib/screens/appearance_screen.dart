@@ -1,15 +1,14 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import '../../globals.dart';
+import '../services/style_pack_import_service.dart';
 import '../services/style_pack_music_service.dart';
 import '../theme/style_pack_registry.dart';
 import 'settings/info_tab_appearance_screen.dart';
 import 'settings/home_appearance_screen.dart';
 import '../theme/corpus_theme_extension.dart';
+import '../theme/style_pack.dart';
 import '../widgets/corpus_section_title.dart';
-
 class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
 
@@ -59,7 +58,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
-          _buildStylePackGrid(),
+          _buildStylePackSection(),
           if (!kIsWeb) ...[
             const SizedBox(height: 12),
             _buildImportPackButton(),
@@ -104,107 +103,205 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     );
   }
 
-  // ── Style Pack grid ────────────────────────────────────────────────────
+  // ── Style Pack section ─────────────────────────────────────────────────
 
-  Widget _buildStylePackGrid() {
-    final packs = StylePackRegistry.all;
+  Widget _buildStylePackSection() {
+    final imported = StylePackRegistry.imported;
     final activeId = themeNotifier.stylePackId;
+    final isClassicActive = activeId == 'default';
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: packs.map((pack) {
-        final isActive = pack.id == activeId;
-        return GestureDetector(
-          onTap: () {
-            themeNotifier.setStylePack(pack.id);
-            StylePackMusicService.instance.syncWithCurrentPack(force: true);
-            setState(() {});
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 100,
-            padding: const EdgeInsets.all(12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildPackTile(
+          pack: StylePack.defaultPack(),
+          isActive: isClassicActive,
+          isImported: false,
+        ),
+        if (imported.isEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
-              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
-              border: Border.all(
-                color: isActive
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.transparent,
-                width: 2,
-              ),
+              borderRadius:
+                  Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: pack.seedColor,
-                    shape: BoxShape.circle,
-                  ),
-                  child: isActive
-                      ? const Icon(Icons.check, color: Colors.white, size: 20)
-                      : null,
+                Icon(
+                  Icons.extension_outlined,
+                  size: 40,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  pack.name,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  'No hay addons instalados',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  kIsWeb
+                      ? 'Los paquetes de estilo se importan desde la app móvil o de escritorio.'
+                      : 'Importa un archivo .corpuspack para añadir temas como Persona 5 Royal.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      }).toList(),
+        ] else ...[
+          const SizedBox(height: 12),
+          ...imported.map((entry) {
+            final pack = entry.pack;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildPackTile(
+                pack: pack,
+                isActive: pack.id == activeId,
+                isImported: true,
+              ),
+            );
+          }),
+        ],
+      ],
     );
   }
 
+  Widget _buildPackTile({
+    required StylePack pack,
+    required bool isActive,
+    required bool isImported,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius:
+            Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+        border: Border.all(
+          color: isActive
+              ? Theme.of(context).colorScheme.primary
+              : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: pack.seedColor,
+            shape: BoxShape.circle,
+          ),
+          child: isActive
+              ? const Icon(Icons.check, color: Colors.white, size: 20)
+              : null,
+        ),
+        title: Text(
+          pack.name,
+          style: TextStyle(
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        subtitle: Text(
+          isImported
+              ? (pack.description ?? 'Addon importado')
+              : 'Tema predeterminado de Corpus',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: isImported
+            ? IconButton(
+                tooltip: 'Eliminar addon',
+                icon: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                onPressed: () => _confirmRemovePack(pack),
+              )
+            : (isActive
+                ? Icon(
+                    Icons.check_circle,
+                    color: Theme.of(context).colorScheme.primary,
+                  )
+                : null),
+        onTap: () {
+          themeNotifier.setStylePack(pack.id);
+          StylePackMusicService.instance.syncWithCurrentPack(force: true);
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  Future<void> _confirmRemovePack(StylePack pack) async {
+    final remove = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Eliminar "${pack.name}"?'),
+        content: const Text(
+          'Se quitará el addon de este dispositivo. Podrás volver a importarlo cuando quieras.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (remove != true || !mounted) return;
+
+    final wasActive = themeNotifier.stylePackId == pack.id;
+    await StylePackRegistry.removeImported(pack.id);
+    if (wasActive) {
+      await themeNotifier.setStylePack('default');
+      StylePackMusicService.instance.syncWithCurrentPack(force: true);
+    }
+    if (mounted) setState(() {});
+  }
+
   Widget _buildImportPackButton() {
-    return TextButton.icon(
+    return FilledButton.icon(
       onPressed: _importPack,
       icon: const Icon(Icons.file_download_outlined),
-      label: const Text('Importar paquete (.json)'),
+      label: const Text('Importar addon (.corpuspack)'),
     );
   }
 
   Future<void> _importPack() async {
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-        withData: true,
-      );
-      if (result == null || result.files.isEmpty) return;
+      final result = await StylePackImportService.pickAndImport();
+      if (result == null) return;
 
-      final bytes = result.files.first.bytes;
-      if (bytes == null) return;
-
-      final jsonStr = utf8.decode(bytes);
-      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
-      final pack = StylePackRegistry.importFromJson(json);
-
-      themeNotifier.setStylePack(pack.id);
+      await themeNotifier.setStylePack(result.pack.id);
       StylePackMusicService.instance.syncWithCurrentPack(force: true);
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Pack "${pack.name}" importado')),
+          SnackBar(
+            content: Text(
+              result.isBundle
+                  ? 'Addon "${result.pack.name}" instalado'
+                  : 'Pack "${result.pack.name}" importado',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Error al importar el paquete'),
+            content: Text('Error al importar: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );

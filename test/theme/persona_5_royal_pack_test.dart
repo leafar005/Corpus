@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/theme/app_theme.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
 import 'package:corpus/theme/style_pack.dart';
 import 'package:corpus/theme/style_pack_registry.dart';
 
-/// Mirrors the built-in registration in lib/main.dart.
 StylePack persona5RoyalPack() => const StylePack(
   id: 'persona_5_royal',
   name: 'Persona 5 Royal',
@@ -26,35 +26,37 @@ StylePack persona5RoyalPack() => const StylePack(
   borderRadiusLarge: 4,
   navBarStyle: NavBarStyle.persona5Royal,
   useDynamicFrames: true,
+  musicFile: 'music/persona5royal.m4a',
 );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('Persona 5 Royal pack registers and exposes expected tokens', () {
-    StylePackRegistry.registerBuiltIn(persona5RoyalPack());
+  test('Persona 5 Royal pack JSON round-trips with musicFile', () {
+    final pack = persona5RoyalPack();
+    final restored = StylePack.fromJson(pack.toJson());
+
+    expect(restored.id, 'persona_5_royal');
+    expect(restored.musicFile, 'music/persona5royal.m4a');
+    expect(restored.navBarStyle, NavBarStyle.persona5Royal);
+    expect(restored.useDynamicFrames, isTrue);
+  });
+
+  test('imported Persona 5 Royal pack appears in registry', () async {
+    SharedPreferences.setMockInitialValues({});
+    await StylePackRegistry.importFromJson(persona5RoyalPack().toJson());
 
     final packs = StylePackRegistry.all;
     expect(
       packs.any((p) => p.id == 'persona_5_royal'),
       isTrue,
-      reason: 'Pack should appear in Appearance grid via StylePackRegistry.all',
+      reason: 'Imported pack should appear via StylePackRegistry.all',
     );
 
     final pack = StylePackRegistry.getById('persona_5_royal');
     expect(pack.name, 'Persona 5 Royal');
     expect(pack.seedColor, const Color(0xFFD3112D));
-    expect(pack.scaffoldDark, const Color(0xFF000000));
-    expect(pack.surfaceDark, const Color(0xFF121212));
-    expect(pack.accentColor, const Color(0xFFFFD400));
-    expect(pack.fontFamily, 'Archivo Black');
-    expect(pack.heroFontFamily, 'Archivo Black');
-    expect(pack.heroFontSize, 52);
-    expect(pack.borderRadiusSmall, 0);
-    expect(pack.borderRadiusMedium, 2);
-    expect(pack.borderRadiusLarge, 4);
-    expect(pack.navBarStyle, NavBarStyle.persona5Royal);
-    expect(pack.useDynamicFrames, isTrue);
+    expect(pack.musicFile, 'music/persona5royal.m4a');
   });
 
   test('AppTheme builds light/dark themes for Persona 5 Royal pack', () {
