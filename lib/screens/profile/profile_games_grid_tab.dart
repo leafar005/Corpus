@@ -390,14 +390,21 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
             padding: const EdgeInsets.only(right: 8.0),
             child: ChoiceChip(
               showCheckmark: false,
-              avatar: Icon(
-                _getIconForStatus(status),
-                size: 18,
-                color: isSelected
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    _getIconForStatus(status),
+                    size: 18,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(status.label),
+                ],
               ),
-              label: Text(status.label),
               selected: isSelected,
               onSelected: (selected) {
                 if (selected) {

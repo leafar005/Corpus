@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'hall_of_fame_selector_screen.dart';
@@ -127,19 +128,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image != null) {
-      final bytes = await ImageCompressor.compressImage(image);
-      if (bytes == null) return;
-      final ext = image.name.split('.').last;
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        aspectRatio: isAvatar
+            ? const CropAspectRatio(ratioX: 1, ratioY: 1)
+            : const CropAspectRatio(ratioX: 3, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: isAvatar ? 'Recortar Perfil' : 'Recortar Banner',
+            toolbarColor: Theme.of(context).colorScheme.surface,
+            toolbarWidgetColor: Theme.of(context).colorScheme.onSurface,
+            initAspectRatio: isAvatar ? CropAspectRatioPreset.square : CropAspectRatioPreset.original,
+            lockAspectRatio: true,
+            hideBottomControls: true, // Oculta controles de zoom/rotar en Android
+          ),
+          IOSUiSettings(
+            title: isAvatar ? 'Recortar Perfil' : 'Recortar Banner',
+            aspectRatioLockEnabled: true,
+          ),
+          WebUiSettings(
+            context: context,
+            presentStyle: WebPresentStyle.page,
+            customRouteBuilder: (cropper, initCropper, crop, rotate, scale) {
+              return MaterialPageRoute<String>(
+                builder: (_) => _WebCropperPage(
+                  cropper: cropper,
+                  initCropper: initCropper,
+                  crop: crop,
+                ),
+              );
+            },
+          ),
+        ],
+      );
 
-      setState(() {
-        if (isAvatar) {
-          _newAvatarBytes = bytes;
-          _newAvatarExt = ext;
-        } else {
-          _newBannerBytes = bytes;
-          _newBannerExt = ext;
-        }
-      });
+      if (croppedFile != null) {
+        final bytes = await ImageCompressor.compressImage(XFile(croppedFile.path));
+        if (bytes == null) return;
+        final ext = croppedFile.path.split('.').last;
+
+        setState(() {
+          if (isAvatar) {
+            _newAvatarBytes = bytes;
+            _newAvatarExt = ext;
+          } else {
+            _newBannerBytes = bytes;
+            _newBannerExt = ext;
+          }
+        });
+      }
     }
   }
 
@@ -277,6 +314,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bannerHeight = (screenWidth / 3).clamp(120.0, 340.0);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -300,7 +339,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         GestureDetector(
                           onTap: () => _pickImage(false),
                           child: Container(
-                            height: 180,
+                            height: bannerHeight,
                             width: double.infinity,
                             decoration: BoxDecoration(
                               color: Theme.of(context).colorScheme.surface,
@@ -893,6 +932,77 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WebCropperPage extends StatefulWidget {
+  final Widget cropper;
+  final void Function() initCropper;
+  final Future<String?> Function() crop;
+
+  const _WebCropperPage({
+    required this.cropper,
+    required this.initCropper,
+    required this.crop,
+  });
+
+  @override
+  State<_WebCropperPage> createState() => _WebCropperPageState();
+}
+
+class _WebCropperPageState extends State<_WebCropperPage> {
+  bool _processing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.initCropper();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Recortar Imagen'),
+        actions: [
+          if (_processing)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.done),
+              onPressed: () async {
+                if (_processing) return;
+                setState(() => _processing = true);
+                try {
+                  final result = await widget.crop();
+                  if (mounted) {
+                    Navigator.of(context).pop(result);
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    setState(() => _processing = false);
+                  }
+                }
+              },
+            ),
+        ],
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: widget.cropper,
+        ),
       ),
     );
   }

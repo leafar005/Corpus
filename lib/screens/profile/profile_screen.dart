@@ -621,15 +621,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isMe =
         _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
 
-    // Altura de LAYOUT: la misma de siempre. De esto depende dónde
-    // empieza todo lo que viene después (avatar, barra de nivel, etc.)
-    // — no la tocamos para que nada se mueva de su sitio.
-    final bannerHeight = isDesktop ? 240.0 : 180.0;
+    // Altura de LAYOUT calculada para mantener siempre un aspecto 3:1
+    // Limitamos la altura máxima en PC para que no ocupe media pantalla.
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bannerHeight = (screenWidth / 3).clamp(120.0, 340.0);
 
-    // Altura VISUAL de la imagen + degradado: puede ser mucho mayor.
-    // Se pinta por fuera de la caja de arriba (gracias a Clip.none),
-    // así que "se asoma" hacia abajo sin empujar nada.
-    final bannerImageHeight = isDesktop ? 340.0 : 180.0;
+    // Altura VISUAL de la imagen igual al layout para que
+    // el espacio y las proporciones sean consistentes en PC y móvil.
+    final bannerImageHeight = bannerHeight;
 
     return SizedBox(
       height: bannerHeight,

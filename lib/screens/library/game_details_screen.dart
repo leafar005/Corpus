@@ -2150,7 +2150,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   trailing: const Icon(Icons.open_in_new, size: 16),
                   onTap: () => launchUrl(
                     Uri.parse(_localizeUrlToSpain(link['url'].toString())),
-                    mode: LaunchMode.externalApplication,
+                    mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
                   ),
                 ),
               ),
