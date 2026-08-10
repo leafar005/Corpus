@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class HomeAppearanceScreen extends StatefulWidget {
   const HomeAppearanceScreen({super.key});
@@ -236,7 +237,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Personalizar Inicio'),
+        title: const CorpusScreenTitle('Personalizar Inicio'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),

@@ -143,7 +143,7 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: bgColor,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: pack.useDynamicFrames,
         iconTheme: const IconThemeData(color: Colors.white),
         titleTextStyle: TextStyle(
           color: Colors.white,
@@ -243,7 +243,7 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: bgColor,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: pack.useDynamicFrames,
         iconTheme: IconThemeData(color: colorScheme.onSurface),
         titleTextStyle: TextStyle(
           color: colorScheme.onSurface,

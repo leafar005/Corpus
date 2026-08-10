@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import '../../utils/storage_utils.dart';
 import '../profile/profile_screen.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 import '../library/search_screen.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/coop_badge.dart';
@@ -845,8 +846,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: false,
+        title: CorpusScreenTitle(title),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [

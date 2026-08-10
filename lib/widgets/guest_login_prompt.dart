@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/auth/login_screen.dart';
-import '../theme/corpus_theme_extension.dart';
+import 'corpus_primary_button.dart';
 
 /// Aviso reutilizable para zonas de la app en "modo invitado":
 /// icono + mensaje + botón que abre la pantalla de login.
@@ -43,19 +43,11 @@ class GuestLoginPrompt extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          ElevatedButton.icon(
+          CorpusPrimaryButton(
             onPressed: () => openLoginScreen(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
-              ),
-              textStyle: const TextStyle(fontSize: 18),
-            ),
-            icon: const Icon(Icons.login),
-            label: Text(buttonLabel),
+            icon: Icons.login,
+            label: buttonLabel,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
           ),
         ],
       ),
@@ -83,17 +75,12 @@ class GuestLoginButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton.icon(
+    return CorpusPrimaryButton(
       onPressed: () => openLoginScreen(context),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium),
-        textStyle: const TextStyle(fontSize: 18),
-      ),
-      icon: const Icon(Icons.login),
-      label: Text(label, textAlign: TextAlign.center),
+      icon: Icons.login,
+      label: label,
+      expand: true,
+      height: 50,
     );
   }
 }

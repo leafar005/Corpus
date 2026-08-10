@@ -6,12 +6,16 @@ class P5rRansomTitle extends StatelessWidget {
   final String text;
   final double baseFontSize;
   final Color color;
+  final bool compact;
+  final EdgeInsetsGeometry? padding;
 
   const P5rRansomTitle({
     super.key,
     required this.text,
     this.baseFontSize = 24,
     this.color = Colors.white,
+    this.compact = false,
+    this.padding,
   });
 
   static final RegExp _accentPattern = RegExp(
@@ -42,17 +46,21 @@ class P5rRansomTitle extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 4, 10, 8),
+      padding: padding ??
+          (compact
+              ? const EdgeInsets.fromLTRB(0, 2, 4, 2)
+              : const EdgeInsets.fromLTRB(6, 4, 10, 8)),
       child: Transform.rotate(
-        angle: -0.025,
+        angle: compact ? -0.02 : -0.025,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             for (int line = 0; line < lineGroups.length; line++)
               Padding(
                 padding: EdgeInsets.only(
-                  left: (line % 2) * 8.0,
+                  left: compact ? 0 : (line % 2) * 8.0,
                   bottom: line < lineGroups.length - 1 ? 4 : 0,
                 ),
                 child: _RansomLine(
@@ -64,6 +72,7 @@ class P5rRansomTitle extends StatelessWidget {
                       .toList(),
                   baseFontSize: baseFontSize,
                   color: color,
+                  compact: compact,
                 ),
               ),
           ],
@@ -137,7 +146,8 @@ class P5rRansomTitle extends StatelessWidget {
     return offsets[index % offsets.length];
   }
 
-  static double _letterBoxWidth(double baseFontSize) => baseFontSize * 0.72;
+  static double _letterBoxWidth(double baseFontSize, {bool compact = false}) =>
+      baseFontSize * (compact ? 0.92 : 0.72);
 
   static double _letterBoxHeight(double baseFontSize) => baseFontSize * 1.32;
 }
@@ -147,27 +157,32 @@ class _RansomLine extends StatelessWidget {
   final List<int> startIndices;
   final double baseFontSize;
   final Color color;
+  final bool compact;
 
   const _RansomLine({
     required this.words,
     required this.startIndices,
     required this.baseFontSize,
     required this.color,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final wordGap = baseFontSize * (compact ? 0.75 : 0.5);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         for (int i = 0; i < words.length; i++) ...[
-          if (i > 0) SizedBox(width: baseFontSize * 0.5),
+          if (i > 0) SizedBox(width: wordGap),
           _RansomWord(
             word: words[i],
             startIndex: startIndices[i],
             baseFontSize: baseFontSize,
             color: color,
+            compact: compact,
           ),
         ],
       ],
@@ -180,18 +195,22 @@ class _RansomWord extends StatelessWidget {
   final int startIndex;
   final double baseFontSize;
   final Color color;
+  final bool compact;
 
   const _RansomWord({
     required this.word,
     required this.startIndex,
     required this.baseFontSize,
     required this.color,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 1, 2, 2),
+      padding: compact
+          ? const EdgeInsets.fromLTRB(1, 1, 1, 2)
+          : const EdgeInsets.fromLTRB(4, 1, 2, 2),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -202,6 +221,7 @@ class _RansomWord extends StatelessWidget {
               startIndex: startIndex,
               baseFontSize: baseFontSize,
               color: Colors.black,
+              compact: compact,
             ),
           ),
           Transform.translate(
@@ -211,6 +231,7 @@ class _RansomWord extends StatelessWidget {
               startIndex: startIndex,
               baseFontSize: baseFontSize,
               color: Colors.black,
+              compact: compact,
             ),
           ),
           _LetterRow(
@@ -218,6 +239,7 @@ class _RansomWord extends StatelessWidget {
             startIndex: startIndex,
             baseFontSize: baseFontSize,
             color: color,
+            compact: compact,
           ),
         ],
       ),
@@ -230,17 +252,19 @@ class _LetterRow extends StatelessWidget {
   final int startIndex;
   final double baseFontSize;
   final Color color;
+  final bool compact;
 
   const _LetterRow({
     required this.word,
     required this.startIndex,
     required this.baseFontSize,
     required this.color,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final boxW = P5rRansomTitle._letterBoxWidth(baseFontSize);
+    final boxW = P5rRansomTitle._letterBoxWidth(baseFontSize, compact: compact);
     final boxH = P5rRansomTitle._letterBoxHeight(baseFontSize);
 
     return Row(

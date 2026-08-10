@@ -11,6 +11,7 @@ import '../../../services/igdb_service.dart';
 import '../../../repositories/review_repository.dart';
 import '../../../widgets/full_screen_gallery.dart';
 import '../../../theme/corpus_theme_extension.dart';
+import '../../../widgets/corpus_primary_button.dart';
 
 class GameHeroSection extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -362,55 +363,42 @@ class _GameHeroSectionState extends State<GameHeroSection> {
     return Row(
       children: [
         Expanded(
-          child: SizedBox(
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                if (widget.inLibrary) {
-                  widget.onEditReview(
-                    widget.reviews.isNotEmpty
-                        ? widget.reviews.first
-                        : Review(
-                            id: '',
-                            userId: widget.userData!.id,
-                            gameId: (widget.gameData['id'] as num).toInt(),
-                            rating: 0,
-                            ratingGameplay: 0,
-                            ratingNarrative: 0,
-                            ratingSoundtrack: 0,
-                            ratingVisuals: 0,
-                            status: GameStatus.values.firstWhere(
-                              (e) => e.name == widget.status,
-                              orElse: () => GameStatus.wishlist,
-                            ),
-                            completionType: '',
-                            isReplay: false,
-                            createdAt: DateTime.now(),
-                            updatedAt: DateTime.now(),
+          child: CorpusPrimaryButton(
+            onPressed: () {
+              if (widget.inLibrary) {
+                widget.onEditReview(
+                  widget.reviews.isNotEmpty
+                      ? widget.reviews.first
+                      : Review(
+                          id: '',
+                          userId: widget.userData!.id,
+                          gameId: (widget.gameData['id'] as num).toInt(),
+                          rating: 0,
+                          ratingGameplay: 0,
+                          ratingNarrative: 0,
+                          ratingSoundtrack: 0,
+                          ratingVisuals: 0,
+                          status: GameStatus.values.firstWhere(
+                            (e) => e.name == widget.status,
+                            orElse: () => GameStatus.wishlist,
                           ),
-                  );
-                } else {
-                  widget.onShowReviewModal();
-                }
-              },
-              icon: Icon(icon, color: textColor),
-              label: Text(
-                btnText,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                foregroundColor: textColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
-                ),
-                elevation: widget.inLibrary ? 0 : 2,
-              ),
-            ),
+                          completionType: '',
+                          isReplay: false,
+                          createdAt: DateTime.now(),
+                          updatedAt: DateTime.now(),
+                        ),
+                );
+              } else {
+                widget.onShowReviewModal();
+              }
+            },
+            icon: icon,
+            label: btnText,
+            backgroundColor: color,
+            foregroundColor: textColor,
+            expand: true,
+            height: 50,
+            elevation: widget.inLibrary ? 0 : 2,
           ),
         ),
       ],

@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:corpus/services/import_service.dart';
 import 'package:corpus/screens/settings/import_preview_screen.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class IntegrationsScreen extends StatefulWidget {
   const IntegrationsScreen({super.key});
@@ -127,7 +128,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
   Widget build(BuildContext context) {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Integraciones')),
+      appBar: AppBar(title: const CorpusScreenTitle('Integraciones')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(

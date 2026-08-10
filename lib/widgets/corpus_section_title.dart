@@ -4,6 +4,30 @@ import '../theme/corpus_theme_extension.dart';
 import 'p5r_ransom_title.dart';
 import 'typewriter_text.dart';
 
+/// App bar / screen heading — pack-aware typography for top-level screen titles.
+class CorpusScreenTitle extends StatelessWidget {
+  final String text;
+
+  const CorpusScreenTitle(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final titleStyle = Theme.of(context).appBarTheme.titleTextStyle;
+
+    if (ext.useDynamicFrames) {
+      return P5rRansomTitle(
+        text: text,
+        baseFontSize: 18,
+        color: titleStyle?.color ?? Colors.white,
+        compact: true,
+      );
+    }
+
+    return Text(text, style: titleStyle);
+  }
+}
+
 /// Standard section heading — picks pack-specific title treatment automatically.
 ///
 /// Use this for section headers across the app so new style packs can swap

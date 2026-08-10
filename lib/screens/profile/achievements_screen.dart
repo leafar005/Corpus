@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/level_calculator.dart';
 import 'package:corpus/screens/profile/achievement_games_screen.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_section_title.dart';
 
 class AchievementsScreen extends StatefulWidget {
   final String userId;
@@ -994,7 +995,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     }).toList();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Progresión y Logros'),
+        title: const CorpusScreenTitle('Progresión y Logros'),
         centerTitle: true,
         actions: [
           IconButton(

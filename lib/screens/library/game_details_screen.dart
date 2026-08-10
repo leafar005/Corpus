@@ -23,6 +23,7 @@ import 'review_modal.dart';
 import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../widgets/corpus_primary_button.dart';
 import '../../widgets/full_screen_gallery.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -1453,35 +1454,23 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     return Row(
       children: [
         Expanded(
-          child: SizedBox(
+          child: CorpusPrimaryButton(
+            onPressed: () {
+              if (_inLibrary) {
+                _showReviewModal(
+                  existingReview: _reviews.isNotEmpty ? _reviews.first : null,
+                );
+              } else {
+                _showReviewModal();
+              }
+            },
+            icon: icon,
+            label: text,
+            backgroundColor: color,
+            foregroundColor: textColor,
+            expand: true,
             height: 50,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                if (_inLibrary) {
-                  _showReviewModal(
-                    existingReview: _reviews.isNotEmpty ? _reviews.first : null,
-                  );
-                } else {
-                  _showReviewModal();
-                }
-              },
-              icon: Icon(icon, color: textColor),
-              label: Text(
-                text,
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
-                ),
-              ),
-            ),
+            elevation: _inLibrary ? 0 : 2,
           ),
         ),
         if (_inLibrary) ...[

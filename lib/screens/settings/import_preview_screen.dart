@@ -3,6 +3,7 @@ import 'package:corpus/services/import_service.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/screens/library/review_modal.dart';
+import 'package:corpus/widgets/corpus_section_title.dart';
 
 class ImportPreviewScreen extends StatefulWidget {
   final List<CsvGameRow> rows;
@@ -124,7 +125,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Revisar Importación'),
+        title: const CorpusScreenTitle('Revisar Importación'),
         bottom: hasTabs
             ? TabBar(
                 controller: _tabController,
