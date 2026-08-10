@@ -275,14 +275,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                 ),
               ),
-              // Tabs alineados con la columna de contenido usando margin interno para evitar bugs de SliverPadding
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SliverNavBarDelegate(
-                  height: 56.0,
-                  topPadding: 0,
-                  child: _buildNavBar(isDesktop: true),
-                ),
+              // Tabs en desktop: SliverToBoxAdapter simple (no sticky) para evitar
+              // el bug de Flutter Web donde layoutExtent > paintExtent en SliverPersistentHeader
+              SliverToBoxAdapter(
+                child: _buildNavBar(isDesktop: true),
               ),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -1892,7 +1888,7 @@ class _SliverNavBarDelegate extends SliverPersistentHeaderDelegate {
   });
 
   @override
-  double get minExtent => height + topPadding;
+  double get minExtent => topPadding; // Permite encogerse hasta 0 si hay poco espacio
 
   @override
   double get maxExtent => height + topPadding;
