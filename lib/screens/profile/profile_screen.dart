@@ -261,22 +261,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildHeader(isDesktop: true),
-                    _buildLevelProgressBar(isDesktop: true),
-                    const SizedBox(height: 24),
+                    // Espacio para el overflow del avatar (radio 60+borde 4 = 64px sobresalto)
+                    // La barra de nivel ya va DENTRO del header en el Positioned
+                    const SizedBox(height: 64),
                   ],
                 ),
               ),
-              // Tabs fuera del CrossAxisGroup: anidar pinned header
-              // ahi en web dejaba el contenido a altura 0.
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                sliver: SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _SliverNavBarDelegate(
-                    height: 56.0,
-                    topPadding: 0,
-                    child: _buildNavBar(isDesktop: true),
-                  ),
+              // Línea separadora full-width entre la zona superior y el contenido
+              SliverToBoxAdapter(
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
+              ),
+              // Tabs alineados con la columna de contenido usando margin interno para evitar bugs de SliverPadding
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SliverNavBarDelegate(
+                  height: 56.0,
+                  topPadding: 0,
+                  child: _buildNavBar(isDesktop: true),
                 ),
               ),
               SliverPadding(
@@ -286,12 +291,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SliverConstrainedCrossAxis(
                       maxExtent: 300,
                       sliver: SliverToBoxAdapter(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 24),
-                            _buildSidebarInfo(),
-                          ],
+                        child: Transform.translate(
+                          // Desplazamos la sidebar hacia arriba para que "Bio" se alinee visualmente
+                          // con el texto de las tabs, que tienen padding y ocupan 56px de alto
+                          offset: const Offset(0, -40),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSidebarInfo(),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -517,23 +526,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 SizedBox(height: nameHandleGap),
-                Text(
-                  '@$username',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: handleFontSize,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    height: 1.1,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '@$username',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: handleFontSize,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.1,
+                      ),
+                    ),
+                    if (showPlaying && _userProfile != null) ...[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: CurrentlyPlayingBadge(
+                          userId: _userProfile!['id'],
+                          initialProfile: _userProfile!,
+                          compact: true,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                if (showPlaying) ...[
-                  CurrentlyPlayingBadge(
-                    userId: _userProfile!['id'],
-                    initialProfile: _userProfile!,
-                    compact: true,
-                  ),
-                ],
                 if (showLevel) ...[
                   SizedBox(height: 4.0 - (1.0 * t)),
                   _buildInlineLevelProgress(compact: t > 0.25),
@@ -782,10 +798,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
-          // Avatar y Nombres (Alineados a la izquierda y sobresaliendo un poco abajo)
           Positioned(
             bottom: -40,
             left: isDesktop ? 40 : 16,
+            right: isDesktop ? 40 : null, // en desktop ocupa todo el ancho
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -819,59 +835,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                Padding(
-                  padding: const EdgeInsets.only(
-                    bottom: 40,
-                  ), // Para que quede sobre el banner
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayName,
-                        style: TextStyle(
-                          fontSize: isDesktop ? 32 : 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          shadows: const [
-                            Shadow(offset: Offset(-1, -1), color: Colors.black),
-                            Shadow(offset: Offset(1, -1), color: Colors.black),
-                            Shadow(offset: Offset(1, 1), color: Colors.black),
-                            Shadow(offset: Offset(-1, 1), color: Colors.black),
-                          ],
+                if (isDesktop)
+                  // En desktop: Column expandida con nombre, @+jugando y barra de nivel
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          displayName,
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(offset: Offset(-1, -1), color: Colors.black),
+                              Shadow(offset: Offset(1, -1), color: Colors.black),
+                              Shadow(offset: Offset(1, 1), color: Colors.black),
+                              Shadow(offset: Offset(-1, 1), color: Colors.black),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '@$username',
-                        style: TextStyle(
-                          fontSize: isDesktop ? 18 : 14,
-                          color: Colors.white,
-                          shadows: const [
-                            Shadow(offset: Offset(-1, -1), color: Colors.black),
-                            Shadow(offset: Offset(1, -1), color: Colors.black),
-                            Shadow(offset: Offset(1, 1), color: Colors.black),
-                            Shadow(offset: Offset(-1, 1), color: Colors.black),
-                          ],
-                        ),
-                      ),
-                      if (_userProfile != null)
-                        Stack(
-                          clipBehavior: Clip.none,
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            const SizedBox(height: 0, width: 1),
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              child: CurrentlyPlayingBadge(
-                                userId: _userProfile!['id'],
-                                initialProfile: _userProfile!,
+                            Text(
+                              '@$username',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(offset: Offset(-1, -1), color: Colors.black),
+                                  Shadow(offset: Offset(1, -1), color: Colors.black),
+                                  Shadow(offset: Offset(1, 1), color: Colors.black),
+                                  Shadow(offset: Offset(-1, 1), color: Colors.black),
+                                ],
                               ),
                             ),
+                            if (_userProfile != null) ...[
+                              const SizedBox(width: 10),
+                              CurrentlyPlayingBadge(
+                                userId: _userProfile!['id'],
+                                initialProfile: _userProfile!,
+                                inline: true,
+                              ),
+                            ],
                           ],
                         ),
-                    ],
+                        // Barra de nivel: ancho acotado (no full-width)
+                        const SizedBox(height: 10),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 350),
+                          child: _buildInlineLevelProgress(compact: false),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  // En móvil: Padding que sube los textos sobre el banner
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayName,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(offset: Offset(-1, -1), color: Colors.black),
+                              Shadow(offset: Offset(1, -1), color: Colors.black),
+                              Shadow(offset: Offset(1, 1), color: Colors.black),
+                              Shadow(offset: Offset(-1, 1), color: Colors.black),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              '@$username',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(offset: Offset(-1, -1), color: Colors.black),
+                                  Shadow(offset: Offset(1, -1), color: Colors.black),
+                                  Shadow(offset: Offset(1, 1), color: Colors.black),
+                                  Shadow(offset: Offset(-1, 1), color: Colors.black),
+                                ],
+                              ),
+                            ),
+                            if (_userProfile != null) ...[
+                              const SizedBox(width: 10),
+                              CurrentlyPlayingBadge(
+                                userId: _userProfile!['id'],
+                                initialProfile: _userProfile!,
+                                inline: true,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -883,9 +956,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildLevelProgressBar({required bool isDesktop}) {
     return Padding(
       padding: EdgeInsets.only(
-        top: 60, // Clear the avatar's overflow
-        left: isDesktop ? 40 : 16,
-        right: isDesktop ? 40 : 16,
+        // No top padding when in sidebar (it's already managed by the Column above)
+        // For mobile (legacy, not used): 0
+        left: isDesktop ? 0 : 16,
+        right: isDesktop ? 0 : 16,
       ),
       child: InkWell(
         borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
@@ -955,17 +1029,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildNavBar({required bool isDesktop}) {
     return Container(
       margin: EdgeInsets.only(
-        left: isDesktop ? 40 : 16,
+        left: isDesktop ? 380 : 16,
         right: isDesktop ? 40 : 16,
       ),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
-            width: 1,
-          ),
-        ),
-      ),
+      decoration: isDesktop
+          ? null
+          : BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                  width: 1,
+                ),
+              ),
+            ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
