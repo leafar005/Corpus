@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../utils/url_utils.dart';
+
 import '../../models/models.dart';
 import '../../widgets/game_card.dart';
 import '../../services/igdb_service.dart';
@@ -627,7 +628,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               bundle['title'] ?? '',
                             );
                           } else if (bundle['url'] != null) {
-                            launchUrl(Uri.parse(bundle['url']));
+                            openUrl(bundle['url']);
                           }
                         },
                         child: Column(

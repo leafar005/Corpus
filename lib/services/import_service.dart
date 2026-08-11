@@ -518,30 +518,34 @@ class ImportService {
           await supabase
               .from('user_games')
               .upsert(userGamesPayload, onConflict: 'user_id, game_id');
-              
-          try {
-            // Suprimir notificaciones masivas del importador (Steam o Stash)
-            // Lo hacemos para TODOS los juegos del lote para cazar los que no tienen fecha y caen en el fallback de -2h
-            final gameIds = userGamesPayload.map((e) => e['game_id']).toList();
-            
-            if (gameIds.isNotEmpty) {
-              final nowUtc = DateTime.now().toUtc();
-              // Usamos 3 horas de margen porque el importador resta 2 horas a los juegos sin fecha
-              final cleanupWindow = nowUtc.subtract(const Duration(hours: 3)).toIso8601String();
-              
-              await supabase
-                  .from('activity_feed')
-                  .delete()
-                  .eq('user_id', userId)
-                  .inFilter('game_id', gameIds)
-                  .gte('created_at', cleanupWindow);
-            }
-          } catch (e) {
-            debugPrint('[CORPUS IMPORT] Warning: Failed to clean up activities: $e');
-          }
         }
         if (reviewsPayload.isNotEmpty) {
           await supabase.from('reviews').insert(reviewsPayload);
+        }
+
+        // Limpiar activity_feed DESPUÉS de insertar juegos Y reseñas:
+        // los triggers on_user_game_status_change y on_review_upsert insertan
+        // una entrada por cada fila, lo que floodea el feed en imports masivos.
+        // Las reseñas se preservan — solo se borran las entradas del feed.
+        final gameIds = userGamesPayload.map((e) => e['game_id']).toList();
+        if (gameIds.isNotEmpty) {
+          try {
+            final nowUtc = DateTime.now().toUtc();
+            // 3h de margen cubre los juegos sin fecha (el importador usa -2h como fallback)
+            final cleanupWindow =
+                nowUtc.subtract(const Duration(hours: 3)).toIso8601String();
+
+            await supabase
+                .from('activity_feed')
+                .delete()
+                .eq('user_id', userId)
+                .inFilter('game_id', gameIds)
+                .gte('created_at', cleanupWindow);
+          } catch (e) {
+            debugPrint(
+              '[CORPUS IMPORT] Warning: no se pudieron limpiar activity_feed entries: $e',
+            );
+          }
         }
 
         onProgress(end, total);

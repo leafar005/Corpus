@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../../utils/url_utils.dart';
 import '../../../utils/igdb_constants.dart';
 import '../../../utils/format_utils.dart';
 import '../group_games_screen.dart';
@@ -128,7 +128,7 @@ class GameInfoTab extends StatelessWidget {
           const SizedBox(height: 12),
           InkWell(
             onTap: metacriticUrl != null
-                ? () => launchUrl(Uri.parse(metacriticUrl!))
+                ? () => openUrl(metacriticUrl!)
                 : null,
             borderRadius: BorderRadius.circular(10),
             child: Container(

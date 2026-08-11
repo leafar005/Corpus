@@ -3,7 +3,7 @@ import '../../models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../utils/url_utils.dart';
 import '../../widgets/game_card.dart';
 import '../../services/bundle_service.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -530,12 +530,7 @@ class _BundleCardState extends State<_BundleCard> {
                   icon: const Icon(Icons.open_in_new, size: 16),
                   label: const Text('Tienda'),
                   onPressed: () {
-                    if (url.isNotEmpty) {
-                      launchUrl(
-                        Uri.parse(url),
-                        mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
-                      );
-                    }
+                    if (url.isNotEmpty) openUrl(url);
                   },
                 ),
               ],
