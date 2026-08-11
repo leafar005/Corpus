@@ -287,13 +287,13 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                                 final result = await FilePicker.pickFiles(
                                   type: FileType.custom,
                                   allowedExtensions: ['csv', 'json', 'har'],
+                                  withData: true,
                                 );
 
                                 if (result != null) {
-                                  final fileBytes = await result.files.single
-                                      .readAsBytes();
+                                  final fileBytes = result.files.single.bytes;
 
-                                  if (fileBytes.isNotEmpty) {
+                                  if (fileBytes != null && fileBytes.isNotEmpty) {
                                     bool isCancelled = false;
                                     ValueNotifier<double> progressNotifier =
                                         ValueNotifier(0.0);
