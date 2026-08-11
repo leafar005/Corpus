@@ -80,10 +80,16 @@ class _HomeScreenState extends State<HomeScreen> {
   final ValueNotifier<bool> _canScrollBundlesRight = ValueNotifier(true);
   final ValueNotifier<int> _currentBundlePage = ValueNotifier(0);
 
-  bool get _isDesktop =>
-      defaultTargetPlatform == TargetPlatform.windows ||
-      defaultTargetPlatform == TargetPlatform.macOS ||
-      defaultTargetPlatform == TargetPlatform.linux;
+  bool get _isDesktop {
+    if (!mounted) return false;
+    try {
+      return MediaQuery.sizeOf(context).width >= 768;
+    } catch (_) {
+      return defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux;
+    }
+  }
 
   late Future<_PhaseOneData> _phaseOneFuture;
   _PhaseTwoData? _phaseTwoData;
