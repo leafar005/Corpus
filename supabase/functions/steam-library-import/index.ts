@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { igdbGamesRequest, IGDB_FIELDS } from '../_shared/igdb-client.ts';
 
 const IGDB_CLIENT_ID = Deno.env.get('IGDB_CLIENT_ID') ?? '';
 const IGDB_CLIENT_SECRET = Deno.env.get('IGDB_CLIENT_SECRET') ?? '';
@@ -26,40 +27,6 @@ function isBlacklisted(title: string): boolean {
   return false;
 }
 
-// Global IGDB Auth State
-let igdbToken = '';
-let tokenExpiration = 0;
-
-async function getIgdbToken(): Promise<string> {
-  const now = Date.now();
-  if (igdbToken && now < tokenExpiration) return igdbToken;
-  const res = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${IGDB_CLIENT_ID}&client_secret=${IGDB_CLIENT_SECRET}&grant_type=client_credentials`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to get IGDB token');
-  const data = await res.json();
-  igdbToken = data.access_token;
-  tokenExpiration = now + ((data.expires_in - 300) * 1000);
-  return igdbToken;
-}
-
-async function igdbRequest(bodyQuery: string): Promise<any[]> {
-  const token = await getIgdbToken();
-  const res = await fetch('https://api.igdb.com/v4/games', {
-    method: 'POST',
-    headers: {
-      'Client-ID': IGDB_CLIENT_ID,
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json',
-    },
-    body: bodyQuery
-  });
-  if (!res.ok) {
-    console.error('IGDB Error:', await res.text());
-    return [];
-  }
-  return await res.json();
-}
-
-const IGDB_FIELDS = 'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, total_rating_count, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.id, collection.name, franchises.id, franchises.name, game_engines.name, external_games.uid, external_games.category;';
 
 Deno.serve(async (req) => {
   const FUNCTION_START = Date.now();
@@ -225,7 +192,7 @@ Deno.serve(async (req) => {
       
       if (igdbIdsToFetch.length > 0) {
         const gameQuery = `${IGDB_FIELDS} where id = (${igdbIdsToFetch.join(',')}); limit 500;`;
-        const igdbGames = await igdbRequest(gameQuery);
+        const igdbGames = await igdbGamesRequest(gameQuery);
         for (const g of igdbGames) igdbIdToGameMap[g.id] = g;
       }
 

@@ -1,7 +1,7 @@
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// supabase/functions/igdb-proxy/index.ts
+import { corsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
+import { igdbApiRequest } from '../_shared/igdb-client.ts';
+import { checkRateLimit, bucketKeyFromRequest } from '../_shared/rate-limit.ts';
 
 // Allowlist de endpoints válidos de la API v4 de IGDB para prevenir uso no autorizado
 const ALLOWED_ENDPOINTS = new Set([
@@ -18,67 +18,45 @@ const ALLOWED_ENDPOINTS = new Set([
   'involved_companies',
 ]);
 
-// Helper para logging estructurado en JSON
+// Rate limit: 60 peticiones por minuto por caller. Ajustable si en producción
+// se ve que genera falsos positivos con uso normal (revisa los logs WARN
+// "Rate limit excedido" antes de subirlo a ciegas).
+const RATE_LIMIT_MAX_REQUESTS = 60;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+
 const log = (level: 'INFO' | 'WARN' | 'ERROR', message: string, meta: Record<string, any> = {}) => {
-  console.log(
-    JSON.stringify({
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-      ...meta,
-    })
-  );
+  console.log(JSON.stringify({ timestamp: new Date().toISOString(), level, message, ...meta }));
 };
 
-// Caché en memoria del token de acceso a Twitch
-let cachedToken: string | null = null;
-let tokenExpiresAt: Date | null = null;
-
-async function getTwitchAccessToken(): Promise<string> {
-  const now = new Date();
-  if (cachedToken && tokenExpiresAt && now < tokenExpiresAt) {
-    return cachedToken;
-  }
-
-  const clientId = Deno.env.get('IGDB_CLIENT_ID');
-  const clientSecret = Deno.env.get('IGDB_CLIENT_SECRET');
-
-  if (!clientId || !clientSecret) {
-    log('ERROR', 'Faltan credenciales IGDB_CLIENT_ID o IGDB_CLIENT_SECRET en variables de entorno');
-    throw new Error('IGDB credentials not configured on server');
-  }
-
-  log('INFO', 'Solicitando nuevo token de acceso a Twitch/IGDB');
-  const authUrl = `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`;
-  const res = await fetch(authUrl, { method: 'POST' });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    log('ERROR', 'Error al autenticar con Twitch', { status: res.status, error: errorText });
-    throw new Error(`Twitch authentication failed: ${res.status}`);
-  }
-
-  const data = await res.json();
-  cachedToken = data.access_token;
-
-  // Guardamos expiración con 5 minutos de margen de seguridad
-  const expiresInSeconds = typeof data.expires_in === 'number' ? data.expires_in : 3600;
-  tokenExpiresAt = new Date(Date.now() + (expiresInSeconds - 300) * 1000);
-
-  log('INFO', 'Token de Twitch obtenido con éxito', { expiresInSeconds });
-  return cachedToken!;
-}
-
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
 
   try {
     if (req.method !== 'POST') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 405,
+      });
+    }
+
+    // --- Rate limiting ---
+    const bucketKey = await bucketKeyFromRequest(req);
+    const rateLimit = await checkRateLimit({
+      bucketKey,
+      maxRequests: RATE_LIMIT_MAX_REQUESTS,
+      windowSeconds: RATE_LIMIT_WINDOW_SECONDS,
+    });
+
+    if (!rateLimit.allowed) {
+      log('WARN', 'Rate limit excedido', { bucketKey });
+      return new Response(JSON.stringify({ error: 'Too many requests, please slow down' }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Retry-After': String(RATE_LIMIT_WINDOW_SECONDS),
+        },
+        status: 429,
       });
     }
 
@@ -94,51 +72,20 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const clientId = Deno.env.get('IGDB_CLIENT_ID');
-    if (!clientId) {
-      log('ERROR', 'Falta IGDB_CLIENT_ID en variables de entorno');
-      return new Response(JSON.stringify({ error: 'Server misconfigured: missing IGDB_CLIENT_ID' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      });
-    }
-
-    const token = await getTwitchAccessToken();
-
     log('INFO', 'Reenviando consulta a IGDB', { endpoint, queryLength: query.length });
 
-    const igdbRes = await fetch(`https://api.igdb.com/v4/${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Client-ID': clientId,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'text/plain',
-      },
-      body: query,
-    });
+    const result = await igdbApiRequest(endpoint, query);
 
-    const responseText = await igdbRes.text();
-
-    if (!igdbRes.ok) {
-      log('ERROR', 'Error devuelto por IGDB API', {
-        status: igdbRes.status,
-        endpoint,
-        error: responseText,
-      });
-      return new Response(responseText, {
+    if (!result.ok) {
+      return new Response(result.error, {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: igdbRes.status,
+        status: result.status,
       });
     }
 
-    log('INFO', 'Consulta a IGDB completada con éxito', { endpoint, status: igdbRes.status });
+    log('INFO', 'Consulta a IGDB completada con éxito', { endpoint, status: result.status });
 
-    let cleanBody = responseText;
-    try {
-      cleanBody = JSON.stringify(JSON.parse(responseText));
-    } catch (_) {}
-
-    return new Response(cleanBody, {
+    return new Response(JSON.stringify(result.data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
       status: 200,
     });
