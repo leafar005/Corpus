@@ -6,6 +6,7 @@ import '../library/game_details_screen.dart';
 import '../activity/review_details_screen.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../utils/igdb_constants.dart';
+import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
 
 /// Pestaña "Diario" del perfil: timeline cronológico de las reseñas del
@@ -201,22 +202,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     await loadMore();
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'beaten':
-        return 'Terminado';
-      case 'playing':
-        return 'Jugando';
-      case 'wishlist':
-        return 'Quiero';
-      case 'abandoned':
-        return 'Abandonado';
-      case 'on_hold':
-        return 'En Pausa';
-      default:
-        return 'Desconocido';
-    }
-  }
+  String _getStatusText(String status) => GameStatus.labelForString(status);
 
   String _platformLabel(String? platform) {
     if (platform == null || platform.isEmpty) return '';
@@ -443,22 +429,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     );
   }
 
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'beaten':
-        return Icons.check_circle;
-      case 'playing':
-        return Icons.sports_esports;
-      case 'wishlist':
-        return Icons.bookmark;
-      case 'abandoned':
-        return Icons.cancel;
-      case 'on_hold':
-        return Icons.pause_circle;
-      default:
-        return Icons.flag;
-    }
-  }
+  IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
 
   Widget _buildJournalRow(Map<String, dynamic> review) {
     final gameData = review['games'] as Map<String, dynamic>?;
