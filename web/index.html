@@ -1,17 +1,6 @@
 <!DOCTYPE html>
 <html>
   <head>
-
-    <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
     <base href="$FLUTTER_BASE_HREF">
     <meta charset="UTF-8">
     <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -19,6 +8,7 @@
 
     <!-- iOS meta tags & icons -->
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Corpus">
     <link rel="apple-touch-icon" href="icons/Icon-512.png">
@@ -30,27 +20,29 @@
     <!-- Theme color for Safari/Chrome top and bottom bars -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+
     <style>
-      /*
-      Sets the background color to match the theme to avoid white bars
-      when overscrolling or in safe areas.
-    */
-      html,
-      body {
+      html, body {
         background-color: #000000;
         margin: 0;
         padding: 0;
-        /* Bloquea la navegacion del historial con swipe desde el borde en iOS PWA.
-         Usamos -x y -y explícitos para mayor compatibilidad. */
         overscroll-behavior-x: none;
         overscroll-behavior-y: none;
       }
       @media (prefers-color-scheme: light) {
-        body {
-          background-color: #ffffff;
-        }
+        body { background-color: #ffffff; }
       }
-      /* Splash / Loading screen */
+
+      /* ─── Splash / Loading screen ──────────────────────────────────────
+         Diseñado para ser visualmente idéntico a los apple-touch-startup-image:
+         ▸ Fondo negro
+         ▸ Logo centrado, mismo tamaño relativo que el PNG de iOS:
+           el mando ocupa ~35% del ancho → min(35vw, 180px)
+         ▸ Sin animación de pulso/escala — el PNG de iOS es estático,
+           el HTML también, para que la transición sea seamless
+         ▸ El splash se oculta cuando Dart dispara el evento 'corpus-ready'
+           (no en flutter-first-frame, que llega demasiado pronto)
+      ──────────────────────────────────────────────────────────────────── */
       #corpus-splash {
         position: fixed;
         inset: 0;
@@ -60,7 +52,7 @@
         align-items: center;
         justify-content: center;
         z-index: 9999;
-        transition: opacity 0.5s ease;
+        transition: opacity 0.4s ease;
       }
       #corpus-splash.hidden {
         opacity: 0;
@@ -70,18 +62,20 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px;
       }
       .splash-icon {
-        width: 72px;
-        height: 72px;
-        border-radius: 18px;
-        animation: splash-pulse 1.8s ease-in-out infinite;
+        /* Mismo tamaño visual que los PNG de iOS splash */
+        width: min(35vw, 180px);
+        height: auto;
+        max-height: min(35vw, 180px);
+        object-fit: contain;
+        /* Sin animación — idéntico al PNG estático de iOS */
       }
       .splash-bar-track {
-        width: 120px;
+        margin-top: 24px;
+        width: min(35vw, 180px);
         height: 2px;
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.08);
         border-radius: 1px;
         overflow: hidden;
       }
@@ -90,29 +84,12 @@
         width: 40%;
         background: #7E57C2;
         border-radius: 1px;
-        animation: splash-slide 1.5s ease-in-out infinite;
-      }
-      @keyframes splash-pulse {
-        0%,
-        100% {
-          transform: scale(1);
-          opacity: 1;
-        }
-        50% {
-          transform: scale(0.93);
-          opacity: 0.75;
-        }
+        animation: splash-slide 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
       }
       @keyframes splash-slide {
-        0% {
-          transform: translateX(-100%);
-        }
-        50% {
-          transform: translateX(150%);
-        }
-        100% {
-          transform: translateX(150%);
-        }
+        0%   { transform: translateX(-250%); }
+        60%  { transform: translateX(350%); }
+        100% { transform: translateX(350%); }
       }
     </style>
 
@@ -120,7 +97,8 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <title>Corpus</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <!-- Apple splash screens (generados para cada tamaño de pantalla iOS) -->
     <link rel="apple-touch-startup-image" href="splash/apple-splash-2064-2752.png" media="(device-width: 1032px) and (device-height: 1376px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="splash/apple-splash-2752-2064.png" media="(device-width: 1032px) and (device-height: 1376px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
     <link rel="apple-touch-startup-image" href="splash/apple-splash-2048-2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
@@ -170,35 +148,34 @@
   </head>
   <body>
 
-    <!-- Splash screen: visible while Flutter engine loads, fades out automatically -->
+    <!-- Splash screen: visible mientras carga Flutter.
+         Se oculta cuando Dart dispara el evento 'corpus-ready' (no en
+         flutter-first-frame, que es demasiado temprano — el primer frame
+         aún muestra el estado de carga de la app).
+         Fallback de seguridad a los 8s por si algo falla. -->
     <div id="corpus-splash" aria-hidden="true">
       <div class="splash-logo-wrap">
-        <img class="splash-icon" src="icons/Icon-192.png" alt="Corpus Logo">
+        <img class="splash-icon" src="icons/Icon-512.png" alt="Corpus Logo">
         <div class="splash-bar-track">
           <div class="splash-bar-fill"></div>
         </div>
       </div>
     </div>
     <script>
-      // Hide the splash as soon as Flutter has painted its first frame
-      window.addEventListener('flutter-first-frame', function() {
+      var _splashHidden = false;
+      function hideSplash() {
+        if (_splashHidden) return;
+        _splashHidden = true;
         var splash = document.getElementById('corpus-splash');
         if (splash) {
           splash.classList.add('hidden');
-          setTimeout(function() {
-            splash.remove();
-          }, 600);
+          setTimeout(function() { splash.remove(); }, 500);
         }
-      });
+      }
+      window.addEventListener('corpus-ready', hideSplash);
+      setTimeout(hideSplash, 8000);
     </script>
 
-    <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
     <script src="flutter_bootstrap.js" async=""></script>
   </body>
 </html>

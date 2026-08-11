@@ -9,6 +9,7 @@ import 'theme/app_theme.dart';
 import 'theme/style_pack_registry.dart';
 import 'services/notification_service.dart';
 import 'services/style_pack_music_service.dart';
+import 'utils/web_js.dart';
 
 import 'globals.dart';
 
@@ -193,9 +194,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
           widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          // El HTML splash tapa la pantalla mientras Flutter carga.
+          // No mostramos nada propio para evitar el salto visual.
+          return const SizedBox.shrink();
         }
         final session = snapshot.hasData ? snapshot.data!.session : null;
         if (session != null) {
