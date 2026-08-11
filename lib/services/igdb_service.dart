@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' show parse;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class IGDBService {
@@ -536,7 +535,23 @@ class IGDBService {
   /// Decodifica entidades HTML (&amp;, &#039;, &quot;, etc.) que a veces
   /// vienen crudas desde fuentes externas como barter.vg
   static String decodeHtmlEntities(String text) {
-    return parse(text).body?.text ?? text;
+    String decoded = text
+        .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'")
+        .replaceAll('&#039;', "'")
+        .replaceAll('&#39;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
+    decoded = decoded.replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
+      final codePoint = int.tryParse(match.group(1)!);
+      return codePoint != null ? String.fromCharCode(codePoint) : match.group(0)!;
+    });
+    decoded = decoded.replaceAllMapped(RegExp(r'&#x([a-fA-F0-9]+);'), (match) {
+      final codePoint = int.tryParse(match.group(1)!, radix: 16);
+      return codePoint != null ? String.fromCharCode(codePoint) : match.group(0)!;
+    });
+    return decoded;
   }
 
   /// Búsqueda "permisiva" pensada para resolver títulos de bundles/DLCs
