@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../repositories/review_repository.dart';
 import '../../../models/models.dart';
 import '../../../services/igdb_service.dart';
@@ -660,27 +661,116 @@ class GameDetailsController extends ChangeNotifier {
   // riesgo tienen de romper datos.
 
   /// Origen: parte lógica (sin el modal) de _saveReview, líneas 1140-1350+.
-  Future<void> saveReview({
-    required Review review, // TODO(B-A1): firma exacta según modelo tipado
+  Future<SaveReviewResult> saveReview({
+    String? reviewId,
+    required double rating,
+    required double ratingGameplay,
+    required double ratingNarrative,
+    required double ratingSoundtrack,
+    required double ratingVisuals,
+    required String comment,
+    required String status,
+    required String completionType,
+    required bool isReplay,
+    required int? replayNumber,
+    required String? platform,
+    required double? playTimeHours,
+    required DateTime? playedFrom,
+    required DateTime? playedUntil,
+    required int? progressPercent,
+    required DateTime? reviewDate,
+    required List<XFile> newImages,
+    required List<String> existingImages,
+    required List<String> partnerIds,
   }) async {
-    throw UnimplementedError(
-      'saveReview será portado en Fase 4 del refactor B-C2. '
-      'Por ahora, la versión en game_details_screen.dart es la activa.',
-    );
+    if (isSaving) throw Exception('Already saving');
+    isSaving = true;
+    _notify();
+
+    final userId = currentUserId;
+    if (userId == null) {
+      isSaving = false;
+      _notify();
+      throw Exception('Not logged in');
+    }
+    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+
+    try {
+      final result = await _repo.saveReview(
+        userId: userId,
+        igdbId: igdbId,
+        gameData: gameData,
+        enrichedData: enrichedData,
+        reviewId: reviewId,
+        rating: rating,
+        ratingGameplay: ratingGameplay,
+        ratingNarrative: ratingNarrative,
+        ratingSoundtrack: ratingSoundtrack,
+        ratingVisuals: ratingVisuals,
+        comment: comment,
+        status: status,
+        completionType: completionType,
+        isReplay: isReplay,
+        replayNumber: replayNumber,
+        platform: platform,
+        playTimeHours: playTimeHours,
+        playedFrom: playedFrom,
+        playedUntil: playedUntil,
+        progressPercent: progressPercent,
+        reviewDate: reviewDate,
+        newImages: newImages,
+        existingImages: existingImages,
+        partnerIds: partnerIds,
+      );
+
+      inLibrary = true;
+      this.status = status;
+      this.rating = rating;
+      this.ratingGameplay = ratingGameplay;
+      this.ratingNarrative = ratingNarrative;
+      this.ratingSoundtrack = ratingSoundtrack;
+      this.ratingVisuals = ratingVisuals;
+
+      // Fetch reviews without awaiting, as in the screen logic
+      fetchReviews();
+
+      return result;
+    } finally {
+      isSaving = false;
+      _notify();
+    }
   }
 
-  /// Origen: _deleteFromLibrary, líneas 1360-1436.
   Future<void> deleteFromLibrary() async {
-    throw UnimplementedError(
-      'deleteFromLibrary será portado en Fase 4 del refactor B-C2.',
-    );
+    final userId = currentUserId;
+    if (userId == null) throw Exception('Not logged in');
+    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+
+    await _repo.deleteFromLibrary(userId: userId, gameId: igdbId);
+
+    reviews.clear();
+    inLibrary = false;
+    status = 'wishlist';
+    rating = 0;
+    ratingGameplay = 0;
+    ratingNarrative = 0;
+    ratingSoundtrack = 0;
+    ratingVisuals = 0;
+    _notify();
   }
 
-  /// Origen: _deleteReview, líneas 1390-1436.
-  Future<void> deleteReview(Review review) async {
-    throw UnimplementedError(
-      'deleteReview será portado en Fase 4 del refactor B-C2.',
+  Future<bool> deleteReview(Review review) async {
+    final gameId = gameData['igdb_id'] ?? gameData['id'];
+    final removedFromLibrary = await _repo.deleteReview(
+      reviewId: review.id,
+      reviewData: review,
+      gameId: gameId,
     );
+
+    reviews.removeWhere((r) => r.id == review.id);
+    if (removedFromLibrary) inLibrary = false;
+    _notify();
+    return removedFromLibrary;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

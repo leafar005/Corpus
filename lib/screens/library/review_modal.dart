@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_network_image.dart';
 
 /// Callback invocado cuando el usuario pulsa "Guardar/Publicar Reseña".
 /// Firma idéntica a [_GameDetailsScreenState._saveReview].
@@ -351,43 +352,41 @@ class ReviewModal {
                                       ),
                                     ),
                                   ),
-                                  if (reviewId != null) ...[
-                                    TextButton.icon(
-                                      icon: const Icon(
-                                        Icons.edit_calendar,
-                                        size: 16,
-                                      ),
-                                      label: Text(
-                                        reviewDate != null
-                                            ? '${reviewDate!.day} ${monthAbbr(reviewDate!.month)} ${reviewDate!.year}'
-                                            : 'Fecha',
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                      ),
-                                      onPressed: () async {
-                                        final d = await showDatePicker(
-                                          context: modalContext,
-                                          initialDate:
-                                              reviewDate ?? DateTime.now(),
-                                          firstDate: DateTime(1970),
-                                          lastDate: DateTime.now().add(
-                                            const Duration(days: 1),
-                                          ),
-                                        );
-                                        if (d != null) {
-                                          setModalState(() => reviewDate = d);
-                                        }
-                                      },
+                                  TextButton.icon(
+                                    icon: const Icon(
+                                      Icons.edit_calendar,
+                                      size: 16,
                                     ),
-                                  ],
+                                    label: Text(
+                                      reviewDate != null
+                                          ? '${reviewDate!.day} ${monthAbbr(reviewDate!.month)} ${reviewDate!.year}'
+                                          : 'Fecha',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                    ),
+                                    onPressed: () async {
+                                      final d = await showDatePicker(
+                                        context: modalContext,
+                                        initialDate:
+                                            reviewDate ?? DateTime.now(),
+                                        firstDate: DateTime(1970),
+                                        lastDate: DateTime.now().add(
+                                          const Duration(days: 1),
+                                        ),
+                                      );
+                                      if (d != null) {
+                                        setModalState(() => reviewDate = d);
+                                      }
+                                    },
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 24),
@@ -691,8 +690,8 @@ class ReviewModal {
                                       children: [
                                         ...existingImages.map(
                                           (url) => buildRemovableImage(
-                                            imageWidget: Image.network(
-                                              url,
+                                            imageWidget: CorpusNetworkImage(
+                                              url: url,
                                               fit: BoxFit.cover,
                                               width: 80,
                                               height: 80,
@@ -705,8 +704,8 @@ class ReviewModal {
                                         ...newImages.map(
                                           (file) => buildRemovableImage(
                                             imageWidget: kIsWeb
-                                                ? Image.network(
-                                                    file.path,
+                                                ? CorpusNetworkImage(
+                                                    url: file.path,
                                                     fit: BoxFit.cover,
                                                     width: 80,
                                                     height: 80,

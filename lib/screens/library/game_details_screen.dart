@@ -25,6 +25,7 @@ import '../../widgets/guest_login_prompt.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/corpus_primary_button.dart';
 import '../../widgets/full_screen_gallery.dart';
+import '../../widgets/corpus_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameDetailsScreen extends StatefulWidget {
@@ -60,19 +61,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   // Delegate getters & setters to _controller for UI backwards compatibility
   bool get _isGuest => _controller.isGuest;
   bool get _inLibrary => _controller.inLibrary;
-  set _inLibrary(bool v) => _controller.inLibrary = v;
   String get _status => _controller.status;
-  set _status(String v) => _controller.status = v;
   double get _rating => _controller.rating;
-  set _rating(double v) => _controller.rating = v;
   double get _ratingGameplay => _controller.ratingGameplay;
-  set _ratingGameplay(double v) => _controller.ratingGameplay = v;
   double get _ratingNarrative => _controller.ratingNarrative;
-  set _ratingNarrative(double v) => _controller.ratingNarrative = v;
   double get _ratingSoundtrack => _controller.ratingSoundtrack;
-  set _ratingSoundtrack(double v) => _controller.ratingSoundtrack = v;
   double get _ratingVisuals => _controller.ratingVisuals;
-  set _ratingVisuals(double v) => _controller.ratingVisuals = v;
   bool get _isLoadingUserData => _controller.isLoadingUserData;
   UserProfile? get _userData => _controller.userData;
   List<UserProfile> get _partnersData => _controller.partnersData;
@@ -609,22 +603,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     required List<String> existingImages,
     required List<String> partnerIds,
   }) async {
-    if (_isSaving) return;
-    setState(() => _isSaving = true);
-
-    final userId = _repo.client.auth.currentUser?.id;
-    if (userId == null) {
-      if (mounted) setState(() => _isSaving = false);
-      return;
-    }
-    final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-
     try {
-      final result = await _repo.saveReview(
-        userId: userId,
-        igdbId: igdbId,
-        gameData: widget.gameData,
-        enrichedData: _enrichedData,
+      final result = await _controller.saveReview(
         reviewId: reviewId,
         rating: rating,
         ratingGameplay: ratingGameplay,
@@ -706,19 +686,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       }
 
       if (mounted) {
-        setState(() {
-          _inLibrary = true;
-          _status = status;
-          _rating = rating;
-          _ratingGameplay = ratingGameplay;
-          _ratingNarrative = ratingNarrative;
-          _ratingSoundtrack = ratingSoundtrack;
-          _ratingVisuals = ratingVisuals;
-          // Fetch reviews to get the updated review list.
-          // We don't fetch user data here to avoid race conditions with the DB trigger,
-          // since we already updated the local state variables above.
-          _controller.fetchReviews();
-        });
         libraryUpdateNotifier.value++;
         Navigator.pop(context);
       }
@@ -768,26 +735,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     );
     if (confirm != true) return;
 
-    final userId = _repo.client.auth.currentUser?.id;
-    if (userId == null) return;
-    final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-
     try {
-      await _repo.deleteFromLibrary(userId: userId, gameId: igdbId);
+      await _controller.deleteFromLibrary();
 
       if (mounted) {
-        setState(() {
-          _reviews.clear();
-          _inLibrary = false;
-          _status = 'wishlist';
-          _rating = 0;
-          _ratingGameplay = 0;
-          _ratingNarrative = 0;
-          _ratingSoundtrack = 0;
-          _ratingVisuals = 0;
-          _commentController.clear();
-          _ratingController.clear();
-        });
+        _commentController.clear();
+        _ratingController.clear();
         libraryUpdateNotifier.value++;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Juego eliminado de tu biblioteca')),
@@ -826,18 +779,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     if (confirm != true) return;
 
     try {
-      final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-      final removedFromLibrary = await _repo.deleteReview(
-        reviewId: review.id,
-        reviewData: review,
-        gameId: gameId,
-      );
+      await _controller.deleteReview(review);
 
       if (mounted) {
-        setState(() {
-          _reviews.removeWhere((r) => r.id == review.id);
-          if (removedFromLibrary) _inLibrary = false;
-        });
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Reseña eliminada')));
@@ -980,19 +924,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   Widget _buildFadeInImage(String url, {Key? key}) {
     return SizedBox.expand(
       key: key,
-      child: Image.network(
-        url,
+      child: CorpusNetworkImage(
+        url: url,
         fit: BoxFit.cover,
         alignment: Alignment.center,
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded) return child;
-          return AnimatedOpacity(
-            opacity: frame == null ? 0 : 1,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOut,
-            child: child,
-          );
-        },
       ),
     );
   }
@@ -1073,6 +1008,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) => _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     final title =
         widget.gameData['title'] ??
         _enrichedData['title'] ??
@@ -1249,7 +1191,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       child: ClipRRect(
         borderRadius: ext.radiusMedium,
         child: highResCoverUrl.isNotEmpty
-            ? Image.network(highResCoverUrl, fit: BoxFit.cover)
+            ? CorpusNetworkImage(url: highResCoverUrl, fit: BoxFit.cover)
             : Container(color: Theme.of(context).primaryColorDark, height: 350),
       ),
     );
