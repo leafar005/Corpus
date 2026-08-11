@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/corpus_theme_extension.dart';
 import '../../../utils/url_utils.dart';
+import '../../../widgets/corpus_network_image.dart';
 
 class GameLinksTab extends StatelessWidget {
   const GameLinksTab({
@@ -298,13 +299,10 @@ class GameLinksTab extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      // DuckDuckGo tiene CORS abierto en todos los navegadores.
-                      // Fallback a icono Material si el dominio no tiene favicon.
-                      child: Image.network(
-                        'https://icons.duckduckgo.com/ip3/$domain.ico',
+                      child: CorpusNetworkImage(
+                        url: 'https://icons.duckduckgo.com/ip3/$domain.ico',
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Icon(itemIcon, size: 18),
+                        placeholder: Icon(itemIcon, size: 18),
                       ),
                     ),
                   ),

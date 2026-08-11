@@ -11,7 +11,7 @@ import '../profile/profile_screen.dart';
 import '../social/friends_screen.dart';
 import '../library/game_details_screen.dart';
 import '../../repositories/activity_repository.dart';
-
+import '../../widgets/corpus_network_image.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -719,8 +719,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                           borderRadius: Theme.of(
                             context,
                           ).extension<CorpusThemeExtension>()!.radiusSmall,
-                          child: Image.network(
-                            imageUrls[idx] as String,
+                          child: CorpusNetworkImage(
+                            url: imageUrls[idx] as String,
                             height: 120,
                             fit: BoxFit.fitHeight,
                           ),

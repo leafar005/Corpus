@@ -12,6 +12,7 @@ import '../../../repositories/review_repository.dart';
 import '../../../widgets/full_screen_gallery.dart';
 import '../../../theme/corpus_theme_extension.dart';
 import '../../../widgets/corpus_primary_button.dart';
+import '../../../widgets/corpus_network_image.dart';
 
 class GameHeroSection extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -477,7 +478,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
         child: AspectRatio(
           aspectRatio: 3 / 4,
           child: coverUrl != null
-              ? Image.network(coverUrl, fit: BoxFit.cover)
+              ? CorpusNetworkImage(url: coverUrl, fit: BoxFit.cover)
               : Container(
                   color: theme.colorScheme.surfaceContainerHighest,
                   child: const Icon(Icons.videogame_asset, size: 50),
@@ -606,16 +607,19 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 1000),
                     child: _selectedScreenshotUrl != null
-                        ? Image.network(
-                            _selectedScreenshotUrl!,
+                        ? CorpusNetworkImage(
+                            url: _selectedScreenshotUrl!,
                             key: ValueKey(_selectedScreenshotUrl),
                             fit: BoxFit.cover,
                             width: double.infinity,
                             height: double.infinity,
                           )
                         : (coverUrl != null
-                              ? Image.network(
-                                  coverUrl.replaceAll('t_cover_big', 't_1080p'),
+                              ? CorpusNetworkImage(
+                                  url: coverUrl.replaceAll(
+                                    't_cover_big',
+                                    't_1080p',
+                                  ),
                                   key: ValueKey(coverUrl),
                                   fit: BoxFit.cover,
                                   width: double.infinity,

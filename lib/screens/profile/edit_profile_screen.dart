@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/corpus_network_image.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -946,8 +947,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                             borderRadius: BorderRadius.circular(
                                               7,
                                             ),
-                                            child: Image.network(
-                                              game['cover_url'].replaceAll(
+                                            child: CorpusNetworkImage(
+                                              url: game['cover_url'].replaceAll(
                                                 't_cover_big',
                                                 't_1080p',
                                               ),

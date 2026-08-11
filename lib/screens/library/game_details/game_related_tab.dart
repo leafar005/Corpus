@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../services/igdb_service.dart';
 import '../game_details_screen.dart';
 import 'game_details_controller.dart';
+import '../../../widgets/corpus_network_image.dart';
 
 class GameRelatedTab extends StatelessWidget {
   const GameRelatedTab({
@@ -164,8 +165,8 @@ class GameRelatedTab extends StatelessWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: coverUrl.isNotEmpty
-                            ? Image.network(
-                                coverUrl,
+                            ? CorpusNetworkImage(
+                                url: coverUrl,
                                 fit: BoxFit.cover,
                                 width: double.infinity,
                               )

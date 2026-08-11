@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:corpus/screens/library/game_details_screen.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import 'package:corpus/utils/format_utils.dart';
-
 import 'package:corpus/models/models.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
+import 'package:corpus/widgets/corpus_network_image.dart';
 
 class GameCard extends StatefulWidget {
   final Game game;
@@ -93,12 +93,11 @@ class _GameCardState extends State<GameCard> {
     int? cacheWidth,
     String title,
   ) {
-    final image = Image.network(
-      coverUrl,
+    final image = CorpusNetworkImage(
+      url: coverUrl,
       fit: BoxFit.cover,
       cacheWidth: cacheWidth,
-      errorBuilder: (context, error, stackTrace) =>
-          _buildPlaceholder(context, title),
+      placeholder: _buildPlaceholder(context, title),
     );
     return widget.isGrayscale
         ? ColorFiltered(
