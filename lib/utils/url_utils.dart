@@ -16,7 +16,7 @@ import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html if (dart.library.io) 'url_utils_stub.dart';
+import 'url_utils_stub.dart' if (dart.library.html) 'dart:html' as html;
 
 /// Abre [url] en el navegador del sistema de forma compatible con todos los
 /// navegadores web (Chrome, Firefox, Safari) y plataformas nativas.

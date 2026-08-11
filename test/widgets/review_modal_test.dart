@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:corpus/screens/library/review_modal.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
+import 'package:cross_file/cross_file.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,9 +60,10 @@ void main() {
                               required DateTime? playedFrom,
                               required DateTime? playedUntil,
                               required int? progressPercent,
-                              required dynamic newImages,
+                              required List<XFile> newImages,
                               required List<String> existingImages,
                               required List<String> partnerIds,
+                              required DateTime? reviewDate,
                             }) async {},
                       );
                     },

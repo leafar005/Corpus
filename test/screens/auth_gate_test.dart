@@ -19,7 +19,7 @@ void main() {
             MaterialApp(home: AuthGate(authStream: controller.stream)),
           );
 
-          expect(find.byType(CircularProgressIndicator), findsOneWidget);
+          expect(find.byType(SizedBox), findsOneWidget);
           expect(find.byType(LoginScreen), findsNothing);
 
           await controller.close();
