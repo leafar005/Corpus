@@ -457,6 +457,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
             required playedFrom,
             required playedUntil,
             required progressPercent,
+            required reviewDate,
             required newImages,
             required existingImages,
             required partnerIds,

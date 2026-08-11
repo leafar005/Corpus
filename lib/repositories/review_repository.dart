@@ -155,6 +155,7 @@ class ReviewRepository {
     required int? progressPercent,
     required List<String> imageUrls,
     required List<String> partnerIds,
+    DateTime? reviewDate,
   }) {
     final isWishlist = status == 'wishlist';
     return <String, dynamic>{
@@ -193,6 +194,11 @@ class ReviewRepository {
       'progress_percent': isWishlist ? null : progressPercent,
       'image_urls': isWishlist ? <String>[] : imageUrls,
       'partner_ids': isWishlist ? [] : partnerIds,
+      // Fecha de publicación: solo se incluye en el payload cuando el usuario
+      // la ha seleccionado explícitamente, para no sobreescribir el valor de
+      // la BD en inserts (Postgres usa NOW() por defecto).
+      if (reviewDate != null)
+        'created_at': reviewDate.toIso8601String(),
     };
   }
 
@@ -372,6 +378,7 @@ class ReviewRepository {
     required List<XFile> newImages,
     required List<String> existingImages,
     required List<String> partnerIds,
+    DateTime? reviewDate,
   }) async {
     // Snapshot de logros antes de la operación
     Set<String> beforeAchievements = {};
@@ -424,6 +431,7 @@ class ReviewRepository {
       progressPercent: progressPercent,
       imageUrls: finalImageUrls,
       partnerIds: partnerIds,
+      reviewDate: reviewDate,
     );
 
     // Insert o update según si ya existe la reseña

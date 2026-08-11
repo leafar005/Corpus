@@ -28,6 +28,7 @@ typedef OnSaveReview =
       required DateTime? playedFrom,
       required DateTime? playedUntil,
       required int? progressPercent,
+      required DateTime? reviewDate,
       required List<XFile> newImages,
       required List<String> existingImages,
       required List<String> partnerIds,
@@ -110,6 +111,8 @@ class ReviewModal {
     DateTime? reviewPlayedFrom;
     DateTime? reviewPlayedUntil;
     int reviewProgressPercent = 0;
+    // Fecha de publicación de la reseña (editable solo al editar)
+    DateTime? reviewDate = hasReview ? r!.createdAt : null;
 
     // El controller de comentario vive dentro del modal (con texto inicial)
     final reviewCommentController = TextEditingController(
@@ -325,12 +328,61 @@ class ReviewModal {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                hasReview ? 'Editar Reseña' : 'Añadir Reseña',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              // ── Header: título + (si edición) botón de fecha ──
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      hasReview
+                                          ? 'Editar Reseña'
+                                          : 'Añadir Reseña',
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  if (reviewId != null) ...
+                                    [
+                                      TextButton.icon(
+                                        icon: const Icon(
+                                          Icons.edit_calendar,
+                                          size: 16,
+                                        ),
+                                        label: Text(
+                                          reviewDate != null
+                                              ? '${reviewDate!.day} ${monthAbbr(reviewDate!.month)} ${reviewDate!.year}'
+                                              : 'Fecha',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                        ),
+                                        onPressed: () async {
+                                          final d = await showDatePicker(
+                                            context: modalContext,
+                                            initialDate:
+                                                reviewDate ?? DateTime.now(),
+                                            firstDate: DateTime(1970),
+                                            lastDate: DateTime.now().add(
+                                              const Duration(days: 1),
+                                            ),
+                                          );
+                                          if (d != null) {
+                                            setModalState(
+                                              () => reviewDate = d,
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                ],
                               ),
                               const SizedBox(height: 24),
 
@@ -1264,6 +1316,7 @@ class ReviewModal {
                                 progressPercent: reviewProgressPercent > 0
                                     ? reviewProgressPercent
                                     : null,
+                                reviewDate: reviewDate,
                                 newImages: newImages,
                                 existingImages: existingImages,
                                 partnerIds: reviewPartnerIds,
