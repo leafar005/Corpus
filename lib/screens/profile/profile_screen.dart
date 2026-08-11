@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
-import '../../repositories/profile_repository.dart';
 import '../../widgets/guest_login_prompt.dart';
+import '../../widgets/corpus_network_image.dart';
 import '../library/game_details_screen.dart';
 import '../settings_screen.dart';
 import 'achievements_screen.dart';
@@ -19,6 +19,8 @@ import 'currently_playing_badge.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../utils/format_utils.dart';
 
+import 'profile_controller.dart';
+
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
   final String? userId;
@@ -29,29 +31,21 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _repo = ProfileRepository();
+  late final ProfileController _controller;
 
-  bool _isLoading = true;
-  Map<String, dynamic>? _userProfile;
-  List<Map<String, dynamic>> _wishlistGames = [];
-  List<Map<String, dynamic>> _playingGames = [];
-  List<Map<String, dynamic>> _allGames = [];
-  List<Map<String, dynamic>> _userReviews = [];
   int _selectedTab = 0;
   String? _juegosStatusFilter;
-  List<Map<String, dynamic>?> _hallOfFame = List.filled(5, null);
-  StreamSubscription<AuthState>? _authSub;
 
-  bool get _isOwnProfile {
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    return widget.userId == null || widget.userId == currentUserId;
-  }
+  bool get _isLoading => _controller.isLoading;
+  Map<String, dynamic>? get _userProfile => _controller.userProfile;
+  List<Map<String, dynamic>> get _wishlistGames => _controller.wishlistGames;
+  List<Map<String, dynamic>> get _playingGames => _controller.playingGames;
+  List<Map<String, dynamic>> get _allGames => _controller.allGames;
+  List<Map<String, dynamic>> get _userReviews => _controller.userReviews;
+  List<Map<String, dynamic>?> get _hallOfFame => _controller.hallOfFame;
 
-  /// Verdadero cuando se pide el perfil propio (userId == null) y no hay
-  /// sesión iniciada: aquí no hay nada que cargar, solo un aviso de login.
-  bool get _isGuestProfile =>
-      widget.userId == null &&
-      Supabase.instance.client.auth.currentUser == null;
+  bool get _isOwnProfile => _controller.isOwnProfile;
+  bool get _isGuestProfile => _controller.isGuestProfile;
 
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _tabsKey = GlobalKey();
@@ -87,182 +81,146 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    if (_isGuestProfile) {
-      _isLoading = false;
-    } else {
-      _fetchProfileData();
+    _controller = ProfileController(userId: widget.userId);
+    if (!_controller.isGuestProfile) {
       libraryUpdateNotifier.addListener(_onLibraryUpdated);
     }
-
-    // Si el invitado inicia sesión mientras está en esta pantalla (le hemos
-    // mandado a Login desde el botón y ha vuelto), refrescamos solos, sin
-    // que tenga que salir y volver a entrar a la pestaña de Perfil.
-    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-      if (!mounted || widget.userId != null) return;
-      final loggedInNow = Supabase.instance.client.auth.currentUser != null;
-      if (loggedInNow && _userProfile == null) {
-        setState(() => _isLoading = true);
-        _fetchProfileData();
-        libraryUpdateNotifier.addListener(_onLibraryUpdated);
-      } else {
-        setState(() {});
-      }
-    });
   }
 
   @override
   void dispose() {
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
-    _authSub?.cancel();
+    _controller.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   void _onLibraryUpdated() {
     if (mounted) {
-      _fetchProfileData();
-    }
-  }
-
-  Future<void> _fetchProfileData() async {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    final userId = widget.userId ?? currentUser?.id;
-    if (userId == null) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-
-    try {
-      final data = await _repo.fetchProfileData(
-        userId,
-        isOwnProfile: widget.userId == null,
-      );
-      if (!mounted) return;
-      setState(() {
-        _userProfile = data.userProfile;
-        _wishlistGames = data.wishlistGames;
-        _playingGames = data.playingGames;
-        _allGames = data.beatenGames;
-        _userReviews = data.reviews;
-        _hallOfFame = data.hallOfFame;
-        _isLoading = false;
-      });
-    } catch (e, st) {
-      debugPrint('[ProfileScreen] Error cargando perfil: $e\n$st');
-      if (mounted) setState(() => _isLoading = false);
+      _controller.fetchProfileData();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isGuestProfile) {
-      return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: const Center(
-          child: GuestLoginPrompt(
-            message: 'Inicia sesión para ver y personalizar tu perfil.',
-          ),
-        ),
-      );
-    }
-
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    final isDesktop = MediaQuery.of(context).size.width > 800;
-
-    final topPadding = MediaQuery.of(context).padding.top;
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Scrollbar(
-        controller: _scrollController,
-        thumbVisibility: isDesktop,
-        child: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            if (isDesktop) ...[
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(isDesktop: true),
-                    // Espacio para el overflow del avatar (radio 60+borde 4 = 64px sobresalto)
-                    // La barra de nivel ya va DENTRO del header en el Positioned
-                    const SizedBox(height: 64),
-                  ],
-                ),
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        if (_isGuestProfile) {
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: const Center(
+              child: GuestLoginPrompt(
+                message: 'Inicia sesión para ver y personalizar tu perfil.',
               ),
-              // Línea separadora full-width entre la zona superior y el contenido
-              SliverToBoxAdapter(
-                child: Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.1),
-                ),
-              ),
-              SliverMainAxisGroup(
-                slivers: [
-                  PinnedHeaderSliver(
-                    key: _tabsKey,
-                    child: _buildNavBar(isDesktop: true),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    sliver: SliverCrossAxisGroup(
-                      slivers: [
-                        SliverConstrainedCrossAxis(
-                          maxExtent: 300,
-                          sliver: SliverToBoxAdapter(
-                            child: Transform.translate(
-                              // Desplazamos la sidebar hacia arriba para que "Bio" se alinee visualmente
-                              // con el texto de las tabs, que tienen padding y ocupan 56px de alto
-                              offset: const Offset(0, -40),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [_buildSidebarInfo()],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SliverConstrainedCrossAxis(
-                          maxExtent: 40,
-                          sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
-                        ),
-                        SliverCrossAxisExpanded(
-                          flex: 1,
-                          sliver: _buildCurrentTabContent(isMobile: false),
-                        ),
+            ),
+          );
+        }
+
+        if (_isLoading) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final isDesktop = MediaQuery.of(context).size.width > 800;
+
+        final topPadding = MediaQuery.of(context).padding.top;
+
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: Scrollbar(
+            controller: _scrollController,
+            thumbVisibility: isDesktop,
+            child: CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                if (isDesktop) ...[
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(isDesktop: true),
+                        // Espacio para el overflow del avatar (radio 60+borde 4 = 64px sobresalto)
+                        // La barra de nivel ya va DENTRO del header en el Positioned
+                        const SizedBox(height: 64),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ] else ...[
-              SliverToBoxAdapter(child: _buildMobileBanner()),
-              SliverMainAxisGroup(
-                slivers: [
-                  SliverToBoxAdapter(child: SizedBox.shrink(key: _tabsKey)),
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _MobileProfileHeaderDelegate(
-                      topPadding: topPadding,
-                      hasCurrentlyPlaying:
-                          _userProfile?['currently_playing_appid'] != null,
-                      profileBuilder: _buildMobileProfileRow,
-                      tabBarBuilder: () => _buildNavBar(isDesktop: false),
+                  // Línea separadora full-width entre la zona superior y el contenido
+                  SliverToBoxAdapter(
+                    child: Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.1),
                     ),
                   ),
-                  _buildCurrentTabContent(isMobile: true),
+                  SliverMainAxisGroup(
+                    slivers: [
+                      PinnedHeaderSliver(
+                        key: _tabsKey,
+                        child: _buildNavBar(isDesktop: true),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40),
+                        sliver: SliverCrossAxisGroup(
+                          slivers: [
+                            SliverConstrainedCrossAxis(
+                              maxExtent: 300,
+                              sliver: SliverToBoxAdapter(
+                                child: Transform.translate(
+                                  // Desplazamos la sidebar hacia arriba para que "Bio" se alinee visualmente
+                                  // con el texto de las tabs, que tienen padding y ocupan 56px de alto
+                                  offset: const Offset(0, -40),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [_buildSidebarInfo()],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SliverConstrainedCrossAxis(
+                              maxExtent: 40,
+                              sliver: SliverToBoxAdapter(
+                                child: SizedBox.shrink(),
+                              ),
+                            ),
+                            SliverCrossAxisExpanded(
+                              flex: 1,
+                              sliver: _buildCurrentTabContent(isMobile: false),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  SliverToBoxAdapter(child: _buildMobileBanner()),
+                  SliverMainAxisGroup(
+                    slivers: [
+                      SliverToBoxAdapter(child: SizedBox.shrink(key: _tabsKey)),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _MobileProfileHeaderDelegate(
+                          topPadding: topPadding,
+                          hasCurrentlyPlaying:
+                              _userProfile?['currently_playing_appid'] != null,
+                          profileBuilder: _buildMobileProfileRow,
+                          tabBarBuilder: () => _buildNavBar(isDesktop: false),
+                        ),
+                      ),
+                      _buildCurrentTabContent(isMobile: true),
+                    ],
+                  ),
                 ],
-              ),
-            ],
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -293,21 +251,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             )
           else
-            Image.network(
-              bannerUrl.replaceAll('t_cover_big', 't_1080p'),
+            CorpusNetworkImage(
+              url: bannerUrl.replaceAll('t_cover_big', 't_1080p'),
               fit: BoxFit.cover,
               alignment: Alignment.center,
-              errorBuilder: (context, error, stackTrace) {
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.deepPurple.shade800, Colors.red.shade900],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+              placeholder: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.deepPurple.shade800, Colors.red.shade900],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                );
-              },
+                ),
+              ),
             ),
           IgnorePointer(
             child: DecoratedBox(
@@ -375,7 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             hallOfFame: _hallOfFame,
                           ),
                         ),
-                      ).then((_) => _fetchProfileData());
+                      ).then((_) => _controller.fetchProfileData());
                     },
                   ),
                 ],
@@ -508,7 +464,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   builder: (context) =>
                       AchievementsScreen(userId: userId, initialXp: xp),
                 ),
-              ).then((_) => _fetchProfileData());
+              ).then((_) => _controller.fetchProfileData());
             }
           : null,
       child: Column(
@@ -572,7 +528,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bannerImageHeight = bannerHeight;
 
     return SizedBox(
-      height: bannerHeight,
+      height: bannerHeight + 60,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -597,27 +553,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   )
-                : Image.network(
-                    bannerUrl.replaceAll(
-                      't_cover_big',
-                      't_1080p',
-                    ), // Mejor resolución
+                : CorpusNetworkImage(
+                    url: bannerUrl.replaceAll('t_cover_big', 't_1080p'),
                     fit: BoxFit.cover,
                     alignment: Alignment.center,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.deepPurple.shade800,
-                              Colors.red.shade900,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                    placeholder: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.deepPurple.shade800,
+                            Colors.red.shade900,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
           ),
 
@@ -716,7 +667,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             hallOfFame: _hallOfFame,
                           ),
                         ),
-                      ).then((_) => _fetchProfileData());
+                      ).then((_) => _controller.fetchProfileData());
                     },
                   ),
                 ],
@@ -724,7 +675,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
 
           Positioned(
-            bottom: -40,
+            bottom: 20,
             left: isDesktop ? 40 : 16,
             right: isDesktop ? 40 : null, // en desktop ocupa todo el ancho
             child: Row(
@@ -1039,7 +990,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return ProfileGamesGridTab(
         userId: userId,
         status: _juegosStatusFilter,
-        onReturn: _fetchProfileData,
+        onReturn: _controller.fetchProfileData,
         scrollController: _scrollController,
       );
     } else if (_selectedTab == 2) {
@@ -1367,7 +1318,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   gameData: game,
                                                 ),
                                           ),
-                                        ).then((_) => _fetchProfileData());
+                                        ).then(
+                                          (_) => _controller.fetchProfileData(),
+                                        );
                                       } else {
                                         showModalBottomSheet(
                                           context: context,
@@ -1393,7 +1346,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                       );
                                                     },
                                               ),
-                                        ).then((_) => _fetchProfileData());
+                                        ).then(
+                                          (_) => _controller.fetchProfileData(),
+                                        );
                                       }
                                     }
                                   },
@@ -1411,8 +1366,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             borderRadius: BorderRadius.circular(
                                               7,
                                             ),
-                                            child: Image.network(
-                                              game['cover_url'].replaceAll(
+                                            child: CorpusNetworkImage(
+                                              url: game['cover_url'].replaceAll(
                                                 't_cover_big',
                                                 't_1080p',
                                               ),
@@ -1556,7 +1511,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       game: Game.fromMap(game),
       isInLibrary: true,
       userRating: userRating,
-      onReturn: _fetchProfileData,
+      onReturn: _controller.fetchProfileData,
     );
   }
 

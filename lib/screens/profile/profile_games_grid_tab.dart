@@ -273,20 +273,15 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     return SliverMainAxisGroup(
       slivers: [
         SliverToBoxAdapter(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildStatusChips(),
-                    const SizedBox(height: 12),
-                    _buildSearchBar(),
-                  ],
-                ),
-              ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildStatusChips(),
+                const SizedBox(height: 12),
+                _buildSearchBar(),
+              ],
             ),
           ),
         ),
