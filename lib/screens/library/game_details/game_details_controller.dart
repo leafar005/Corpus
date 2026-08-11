@@ -93,6 +93,12 @@ class GameDetailsController extends ChangeNotifier {
   /// Sustituye a la lógica repartida en initState (líneas 131-180).
   /// Dispara todos los fetch iniciales y escucha cambios de sesión.
   ///
+  /// Los fetches se agrupan en dos batches paralelos con [Future.wait]:
+  /// - Batch "usuario": datos propios + reseñas + stash + amigos.
+  /// - Batch "juego":  IGDB enrich + Metacritic + HLTB + relacionados.
+  /// Esto reduce el tiempo de carga total al coste del fetch más lento
+  /// de cada grupo, en lugar de la suma de todos.
+  ///
   /// [onUserDataLoaded] se invoca después de fetchUserData para que el screen
   /// pueda actualizar TextEditingControllers u otros widgets propios.
   /// [onScreenshotsEnriched] se invoca cuando enrichGameData trae nuevos
@@ -102,23 +108,28 @@ class GameDetailsController extends ChangeNotifier {
     void Function(List enrichedScreenshots, bool forceInitialSwap)?
         onScreenshotsEnriched,
   }) {
+    // ── Prefs (local, rápido, no bloquea) ──────────────────────────────────
+    loadPreferences();
+
+    // ── Batch "juego": no depende de auth ──────────────────────────────────
+    Future.wait([
+      enrichGameData(onScreenshotsEnriched: onScreenshotsEnriched),
+      fetchMetacritic(),
+      fetchTimeToBeat(),
+      fetchRelatedGames(),
+    ]);
+
+    // ── Batch "usuario": solo si está autenticado ──────────────────────────
     if (isGuest) {
       isLoadingUserData = false;
       isLoadingStashReviews = false;
       isLoadingStashStats = false;
       _notify();
     } else {
-      fetchUserData().then((_) {
-        onUserDataLoaded?.call();
-      });
-      fetchReviews();
-      fetchStashReviews();
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (!_disposed) fetchStashStats();
-      });
-      fetchFriendsWithGame();
+      _fetchUserBatch(onUserDataLoaded: onUserDataLoaded);
     }
 
+    // ── Listener de cambios de sesión ──────────────────────────────────────
     _authSub = _repo.client.auth.onAuthStateChange.listen((_) {
       if (_disposed || _repo.client.auth.currentUser == null) return;
       if (isLoadingUserData || userData != null) return;
@@ -126,20 +137,25 @@ class GameDetailsController extends ChangeNotifier {
       isLoadingStashReviews = true;
       isLoadingStashStats = true;
       _notify();
-      fetchUserData().then((_) => onUserDataLoaded?.call());
-      fetchReviews();
-      fetchStashReviews();
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (!_disposed) fetchStashStats();
-      });
-      fetchFriendsWithGame();
+      _fetchUserBatch(onUserDataLoaded: onUserDataLoaded);
     });
+  }
 
-    loadPreferences();
-    enrichGameData(onScreenshotsEnriched: onScreenshotsEnriched);
-    fetchMetacritic();
-    fetchTimeToBeat();
-    fetchRelatedGames();
+  /// Lanza en paralelo todos los fetches que dependen del usuario autenticado.
+  /// StashStats va con un delay de 400 ms para no saturar el Edge Function.
+  Future<void> _fetchUserBatch({VoidCallback? onUserDataLoaded}) async {
+    await Future.wait([
+      fetchUserData().then((_) => onUserDataLoaded?.call()),
+      fetchReviews(),
+      fetchStashReviews(),
+      fetchFriendsWithGame(),
+    ]);
+    // StashStats después: el Edge Function de Stash es sensible a la carga
+    // simultánea y conviene darle un respiro mínimo.
+    if (!_disposed) {
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!_disposed) fetchStashStats();
+    }
   }
 
   @override
