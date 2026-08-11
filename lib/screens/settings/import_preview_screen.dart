@@ -5,6 +5,7 @@ import 'package:corpus/globals.dart';
 import 'package:corpus/screens/library/review_modal.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
 import 'package:corpus/utils/format_utils.dart';
+import 'package:corpus/widgets/corpus_network_image.dart';
 
 class ImportPreviewScreen extends StatefulWidget {
   final List<CsvGameRow> rows;
@@ -277,8 +278,8 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: coverUrl.isNotEmpty
-                  ? Image.network(
-                      coverUrl,
+                  ? CorpusNetworkImage(
+                      url: coverUrl,
                       width: 45,
                       height: 60,
                       fit: BoxFit.cover,
@@ -376,8 +377,8 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
                                   child: coverUrl.isNotEmpty
-                                      ? Image.network(
-                                          coverUrl,
+                                      ? CorpusNetworkImage(
+                                          url: coverUrl,
                                           fit: BoxFit.cover,
                                           width: double.infinity,
                                         )

@@ -6,6 +6,7 @@ import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../../widgets/p5r_styled_panel.dart';
 import '../../widgets/p5r_dynamic_frame.dart';
+import '../../widgets/corpus_network_image.dart';
 
 class AnticipatedGamesSection extends StatefulWidget {
   final List<dynamic> games;
@@ -200,10 +201,9 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
                     Colors.black.withValues(alpha: 0.55),
                     BlendMode.srcOver,
                   ),
-                  child: Image.network(
-                    backgroundUrl,
+                  child: CorpusNetworkImage(
+                    url: backgroundUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
                 ),
               ),

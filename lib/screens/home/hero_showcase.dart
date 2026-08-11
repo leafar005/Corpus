@@ -9,6 +9,7 @@ import '../../widgets/corpus_primary_button.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../../widgets/typewriter_text.dart';
 import '../library/game_details_screen.dart';
+import '../../widgets/corpus_network_image.dart';
 
 class HeroShowcase extends StatefulWidget {
   final List<Map<String, dynamic>> playingGames;
@@ -491,8 +492,8 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                     .extension<CorpusThemeExtension>()!
                                     .radiusLarge,
                                 child: coverUrl.isNotEmpty
-                                    ? Image.network(
-                                        coverUrl,
+                                    ? CorpusNetworkImage(
+                                        url: coverUrl,
                                         fit: BoxFit.cover,
                                         width: isPortrait
                                             ? constraints.maxWidth * 0.38

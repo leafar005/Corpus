@@ -6,6 +6,7 @@ import '../../../services/igdb_service.dart';
 import '../../../utils/url_utils.dart';
 import '../../../widgets/full_screen_gallery.dart';
 import '../../../theme/corpus_theme_extension.dart';
+import '../../../widgets/corpus_network_image.dart';
 
 class GameMediaTab extends StatefulWidget {
   const GameMediaTab({
@@ -123,7 +124,7 @@ class _GameMediaTabState extends State<GameMediaTab> {
                   borderRadius: Theme.of(
                     context,
                   ).extension<CorpusThemeExtension>()!.radiusMedium,
-                  child: Image.network(url, fit: BoxFit.cover),
+                  child: CorpusNetworkImage(url: url, fit: BoxFit.cover),
                 ),
               );
             },
@@ -155,7 +156,10 @@ class _GameMediaTabState extends State<GameMediaTab> {
                       borderRadius: Theme.of(
                         context,
                       ).extension<CorpusThemeExtension>()!.radiusMedium,
-                      child: Image.network(thumbUrl, fit: BoxFit.cover),
+                      child: CorpusNetworkImage(
+                        url: thumbUrl,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                     Container(
                       decoration: BoxDecoration(
@@ -206,7 +210,7 @@ class _GameMediaTabState extends State<GameMediaTab> {
                   borderRadius: Theme.of(
                     context,
                   ).extension<CorpusThemeExtension>()!.radiusMedium,
-                  child: Image.network(url, fit: BoxFit.cover),
+                  child: CorpusNetworkImage(url: url, fit: BoxFit.cover),
                 ),
               );
             },

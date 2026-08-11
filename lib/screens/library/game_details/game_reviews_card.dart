@@ -5,6 +5,7 @@ import '../../../models/models.dart';
 import '../../../widgets/coop_badge.dart';
 import '../../../theme/corpus_theme_extension.dart';
 import '../../../utils/format_utils.dart';
+import '../../../widgets/corpus_network_image.dart';
 
 class GameReviewsCard extends StatelessWidget {
   const GameReviewsCard({
@@ -425,8 +426,8 @@ class GameReviewsCard extends StatelessWidget {
                               borderRadius: Theme.of(
                                 context,
                               ).extension<CorpusThemeExtension>()!.radiusSmall,
-                              child: Image.network(
-                                imageUrls[idx],
+                              child: CorpusNetworkImage(
+                                url: imageUrls[idx],
                                 height: 100,
                                 fit: BoxFit.fitHeight,
                               ),

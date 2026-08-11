@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
+import '../../widgets/corpus_network_image.dart';
 
 class HallOfFameSelectorScreen extends StatefulWidget {
   final int pinOrder;
@@ -187,7 +188,10 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                               context,
                             ).extension<CorpusThemeExtension>()!.radiusSmall,
                             child: coverUrl.isNotEmpty
-                                ? Image.network(coverUrl, fit: BoxFit.cover)
+                                ? CorpusNetworkImage(
+                                    url: coverUrl,
+                                    fit: BoxFit.cover,
+                                  )
                                 : Container(
                                     color: Theme.of(context).primaryColorDark,
                                   ),

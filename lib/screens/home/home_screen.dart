@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/url_utils.dart';
-
+import '../../widgets/corpus_network_image.dart';
 import '../../models/models.dart';
 import '../../widgets/game_card.dart';
 import '../../services/igdb_service.dart';
@@ -963,13 +963,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(8),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              game!['cover_url'],
+                            child: CorpusNetworkImage(
+                              url: game!['cover_url'],
                               width: 44,
                               height: 56,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
-                                  const Icon(Icons.videogame_asset),
+                              placeholder: const Icon(Icons.videogame_asset),
                             ),
                           ),
                         ),
@@ -1135,15 +1134,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 CorpusThemeExtension
                                               >()!
                                               .radiusSmall,
-                                          child: Image.network(
-                                            game['cover_url'],
+                                          child: CorpusNetworkImage(
+                                            url: game['cover_url'],
                                             width: 40,
                                             height: 50,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, _, _) =>
-                                                const Icon(
-                                                  Icons.videogame_asset,
-                                                ),
                                           ),
                                         ),
                                       ),

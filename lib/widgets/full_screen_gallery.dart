@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'corpus_network_image.dart';
 
 class FullScreenGallery extends StatefulWidget {
   final List<String> imageUrls;
@@ -88,8 +89,8 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
                 },
                 itemBuilder: (context, index) {
                   return InteractiveViewer(
-                    child: Image.network(
-                      widget.imageUrls[index],
+                    child: CorpusNetworkImage(
+                      url: widget.imageUrls[index],
                       fit: BoxFit.contain,
                     ),
                   );
