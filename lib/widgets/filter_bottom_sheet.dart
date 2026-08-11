@@ -385,6 +385,7 @@ class _FilterSectionState extends State<_FilterSection> {
   late final List<String> _labels;
   late final List<Widget?> _avatars;
   late final List<Color?> _brandColors;
+  late final List<Color?> _brandTextColors;
 
   @override
   void initState() {
@@ -403,6 +404,9 @@ class _FilterSectionState extends State<_FilterSection> {
       _brandColors = _labels
           .map((l) => IgdbConstants.getPlatformStyle(l)['color'] as Color?)
           .toList();
+      _brandTextColors = _labels
+          .map((l) => IgdbConstants.getPlatformStyle(l)['textColor'] as Color?)
+          .toList();
       _avatars = _labels.map((label) {
         final icon = IgdbConstants.getPlatformStyle(label)['icon'] as String?;
         if (icon == null) return null;
@@ -417,6 +421,7 @@ class _FilterSectionState extends State<_FilterSection> {
       }).toList();
     } else {
       _brandColors = List.filled(widget.items.length, null);
+      _brandTextColors = List.filled(widget.items.length, null);
       _avatars = List.filled(widget.items.length, null);
     }
   }
@@ -447,6 +452,7 @@ class _FilterSectionState extends State<_FilterSection> {
               final isSelected = _selected.contains(id);
               final baseAvatar = _avatars[i];
               final brandColor = _brandColors[i];
+              final brandTextColor = _brandTextColors[i];
 
               return FilterChip(
                 avatar: baseAvatar,
@@ -454,12 +460,14 @@ class _FilterSectionState extends State<_FilterSection> {
                   _labels[i],
                   style: TextStyle(
                     fontSize: 13,
-                    color: isSelected ? scheme.onPrimary : unselectedTextColor,
+                    color: isSelected
+                        ? (brandTextColor ?? scheme.onPrimary)
+                        : unselectedTextColor,
                   ),
                 ),
                 selected: isSelected,
                 selectedColor: brandColor ?? scheme.primary,
-                checkmarkColor: scheme.onPrimary,
+                checkmarkColor: brandTextColor ?? scheme.onPrimary,
                 showCheckmark: false,
                 onSelected: (selected) {
                   setState(() {
