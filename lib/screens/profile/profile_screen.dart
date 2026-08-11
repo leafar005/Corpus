@@ -54,14 +54,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final GlobalKey _tabsKey = GlobalKey();
 
   void _scrollToTabs() {
-    if (_tabsKey.currentContext != null) {
-      Scrollable.ensureVisible(
-        _tabsKey.currentContext!,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-        alignment: 0.0,
-      );
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final isDesktop = MediaQuery.of(context).size.width >= 800;
+
+      if (isDesktop) {
+        if (_tabsKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _tabsKey.currentContext!,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+            alignment: 0.0,
+          );
+        }
+      } else {
+        if (_scrollController.hasClients) {
+          // Banner es 150, más el colapso del header (~60-82).
+          // 210 alinea exactamente la lista justo debajo de las tabs contraídas.
+          _scrollController.animateTo(
+            210.0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      }
+    });
   }
 
   @override
@@ -106,7 +123,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchProfileData() async {
     final userId =
-        widget.userId ?? Supabase.instance.client.auth.currentUser!.id;
+        widget.userId ?? Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     // 1. Perfil de usuario (va primero porque puede necesitar auto-crearse)
     var userResp = await Supabase.instance.client
@@ -118,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (userResp == null && widget.userId == null) {
       // Solo auto-creamos el perfil del usuario actual
       final email =
-          Supabase.instance.client.auth.currentUser!.email ?? 'jugador';
+          Supabase.instance.client.auth.currentUser?.email ?? 'jugador';
       final defaultUsername = email.split('@')[0];
 
       try {
@@ -276,41 +297,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                 ),
               ),
-              // Tabs en desktop: SliverToBoxAdapter simple (no sticky) para evitar
-              // el bug de Flutter Web donde layoutExtent > paintExtent en SliverPersistentHeader
-              SliverToBoxAdapter(
-                child: _buildNavBar(isDesktop: true),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                sliver: SliverCrossAxisGroup(
-                  slivers: [
-                    SliverConstrainedCrossAxis(
-                      maxExtent: 300,
-                      sliver: SliverToBoxAdapter(
-                        child: Transform.translate(
-                          // Desplazamos la sidebar hacia arriba para que "Bio" se alinee visualmente
-                          // con el texto de las tabs, que tienen padding y ocupan 56px de alto
-                          offset: const Offset(0, -40),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSidebarInfo(),
-                            ],
+              SliverMainAxisGroup(
+                slivers: [
+                  PinnedHeaderSliver(
+                    key: _tabsKey,
+                    child: _buildNavBar(isDesktop: true),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    sliver: SliverCrossAxisGroup(
+                      slivers: [
+                        SliverConstrainedCrossAxis(
+                          maxExtent: 300,
+                          sliver: SliverToBoxAdapter(
+                            child: Transform.translate(
+                              // Desplazamos la sidebar hacia arriba para que "Bio" se alinee visualmente
+                              // con el texto de las tabs, que tienen padding y ocupan 56px de alto
+                              offset: const Offset(0, -40),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildSidebarInfo(),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        const SliverConstrainedCrossAxis(
+                          maxExtent: 40,
+                          sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
+                        ),
+                        SliverCrossAxisExpanded(
+                          flex: 1,
+                          sliver: _buildCurrentTabContent(isMobile: false),
+                        ),
+                      ],
                     ),
-                    const SliverConstrainedCrossAxis(
-                      maxExtent: 40,
-                      sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
-                    ),
-                    SliverCrossAxisExpanded(
-                      flex: 1,
-                      sliver: _buildCurrentTabContent(isMobile: false),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ] else ...[
               SliverToBoxAdapter(child: _buildMobileBanner()),
@@ -340,7 +364,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildMobileBanner() {
     final bannerUrl = _userProfile?['banner_url'];
     final isMe =
-        _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
+        _userProfile?['id'] != null && _userProfile!['id'] == Supabase.instance.client.auth.currentUser?.id;
     // Misma altura de layout y de imagen: no pintar fuera de la caja
     // (eso tapaba el avatar/nombre del header sticky).
     const bannerHeight = 150.0;
@@ -574,7 +598,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? () {
               final userId =
                   _userProfile?['id'] ??
-                  Supabase.instance.client.auth.currentUser!.id;
+                  Supabase.instance.client.auth.currentUser?.id;
+              if (userId == null) return;
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -632,7 +657,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final avatarUrl = _userProfile?['avatar_url'];
     final bannerUrl = _userProfile?['banner_url'];
     final isMe =
-        _userProfile?['id'] == Supabase.instance.client.auth.currentUser!.id;
+        _userProfile?['id'] != null && _userProfile!['id'] == Supabase.instance.client.auth.currentUser?.id;
 
     // Altura de LAYOUT calculada para mantener siempre un aspecto 3:1
     // Limitamos la altura máxima en PC para que no ocupe media pantalla.
@@ -964,7 +989,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? () {
                 final userId =
                     _userProfile?['id'] ??
-                    Supabase.instance.client.auth.currentUser!.id;
+                    Supabase.instance.client.auth.currentUser?.id;
+                if (userId == null) return;
                 final xp = (_userProfile?['xp'] as num?)?.toInt() ?? 0;
                 Navigator.push(
                   context,
@@ -1030,8 +1056,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         right: isDesktop ? 40 : 16,
       ),
       decoration: isDesktop
-          ? null
+          ? BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+            )
           : BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
               border: Border(
                 bottom: BorderSide(
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
@@ -1059,7 +1088,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () => setState(() => _selectedTab = index),
+        onTap: () {
+          setState(() => _selectedTab = index);
+          _scrollToTabs();
+        },
         child: Container(
           padding: EdgeInsets.symmetric(
             vertical: compact ? 12 : 16,
@@ -1097,7 +1129,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final userId =
         _userProfile?['id'] ??
         widget.userId ??
-        Supabase.instance.client.auth.currentUser!.id;
+        Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return const SliverToBoxAdapter(child: SizedBox.shrink());
 
     if (_selectedTab == 0) {
       return SliverToBoxAdapter(
@@ -1885,11 +1918,11 @@ class _SliverNavBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverNavBarDelegate({
     required this.child,
     required this.height,
-    required this.topPadding,
+    this.topPadding = 0,
   });
 
   @override
-  double get minExtent => topPadding; // Permite encogerse hasta 0 si hay poco espacio
+  double get minExtent => topPadding; // Permite encogerse si el viewport se agota para evitar bug de layoutExtent en Web
 
   @override
   double get maxExtent => height + topPadding;
