@@ -6,7 +6,7 @@
 import 'package:flutter/foundation.dart';
 
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html if (dart.library.io) 'url_utils_stub.dart';
+import 'url_utils_stub.dart' if (dart.library.html) 'dart:html' as html;
 
 /// Dispara el evento 'corpus-ready' en el window del navegador.
 /// Esto le indica al splash screen HTML que ya puede desvanecerse.
