@@ -74,51 +74,27 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   double get _ratingVisuals => _controller.ratingVisuals;
   set _ratingVisuals(double v) => _controller.ratingVisuals = v;
   bool get _isLoadingUserData => _controller.isLoadingUserData;
-  set _isLoadingUserData(bool v) => _controller.isLoadingUserData = v;
   UserProfile? get _userData => _controller.userData;
-  set _userData(UserProfile? v) => _controller.userData = v;
   List<UserProfile> get _partnersData => _controller.partnersData;
-  set _partnersData(List<UserProfile> v) => _controller.partnersData = v;
   List<Review> get _reviews => _controller.reviews;
-  set _reviews(List<Review> v) => _controller.reviews = v;
   bool get _isEnriching => _controller.isEnriching;
-  set _isEnriching(bool v) => _controller.isEnriching = v;
   Map<String, dynamic> get _enrichedData => _controller.enrichedData;
-  set _enrichedData(Map<String, dynamic> v) => _controller.enrichedData = v;
   Map<String, dynamic>? get _timeToBeat => _controller.timeToBeat;
-  set _timeToBeat(Map<String, dynamic>? v) => _controller.timeToBeat = v;
   int? get _metacriticScore => _controller.metacriticScore;
-  set _metacriticScore(int? v) => _controller.metacriticScore = v;
   String? get _metacriticUrl => _controller.metacriticUrl;
-  set _metacriticUrl(String? v) => _controller.metacriticUrl = v;
   double? get _metacriticUserScore => _controller.metacriticUserScore;
-  set _metacriticUserScore(double? v) => _controller.metacriticUserScore = v;
   int? get _metacriticCriticCount => _controller.metacriticCriticCount;
-  set _metacriticCriticCount(int? v) => _controller.metacriticCriticCount = v;
   int? get _metacriticUserRatingCount => _controller.metacriticUserRatingCount;
-  set _metacriticUserRatingCount(int? v) => _controller.metacriticUserRatingCount = v;
   bool get _isLoadingMetacritic => _controller.isLoadingMetacritic;
-  set _isLoadingMetacritic(bool v) => _controller.isLoadingMetacritic = v;
   List<dynamic> get _relatedGames => _controller.relatedGames;
-  set _relatedGames(List<dynamic> v) => _controller.relatedGames = v;
-  bool get _isLoadingRelated => _controller.isLoadingRelated;
-  set _isLoadingRelated(bool v) => _controller.isLoadingRelated = v;
   List<Map<String, dynamic>> get _stashReviews => _controller.stashReviews;
-  set _stashReviews(List<Map<String, dynamic>> v) => _controller.stashReviews = v;
   bool get _isLoadingStashReviews => _controller.isLoadingStashReviews;
-  set _isLoadingStashReviews(bool v) => _controller.isLoadingStashReviews = v;
   Map<String, dynamic>? get _stashStats => _controller.stashStats;
-  set _stashStats(Map<String, dynamic>? v) => _controller.stashStats = v;
   bool get _isLoadingStashStats => _controller.isLoadingStashStats;
-  set _isLoadingStashStats(bool v) => _controller.isLoadingStashStats = v;
-  List<Map<String, dynamic>> get _friendsWithGame => _controller.friendsWithGame;
-  set _friendsWithGame(List<Map<String, dynamic>> v) => _controller.friendsWithGame = v;
-  bool get _localizeLinks => _controller.localizeLinks;
-  set _localizeLinks(bool v) => _controller.localizeLinks = v;
+  List<Map<String, dynamic>> get _friendsWithGame =>
+      _controller.friendsWithGame;
   List<String> get _infoTabOrder => _controller.infoTabOrder;
-  set _infoTabOrder(List<String> v) => _controller.infoTabOrder = v;
   Set<String> get _infoTabHidden => _controller.infoTabHidden;
-  set _infoTabHidden(Set<String> v) => _controller.infoTabHidden = v;
 
   void _onScroll() {
     if (!mounted) return;
@@ -174,8 +150,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     _ratingController.dispose();
     super.dispose();
   }
-
-
 
   Color _friendStatusColor(String status) {
     switch (status) {
@@ -280,7 +254,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   // Widget "¿Quién lo tiene?" — avatares de amigos que tienen este juego
-  // ignore: unused_element
   Widget _buildFriendsWithGame(BuildContext context) {
     if (_friendsWithGame.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -352,8 +325,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     );
   }
 
-
-
   /// Muestra una screenshot aleatoria cada vez que se entra a la ventana del juego
   void _selectRandomScreenshot(dynamic screenshotsData) {
     if (screenshotsData != null &&
@@ -400,10 +371,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
   // _showImageGallery implementation removed in favor of full_screen_gallery.dart
 
-
-
   /// Obtiene el ID y nombre del juego original (si existe) desde parent_game, version_parent, etc.
-  // ignore: unused_element
   ({int id, String? name})? _getOriginalGameInfo() {
     final candidates = [
       widget.gameData['parent_game'],
@@ -470,7 +438,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   /// Navega al juego original de forma INSTANTÁNEA precargando su carátula y datos desde la RAM o base de datos local
-  // ignore: unused_element
   Future<void> _navigateToOriginalGame(int id, String? name) async {
     final cleanData = <String, dynamic>{'igdb_id': id, 'id': id};
     if (name != null) {
@@ -598,8 +565,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       );
     }
   }
-
-
 
   /// Abre el bottom sheet de creación/edición de reseña.
   /// La lógica del formulario vive en [ReviewModal] (review_modal.dart).
@@ -770,7 +735,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
-  Color _getStatusColor(String status) => GameStatus.colorForString(context, status);
+  Color _getStatusColor(String status) =>
+      GameStatus.colorForString(context, status);
 
   String _getStatusText(String status) => GameStatus.labelForString(status);
 
@@ -880,7 +846,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-          // ignore: unused_element
         ).showSnackBar(SnackBar(content: Text('Error al eliminar reseña: $e')));
       }
     }
@@ -933,14 +898,18 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusSmall,
               ),
               child: PopupMenuButton<String>(
                 padding: EdgeInsets.zero,
                 icon: const Icon(Icons.more_vert),
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 shape: RoundedRectangleBorder(
-                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                  borderRadius: Theme.of(
+                    context,
+                  ).extension<CorpusThemeExtension>()!.radiusMedium,
                 ),
                 onSelected: (value) {
                   if (value == 'edit') {
@@ -1003,7 +972,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       ],
     );
   }
-  // ignore: unused_element
 
   // ─────────────────────────────────────────────────────────────────────────
   // Helpers de UI extraídos del build() para mantenerlo legible
@@ -1081,7 +1049,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -1100,9 +1070,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       ),
     );
   }
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -1319,7 +1286,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                         ),
                       );
                     }
-                  // ignore: unused_element
                   : null,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -1425,9 +1391,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   context,
                 ).colorScheme.primary.withValues(alpha: 0.4),
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: ext.radiusLarge,
-              ),
+              shape: RoundedRectangleBorder(borderRadius: ext.radiusLarge),
               onPressed: () =>
                   _navigateToOriginalGame(originalGame.id, originalGame.name),
             ),
@@ -1599,7 +1563,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                                           )),
                             ),
 
-                            Container(color: Colors.black.withValues(alpha: 0.3)),
+                            Container(
+                              color: Colors.black.withValues(alpha: 0.3),
+                            ),
                             Positioned(
                               top: 0,
                               left: 0,
@@ -1708,7 +1674,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                                 child: buildCurrentTabContent(),
                               ),
                             ),
-                            const SliverToBoxAdapter(child: SizedBox(height: 60)),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 60),
+                            ),
                           ],
                         ),
                       ),

@@ -199,7 +199,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Divider(
                   height: 1,
                   thickness: 1,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.1),
                 ),
               ),
               SliverMainAxisGroup(
@@ -221,9 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               offset: const Offset(0, -40),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildSidebarInfo(),
-                                ],
+                                children: [_buildSidebarInfo()],
                               ),
                             ),
                           ),
@@ -269,7 +269,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildMobileBanner() {
     final bannerUrl = _userProfile?['banner_url'];
     final isMe =
-        _userProfile?['id'] != null && _userProfile!['id'] == Supabase.instance.client.auth.currentUser?.id;
+        _userProfile?['id'] != null &&
+        _userProfile!['id'] == Supabase.instance.client.auth.currentUser?.id;
     // Misma altura de layout y de imagen: no pintar fuera de la caja
     // (eso tapaba el avatar/nombre del header sticky).
     const bannerHeight = 150.0;
@@ -285,10 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Colors.deepPurple.shade800,
-                    Colors.red.shade900,
-                  ],
+                  colors: [Colors.deepPurple.shade800, Colors.red.shade900],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -303,10 +301,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 return DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Colors.deepPurple.shade800,
-                        Colors.red.shade900,
-                      ],
+                      colors: [Colors.deepPurple.shade800, Colors.red.shade900],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -399,12 +394,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final nameFontSize = 22.0 - (4.0 * t);
     final handleFontSize = 13.0 - (1.0 * t);
-    final nameHandleGap = 2.0;
+    const nameHandleGap = 2.0;
     // Colapsado: misma altura que nombre + @.
     const expandedAvatarRadius = 40.0;
     final collapsedAvatarRadius =
         (nameFontSize * 1.1 + nameHandleGap + handleFontSize * 1.1) / 2;
-    final avatarRadius = expandedAvatarRadius -
+    final avatarRadius =
+        expandedAvatarRadius -
         (expandedAvatarRadius - collapsedAvatarRadius) * t;
     final showLevel = t < 0.5;
     final showPlaying = t < 0.35 && _userProfile != null;
@@ -427,8 +423,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               backgroundColor: Theme.of(
                 context,
               ).colorScheme.surfaceContainerHighest,
-              backgroundImage:
-                  avatarUrl != null ? NetworkImage(avatarUrl) : null,
+              backgroundImage: avatarUrl != null
+                  ? NetworkImage(avatarUrl)
+                  : null,
               child: avatarUrl == null
                   ? Icon(Icons.person, size: avatarRadius)
                   : null,
@@ -451,7 +448,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     height: 1.1,
                   ),
                 ),
-                SizedBox(height: nameHandleGap),
+                const SizedBox(height: nameHandleGap),
                 Row(
                   children: [
                     Text(
@@ -562,7 +559,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final avatarUrl = _userProfile?['avatar_url'];
     final bannerUrl = _userProfile?['banner_url'];
     final isMe =
-        _userProfile?['id'] != null && _userProfile!['id'] == Supabase.instance.client.auth.currentUser?.id;
+        _userProfile?['id'] != null &&
+        _userProfile!['id'] == Supabase.instance.client.auth.currentUser?.id;
 
     // Altura de LAYOUT calculada para mantener siempre un aspecto 3:1
     // Limitamos la altura máxima en PC para que no ocupe media pantalla.
@@ -776,10 +774,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             shadows: [
-                              Shadow(offset: Offset(-1, -1), color: Colors.black),
-                              Shadow(offset: Offset(1, -1), color: Colors.black),
+                              Shadow(
+                                offset: Offset(-1, -1),
+                                color: Colors.black,
+                              ),
+                              Shadow(
+                                offset: Offset(1, -1),
+                                color: Colors.black,
+                              ),
                               Shadow(offset: Offset(1, 1), color: Colors.black),
-                              Shadow(offset: Offset(-1, 1), color: Colors.black),
+                              Shadow(
+                                offset: Offset(-1, 1),
+                                color: Colors.black,
+                              ),
                             ],
                           ),
                         ),
@@ -794,10 +801,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 fontSize: 18,
                                 color: Colors.white,
                                 shadows: [
-                                  Shadow(offset: Offset(-1, -1), color: Colors.black),
-                                  Shadow(offset: Offset(1, -1), color: Colors.black),
-                                  Shadow(offset: Offset(1, 1), color: Colors.black),
-                                  Shadow(offset: Offset(-1, 1), color: Colors.black),
+                                  Shadow(
+                                    offset: Offset(-1, -1),
+                                    color: Colors.black,
+                                  ),
+                                  Shadow(
+                                    offset: Offset(1, -1),
+                                    color: Colors.black,
+                                  ),
+                                  Shadow(
+                                    offset: Offset(1, 1),
+                                    color: Colors.black,
+                                  ),
+                                  Shadow(
+                                    offset: Offset(-1, 1),
+                                    color: Colors.black,
+                                  ),
                                 ],
                               ),
                             ),
@@ -834,10 +853,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             shadows: [
-                              Shadow(offset: Offset(-1, -1), color: Colors.black),
-                              Shadow(offset: Offset(1, -1), color: Colors.black),
+                              Shadow(
+                                offset: Offset(-1, -1),
+                                color: Colors.black,
+                              ),
+                              Shadow(
+                                offset: Offset(1, -1),
+                                color: Colors.black,
+                              ),
                               Shadow(offset: Offset(1, 1), color: Colors.black),
-                              Shadow(offset: Offset(-1, 1), color: Colors.black),
+                              Shadow(
+                                offset: Offset(-1, 1),
+                                color: Colors.black,
+                              ),
                             ],
                           ),
                         ),
@@ -852,10 +880,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 fontSize: 14,
                                 color: Colors.white,
                                 shadows: [
-                                  Shadow(offset: Offset(-1, -1), color: Colors.black),
-                                  Shadow(offset: Offset(1, -1), color: Colors.black),
-                                  Shadow(offset: Offset(1, 1), color: Colors.black),
-                                  Shadow(offset: Offset(-1, 1), color: Colors.black),
+                                  Shadow(
+                                    offset: Offset(-1, -1),
+                                    color: Colors.black,
+                                  ),
+                                  Shadow(
+                                    offset: Offset(1, -1),
+                                    color: Colors.black,
+                                  ),
+                                  Shadow(
+                                    offset: Offset(1, 1),
+                                    color: Colors.black,
+                                  ),
+                                  Shadow(
+                                    offset: Offset(-1, 1),
+                                    color: Colors.black,
+                                  ),
                                 ],
                               ),
                             ),
@@ -880,80 +920,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildLevelProgressBar({required bool isDesktop}) {
-    return Padding(
-      padding: EdgeInsets.only(
-        // No top padding when in sidebar (it's already managed by the Column above)
-        // For mobile (legacy, not used): 0
-        left: isDesktop ? 0 : 16,
-        right: isDesktop ? 0 : 16,
-      ),
-      child: InkWell(
-        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
-        onTap: _isOwnProfile
-            ? () {
-                final userId =
-                    _userProfile?['id'] ??
-                    Supabase.instance.client.auth.currentUser?.id;
-                if (userId == null) return;
-                final xp = (_userProfile?['xp'] as num?)?.toInt() ?? 0;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AchievementsScreen(userId: userId, initialXp: xp),
-                  ),
-                ).then((_) => _fetchProfileData());
-              }
-            : null,
-        child: SizedBox(
-          width: isDesktop ? 400 : double.infinity,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Nivel ${LevelCalculator.getLevel((_userProfile?['xp'] as num?)?.toInt() ?? 0)}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  Text(
-                    LevelCalculator.getProgressString(
-                      (_userProfile?['xp'] as num?)?.toInt() ?? 0,
-                    ),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
-                child: LinearProgressIndicator(
-                  value: LevelCalculator.getProgressFraction(
-                    (_userProfile?['xp'] as num?)?.toInt() ?? 0,
-                  ),
-                  minHeight: 10,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildNavBar({required bool isDesktop}) {
     return Container(
       margin: EdgeInsets.only(
@@ -961,14 +927,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         right: isDesktop ? 40 : 16,
       ),
       decoration: isDesktop
-          ? BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-            )
+          ? BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor)
           : BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
               border: Border(
                 bottom: BorderSide(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -1035,7 +1001,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _userProfile?['id'] ??
         widget.userId ??
         Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    if (userId == null) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
 
     if (_selectedTab == 0) {
       return SliverToBoxAdapter(
@@ -1642,7 +1610,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.2),
-        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusSmall,
       ),
       child: imagePath != null
           ? Image.asset(imagePath, width: 24, height: 24, color: color)
@@ -1765,12 +1735,10 @@ class _MobileProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
       (hasCurrentlyPlaying ? _playingExtraHeight : 0.0);
 
   @override
-  double get minExtent =>
-      topPadding + _collapsedProfileHeight + _tabBarHeight;
+  double get minExtent => topPadding + _collapsedProfileHeight + _tabBarHeight;
 
   @override
-  double get maxExtent =>
-      topPadding + _expandedProfile + _tabBarHeight;
+  double get maxExtent => topPadding + _expandedProfile + _tabBarHeight;
 
   @override
   Widget build(
@@ -1782,7 +1750,8 @@ class _MobileProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
     final collapseProgress = collapseRange > 0
         ? (shrinkOffset / collapseRange).clamp(0.0, 1.0)
         : 0.0;
-    final profileHeight = _expandedProfile -
+    final profileHeight =
+        _expandedProfile -
         ((_expandedProfile - _collapsedProfileHeight) * collapseProgress);
 
     return Material(
@@ -1812,43 +1781,5 @@ class _MobileProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
         oldDelegate.hasCurrentlyPlaying != hasCurrentlyPlaying ||
         oldDelegate.profileBuilder != profileBuilder ||
         oldDelegate.tabBarBuilder != tabBarBuilder;
-  }
-}
-
-class _SliverNavBarDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-  final double height;
-  final double topPadding;
-
-  _SliverNavBarDelegate({
-    required this.child,
-    required this.height,
-    this.topPadding = 0,
-  });
-
-  @override
-  double get minExtent => topPadding; // Permite encogerse si el viewport se agota para evitar bug de layoutExtent en Web
-
-  @override
-  double get maxExtent => height + topPadding;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      padding: EdgeInsets.only(top: topPadding),
-      child: child,
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _SliverNavBarDelegate oldDelegate) {
-    return oldDelegate.child != child ||
-        oldDelegate.height != height ||
-        oldDelegate.topPadding != topPadding;
   }
 }

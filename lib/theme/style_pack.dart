@@ -108,12 +108,10 @@ class StylePack {
       heroFontFamily: json['heroFontFamily'] as String?,
       heroFontSize: (json['heroFontSize'] as num?)?.toDouble() ?? 48,
       heroFontWeight: _fontWeightFromInt(json['heroFontWeight'] as int? ?? 900),
-      borderRadiusSmall:
-          (json['borderRadiusSmall'] as num?)?.toDouble() ?? 8,
+      borderRadiusSmall: (json['borderRadiusSmall'] as num?)?.toDouble() ?? 8,
       borderRadiusMedium:
           (json['borderRadiusMedium'] as num?)?.toDouble() ?? 12,
-      borderRadiusLarge:
-          (json['borderRadiusLarge'] as num?)?.toDouble() ?? 16,
+      borderRadiusLarge: (json['borderRadiusLarge'] as num?)?.toDouble() ?? 16,
       navBarStyle: _navBarStyleFromString(json['navBarStyle'] as String?),
       useDynamicFrames: json['useDynamicFrames'] as bool? ?? false,
       musicFile: json['musicFile'] as String?,
@@ -133,7 +131,7 @@ class StylePack {
     if (fontFamily != null) 'fontFamily': fontFamily,
     if (heroFontFamily != null) 'heroFontFamily': heroFontFamily,
     'heroFontSize': heroFontSize,
-    'heroFontWeight': heroFontWeight.index * 100,
+    'heroFontWeight': heroFontWeight.value,
     'borderRadiusSmall': borderRadiusSmall,
     'borderRadiusMedium': borderRadiusMedium,
     'borderRadiusLarge': borderRadiusLarge,

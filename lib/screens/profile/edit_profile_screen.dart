@@ -129,6 +129,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image != null) {
+      if (!mounted) return;
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: image.path,
         aspectRatio: isAvatar
@@ -139,9 +140,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             toolbarTitle: isAvatar ? 'Recortar Perfil' : 'Recortar Banner',
             toolbarColor: Theme.of(context).colorScheme.surface,
             toolbarWidgetColor: Theme.of(context).colorScheme.onSurface,
-            initAspectRatio: isAvatar ? CropAspectRatioPreset.square : CropAspectRatioPreset.original,
+            initAspectRatio: isAvatar
+                ? CropAspectRatioPreset.square
+                : CropAspectRatioPreset.original,
             lockAspectRatio: true,
-            hideBottomControls: true, // Oculta controles de zoom/rotar en Android
+            hideBottomControls:
+                true, // Oculta controles de zoom/rotar en Android
           ),
           IOSUiSettings(
             title: isAvatar ? 'Recortar Perfil' : 'Recortar Banner',
@@ -164,9 +168,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       if (croppedFile != null) {
-        final bytes = await ImageCompressor.compressImage(XFile(croppedFile.path));
+        final bytes = await ImageCompressor.compressImage(
+          XFile(croppedFile.path),
+        );
         if (bytes == null) return;
-        final ext = croppedFile.path.split('.').last;
+
+        String ext = croppedFile.path.split('.').last.toLowerCase();
+        if (ext.contains('blob') ||
+            ext.length > 4 ||
+            !RegExp(r'^[a-z]+$').hasMatch(ext)) {
+          ext = 'jpeg';
+        }
 
         setState(() {
           if (isAvatar) {
@@ -490,7 +502,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   Text(
                                     'Nombre a mostrar (Público)',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -505,7 +519,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       ).colorScheme.surface,
                                       prefixIcon: Icon(
                                         Icons.person,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                       border: OutlineInputBorder(
                                         borderRadius: ext.radiusMedium,
@@ -518,7 +534,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   Text(
                                     'Nombre de usuario (Único)',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -533,7 +551,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       ).colorScheme.surface,
                                       prefixIcon: Icon(
                                         Icons.alternate_email,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                       border: OutlineInputBorder(
                                         borderRadius: ext.radiusMedium,
@@ -559,7 +579,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   Text(
                                     'Correo Electrónico (Inicio de sesión)',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -575,7 +597,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       ).colorScheme.surface,
                                       prefixIcon: Icon(
                                         Icons.email,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                       border: OutlineInputBorder(
                                         borderRadius: ext.radiusMedium,
@@ -596,7 +620,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   Text(
                                     'Biografía',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -622,7 +648,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   Text(
                                     'Plataformas (Mantén pulsado para ordenar)',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       fontSize: 14,
                                     ),
                                   ),
@@ -656,7 +684,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           case 'pc':
                                             return _buildPlatformBadge(
                                               'pc',
-                                              Theme.of(context).colorScheme.onSurfaceVariant,
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                               icon: Icons.computer,
                                               key: const ValueKey('pc'),
                                             );
@@ -697,7 +727,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           case 'wii':
                                             return _buildPlatformBadge(
                                               'wii',
-                                              Theme.of(context).colorScheme.onSurfaceVariant,
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                               imagePath:
                                                   'assets/images/wii.png',
                                               key: const ValueKey('wii'),
@@ -705,7 +737,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           case 'mac':
                                             return _buildPlatformBadge(
                                               'mac',
-                                              Theme.of(context).colorScheme.onSurfaceVariant,
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant,
                                               imagePath:
                                                   'assets/images/mac.png',
                                               key: const ValueKey('mac'),
@@ -810,11 +844,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 imagePath,
                 width: 30,
                 height: 30,
-                color: isSelected ? activeColor : Theme.of(context).colorScheme.onSurfaceVariant,
+                color: isSelected
+                    ? activeColor
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               )
             : Icon(
                 icon,
-                color: isSelected ? activeColor : Theme.of(context).colorScheme.onSurfaceVariant,
+                color: isSelected
+                    ? activeColor
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
                 size: 30,
               ),
       ),
@@ -829,7 +867,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         children: [
           Text(
             'Hall of Fame (Toca para editar)',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 14,
+            ),
           ),
           const SizedBox(height: 12),
           Center(
@@ -922,7 +963,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                                   ? Colors.amber.withValues(
                                                       alpha: 0.8,
                                                     )
-                                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                                                  : Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
                                             ),
                                           ),
                                   ),
@@ -993,7 +1036,7 @@ class _WebCropperPageState extends State<_WebCropperPage> {
                 setState(() => _processing = true);
                 try {
                   final result = await widget.crop();
-                  if (mounted) {
+                  if (context.mounted) {
                     Navigator.of(context).pop(result);
                   }
                 } catch (e) {
