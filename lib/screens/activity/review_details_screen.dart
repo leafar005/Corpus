@@ -6,7 +6,7 @@ import '../library/review_modal.dart';
 import '../../widgets/full_screen_gallery.dart';
 import '../../repositories/review_repository.dart';
 import '../../widgets/achievement_toast.dart';
-import '../../models/review.dart';
+import '../../models/models.dart';
 import 'dart:io';
 import 'dart:math';
 import 'package:image_picker/image_picker.dart';
@@ -99,7 +99,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   }
 
   Future<void> _fetchInteractions() async {
-    final currentUserId = Supabase.instance.client.auth.currentUser!.id;
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (currentUserId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
     final reviewId = _currentReviewData['id'];
 
     if (reviewId == null) {
@@ -136,7 +140,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   }
 
   Future<void> _toggleLike() async {
-    final currentUserId = Supabase.instance.client.auth.currentUser!.id;
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (currentUserId == null) return;
     final reviewId = _currentReviewData['id'];
     if (reviewId == null) return;
 
@@ -179,7 +184,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       return;
     }
 
-    final currentUserId = Supabase.instance.client.auth.currentUser!.id;
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (currentUserId == null) return;
     final reviewId = widget.reviewData['id'];
     if (reviewId == null) return;
 
@@ -400,19 +406,20 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
           .eq('id', reviewId);
 
       final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-      if (gameId != null) {
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      if (gameId != null && currentUserId != null) {
         final remainingReviews = await Supabase.instance.client
             .from('reviews')
             .select('id')
             .eq('game_id', gameId)
-            .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
+            .eq('user_id', currentUserId);
 
         if (remainingReviews.isEmpty) {
           await Supabase.instance.client
               .from('user_games')
               .delete()
               .eq('game_id', gameId)
-              .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
+              .eq('user_id', currentUserId);
         }
       }
       if (mounted) {
@@ -492,7 +499,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      if (mounted) setState(() => _isSubmitting = false);
+      return;
+    }
     final igdbId =
         widget.gameData['igdb_id'] ??
         widget.gameData['id'] ??
@@ -680,39 +691,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     }
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'beaten':
-        return 'Terminado';
-      case 'playing':
-        return 'Jugando';
-      case 'wishlist':
-        return 'Quiero';
-      case 'abandoned':
-        return 'Abandonado';
-      case 'on_hold':
-        return 'En Pausa';
-      default:
-        return 'Desconocido';
-    }
-  }
+  String _getStatusText(String status) => GameStatus.labelForString(status);
 
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'beaten':
-        return Icons.check_circle;
-      case 'playing':
-        return Icons.sports_esports;
-      case 'wishlist':
-        return Icons.bookmark;
-      case 'abandoned':
-        return Icons.cancel;
-      case 'on_hold':
-        return Icons.pause_circle;
-      default:
-        return Icons.flag;
-    }
-  }
+  IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
 
   String _getCompletionTypeText(String type) {
     switch (type) {
@@ -811,7 +792,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     final coverUrl = widget.gameData['cover_url'] ?? '';
     final username = widget.userData?['username'] ?? 'Jugador';
     final avatarUrl = widget.userData?['avatar_url'];
-    final currentUserId = Supabase.instance.client.auth.currentUser!.id;
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
     // Extract all fields from reviewData
     final rating = (_currentReviewData['rating'] ?? 0).toDouble();

@@ -182,7 +182,7 @@ class ReviewModal {
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()?.radiusLarge ?? BorderRadius.circular(20),
                 ),
                 side: BorderSide(
                   color: sel
@@ -202,7 +202,7 @@ class ReviewModal {
                   Container(
                     margin: const EdgeInsets.only(right: 8, top: 8),
                     decoration: BoxDecoration(
-                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()?.radiusSmall ?? BorderRadius.circular(8),
                     ),
                     clipBehavior: Clip.hardEdge,
                     child: imageWidget,
@@ -287,18 +287,7 @@ class ReviewModal {
               );
             }
 
-            Color statusColor(String s) {
-              switch (s) {
-                case 'beaten':
-                  return Theme.of(context).colorScheme.secondary;
-                case 'playing':
-                  return Colors.blueAccent;
-                case 'wishlist':
-                  return Theme.of(context).colorScheme.primary;
-                default:
-                  return Theme.of(context).colorScheme.onSurfaceVariant;
-              }
-            }
+            Color statusColor(String s) => GameStatus.colorForString(context, s);
 
             String monthAbbr(int m) {
               const months = [

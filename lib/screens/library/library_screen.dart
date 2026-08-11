@@ -17,7 +17,8 @@ class LibraryScreen extends StatefulWidget {
 class _LibraryScreenState extends State<LibraryScreen> {
   // Función para obtener los juegos directamente de Supabase
   Future<List<Map<String, dynamic>>> _fetchMyGames() async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return [];
     // Hacemos una consulta cruzada (JOIN) entre user_games y games
     final response = await Supabase.instance.client
         .from('user_games')

@@ -360,26 +360,11 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     );
   }
 
-  IconData _getIconForStatus(GameStatus status) {
-    switch (status) {
-      case GameStatus.wishlist:
-        return Icons.bookmark;
-      case GameStatus.playing:
-        return Icons.sports_esports;
-      case GameStatus.beaten:
-        return Icons.check_circle;
-      case GameStatus.completed:
-        return Icons.emoji_events;
-      case GameStatus.abandoned:
-        return Icons.cancel;
-      case GameStatus.paused:
-        return Icons.pause;
-    }
-  }
+  IconData _getIconForStatus(GameStatus status) => status.icon;
 
   Widget _buildStatusChips() {
     final validStatuses = GameStatus.values.where(
-      (s) => s != GameStatus.paused,
+      (s) => s != GameStatus.onHold,
     );
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

@@ -13,6 +13,7 @@ import '../library/game_details_screen.dart';
 import '../../repositories/review_repository.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
+import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 
@@ -87,7 +88,8 @@ class _ActivityScreenState extends State<ActivityScreen>
 
   Future<void> _fetchFriendsStrip() async {
     try {
-      final myId = _supabase.auth.currentUser!.id;
+      final myId = _supabase.auth.currentUser?.id;
+      if (myId == null) return;
 
       final asSender = await _supabase
           .from('friendships')
@@ -442,39 +444,9 @@ class _ActivityScreenState extends State<ActivityScreen>
     }
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'beaten':
-        return 'Terminado';
-      case 'playing':
-        return 'Jugando';
-      case 'wishlist':
-        return 'En wishlist';
-      case 'abandoned':
-        return 'Abandonado';
-      case 'on_hold':
-        return 'En Pausa';
-      default:
-        return 'Actualizado';
-    }
-  }
+  String _getStatusText(String status) => GameStatus.labelForString(status);
 
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'beaten':
-        return Icons.check_circle;
-      case 'playing':
-        return Icons.sports_esports;
-      case 'wishlist':
-        return Icons.bookmark;
-      case 'abandoned':
-        return Icons.cancel;
-      case 'on_hold':
-        return Icons.pause_circle;
-      default:
-        return Icons.flag;
-    }
-  }
+  IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
 
   String _getActionText(String actionType, String? status, bool isOwnActivity) {
     switch (actionType) {

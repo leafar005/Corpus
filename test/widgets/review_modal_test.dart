@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:corpus/screens/library/review_modal.dart';
+import 'package:corpus/theme/corpus_theme_extension.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,7 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
+            theme: ThemeData(extensions: [const CorpusThemeExtension()]),
             home: Scaffold(
               body: Builder(
                 builder: (context) => Center(
@@ -73,7 +75,8 @@ void main() {
 
         // 1. Pulsar para abrir el modal
         await tester.tap(find.text('Abrir Modal'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
 
         // Verificar que aparece el título del modal y los campos de notas/extras porque status='beaten'
         expect(find.text('Añadir Reseña'), findsOneWidget);
@@ -83,7 +86,8 @@ void main() {
 
         // 2. Pulsar el chip de "Quiero" (wishlist)
         await tester.tap(find.text('Quiero'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
 
         // 3. Verificar que los sliders de nota y los campos de tiempo/información extra han desaparecido
         expect(find.text('Nota'), findsNothing);
@@ -96,7 +100,8 @@ void main() {
 
         // 4. Volver a pulsar "Terminado" y verificar que reaparecen
         await tester.tap(find.text('Terminado'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
         expect(find.text('Nota'), findsOneWidget);
         expect(find.text('Información Extra'), findsOneWidget);
       },
