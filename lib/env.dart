@@ -21,14 +21,6 @@ class Env {
     defaultValue: '',
   );
 
-  /// ⚠️ Solo usado como fallback en modo nativo (no web).
-  /// En web, las llamadas a IGDB se hacen siempre a través de la Edge Function
-  /// `igdb-proxy` para que el secret nunca salga del servidor.
-  static const String igdbClientSecret = String.fromEnvironment(
-    'IGDB_CLIENT_SECRET',
-    defaultValue: '',
-  );
-
   // ── Firebase ───────────────────────────────────────────────────────────────
   static const String firebaseApiKey = String.fromEnvironment(
     'FIREBASE_API_KEY',
