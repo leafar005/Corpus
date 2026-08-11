@@ -10,30 +10,33 @@ void main() {
   group('Game.fromMap', () {
     group('Campos obligatorios', () {
       test('parsea igdb_id y title mínimos', () {
-        final game = Game.fromMap({'igdb_id': 1942, 'title': 'Hades'});
+        final game = Game.fromMap(const {'igdb_id': 1942, 'title': 'Hades'});
         expect(game.igdbId, 1942);
         expect(game.title, 'Hades');
       });
 
       test('acepta id como alias de igdb_id', () {
-        final game = Game.fromMap({'id': 999, 'title': 'Celeste'});
+        final game = Game.fromMap(const {'id': 999, 'title': 'Celeste'});
         expect(game.igdbId, 999);
       });
 
       test('title usa name como fallback', () {
-        final game = Game.fromMap({'igdb_id': 1, 'name': 'Hollow Knight'});
+        final game = Game.fromMap(const {
+          'igdb_id': 1,
+          'name': 'Hollow Knight',
+        });
         expect(game.title, 'Hollow Knight');
       });
 
       test('title es cadena vacía si no viene ningún campo', () {
-        final game = Game.fromMap({'igdb_id': 1});
+        final game = Game.fromMap(const {'igdb_id': 1});
         expect(game.title, '');
       });
     });
 
     group('cover_url', () {
       test('usa cover_url directo si está presente', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'cover_url': 'https://example.com/cover.jpg',
@@ -42,7 +45,7 @@ void main() {
       });
 
       test('construye URL desde cover.image_id si no hay cover_url', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'cover': {'image_id': 'abc123'},
@@ -54,12 +57,12 @@ void main() {
       });
 
       test('cover_url es null si no viene ningún campo de cover', () {
-        final game = Game.fromMap({'igdb_id': 1, 'title': 'X'});
+        final game = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
         expect(game.coverUrl, isNull);
       });
 
       test('cover_url es null si cover.image_id es null', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'cover': {'image_id': null},
@@ -71,7 +74,7 @@ void main() {
     group('release_date', () {
       test('parsea first_release_date como timestamp Unix en segundos', () {
         // 2011-10-11 = 1318291200
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'first_release_date': 1318291200,
@@ -81,7 +84,7 @@ void main() {
       });
 
       test('usa release_date como string si no hay first_release_date', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'release_date': '2017-03-03',
@@ -90,14 +93,14 @@ void main() {
       });
 
       test('releaseDate es null si no vienen fechas', () {
-        final game = Game.fromMap({'igdb_id': 1, 'title': 'X'});
+        final game = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
         expect(game.releaseDate, isNull);
       });
     });
 
     group('Listas (genres, platforms, etc.)', () {
       test('parsea lista de strings planos', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'genres': ['RPG', 'Action'],
@@ -106,7 +109,7 @@ void main() {
       });
 
       test('parsea lista de objetos IGDB con campo name', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'platforms': [
@@ -118,7 +121,7 @@ void main() {
       });
 
       test('filtra strings vacíos de objetos IGDB sin name', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'themes': [
@@ -130,7 +133,7 @@ void main() {
       });
 
       test('acepta un único string como lista de un elemento', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'genres': 'Action',
@@ -139,7 +142,7 @@ void main() {
       });
 
       test('devuelve lista vacía si genres es null', () {
-        final game = Game.fromMap({'igdb_id': 1, 'title': 'X'});
+        final game = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
         expect(game.genres, isEmpty);
         expect(game.themes, isEmpty);
         expect(game.platforms, isEmpty);
@@ -151,7 +154,7 @@ void main() {
 
     group('collection', () {
       test('parsea collection como mapa IGDB con campo name', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'collection': {'name': 'The Witcher Series'},
@@ -160,7 +163,7 @@ void main() {
       });
 
       test('parsea collection como string directo', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'collection': 'Dark Souls',
@@ -169,7 +172,7 @@ void main() {
       });
 
       test('collection es null si el string está vacío', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'collection': '',
@@ -178,14 +181,14 @@ void main() {
       });
 
       test('collection es null si es null', () {
-        final game = Game.fromMap({'igdb_id': 1, 'title': 'X'});
+        final game = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
         expect(game.collection, isNull);
       });
     });
 
     group('Metacritic', () {
       test('parsea todos los campos de metacritic', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'metacritic_score': 94,
@@ -202,7 +205,7 @@ void main() {
       });
 
       test('campos metacritic son null si no vienen', () {
-        final game = Game.fromMap({'igdb_id': 1, 'title': 'X'});
+        final game = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
         expect(game.metacriticScore, isNull);
         expect(game.metacriticUrl, isNull);
         expect(game.metacriticUserScore, isNull);
@@ -210,7 +213,7 @@ void main() {
       });
 
       test('metacritic_score acepta num y lo convierte a int', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'metacritic_score': 91.0, // puede venir como double de JSON
@@ -222,12 +225,12 @@ void main() {
 
     group('Campos opcionales', () {
       test('isSteamOnly es false por defecto', () {
-        final game = Game.fromMap({'igdb_id': 1, 'title': 'X'});
+        final game = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
         expect(game.isSteamOnly, isFalse);
       });
 
       test('isSteamOnly se parsea correctamente como true', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'is_steam_only': true,
@@ -236,7 +239,7 @@ void main() {
       });
 
       test('category y parentGameId se parsean como int', () {
-        final game = Game.fromMap({
+        final game = Game.fromMap(const {
           'igdb_id': 1,
           'title': 'X',
           'category': 3,
@@ -250,7 +253,7 @@ void main() {
 
   group('Game.toMap', () {
     test('round-trip: fromMap → toMap preserva los datos esenciales', () {
-      final original = Game.fromMap({
+      final original = Game.fromMap(const {
         'igdb_id': 1942,
         'title': 'Hades',
         'cover_url': 'https://example.com/cover.jpg',
@@ -272,7 +275,7 @@ void main() {
     });
 
     test('toMap omite campos nulos y listas vacías', () {
-      final game = Game.fromMap({'igdb_id': 1, 'title': 'Minimal'});
+      final game = Game.fromMap(const {'igdb_id': 1, 'title': 'Minimal'});
       final map = game.toMap();
 
       expect(map.containsKey('cover_url'), isFalse);
@@ -283,21 +286,21 @@ void main() {
     });
 
     test('toMap incluye is_steam_only solo si es true', () {
-      final steamGame = Game.fromMap({
+      final steamGame = Game.fromMap(const {
         'igdb_id': 1,
         'title': 'X',
         'is_steam_only': true,
       });
       expect(steamGame.toMap()['is_steam_only'], isTrue);
 
-      final normalGame = Game.fromMap({'igdb_id': 1, 'title': 'X'});
+      final normalGame = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
       expect(normalGame.toMap().containsKey('is_steam_only'), isFalse);
     });
   });
 
   group('Game.hasRecentMetacriticData', () {
     test('es false si metacriticScore es null', () {
-      final game = Game.fromMap({'igdb_id': 1, 'title': 'X'});
+      final game = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
       expect(game.hasRecentMetacriticData, isFalse);
     });
 
@@ -329,15 +332,15 @@ void main() {
 
   group('Game equality y hashCode', () {
     test('dos Game con mismo igdbId son iguales', () {
-      final a = Game.fromMap({'igdb_id': 42, 'title': 'Foo'});
-      final b = Game.fromMap({'igdb_id': 42, 'title': 'Bar'});
+      final a = Game.fromMap(const {'igdb_id': 42, 'title': 'Foo'});
+      final b = Game.fromMap(const {'igdb_id': 42, 'title': 'Bar'});
       expect(a, equals(b));
       expect(a.hashCode, b.hashCode);
     });
 
     test('dos Game con distinto igdbId no son iguales', () {
-      final a = Game.fromMap({'igdb_id': 1, 'title': 'X'});
-      final b = Game.fromMap({'igdb_id': 2, 'title': 'X'});
+      final a = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
+      final b = Game.fromMap(const {'igdb_id': 2, 'title': 'X'});
       expect(a, isNot(equals(b)));
     });
   });

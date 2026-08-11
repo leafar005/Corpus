@@ -97,9 +97,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: InputDecoration(
                     labelText: 'Nombre de usuario (ej: MasterChief99)',
                     prefixIcon: const Icon(Icons.person),
-                    border: OutlineInputBorder(
-                      borderRadius: ext.radiusMedium,
-                    ),
+                    border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   textInputAction: TextInputAction.next,
                 ),
@@ -110,9 +108,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: InputDecoration(
                     labelText: 'Correo electrónico',
                     prefixIcon: const Icon(Icons.email),
-                    border: OutlineInputBorder(
-                      borderRadius: ext.radiusMedium,
-                    ),
+                    border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
@@ -124,9 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: InputDecoration(
                     labelText: 'Contraseña (mínimo 6 caracteres)',
                     prefixIcon: const Icon(Icons.lock),
-                    border: OutlineInputBorder(
-                      borderRadius: ext.radiusMedium,
-                    ),
+                    border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   obscureText: true,
                   textInputAction: TextInputAction.done,

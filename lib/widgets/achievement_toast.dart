@@ -195,7 +195,9 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
                           ),
                           decoration: BoxDecoration(
                             color: widget.color.withValues(alpha: 0.2),
-                            borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+                            borderRadius: Theme.of(
+                              context,
+                            ).extension<CorpusThemeExtension>()!.radiusLarge,
                           ),
                           child: Text(
                             '+${widget.xpReward} XP',

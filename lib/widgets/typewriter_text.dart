@@ -24,8 +24,12 @@ class TypewriterText extends StatefulWidget {
 
   /// Renderizado personalizado del texto visible. Si se define, sustituye al
   /// [RichText] por defecto — útil para estilos por letra (p. ej. P5R).
-  final Widget Function(BuildContext context, String visibleText, bool finished)?
-      customBuilder;
+  final Widget Function(
+    BuildContext context,
+    String visibleText,
+    bool finished,
+  )?
+  customBuilder;
 
   const TypewriterText({
     super.key,
@@ -278,10 +282,7 @@ class _TypewriterTextState extends State<TypewriterText>
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: [
-          content,
-          _buildCursor(),
-        ],
+        children: [content, _buildCursor()],
       );
     }
 

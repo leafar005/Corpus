@@ -454,7 +454,11 @@ class _HeroShowcaseState extends State<HeroShowcase>
                           ),
                           const SizedBox(height: 24),
                           CorpusPrimaryButton(
-                            onPressed: () => _navigateToGameDetails(gameData, coverUrl, true),
+                            onPressed: () => _navigateToGameDetails(
+                              gameData,
+                              coverUrl,
+                              true,
+                            ),
                             icon: Icons.edit,
                             label: 'Editar reseña',
                           ),
@@ -483,7 +487,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                 ],
                               ),
                               child: ClipRRect(
-                                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+                                borderRadius: Theme.of(context)
+                                    .extension<CorpusThemeExtension>()!
+                                    .radiusLarge,
                                 child: coverUrl.isNotEmpty
                                     ? Image.network(
                                         coverUrl,
@@ -493,9 +499,16 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                             : 240,
                                       )
                                     : Container(
-                                        width: isPortrait ? constraints.maxWidth * 0.38 : 240,
-                                        height: isPortrait ? (constraints.maxWidth * 0.38) * 1.4 : 340,
-                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                        width: isPortrait
+                                            ? constraints.maxWidth * 0.38
+                                            : 240,
+                                        height: isPortrait
+                                            ? (constraints.maxWidth * 0.38) *
+                                                  1.4
+                                            : 340,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerHighest,
                                       ),
                               ),
                             ),
@@ -745,8 +758,14 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                     children: [
                       TypewriterText(
                         style: TextStyle(
-                          fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
-                          fontWeight: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontWeight ?? FontWeight.w900,
+                          fontFamily: Theme.of(
+                            context,
+                          ).extension<CorpusThemeExtension>()?.heroFontFamily,
+                          fontWeight:
+                              Theme.of(context)
+                                  .extension<CorpusThemeExtension>()
+                                  ?.heroFontWeight ??
+                              FontWeight.w900,
                           fontSize: isPortrait ? 42 : 48,
                           height: 1.1,
                           letterSpacing: -1,
@@ -1033,7 +1052,9 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                   TypewriterText(
                     baseCharDuration: const Duration(milliseconds: 15),
                     style: TextStyle(
-                      fontFamily: Theme.of(context).extension<CorpusThemeExtension>()?.heroFontFamily,
+                      fontFamily: Theme.of(
+                        context,
+                      ).extension<CorpusThemeExtension>()?.heroFontFamily,
                       fontSize: isPortrait ? 20 : 22,
                       fontWeight: FontWeight.w500,
                       color: Colors.white70,

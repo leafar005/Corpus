@@ -78,10 +78,7 @@ void main() {
     });
 
     test('parsea valores válidos normalmente', () {
-      expect(
-        GameStatus.fromStringOrDefault('playing'),
-        GameStatus.playing,
-      );
+      expect(GameStatus.fromStringOrDefault('playing'), GameStatus.playing);
     });
   });
 
@@ -102,7 +99,11 @@ void main() {
         // completed tiene dbValue 'completed' que puede no existir en la BD
         // real, pero el round-trip en Dart debe funcionar igual
         final roundTripped = GameStatus.fromString(status.dbValue);
-        expect(roundTripped, status, reason: 'Fallo en round-trip para: $status');
+        expect(
+          roundTripped,
+          status,
+          reason: 'Fallo en round-trip para: $status',
+        );
       }
     });
   });
@@ -119,7 +120,11 @@ void main() {
 
     test('shortLabel devuelve texto corto para todos los valores', () {
       for (final status in GameStatus.values) {
-        expect(status.shortLabel, isNotEmpty, reason: 'shortLabel vacío para $status');
+        expect(
+          status.shortLabel,
+          isNotEmpty,
+          reason: 'shortLabel vacío para $status',
+        );
       }
     });
 
@@ -150,25 +155,19 @@ void main() {
       );
     });
 
-    test('labelForString con valor null devuelve label del fallback (wishlist)', () {
-      expect(
-        GameStatus.labelForString(null),
-        GameStatus.wishlist.shortLabel,
-      );
-    });
+    test(
+      'labelForString con valor null devuelve label del fallback (wishlist)',
+      () {
+        expect(GameStatus.labelForString(null), GameStatus.wishlist.shortLabel);
+      },
+    );
 
     test('iconForString devuelve el icono del status parseado', () {
-      expect(
-        GameStatus.iconForString('beaten'),
-        GameStatus.beaten.icon,
-      );
+      expect(GameStatus.iconForString('beaten'), GameStatus.beaten.icon);
     });
 
     test('iconForString con valor inválido devuelve icono del fallback', () {
-      expect(
-        GameStatus.iconForString('gibberish'),
-        GameStatus.wishlist.icon,
-      );
+      expect(GameStatus.iconForString('gibberish'), GameStatus.wishlist.icon);
     });
   });
 }

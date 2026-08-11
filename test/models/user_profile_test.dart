@@ -9,7 +9,7 @@ import 'package:corpus/models/user_profile.dart';
 void main() {
   group('UserProfile.fromMap', () {
     test('parsea todos los campos correctamente', () {
-      final profile = UserProfile.fromMap({
+      final profile = UserProfile.fromMap(const {
         'id': 'user-uuid-123',
         'username': 'leafar005',
         'display_name': 'Rafael',
@@ -29,12 +29,15 @@ void main() {
     });
 
     test('username cae a cadena vacía si viene null', () {
-      final profile = UserProfile.fromMap({'id': 'abc', 'username': null});
+      final profile = UserProfile.fromMap(const {
+        'id': 'abc',
+        'username': null,
+      });
       expect(profile.username, '');
     });
 
     test('campos opcionales son null si no vienen', () {
-      final profile = UserProfile.fromMap({
+      final profile = UserProfile.fromMap(const {
         'id': 'abc',
         'username': 'user',
       });
@@ -47,7 +50,7 @@ void main() {
     });
 
     test('xp y level aceptan num (double de JSON) y convierten a int', () {
-      final profile = UserProfile.fromMap({
+      final profile = UserProfile.fromMap(const {
         'id': 'abc',
         'username': 'user',
         'xp': 1500.0,
@@ -63,7 +66,7 @@ void main() {
 
   group('UserProfile.effectiveName', () {
     test('devuelve displayName si existe y no está vacío', () {
-      final profile = UserProfile.fromMap({
+      final profile = UserProfile.fromMap(const {
         'id': 'abc',
         'username': 'leafar005',
         'display_name': 'Rafael',
@@ -72,7 +75,7 @@ void main() {
     });
 
     test('devuelve username si displayName es null', () {
-      final profile = UserProfile.fromMap({
+      final profile = UserProfile.fromMap(const {
         'id': 'abc',
         'username': 'leafar005',
       });
@@ -80,7 +83,7 @@ void main() {
     });
 
     test('devuelve username si displayName es cadena vacía', () {
-      final profile = UserProfile.fromMap({
+      final profile = UserProfile.fromMap(const {
         'id': 'abc',
         'username': 'leafar005',
         'display_name': '',
@@ -91,7 +94,7 @@ void main() {
 
   group('UserProfile.toMap', () {
     test('round-trip: fromMap → toMap preserva los datos', () {
-      final original = UserProfile.fromMap({
+      final original = UserProfile.fromMap(const {
         'id': 'user-uuid-123',
         'username': 'leafar005',
         'display_name': 'Rafael',
@@ -113,7 +116,7 @@ void main() {
     });
 
     test('toMap omite claves opcionales si son null', () {
-      final profile = UserProfile.fromMap({
+      final profile = UserProfile.fromMap(const {
         'id': 'abc',
         'username': 'user',
       });
@@ -129,7 +132,7 @@ void main() {
 
   group('UserProfile.copyWith', () {
     test('crea una copia con un solo campo modificado', () {
-      final original = UserProfile.fromMap({
+      final original = UserProfile.fromMap(const {
         'id': 'abc',
         'username': 'leafar005',
         'bio': 'Old bio',
@@ -146,7 +149,7 @@ void main() {
     });
 
     test('copyWith sin argumentos devuelve objeto con mismos valores', () {
-      final original = UserProfile.fromMap({
+      final original = UserProfile.fromMap(const {
         'id': 'abc',
         'username': 'user',
         'xp': 500,
@@ -162,7 +165,7 @@ void main() {
     });
 
     test('copyWith puede actualizar xp y level a la vez', () {
-      final original = UserProfile.fromMap({
+      final original = UserProfile.fromMap(const {
         'id': 'abc',
         'username': 'user',
         'xp': 100,
@@ -179,15 +182,15 @@ void main() {
 
   group('UserProfile equality y hashCode', () {
     test('dos perfiles con mismo id son iguales', () {
-      final a = UserProfile.fromMap({'id': 'same', 'username': 'alice'});
-      final b = UserProfile.fromMap({'id': 'same', 'username': 'bob'});
+      final a = UserProfile.fromMap(const {'id': 'same', 'username': 'alice'});
+      final b = UserProfile.fromMap(const {'id': 'same', 'username': 'bob'});
       expect(a, equals(b));
       expect(a.hashCode, b.hashCode);
     });
 
     test('dos perfiles con distinto id no son iguales', () {
-      final a = UserProfile.fromMap({'id': 'aaa', 'username': 'user'});
-      final b = UserProfile.fromMap({'id': 'bbb', 'username': 'user'});
+      final a = UserProfile.fromMap(const {'id': 'aaa', 'username': 'user'});
+      final b = UserProfile.fromMap(const {'id': 'bbb', 'username': 'user'});
       expect(a, isNot(equals(b)));
     });
   });

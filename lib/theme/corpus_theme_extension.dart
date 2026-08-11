@@ -83,12 +83,21 @@ class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
       heroFontFamily: t < 0.5 ? heroFontFamily : other.heroFontFamily,
       heroFontSize: lerpDouble(heroFontSize, other.heroFontSize, t)!,
       heroFontWeight: t < 0.5 ? heroFontWeight : other.heroFontWeight,
-      borderRadiusSmall:
-          lerpDouble(borderRadiusSmall, other.borderRadiusSmall, t)!,
-      borderRadiusMedium:
-          lerpDouble(borderRadiusMedium, other.borderRadiusMedium, t)!,
-      borderRadiusLarge:
-          lerpDouble(borderRadiusLarge, other.borderRadiusLarge, t)!,
+      borderRadiusSmall: lerpDouble(
+        borderRadiusSmall,
+        other.borderRadiusSmall,
+        t,
+      )!,
+      borderRadiusMedium: lerpDouble(
+        borderRadiusMedium,
+        other.borderRadiusMedium,
+        t,
+      )!,
+      borderRadiusLarge: lerpDouble(
+        borderRadiusLarge,
+        other.borderRadiusLarge,
+        t,
+      )!,
       navBarStyle: t < 0.5 ? navBarStyle : other.navBarStyle,
       useDynamicFrames: t < 0.5 ? useDynamicFrames : other.useDynamicFrames,
     );

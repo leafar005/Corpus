@@ -202,9 +202,8 @@ class ProfileRepository {
       result.add(gameData);
     }
     result.sort(
-      (a, b) => (b['_sort_date'] as String).compareTo(
-        a['_sort_date'] as String,
-      ),
+      (a, b) =>
+          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
     );
     return result;
   }
@@ -222,9 +221,8 @@ class ProfileRepository {
       result.add(gameData);
     }
     result.sort(
-      (a, b) => (b['_sort_date'] as String).compareTo(
-        a['_sort_date'] as String,
-      ),
+      (a, b) =>
+          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
     );
     return result;
   }
@@ -242,9 +240,8 @@ class ProfileRepository {
       result.add(gameData);
     }
     result.sort(
-      (a, b) => (b['_sort_date'] as String).compareTo(
-        a['_sort_date'] as String,
-      ),
+      (a, b) =>
+          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
     );
     return result;
   }

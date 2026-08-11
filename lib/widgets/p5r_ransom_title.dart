@@ -46,15 +46,17 @@ class P5rRansomTitle extends StatelessWidget {
     }
 
     return Padding(
-      padding: padding ??
+      padding:
+          padding ??
           (compact
               ? const EdgeInsets.fromLTRB(0, 2, 4, 2)
               : const EdgeInsets.fromLTRB(6, 4, 10, 8)),
       child: Transform.rotate(
         angle: compact ? -0.02 : -0.025,
         child: Column(
-          crossAxisAlignment:
-              compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          crossAxisAlignment: compact
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             for (int line = 0; line < lineGroups.length; line++)

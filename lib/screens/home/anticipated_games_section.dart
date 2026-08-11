@@ -233,7 +233,11 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
                   ),
                   const Spacer(),
                   if (widget.countdownStyle == 'days_only')
-                    Row(children: [_buildCountdownSection(days, 'DÍAS RESTANTES')])
+                    Row(
+                      children: [
+                        _buildCountdownSection(days, 'DÍAS RESTANTES'),
+                      ],
+                    )
                   else
                     Row(
                       children: [
@@ -297,8 +301,9 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
   }
 
   Widget _buildDigitBox(String digit) {
-    final isP5r =
-        Theme.of(context).extension<CorpusThemeExtension>()!.useDynamicFrames;
+    final isP5r = Theme.of(
+      context,
+    ).extension<CorpusThemeExtension>()!.useDynamicFrames;
 
     if (isP5r) {
       return Padding(

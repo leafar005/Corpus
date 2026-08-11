@@ -132,7 +132,11 @@ class _GameCardState extends State<GameCard> {
               ),
             ).then((_) => widget.onReturn());
           },
-          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()?.radiusSmall ?? BorderRadius.circular(8),
+          borderRadius:
+              Theme.of(
+                context,
+              ).extension<CorpusThemeExtension>()?.radiusSmall ??
+              BorderRadius.circular(8),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -140,7 +144,11 @@ class _GameCardState extends State<GameCard> {
                 child: Card(
                   clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
-                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()?.radiusSmall ?? BorderRadius.circular(8),
+                    borderRadius:
+                        Theme.of(
+                          context,
+                        ).extension<CorpusThemeExtension>()?.radiusSmall ??
+                        BorderRadius.circular(8),
                   ),
                   elevation: 4,
                   margin: EdgeInsets.zero,

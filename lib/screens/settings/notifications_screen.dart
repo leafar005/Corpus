@@ -252,7 +252,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                        borderRadius: Theme.of(
+                          context,
+                        ).extension<CorpusThemeExtension>()!.radiusMedium,
                       ),
                     ),
                   ),

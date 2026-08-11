@@ -52,7 +52,7 @@ linter:
     # prefer_single_quotes: true
 
     # Trailing commas en constructores/llamadas multilínea
-    require_trailing_commas: false  # activar cuando se limpie el código existente
+    require_trailing_commas: true
 
     # ── Documentación ─────────────────────────────────────────────────────────
     # Documentar miembros públicos de paquetes (demasiado ruidoso para apps)

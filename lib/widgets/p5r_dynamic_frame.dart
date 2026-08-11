@@ -118,10 +118,7 @@ class P5rDynamicFrame extends StatelessWidget {
             borderWidth: borderWidth,
           ),
         ),
-        Padding(
-          padding: padding,
-          child: child,
-        ),
+        Padding(padding: padding, child: child),
       ],
     );
   }

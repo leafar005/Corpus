@@ -275,15 +275,21 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
                 vertical: 0,
               ),
               border: OutlineInputBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusLarge,
                 borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusLarge,
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusLarge,
                 borderSide: BorderSide.none,
               ),
               hintStyle: TextStyle(

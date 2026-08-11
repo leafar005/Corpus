@@ -20,7 +20,9 @@ class StylePackImportService {
 
   static Future<StylePackImportResult?> pickAndImport() async {
     if (kIsWeb) {
-      throw UnsupportedError('La importación de addons no está disponible en web.');
+      throw UnsupportedError(
+        'La importación de addons no está disponible en web.',
+      );
     }
 
     final result = await FilePicker.pickFiles(

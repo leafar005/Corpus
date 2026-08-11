@@ -532,8 +532,9 @@ class ImportService {
           try {
             final nowUtc = DateTime.now().toUtc();
             // 3h de margen cubre los juegos sin fecha (el importador usa -2h como fallback)
-            final cleanupWindow =
-                nowUtc.subtract(const Duration(hours: 3)).toIso8601String();
+            final cleanupWindow = nowUtc
+                .subtract(const Duration(hours: 3))
+                .toIso8601String();
 
             await supabase
                 .from('activity_feed')

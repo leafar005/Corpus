@@ -35,9 +35,21 @@ void main() {
   group('ProfileRepository.extractWishlist', () {
     test('extrae solo los juegos con status wishlist', () {
       final rows = [
-        makeRow(status: 'wishlist', game: gameA, updatedAt: '2024-01-10T00:00:00'),
-        makeRow(status: 'playing', game: gameB, updatedAt: '2024-01-10T00:00:00'),
-        makeRow(status: 'beaten', game: gameC, updatedAt: '2024-01-10T00:00:00'),
+        makeRow(
+          status: 'wishlist',
+          game: gameA,
+          updatedAt: '2024-01-10T00:00:00',
+        ),
+        makeRow(
+          status: 'playing',
+          game: gameB,
+          updatedAt: '2024-01-10T00:00:00',
+        ),
+        makeRow(
+          status: 'beaten',
+          game: gameC,
+          updatedAt: '2024-01-10T00:00:00',
+        ),
       ];
 
       final result = ProfileRepository.extractWishlist(rows);
@@ -60,7 +72,12 @@ void main() {
 
     test('excluye filas sin gameData (games = null)', () {
       final rows = [
-        {'status': 'wishlist', 'games': null, 'rating': 0, 'updated_at': '2024-01-01'},
+        {
+          'status': 'wishlist',
+          'games': null,
+          'rating': 0,
+          'updated_at': '2024-01-01',
+        },
         makeRow(status: 'wishlist', game: gameB),
       ];
 
@@ -70,21 +87,38 @@ void main() {
 
     test('ordena por updated_at descendente', () {
       final rows = [
-        makeRow(status: 'wishlist', game: gameA, updatedAt: '2024-01-01T00:00:00'),
-        makeRow(status: 'wishlist', game: gameB, updatedAt: '2024-03-15T00:00:00'),
-        makeRow(status: 'wishlist', game: gameC, updatedAt: '2024-02-10T00:00:00'),
+        makeRow(
+          status: 'wishlist',
+          game: gameA,
+          updatedAt: '2024-01-01T00:00:00',
+        ),
+        makeRow(
+          status: 'wishlist',
+          game: gameB,
+          updatedAt: '2024-03-15T00:00:00',
+        ),
+        makeRow(
+          status: 'wishlist',
+          game: gameC,
+          updatedAt: '2024-02-10T00:00:00',
+        ),
       ];
 
       final result = ProfileRepository.extractWishlist(rows);
 
-      expect(result[0]['title'], 'Celeste');   // 2024-03-15 más reciente
+      expect(result[0]['title'], 'Celeste'); // 2024-03-15 más reciente
       expect(result[1]['title'], 'Hollow Knight'); // 2024-02-10
-      expect(result[2]['title'], 'Hades');      // 2024-01-01 más antiguo
+      expect(result[2]['title'], 'Hades'); // 2024-01-01 más antiguo
     });
 
     test('inyecta user_rating y _sort_date en el gameData', () {
       final rows = [
-        makeRow(status: 'wishlist', game: gameA, rating: 7.5, updatedAt: '2024-01-10T00:00:00'),
+        makeRow(
+          status: 'wishlist',
+          game: gameA,
+          rating: 7.5,
+          updatedAt: '2024-01-10T00:00:00',
+        ),
       ];
 
       final result = ProfileRepository.extractWishlist(rows);
@@ -104,7 +138,9 @@ void main() {
 
     test('no muta el gameData original de la respuesta de Supabase', () {
       final originalGame = {'id': 1, 'title': 'Hades'};
-      final rows = [makeRow(status: 'wishlist', game: originalGame, rating: 9.0)];
+      final rows = [
+        makeRow(status: 'wishlist', game: originalGame, rating: 9.0),
+      ];
 
       ProfileRepository.extractWishlist(rows);
 
@@ -131,8 +167,16 @@ void main() {
 
     test('ordena por updated_at descendente', () {
       final rows = [
-        makeRow(status: 'playing', game: gameA, updatedAt: '2024-01-01T00:00:00'),
-        makeRow(status: 'playing', game: gameB, updatedAt: '2024-06-01T00:00:00'),
+        makeRow(
+          status: 'playing',
+          game: gameA,
+          updatedAt: '2024-01-01T00:00:00',
+        ),
+        makeRow(
+          status: 'playing',
+          game: gameB,
+          updatedAt: '2024-06-01T00:00:00',
+        ),
       ];
 
       final result = ProfileRepository.extractPlaying(rows);
@@ -200,9 +244,7 @@ void main() {
     });
 
     test('inyecta user_rating con precisión double', () {
-      final rows = [
-        makeRow(status: 'beaten', game: gameA, rating: 8.5),
-      ];
+      final rows = [makeRow(status: 'beaten', game: gameA, rating: 8.5)];
       final result = ProfileRepository.extractBeaten(rows);
       expect(result.first['user_rating'], 8.5);
     });
@@ -222,9 +264,9 @@ void main() {
 
       expect(result.length, 5);
       expect(result[0]?['title'], 'Hades');
-      expect(result[1], isNull);           // posición 2 vacía
+      expect(result[1], isNull); // posición 2 vacía
       expect(result[2]?['title'], 'Hollow Knight');
-      expect(result[3], isNull);           // posición 4 vacía
+      expect(result[3], isNull); // posición 4 vacía
       expect(result[4]?['title'], 'Disco Elysium');
     });
 
@@ -236,9 +278,9 @@ void main() {
 
     test('ignora filas con pin_order fuera de rango [1, 5]', () {
       final raw = [
-        {'pin_order': 0, 'games': gameA},  // fuera de rango
-        {'pin_order': 6, 'games': gameB},  // fuera de rango
-        {'pin_order': 2, 'games': gameC},  // válido
+        {'pin_order': 0, 'games': gameA}, // fuera de rango
+        {'pin_order': 6, 'games': gameB}, // fuera de rango
+        {'pin_order': 2, 'games': gameC}, // válido
       ];
 
       final result = ProfileRepository.parseHallOfFame(raw);
@@ -270,7 +312,9 @@ void main() {
 
     test('no muta los mapas originales de los juegos', () {
       final originalGame = {'id': 1, 'title': 'Hades'};
-      final raw = [{'pin_order': 1, 'games': originalGame}];
+      final raw = [
+        {'pin_order': 1, 'games': originalGame},
+      ];
 
       final result = ProfileRepository.parseHallOfFame(raw);
       // Modificar el resultado no debe afectar al original
@@ -282,31 +326,44 @@ void main() {
   // ── Integración de los tres extractores ───────────────────────────────────
 
   group('Extracción combinada (wishlist + playing + beaten)', () {
-    test('un mismo lote de filas se separa correctamente en los tres grupos', () {
-      final rows = [
-        makeRow(status: 'wishlist', game: gameA, updatedAt: '2024-01-01T00:00:00'),
-        makeRow(status: 'wishlist', game: gameB, isSteamOnly: true),
-        makeRow(status: 'playing', game: gameC, updatedAt: '2024-01-01T00:00:00'),
-        makeRow(status: 'beaten', game: gameD, updatedAt: '2024-01-01T00:00:00'),
-        // Statuses que no mapean a ningún grupo:
-        makeRow(status: 'abandoned', game: {'id': 5, 'title': 'X'}),
-        makeRow(status: 'on_hold', game: {'id': 6, 'title': 'Y'}),
-      ];
+    test(
+      'un mismo lote de filas se separa correctamente en los tres grupos',
+      () {
+        final rows = [
+          makeRow(
+            status: 'wishlist',
+            game: gameA,
+            updatedAt: '2024-01-01T00:00:00',
+          ),
+          makeRow(status: 'wishlist', game: gameB, isSteamOnly: true),
+          makeRow(
+            status: 'playing',
+            game: gameC,
+            updatedAt: '2024-01-01T00:00:00',
+          ),
+          makeRow(
+            status: 'beaten',
+            game: gameD,
+            updatedAt: '2024-01-01T00:00:00',
+          ),
+          // Statuses que no mapean a ningún grupo:
+          makeRow(status: 'abandoned', game: {'id': 5, 'title': 'X'}),
+          makeRow(status: 'on_hold', game: {'id': 6, 'title': 'Y'}),
+        ];
 
-      final wishlist = ProfileRepository.extractWishlist(rows);
-      final playing = ProfileRepository.extractPlaying(rows);
-      final beaten = ProfileRepository.extractBeaten(rows);
+        final wishlist = ProfileRepository.extractWishlist(rows);
+        final playing = ProfileRepository.extractPlaying(rows);
+        final beaten = ProfileRepository.extractBeaten(rows);
 
-      // Solo Hades (no steam_only) en wishlist
-      expect(wishlist.map((g) => g['title']), ['Hades']);
-      expect(playing.map((g) => g['title']), ['Hollow Knight']);
-      expect(beaten.map((g) => g['title']), ['Disco Elysium']);
-    });
+        // Solo Hades (no steam_only) en wishlist
+        expect(wishlist.map((g) => g['title']), ['Hades']);
+        expect(playing.map((g) => g['title']), ['Hollow Knight']);
+        expect(beaten.map((g) => g['title']), ['Disco Elysium']);
+      },
+    );
 
     test('devuelve listas vacías para categorías sin juegos', () {
-      final rows = [
-        makeRow(status: 'playing', game: gameA),
-      ];
+      final rows = [makeRow(status: 'playing', game: gameA)];
 
       expect(ProfileRepository.extractWishlist(rows), isEmpty);
       expect(ProfileRepository.extractBeaten(rows), isEmpty);

@@ -147,7 +147,10 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                   ),
                   child: Text(
                     'Arrastra para reordenar las secciones y usa el interruptor para ocultar o mostrar cada una en los detalles del juego.',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -173,7 +176,9 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.surface,
-                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                          borderRadius: Theme.of(
+                            context,
+                          ).extension<CorpusThemeExtension>()!.radiusMedium,
                           border: Border.all(
                             color: isVisible
                                 ? Theme.of(
@@ -187,7 +192,9 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                             icon,
                             color: isVisible
                                 ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                           ),
                           title: Text(
                             label,
@@ -197,7 +204,9 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                                   : FontWeight.normal,
                               color: isVisible
                                   ? Theme.of(context).colorScheme.onSurface
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           trailing: Row(
@@ -216,7 +225,9 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                                 index: index,
                                 child: Icon(
                                   Icons.drag_handle,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],

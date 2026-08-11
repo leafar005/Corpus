@@ -8,7 +8,8 @@ import '../theme/app_theme.dart';
 import '../theme/style_pack_registry.dart';
 import 'style_pack_music_backend.dart';
 import 'style_pack_music_backend_io.dart'
-    if (dart.library.html) 'style_pack_music_backend_web.dart' as backend;
+    if (dart.library.html) 'style_pack_music_backend_web.dart'
+    as backend;
 
 /// Plays optional background music tied to the active [StylePack].
 class StylePackMusicService with WidgetsBindingObserver {
