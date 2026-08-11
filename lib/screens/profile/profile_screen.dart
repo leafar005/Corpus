@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
+import '../../repositories/profile_repository.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../library/game_details_screen.dart';
 import '../settings_screen.dart';
@@ -28,6 +29,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final _repo = ProfileRepository();
+
   bool _isLoading = true;
   Map<String, dynamic>? _userProfile;
   List<Map<String, dynamic>> _wishlistGames = [];
@@ -122,129 +125,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchProfileData() async {
-    final userId =
-        widget.userId ?? Supabase.instance.client.auth.currentUser?.id;
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final userId = widget.userId ?? currentUser?.id;
     if (userId == null) {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
 
-    // 1. Perfil de usuario (va primero porque puede necesitar auto-crearse)
-    var userResp = await Supabase.instance.client
-        .from('users')
-        .select()
-        .eq('id', userId)
-        .maybeSingle();
-
-    if (userResp == null && widget.userId == null) {
-      // Solo auto-creamos el perfil del usuario actual
-      final email =
-          Supabase.instance.client.auth.currentUser?.email ?? 'jugador';
-      final defaultUsername = email.split('@')[0];
-
-      try {
-        userResp = await Supabase.instance.client
-            .from('users')
-            .insert({'id': userId, 'username': defaultUsername})
-            .select()
-            .single();
-      } catch (e) {
-        userResp = {'username': defaultUsername};
-      }
-    }
-
-    // 2. Las siguientes queries son independientes entre sí — las lanzamos en paralelo
-    final results = await Future.wait([
-      // Todos los juegos del usuario con detalles
-      Supabase.instance.client
-          .from('user_games')
-          .select('*, games(*)')
-          .eq('user_id', userId)
-          .order('updated_at', ascending: false),
-      // Reseñas del usuario
-      Supabase.instance.client
-          .from('reviews')
-          .select('*, games(*), review_likes(user_id), review_comments(id)')
-          .eq('user_id', userId)
-          .order('created_at', ascending: false),
-      // Hall of fame
-      Supabase.instance.client
-          .from('hall_of_fame')
-          .select('*, games(*)')
-          .eq('user_id', userId)
-          .order('pin_order', ascending: true)
-          .catchError((_) => <Map<String, dynamic>>[]),
-    ]);
-
-    final gamesResp = results[0];
-    final reviewsResp = results[1];
-    final hallOfFameResp = results[2];
-
-    final hallOfFameList = List<Map<String, dynamic>?>.filled(5, null);
     try {
-      for (var row in hallOfFameResp) {
-        final order = row['pin_order'] as int;
-        if (order >= 1 && order <= 5 && row['games'] != null) {
-          hallOfFameList[order - 1] = row['games'];
-        }
-      }
-    } catch (e) {
-      debugPrint('[CORPUS] Hall of fame no disponible todavía: $e');
-    }
-
-    final List<dynamic> gamesList = gamesResp;
-
-    final wishlist = <Map<String, dynamic>>[];
-    final playing = <Map<String, dynamic>>[];
-    final beaten = <Map<String, dynamic>>[];
-
-    for (var row in gamesList) {
-      final gameData = row['games'];
-      if (gameData == null) continue;
-
-      final rating = (row['rating'] ?? 0).toDouble();
-      // Incluimos la nota dentro del gameData para mostrarla en la UI
-      gameData['user_rating'] = rating;
-
-      final updatedAt = row['updated_at']?.toString() ?? '';
-      final lastPlayedAt = row['last_played_at']?.toString() ?? updatedAt;
-
-      if (row['status'] == 'wishlist' && row['is_steam_only'] != true) {
-        gameData['_sort_date'] = updatedAt;
-        wishlist.add(gameData);
-      } else if (row['status'] == 'playing') {
-        gameData['_sort_date'] = updatedAt;
-        playing.add(gameData);
-      } else if (row['status'] == 'beaten') {
-        gameData['_sort_date'] = lastPlayedAt;
-        beaten.add(gameData);
-      }
-    }
-
-    wishlist.sort(
-      (a, b) =>
-          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
-    );
-    playing.sort(
-      (a, b) =>
-          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
-    );
-    beaten.sort(
-      (a, b) =>
-          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
-    );
-
-    if (mounted) {
+      final data = await _repo.fetchProfileData(
+        userId,
+        isOwnProfile: widget.userId == null,
+      );
+      if (!mounted) return;
       setState(() {
-        _userProfile = userResp;
-
-        _wishlistGames = wishlist;
-        _playingGames = playing;
-        _allGames = beaten;
-        _userReviews = List<Map<String, dynamic>>.from(reviewsResp);
-        _hallOfFame = hallOfFameList;
+        _userProfile = data.userProfile;
+        _wishlistGames = data.wishlistGames;
+        _playingGames = data.playingGames;
+        _allGames = data.beatenGames;
+        _userReviews = data.reviews;
+        _hallOfFame = data.hallOfFame;
         _isLoading = false;
       });
+    } catch (e, st) {
+      debugPrint('[ProfileScreen] Error cargando perfil: $e\n$st');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
