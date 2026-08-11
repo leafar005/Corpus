@@ -5,6 +5,7 @@ import '../library/game_details_screen.dart';
 import '../library/review_modal.dart';
 import '../../widgets/full_screen_gallery.dart';
 import '../../repositories/review_repository.dart';
+import '../../repositories/activity_repository.dart';
 import '../../widgets/achievement_toast.dart';
 import '../../models/models.dart';
 import 'dart:io';
@@ -40,6 +41,8 @@ class ReviewDetailsScreen extends StatefulWidget {
 }
 
 class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
+  final _repo = ActivityRepository();
+
   late Map<String, dynamic> _currentReviewData;
   bool _isLoading = true;
   int _likesCount = 0;
@@ -73,76 +76,43 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   }
 
   Future<void> _fetchPartner() async {
-    final userId = _currentReviewData['user_id'];
-    final gameId = _currentReviewData['game_id'];
+    final userId = _currentReviewData['user_id'] as String?;
+    final gameId = (_currentReviewData['game_id'] as num?)?.toInt();
     if (userId == null || gameId == null) return;
     try {
-      final row = await Supabase.instance.client
-          .from('user_games')
-          .select('partner_ids')
-          .eq('user_id', userId)
-          .eq('game_id', gameId)
-          .maybeSingle();
-      if (mounted && row != null) {
-        final ids = row['partner_ids'];
-        if (ids is List && ids.isNotEmpty) {
-          final usersData = await Supabase.instance.client
-              .from('users')
-              .select('id, username, avatar_url')
-              .inFilter('id', ids.map((e) => e.toString()).toList());
-          setState(
-            () => _partnersData = List<Map<String, dynamic>>.from(usersData),
-          );
-        }
-      }
+      final partners = await _repo.fetchPartners(
+        userId: userId,
+        gameId: gameId,
+      );
+      if (mounted) setState(() => _partnersData = partners);
     } catch (_) {}
   }
 
   Future<void> _fetchInteractions() async {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    if (currentUserId == null) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-    final reviewId = _currentReviewData['id'];
+    final reviewId = _currentReviewData['id'] as String?;
 
-    if (reviewId == null) {
+    if (currentUserId == null || reviewId == null) {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
 
     try {
-      // Fetch likes
-      final likesResponse = await Supabase.instance.client
-          .from('review_likes')
-          .select('user_id')
-          .eq('review_id', reviewId);
-
-      final likes = likesResponse as List;
-      _likesCount = likes.length;
-      _hasLiked = likes.any((like) => like['user_id'] == currentUserId);
-
-      // Fetch comments
-      final commentsResponse = await Supabase.instance.client
-          .from('review_comments')
-          .select('*, users(*)')
-          .eq('review_id', reviewId)
-          .order('created_at', ascending: true);
-
-      _comments = List<Map<String, dynamic>>.from(commentsResponse);
+      final result = await _repo.fetchInteractions(reviewId, currentUserId);
+      _likesCount = result.likesCount;
+      _hasLiked = result.hasLiked;
+      _comments = result.comments;
     } catch (e) {
-      debugPrint('[CORPUS DEBUG] Error fetching interactions: $e');
+      debugPrint('[ReviewDetailsScreen] Error fetching interactions: $e');
     }
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _toggleLike() async {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     if (currentUserId == null) return;
-    final reviewId = _currentReviewData['id'];
+    final reviewId = _currentReviewData['id'] as String?;
     if (reviewId == null) return;
 
     // Optimistic UI update
@@ -152,18 +122,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     });
 
     try {
-      if (_hasLiked) {
-        await Supabase.instance.client.from('review_likes').insert({
-          'user_id': currentUserId,
-          'review_id': reviewId,
-        });
-      } else {
-        await Supabase.instance.client
-            .from('review_likes')
-            .delete()
-            .eq('user_id', currentUserId)
-            .eq('review_id', reviewId);
-      }
+      await _repo.toggleLike(
+        reviewId: reviewId,
+        userId: currentUserId,
+        currentlyLiked: !_hasLiked, // was toggled above, pass pre-toggle value
+      );
     } catch (e) {
       // Revert on error
       if (mounted) {
@@ -172,7 +135,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
           _likesCount += _hasLiked ? 1 : -1;
         });
       }
-      debugPrint('[CORPUS DEBUG] Error toggling like: $e');
+      debugPrint('[ReviewDetailsScreen] Error toggling like: $e');
     }
   }
 
@@ -186,46 +149,28 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     if (currentUserId == null) return;
-    final reviewId = widget.reviewData['id'];
+    final reviewId = widget.reviewData['id'] as String?;
     if (reviewId == null) return;
 
     setState(() => _isSubmitting = true);
 
     try {
-      String? imageUrl;
-      if (_commentImage != null) {
-        final bytes = await ImageCompressor.compressImage(_commentImage!);
-        if (bytes == null) throw Exception('Image compression failed');
-        final ext = _commentImage!.name.split('.').last;
-        final fileName =
-            '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}.$ext';
-        final path = '$currentUserId/$fileName';
-
-        await Supabase.instance.client.storage
-            .from('user_uploads')
-            .uploadBinary(path, bytes);
-
-        imageUrl = Supabase.instance.client.storage
-            .from('user_uploads')
-            .getPublicUrl(path);
-      }
-
-      await Supabase.instance.client.from('review_comments').insert({
-        'user_id': currentUserId,
-        'review_id': reviewId,
-        'content': content.isNotEmpty ? content : null,
-        'image_url': imageUrl,
-        'attached_game': _selectedGameForComment,
-      });
+      await _repo.submitComment(
+        reviewId: reviewId,
+        userId: currentUserId,
+        content: content.isNotEmpty ? content : null,
+        commentImage: _commentImage,
+        attachedGame: _selectedGameForComment,
+      );
 
       _commentController.clear();
       setState(() {
         _commentImage = null;
         _selectedGameForComment = null;
       });
-      await _fetchInteractions(); // Refresh to get the new comment with user data
+      await _fetchInteractions();
     } catch (e) {
-      debugPrint('[CORPUS DEBUG] Error submitting comment: $e');
+      debugPrint('[ReviewDetailsScreen] Error submitting comment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al enviar comentario: $e')),
@@ -268,24 +213,15 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         (c) => c['id'] == commentId,
         orElse: () => <String, dynamic>{},
       );
-      final imageUrl = comment['image_url'] as String?;
-
-      if (imageUrl != null && imageUrl.isNotEmpty) {
-        await StorageUtils.deleteImagesFromUrls([imageUrl]);
-      }
-
-      await Supabase.instance.client
-          .from('review_comments')
-          .delete()
-          .eq('id', commentId);
-
+      await _repo.deleteComment(
+        commentId: commentId,
+        imageUrl: comment['image_url'] as String?,
+      );
       if (mounted) {
-        setState(() {
-          _comments.removeWhere((c) => c['id'] == commentId);
-        });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Comentario eliminado')));
+        setState(() => _comments.removeWhere((c) => c['id'] == commentId));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comentario eliminado')),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -361,78 +297,36 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     if (confirm != true) return;
 
     try {
-      final List<String> urlsToDelete = [];
-      try {
-        final dbReview = await Supabase.instance.client
-            .from('reviews')
-            .select('image_urls')
-            .eq('id', reviewId)
-            .maybeSingle();
-        if (dbReview != null && dbReview['image_urls'] != null) {
-          urlsToDelete.addAll(
-            (dbReview['image_urls'] as List).map((e) => e.toString()),
-          );
-        }
-      } catch (_) {}
-
-      final reviewImageUrls =
-          _currentReviewData['image_urls'] as List<dynamic>?;
-      if (reviewImageUrls != null) {
-        for (var url in reviewImageUrls) {
-          if (!urlsToDelete.contains(url.toString())) {
-            urlsToDelete.add(url.toString());
-          }
-        }
-      }
-
-      final commentsResponse = await Supabase.instance.client
-          .from('review_comments')
-          .select('image_url')
-          .eq('review_id', reviewId);
-
-      for (var c in commentsResponse) {
-        if (c['image_url'] != null && !urlsToDelete.contains(c['image_url'])) {
-          urlsToDelete.add(c['image_url']);
-        }
-      }
-
-      if (urlsToDelete.isNotEmpty) {
-        await StorageUtils.deleteImagesFromUrls(urlsToDelete);
-      }
-
-      await Supabase.instance.client
-          .from('reviews')
-          .delete()
-          .eq('id', reviewId);
-
-      final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
+      final gameId =
+          (widget.gameData['igdb_id'] ??
+          widget.gameData['id'] ??
+          _currentReviewData['game_id'] as num?)?.toInt();
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-      if (gameId != null && currentUserId != null) {
-        final remainingReviews = await Supabase.instance.client
-            .from('reviews')
-            .select('id')
-            .eq('game_id', gameId)
-            .eq('user_id', currentUserId);
 
-        if (remainingReviews.isEmpty) {
-          await Supabase.instance.client
-              .from('user_games')
-              .delete()
-              .eq('game_id', gameId)
-              .eq('user_id', currentUserId);
-        }
-      }
+      if (gameId == null || currentUserId == null) return;
+
+      final currentImages = (_currentReviewData['image_urls'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList();
+
+      await _repo.deleteReview(
+        reviewId: reviewId,
+        gameId: gameId,
+        userId: currentUserId,
+        currentImageUrls: currentImages,
+      );
+
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Reseña eliminada')));
-        Navigator.pop(context); // Go back to the previous screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reseña eliminada')),
+        );
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al eliminar reseña: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar reseña: $e')),
+        );
       }
     }
   }
@@ -595,21 +489,13 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         }
       }
 
-      final updatedReview = await Supabase.instance.client
-          .from('reviews')
-          .select('*, users!reviews_user_id_users_fkey(*)')
-          .eq('id', _currentReviewData['id'])
-          .maybeSingle();
+      final updatedReview = await _repo.fetchUpdatedReview(
+        _currentReviewData['id'] as String,
+        fallbackUserData: _currentReviewData['users'] as Map<String, dynamic>?,
+      );
 
       if (updatedReview != null && mounted) {
-        final existingUsers = _currentReviewData['users'];
-        final newReview = Map<String, dynamic>.from(updatedReview);
-        if (newReview['users'] == null && existingUsers != null) {
-          newReview['users'] = existingUsers;
-        }
-        setState(() {
-          _currentReviewData = newReview;
-        });
+        setState(() => _currentReviewData = updatedReview);
       }
 
       await _fetchPartner();

@@ -10,6 +10,7 @@ import '../activity/review_details_screen.dart';
 import '../profile/profile_screen.dart';
 import '../social/friends_screen.dart';
 import '../library/game_details_screen.dart';
+import '../../repositories/activity_repository.dart';
 import '../../repositories/review_repository.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
@@ -31,6 +32,8 @@ class ActivityScreen extends StatefulWidget {
 class _ActivityScreenState extends State<ActivityScreen>
     with PaginatedScrollMixin {
   final _supabase = Supabase.instance.client;
+  final _repo = ActivityRepository();
+
   List<Map<String, dynamic>> _activities = [];
   bool _isLoading = true;
   int _offset = 0;
@@ -91,41 +94,11 @@ class _ActivityScreenState extends State<ActivityScreen>
       final myId = _supabase.auth.currentUser?.id;
       if (myId == null) return;
 
-      final asSender = await _supabase
-          .from('friendships')
-          .select(
-            'friend:addressee_id(id, username, avatar_url, display_name, currently_playing_appid, currently_playing_name)',
-          )
-          .eq('requester_id', myId)
-          .eq('status', 'accepted');
-
-      final asReceiver = await _supabase
-          .from('friendships')
-          .select(
-            'friend:requester_id(id, username, avatar_url, display_name, currently_playing_appid, currently_playing_name)',
-          )
-          .eq('addressee_id', myId)
-          .eq('status', 'accepted');
-
-      final friends = <Map<String, dynamic>>[
-        ...List<Map<String, dynamic>>.from(
-          asSender,
-        ).map((e) => e['friend'] as Map<String, dynamic>),
-        ...List<Map<String, dynamic>>.from(
-          asReceiver,
-        ).map((e) => e['friend'] as Map<String, dynamic>),
-      ];
-
-      final pending = await _supabase
-          .from('friendships')
-          .select('requester_id')
-          .eq('addressee_id', myId)
-          .eq('status', 'pending');
-
+      final result = await _repo.fetchFriendsStrip(myId);
       if (mounted) {
         setState(() {
-          _friendsStrip = friends;
-          _pendingRequestsCount = List.from(pending).length;
+          _friendsStrip = result.friends;
+          _pendingRequestsCount = result.pendingCount;
           _isLoadingFriendsStrip = false;
         });
       }
@@ -168,172 +141,21 @@ class _ActivityScreenState extends State<ActivityScreen>
     }
 
     try {
-      final from = _offset;
-      final to = _offset + 29;
-
-      // 1. Una sola query para el feed completo
-      final response = await _supabase
-          .from('activity_feed')
-          .select('''
-            *,
-            users!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
-            games!activity_feed_game_id_fkey(igdb_id, title, cover_url)
-          ''')
-          .order('created_at', ascending: false)
-          .range(from, to);
-
-      final feedItems = List<Map<String, dynamic>>.from(response);
-
-      // 2. Recoger todos los review_id en una sola pasada (evita N+1 queries)
-      final reviewIds = feedItems
-          .where((item) => item['action_type'] == 'reviewed')
-          .map((item) => (item['metadata'] as Map?)?['review_id'] as String?)
-          .whereType<String>()
-          .toSet()
-          .toList();
-
-      // 3. Una única query batch para todas las reviews necesarias
-      final Map<String, Map<String, dynamic>> reviewsById = {};
-      if (reviewIds.isNotEmpty) {
-        try {
-          final reviewsResp = await _supabase
-              .from('reviews')
-              .select('*, review_likes(user_id), review_comments(id)')
-              .inFilter('id', reviewIds);
-          final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
-          await ReviewRepository().injectPartners(reviewsList);
-          for (final r in reviewsList) {
-            reviewsById[r['id'] as String] = r;
-          }
-        } catch (_) {}
-      }
-
-      // 3.5. Query batch para los partners (user_games)
-      final Map<String, List<dynamic>> partnersByUserGame = {};
-      final userIds = feedItems
-          .map((e) => e['user_id'] as String?)
-          .whereType<String>()
-          .toSet()
-          .toList();
-      final gameIds = feedItems
-          .map((e) => e['game_id'])
-          .where((e) => e != null)
-          .toSet()
-          .toList();
-      if (userIds.isNotEmpty && gameIds.isNotEmpty) {
-        try {
-          final ugResp = await _supabase
-              .from('user_games')
-              .select('user_id, game_id, partner_ids')
-              .inFilter('user_id', userIds)
-              .inFilter('game_id', gameIds);
-
-          final items = List<Map<String, dynamic>>.from(ugResp);
-          final Set<String> allPartnerIds = {};
-          for (var ug in items) {
-            final ids = ug['partner_ids'];
-            if (ids is List) allPartnerIds.addAll(ids.map((e) => e.toString()));
-          }
-          final usersData = allPartnerIds.isNotEmpty
-              ? await _supabase
-                    .from('users')
-                    .select('id, username, avatar_url')
-                    .inFilter('id', allPartnerIds.toList())
-              : [];
-          final userMap = {for (var u in usersData) u['id'] as String: u};
-
-          for (final ug in items) {
-            final ids = ug['partner_ids'];
-            if (ids is List && ids.isNotEmpty) {
-              partnersByUserGame['${ug['user_id']}_${ug['game_id']}'] = ids
-                  .map((id) => userMap[id.toString()])
-                  .where((u) => u != null)
-                  .toList();
-            }
-          }
-        } catch (_) {}
-      }
-
-      // 4. Enriquecer items y agrupar eventos relacionados (lógica de merge sin queries)
-      final mergedActivities = <Map<String, dynamic>>[];
-      for (var item in feedItems) {
-        final uId = item['user_id'];
-        final gId = item['game_id'];
-        if (uId != null && gId != null) {
-          item['_partners'] = partnersByUserGame['${uId}_$gId'];
-        }
-
-        if (item['action_type'] == 'reviewed') {
-          final reviewId = (item['metadata'] as Map?)?['review_id'] as String?;
-          if (reviewId != null && reviewsById.containsKey(reviewId)) {
-            item = Map<String, dynamic>.from(item);
-            item['_review'] = reviewsById[reviewId];
-          }
-        }
-
-        // Agrupar con eventos recientes del mismo usuario y juego (dentro de 24 horas)
-        bool merged = false;
-        final userId = item['user_id'];
-        final gameId = item['game_id'];
-        final type = item['action_type'];
-        final dateStr = item['created_at'];
-
-        if (userId != null && gameId != null && dateStr != null) {
-          final date = DateTime.parse(dateStr);
-          for (
-            int i = mergedActivities.length - 1;
-            i >= 0 && i >= mergedActivities.length - 4;
-            i--
-          ) {
-            final prev = mergedActivities[i];
-            if (prev['user_id'] == userId && prev['game_id'] == gameId) {
-              final prevDate = DateTime.parse(prev['created_at']);
-              if (date.difference(prevDate).abs().inHours < 24) {
-                if (type == 'status_change' &&
-                    prev['action_type'] == 'reviewed') {
-                  prev['action_type'] = 'status_change';
-                  if (prev['metadata'] == null) {
-                    prev['metadata'] = <String, dynamic>{};
-                  }
-                  final itemMeta = item['metadata'] as Map? ?? {};
-                  (prev['metadata'] as Map)['status'] = itemMeta['status'];
-                  merged = true;
-                  break;
-                } else if (type == 'reviewed' &&
-                    prev['action_type'] == 'status_change') {
-                  prev['_review'] = item['_review'];
-                  merged = true;
-                  break;
-                } else if (type == 'status_change' &&
-                    prev['action_type'] == 'status_change') {
-                  merged = true;
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        if (!merged) {
-          mergedActivities.add(item);
-        }
-      }
+      final result = await _repo.fetchActivityPage(_offset);
 
       if (mounted) {
         setState(() {
           if (isRefresh) {
-            _activities = mergedActivities;
+            _activities = result.mergedActivities;
           } else {
-            _activities.addAll(mergedActivities);
+            _activities.addAll(result.mergedActivities);
           }
-          _offset += 30;
-          hasMore = feedItems.length == 30;
+          _offset = result.nextOffset;
+          hasMore = result.hasMore;
           _isLoading = false;
           isLoadingMore = false;
         });
-        if (hasMore) {
-          triggerScrollCheck();
-        }
+        if (hasMore) triggerScrollCheck();
       }
     } catch (e) {
       debugPrint('[ActivityScreen] Error cargando actividad: $e');
