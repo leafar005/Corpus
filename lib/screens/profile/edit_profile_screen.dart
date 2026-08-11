@@ -69,7 +69,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       text: widget.userProfile['bio'] ?? '',
     );
     _emailController = TextEditingController(
-      text: Supabase.instance.client.auth.currentUser!.email ?? '',
+      text: Supabase.instance.client.auth.currentUser?.email ?? '',
     );
     _selectedPlatforms = List<String>.from(
       widget.userProfile['platforms'] ?? [],
@@ -98,7 +98,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _refreshHallOfFame() async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
     final hallOfFameList = List<Map<String, dynamic>?>.filled(5, null);
     try {
       final hallOfFameResp = await Supabase.instance.client
@@ -186,7 +187,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     String ext,
   ) async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return null;
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final filePath = '$userId/$timestamp.$ext';
 
@@ -213,7 +215,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
       final newUsername = _usernameController.text.trim();
       final newDisplayName = _displayNameController.text.trim();
       final newBio = _bioController.text.trim();
@@ -262,7 +268,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       // Actualizar Email en Auth si cambió
-      if (newEmail != Supabase.instance.client.auth.currentUser!.email) {
+      final currentEmail = Supabase.instance.client.auth.currentUser?.email;
+      if (currentEmail != null && newEmail != currentEmail) {
         await Supabase.instance.client.auth.updateUser(
           UserAttributes(email: newEmail),
         );
