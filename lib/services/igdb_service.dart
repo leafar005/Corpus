@@ -545,11 +545,15 @@ class IGDBService {
         .replaceAll('&gt;', '>');
     decoded = decoded.replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
       final codePoint = int.tryParse(match.group(1)!);
-      return codePoint != null ? String.fromCharCode(codePoint) : match.group(0)!;
+      return codePoint != null
+          ? String.fromCharCode(codePoint)
+          : match.group(0)!;
     });
     decoded = decoded.replaceAllMapped(RegExp(r'&#x([a-fA-F0-9]+);'), (match) {
       final codePoint = int.tryParse(match.group(1)!, radix: 16);
-      return codePoint != null ? String.fromCharCode(codePoint) : match.group(0)!;
+      return codePoint != null
+          ? String.fromCharCode(codePoint)
+          : match.group(0)!;
     });
     return decoded;
   }
