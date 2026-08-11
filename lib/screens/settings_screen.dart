@@ -220,7 +220,8 @@ class SettingsScreen extends StatelessWidget {
 
                 try {
                   final supabase = Supabase.instance.client;
-                  final userId = supabase.auth.currentUser!.id;
+                  final userId = supabase.auth.currentUser?.id;
+                  if (userId == null) return;
 
                   Future<void> batchDelete(String table) async {
                     while (true) {

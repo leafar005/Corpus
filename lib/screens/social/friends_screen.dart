@@ -55,13 +55,17 @@ class _FriendsScreenState extends State<FriendsScreen>
     super.dispose();
   }
 
-  String get _myId => _supabase.auth.currentUser!.id;
+  String get _myId => _supabase.auth.currentUser?.id ?? '';
 
   // ──────────────────────────────────────────
   // CARGA DE DATOS
   // ──────────────────────────────────────────
 
   Future<void> _loadRequests() async {
+    if (_myId.isEmpty) {
+      if (mounted) setState(() => _isLoadingRequests = false);
+      return;
+    }
     setState(() => _isLoadingRequests = true);
     try {
       final data = await _supabase
@@ -83,6 +87,10 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 
   Future<void> _loadFriends() async {
+    if (_myId.isEmpty) {
+      if (mounted) setState(() => _isLoadingFriends = false);
+      return;
+    }
     setState(() => _isLoadingFriends = true);
     try {
       // Los amigos pueden estar en cualquiera de los dos campos

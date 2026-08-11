@@ -559,7 +559,8 @@ class ReviewRepository {
     required Review reviewData,
     required dynamic gameId,
   }) async {
-    final userId = _client.auth.currentUser!.id;
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
 
     // Recopilar URLs de imágenes desde BD para garantizar la limpieza total en Storage
     final List<String> urlsToDelete = [];

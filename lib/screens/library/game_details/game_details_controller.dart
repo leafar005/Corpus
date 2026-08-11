@@ -22,9 +22,10 @@ class GameDetailsController extends ChangeNotifier {
   final Map<String, dynamic> gameData; // TODO(B-A1): reemplazar por GameModel
   final ReviewRepository _repo;
 
-  // Cache de metacritic eliminada a favor de GameModel
+  bool _disposed = false;
 
   bool get isGuest => _repo.client.auth.currentUser == null;
+  String? get currentUserId => _repo.client.auth.currentUser?.id;
 
   // ---- Estado de biblioteca / review propia ----------------------------
   bool isSaving = false;
@@ -37,7 +38,7 @@ class GameDetailsController extends ChangeNotifier {
   double ratingVisuals = 0;
   bool isLoadingUserData = true;
   UserProfile? userData;
-  UserProfile? partnerData;
+  List<UserProfile> partnersData = [];
   List<Review> reviews = [];
 
   // ---- Datos enriquecidos desde IGDB ------------------------------------
@@ -52,6 +53,7 @@ class GameDetailsController extends ChangeNotifier {
   String? metacriticUrl;
   double? metacriticUserScore;
   int? metacriticCriticCount;
+  int? metacriticUserRatingCount;
   bool isLoadingMetacritic = false;
 
   // ---- Relacionados --------------------------------------------------------
@@ -83,21 +85,75 @@ class GameDetailsController extends ChangeNotifier {
 
   StreamSubscription<AuthState>? _authSub;
 
-  /// Sustituye a la lógica repartida en initState (líneas 131-180) que
-  /// dispara todos los fetch iniciales y escucha cambios de sesión.
-  void init({bool autoOpenReview = false, VoidCallback? onAutoOpenReview}) {
-    // TODO: portar el cuerpo de initState (sin la parte de _scrollController
-    // ni _startCarousel, que se quedan en GameHeroSection/screen).
-    throw UnimplementedError();
+  /// Llamada segura a notifyListeners que no explota si el controller ya fue disposed.
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  /// Sustituye a la lógica repartida en initState (líneas 131-180).
+  /// Dispara todos los fetch iniciales y escucha cambios de sesión.
+  ///
+  /// [onUserDataLoaded] se invoca después de fetchUserData para que el screen
+  /// pueda actualizar TextEditingControllers u otros widgets propios.
+  /// [onScreenshotsEnriched] se invoca cuando enrichGameData trae nuevos
+  /// screenshots, para que el screen reinicie el carrusel.
+  void init({
+    VoidCallback? onUserDataLoaded,
+    void Function(List enrichedScreenshots, bool forceInitialSwap)?
+        onScreenshotsEnriched,
+  }) {
+    if (isGuest) {
+      isLoadingUserData = false;
+      isLoadingStashReviews = false;
+      isLoadingStashStats = false;
+      _notify();
+    } else {
+      fetchUserData().then((_) {
+        onUserDataLoaded?.call();
+      });
+      fetchReviews();
+      fetchStashReviews();
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (!_disposed) fetchStashStats();
+      });
+      fetchFriendsWithGame();
+    }
+
+    _authSub = _repo.client.auth.onAuthStateChange.listen((_) {
+      if (_disposed || _repo.client.auth.currentUser == null) return;
+      if (isLoadingUserData || userData != null) return;
+      isLoadingUserData = true;
+      isLoadingStashReviews = true;
+      isLoadingStashStats = true;
+      _notify();
+      fetchUserData().then((_) => onUserDataLoaded?.call());
+      fetchReviews();
+      fetchStashReviews();
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (!_disposed) fetchStashStats();
+      });
+      fetchFriendsWithGame();
+    });
+
+    loadPreferences();
+    enrichGameData(onScreenshotsEnriched: onScreenshotsEnriched);
+    fetchMetacritic();
+    fetchTimeToBeat();
+    fetchRelatedGames();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _authSub?.cancel();
     super.dispose();
   }
 
-  /// Origen: _fetchMetacritic, líneas 186-272.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Métodos de solo lectura (fetches)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Origen: _fetchMetacritic, líneas 190-251.
   Future<void> fetchMetacritic() async {
     final gameModel = Game.fromMap({...gameData, ...enrichedData});
 
@@ -105,7 +161,7 @@ class GameDetailsController extends ChangeNotifier {
       metacriticScore = gameModel.metacriticScore;
       metacriticUrl = gameModel.metacriticUrl;
       metacriticUserScore = gameModel.metacriticUserScore;
-      notifyListeners();
+      _notify();
       return;
     }
 
@@ -117,10 +173,10 @@ class GameDetailsController extends ChangeNotifier {
         gameData['metacritic_slug'] ?? enrichedData['metacritic_slug'];
 
     isLoadingMetacritic = true;
-    notifyListeners();
+    _notify();
 
     try {
-      final payload = <String, dynamic>{'gameTitle': title};
+      final payload = <String, dynamic>{'gameTitle': title.toString()};
       if (gameId != null) payload['gameId'] = gameId;
       if (cachedSlug != null) payload['metacriticSlug'] = cachedSlug.toString();
 
@@ -137,16 +193,19 @@ class GameDetailsController extends ChangeNotifier {
             ? (data['user_score'] as num).toDouble()
             : null;
         metacriticCriticCount = data['critic_review_count'] as int?;
+        metacriticUserRatingCount = data['user_rating_count'] as int?;
+      } else {
+        debugPrint('[Metacritic] Error de la Edge Function: ${response.data}');
       }
     } catch (e) {
       debugPrint('[Metacritic] Excepción: $e');
     } finally {
       isLoadingMetacritic = false;
-      notifyListeners();
+      _notify();
     }
   }
 
-  /// Origen: _loadPreferences, líneas 273-317.
+  /// Origen: _loadPreferences, líneas 253-296.
   Future<void> loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     final savedOrder = prefs.getStringList('info_tab_order');
@@ -183,10 +242,11 @@ class GameDetailsController extends ChangeNotifier {
     localizeLinks = newLocalize;
     infoTabOrder = loadedOrder;
     infoTabHidden = newHidden;
-    notifyListeners();
+    _notify();
   }
 
-  /// Origen: _fetchTimeToBeat, líneas 318-355.
+  /// Origen: _fetchTimeToBeat, líneas 298-334.
+  /// Incluye fallback de duracionde → IGDB si el primero no encuentra datos.
   Future<void> fetchTimeToBeat() async {
     final igdbId = gameData['igdb_id'] ?? gameData['id'];
     if (igdbId == null) return;
@@ -200,78 +260,432 @@ class GameDetailsController extends ChangeNotifier {
     if (source == 'duracionde') {
       final title = (gameData['title'] ?? gameData['name'] ?? '') as String;
       ttb = await DuracionDeService.getTimeToBeat(id, title: title);
+
+      if (ttb == null || ttb['found'] == false) {
+        // Fallback silencioso a IGDB
+        final igdbTtb = await IGDBService.getTimeToBeat(id);
+        if (igdbTtb != null) {
+          ttb = {...igdbTtb, '_source': 'igdb_fallback'};
+        } else {
+          ttb = null;
+        }
+      } else {
+        ttb = {...ttb, '_source': 'duracionde'};
+      }
     } else {
-      ttb = await IGDBService.getTimeToBeat(id);
+      final igdbTtb = await IGDBService.getTimeToBeat(id);
+      if (igdbTtb != null) {
+        ttb = {...igdbTtb, '_source': 'igdb'};
+      }
     }
 
     if (ttb != null) {
       timeToBeat = ttb;
-      notifyListeners();
+      _notify();
     }
   }
 
-  /// Origen: _fetchRelatedGames, líneas 356-377.
+  /// Origen: _fetchRelatedGames, líneas 336-355.
   Future<void> fetchRelatedGames() async {
-    throw UnimplementedError();
+    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+    if (igdbId == null) {
+      isLoadingRelated = false;
+      _notify();
+      return;
+    }
+    try {
+      final results = await IGDBService.getRelatedGames(
+        igdbId is int ? igdbId : int.parse(igdbId.toString()),
+      );
+      relatedGames = results;
+    } catch (_) {
+      // Silenciar error — los relacionados son opcionales
+    } finally {
+      isLoadingRelated = false;
+      _notify();
+    }
   }
 
-  /// Origen: _fetchFriendsWithGame, líneas 378-428.
+  /// Origen: _fetchFriendsWithGame, líneas 358-373.
   Future<void> fetchFriendsWithGame() async {
-    throw UnimplementedError();
+    final gameId = gameData['igdb_id'] ?? gameData['id'];
+    if (gameId == null) return;
+    final myId = currentUserId;
+    if (myId == null) return;
+
+    try {
+      final friends = await _repo.fetchFriendsWithGame(
+        myId: myId,
+        gameId: gameId,
+      );
+      friendsWithGame = friends;
+      _notify();
+    } catch (e) {
+      debugPrint('[GameDetails] Error cargando amigos con el juego: $e');
+    }
   }
 
-  /// Origen: _enrichGameData, líneas 629-872.
-  Future<void> enrichGameData() async {
-    throw UnimplementedError();
+  /// Origen: _enrichGameData, líneas 609-809.
+  /// Llama a IGDB para completar campos que faltan (summary, developer, screenshots, etc.)
+  /// y hace backfill a la tabla `games` si se resuelve un cover que faltaba.
+  ///
+  /// [onScreenshotsEnriched] se invoca con la lista de screenshots y si se
+  /// debe forzar el swap inicial — el screen lo usa para reiniciar el carrusel.
+  Future<void> enrichGameData({
+    void Function(List enrichedScreenshots, bool forceInitialSwap)?
+        onScreenshotsEnriched,
+  }) async {
+    final hasSummary =
+        gameData['summary'] != null &&
+        gameData['summary'].toString() != 'null' &&
+        gameData['summary'].toString().isNotEmpty;
+    final hasDeveloper =
+        gameData['developer'] != null &&
+        gameData['developer'] != 'Desconocido' &&
+        gameData['developer'] != 'Desarrollador desconocido';
+    final hasCategory = gameData['category'] != null;
+    final hasScreenshots =
+        (gameData['screenshots'] as List?)?.isNotEmpty == true;
+
+    final hasGameEngines =
+        (gameData['game_engines'] as List?)
+            ?.where(
+              (e) =>
+                  e != null &&
+                  e.toString() != 'null' &&
+                  e.toString().isNotEmpty,
+            )
+            .isNotEmpty ==
+        true;
+    final hasCollection =
+        gameData['collection'] != null &&
+        gameData['collection'].toString() != 'null' &&
+        gameData['collection'].toString().isNotEmpty;
+    final hasFranchises =
+        (gameData['franchises'] as List?)
+            ?.where(
+              (f) =>
+                  f != null &&
+                  f.toString() != 'null' &&
+                  f.toString().isNotEmpty,
+            )
+            .isNotEmpty ==
+        true;
+
+    // Solo omitir la llamada si tenemos TODOS los datos (primarios + secundarios)
+    if (hasSummary &&
+        hasDeveloper &&
+        hasCategory &&
+        hasScreenshots &&
+        hasGameEngines &&
+        hasCollection &&
+        hasFranchises) {
+      isEnriching = false;
+      _notify();
+      return;
+    }
+
+    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+    if (igdbId == null) {
+      isEnriching = false;
+      _notify();
+      return;
+    }
+
+    try {
+      final game = await IGDBService.getGameById(
+        igdbId is int ? igdbId : int.parse(igdbId.toString()),
+      );
+      if (game != null && !_disposed) {
+        // Extraer desarrollador
+        String? developer;
+        int? developerId;
+        if (game['involved_companies'] != null &&
+            (game['involved_companies'] as List).isNotEmpty) {
+          final companies = game['involved_companies'] as List;
+          try {
+            final dev = companies.firstWhere((c) => c['developer'] == true);
+            developer = dev['company']['name'];
+            developerId = dev['company']['id'];
+          } catch (_) {
+            try {
+              developer = companies[0]['company']['name'];
+              developerId = companies[0]['company']['id'];
+            } catch (_) {}
+          }
+        }
+
+        // Poblar enrichedData con TODOS los campos de IGDB.
+        enrichedData = {
+          if (game['summary'] != null) 'summary': game['summary'],
+          'developer': developer,
+          'developer_id': developerId,
+          if (game['name'] != null) 'title': game['name'],
+          if (game['cover'] != null)
+            'cover_url': IGDBService.getCoverUrl(game['cover']['image_id']),
+          if (game['first_release_date'] != null)
+            'release_date': DateTime.fromMillisecondsSinceEpoch(
+              game['first_release_date'] * 1000,
+            ).toIso8601String(),
+          if (game['category'] != null) 'category': game['category'],
+          if (game['game_type'] != null) 'game_type': game['game_type'],
+          if (game['parent_game'] != null) 'parent_game': game['parent_game'],
+          if (game['version_parent'] != null)
+            'version_parent': game['version_parent'],
+          if (game['remake_of'] != null) 'remake_of': game['remake_of'],
+          if (game['remaster_of'] != null) 'remaster_of': game['remaster_of'],
+          if (game['aggregated_rating'] != null)
+            'aggregated_rating': game['aggregated_rating'],
+          'platforms': game['platforms'] != null
+              ? (game['platforms'] as List).map((p) => p['name']).toList()
+              : [],
+          'genres': game['genres'] != null
+              ? (game['genres'] as List).map((g) => g['name']).toList()
+              : [],
+          'screenshots': game['screenshots'] != null
+              ? (game['screenshots'] as List)
+                    .map((s) => s['image_id'])
+                    .toList()
+              : [],
+          'artworks': game['artworks'] != null
+              ? (game['artworks'] as List).map((a) => a['image_id']).toList()
+              : [],
+          'videos': game['videos'] != null
+              ? (game['videos'] as List).map((v) => v['video_id']).toList()
+              : [],
+          'themes': game['themes'] != null
+              ? (game['themes'] as List).map((t) => t['name']).toList()
+              : [],
+          'game_modes': game['game_modes'] != null
+              ? (game['game_modes'] as List).map((m) => m['name']).toList()
+              : [],
+          'player_perspectives': game['player_perspectives'] != null
+              ? (game['player_perspectives'] as List)
+                    .map((p) => p['name'])
+                    .toList()
+              : [],
+          'websites': game['websites'] != null
+              ? (game['websites'] as List)
+                    .map(
+                      (w) => {
+                        'url': w['url'],
+                        'category': w['type'] ?? w['category'],
+                      },
+                    )
+                    .toList()
+              : [],
+          if (game['collection'] != null)
+            'collection': {
+              'id': game['collection']['id'],
+              'name': game['collection']['name'],
+            },
+          'franchises': game['franchises'] != null
+              ? (game['franchises'] as List)
+                    .map((f) => {'id': f['id'], 'name': f['name']})
+                    .toList()
+              : [],
+          'game_engines': game['game_engines'] != null
+              ? (game['game_engines'] as List).map((e) => e['name']).toList()
+              : [],
+        };
+        _notify();
+
+        // Backfill perezoso: si la fila de `games` no tenía cover_url (u otros
+        // campos clave) y ahora los hemos resuelto vía IGDB, los persistimos
+        // para que listas y carruseles dejen de mostrar el placeholder.
+        final bool missingCoverInDb =
+            gameData['cover_url'] == null ||
+            gameData['cover_url'].toString().isEmpty;
+
+        if (missingCoverInDb && enrichedData['cover_url'] != null) {
+          try {
+            await Supabase.instance.client
+                .from('games')
+                .update({
+                  'cover_url': enrichedData['cover_url'],
+                  if (enrichedData['summary'] != null)
+                    'summary': enrichedData['summary'],
+                  if (enrichedData['developer'] != null)
+                    'developer': enrichedData['developer'],
+                })
+                .eq('igdb_id', igdbId);
+          } catch (e) {
+            debugPrint('[CORPUS DEBUG] Error en backfill de cover_url: $e');
+          }
+        }
+
+        // Notificar al screen para que maneje el carrusel de screenshots
+        final List enrichedScreenshots = enrichedData['screenshots'] ?? [];
+        if (enrichedScreenshots.isNotEmpty) {
+          onScreenshotsEnriched?.call(enrichedScreenshots, true);
+        }
+      }
+    } catch (e) {
+      debugPrint('[CORPUS DEBUG] Error enriching game data: $e');
+    } finally {
+      isEnriching = false;
+      _notify();
+    }
   }
 
-  /// Origen: _fetchUserData, líneas 1002-1040.
+  /// Origen: _fetchUserData, líneas 1009-1049.
+  /// Carga el estado del juego en la biblioteca del usuario (status, rating, etc.)
+  ///
+  /// Nota: el screen debe reaccionar a los cambios para actualizar
+  /// TextEditingControllers (_commentController, _ratingController) ya que esos
+  /// son objetos de UI que no pertenecen al controller.
   Future<void> fetchUserData() async {
-    throw UnimplementedError();
+    final userId = currentUserId;
+    if (userId == null) return;
+    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+
+    try {
+      final response = await _repo.fetchUserGame(
+        userId: userId,
+        gameId: igdbId,
+      );
+
+      if (response != null && !_disposed) {
+        inLibrary = true;
+        status = response['status'] ?? 'wishlist';
+        rating = (response['rating'] ?? 0).toDouble();
+        ratingGameplay = (response['rating_gameplay'] ?? 0).toDouble();
+        ratingNarrative = (response['rating_narrative'] ?? 0).toDouble();
+        ratingSoundtrack = (response['rating_soundtrack'] ?? 0).toDouble();
+        ratingVisuals = (response['rating_visuals'] ?? 0).toDouble();
+        if (response['users'] != null) {
+          userData = UserProfile.fromMap(response['users']);
+        }
+        if (response['partners'] != null && response['partners'] is List) {
+          partnersData = (response['partners'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map((p) => UserProfile.fromMap(p))
+              .toList();
+        }
+      } else if (!_disposed) {
+        final userResp = await _repo.fetchUserProfile(userId);
+        userData = userResp;
+      }
+    } catch (e) {
+      debugPrint('[CORPUS] ERROR en fetchUserData: $e');
+    } finally {
+      isLoadingUserData = false;
+      _notify();
+    }
   }
 
-  /// Origen: _fetchReviews, líneas 1041-1052.
+  /// Origen: _fetchReviews, líneas 1051-1061.
   Future<void> fetchReviews() async {
-    throw UnimplementedError();
+    final userId = currentUserId;
+    if (userId == null) return;
+    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+
+    try {
+      final result = await _repo.fetchReviews(userId: userId, gameId: igdbId);
+      reviews = result;
+      _notify();
+    } catch (e) {
+      debugPrint('[CORPUS] Error fetching reviews: $e');
+    }
   }
 
-  /// Origen: _fetchStashReviews, líneas 1053-1080.
+  /// Origen: _fetchStashReviews, líneas 1063-1089.
   Future<void> fetchStashReviews() async {
-    throw UnimplementedError();
+    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+    if (igdbId == null) return;
+
+    try {
+      final local = await _repo.fetchStashReviewsLocal(igdbId);
+      stashReviews = local.reviews;
+      isLoadingStashReviews = local.needsFetch;
+      _notify();
+
+      if (local.needsFetch) {
+        final updated = await _repo.refreshStashReviews(igdbId);
+        if (updated != null) stashReviews = updated;
+        isLoadingStashReviews = false;
+        _notify();
+      }
+    } catch (e) {
+      debugPrint('[CORPUS DEBUG] Error fetching stash reviews: $e');
+      isLoadingStashReviews = false;
+      _notify();
+    }
   }
 
-  /// Origen: _fetchStashStats, líneas 1081-1108.
+  /// Origen: _fetchStashStats, líneas 1091-1117.
   Future<void> fetchStashStats() async {
-    throw UnimplementedError();
+    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+    if (igdbId == null) return;
+
+    try {
+      final local = await _repo.fetchStashStatsLocal(igdbId);
+      stashStats = local.stats;
+      isLoadingStashStats = local.needsFetch;
+      _notify();
+
+      if (local.needsFetch) {
+        final updated = await _repo.refreshStashStats(igdbId);
+        if (updated != null) stashStats = updated;
+        isLoadingStashStats = false;
+        _notify();
+      }
+    } catch (e) {
+      debugPrint('[CORPUS DEBUG] Error fetching stash stats: $e');
+      isLoadingStashStats = false;
+      _notify();
+    }
   }
 
-  /// Origen: parte lógica (sin el modal) de _saveReview, líneas 1351-1555.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Métodos de escritura (mutación de BD)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TODO(B-C2 Fase 4): Portar saveReview, deleteFromLibrary, deleteReview
+  // desde game_details_screen.dart una vez que los fetches estén estabilizados
+  // y testeados. Los métodos de escritura van últimos porque son los que más
+  // riesgo tienen de romper datos.
+
+  /// Origen: parte lógica (sin el modal) de _saveReview, líneas 1140-1350+.
   Future<void> saveReview({
     required Review review, // TODO(B-A1): firma exacta según modelo tipado
   }) async {
-    throw UnimplementedError();
+    throw UnimplementedError(
+      'saveReview será portado en Fase 4 del refactor B-C2. '
+      'Por ahora, la versión en game_details_screen.dart es la activa.',
+    );
   }
 
-  /// Origen: _deleteFromLibrary, líneas 1556-1614.
+  /// Origen: _deleteFromLibrary, líneas 1360-1436.
   Future<void> deleteFromLibrary() async {
-    throw UnimplementedError();
+    throw UnimplementedError(
+      'deleteFromLibrary será portado en Fase 4 del refactor B-C2.',
+    );
   }
 
-  /// Origen: _deleteReview, líneas 1615-1663.
+  /// Origen: _deleteReview, líneas 1390-1436.
   Future<void> deleteReview(Review review) async {
-    throw UnimplementedError();
+    throw UnimplementedError(
+      'deleteReview será portado en Fase 4 del refactor B-C2.',
+    );
   }
 
-  /// Origen: reordenar dentro de _loadPreferences / UI del tab Info.
-  void reorderInfoTab(List<String> newOrder) {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Helpers de UI del tab Info
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Reordena las secciones del tab Info y persiste el orden.
+  Future<void> reorderInfoTab(List<String> newOrder) async {
     infoTabOrder = newOrder;
-    notifyListeners();
-    // TODO: persistir con SharedPreferences igual que _loadPreferences.
+    _notify();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('info_tab_order', newOrder);
   }
 
-  void toggleInfoSection(String key) {
+  /// Alterna la visibilidad de una sección del tab Info y persiste.
+  Future<void> toggleInfoSection(String key) async {
     if (!infoTabHidden.add(key)) infoTabHidden.remove(key);
-    notifyListeners();
-    // TODO: persistir con SharedPreferences.
+    _notify();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('info_tab_hidden', infoTabHidden.toList());
   }
 }

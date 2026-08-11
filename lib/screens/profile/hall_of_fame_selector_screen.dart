@@ -25,7 +25,11 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
   }
 
   Future<void> _fetchBeatenGames() async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
     final response = await Supabase.instance.client
         .from('user_games')
         .select('*, games(*)')
@@ -50,7 +54,11 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
 
   Future<void> _selectGame(int gameId) async {
     setState(() => _isLoading = true);
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       await Supabase.instance.client.from('hall_of_fame').upsert({
@@ -72,7 +80,11 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
 
   Future<void> _removeGame() async {
     setState(() => _isLoading = true);
-    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       await Supabase.instance.client

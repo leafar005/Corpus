@@ -74,7 +74,11 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
       _isLoading = true;
     });
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
       final reviewsResp = await Supabase.instance.client
           .from('reviews')
           .select('*, games(*)')

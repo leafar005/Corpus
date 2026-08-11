@@ -346,7 +346,8 @@ class ImportService {
     required Function(int current, int total) onProgress,
   }) async {
     final supabase = Supabase.instance.client;
-    final userId = supabase.auth.currentUser!.id;
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
     final int total = matchedRows.length;
 
     const int batchSize = 25;
