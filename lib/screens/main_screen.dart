@@ -12,6 +12,7 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../theme/style_pack.dart';
 import '../widgets/p5r_dynamic_frame.dart';
+import '../utils/web_js.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -64,6 +65,11 @@ class _MainScreenState extends State<MainScreen> {
     // Pre-instanciamos la primera pantalla
     _getScreen(0);
     _loadSavedTab();
+    // Señalar al splash HTML que ya tenemos la UI lista para mostrar.
+    // addPostFrameCallback garantiza que el primer frame ya ha sido pintado.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      dispatchCorpusReady();
+    });
   }
 
   bool get _shouldPersistTab {
