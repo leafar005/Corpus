@@ -1,7 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../theme/corpus_theme_extension.dart';
+import '../../../utils/url_utils.dart';
 
 class GameLinksTab extends StatelessWidget {
   const GameLinksTab({
@@ -300,8 +299,10 @@ class GameLinksTab extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
+                      // DuckDuckGo tiene CORS abierto en todos los navegadores.
+                      // Fallback a icono Material si el dominio no tiene favicon.
                       child: Image.network(
-                        'https://www.google.com/s2/favicons?domain=$domain&sz=64',
+                        'https://icons.duckduckgo.com/ip3/$domain.ico',
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) =>
                             Icon(itemIcon, size: 18),
@@ -315,11 +316,8 @@ class GameLinksTab extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: const Icon(Icons.open_in_new, size: 16),
-                  onTap: () => launchUrl(
-                    Uri.parse(_localizeUrlToSpain(link['url'].toString())),
-                    mode: kIsWeb
-                        ? LaunchMode.platformDefault
-                        : LaunchMode.externalApplication,
+                  onTap: () => openUrl(
+                    _localizeUrlToSpain(link['url'].toString()),
                   ),
                 ),
               ),

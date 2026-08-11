@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../theme/corpus_theme_extension.dart';
+import '../utils/url_utils.dart';
 import '../widgets/corpus_section_title.dart';
 
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
 
   Future<void> _launchUrl(String urlString) async {
-    final url = Uri.parse(urlString);
-    if (!await launchUrl(url, mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication)) {
-      debugPrint('No se pudo abrir el enlace $url');
-    }
+    final success = await openUrl(urlString);
+    if (!success) debugPrint('No se pudo abrir el enlace $urlString');
   }
 
   @override
