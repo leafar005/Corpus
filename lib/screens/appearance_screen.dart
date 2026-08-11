@@ -9,6 +9,7 @@ import 'settings/home_appearance_screen.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../theme/style_pack.dart';
 import '../widgets/corpus_section_title.dart';
+
 class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
 
@@ -55,7 +56,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           const SizedBox(height: 8),
           Text(
             'Cambia toda la apariencia de Corpus de una vez.',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 16),
           _buildStylePackSection(),
@@ -82,7 +85,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           const SizedBox(height: 8),
           Text(
             'Elige el tono que dominará los elementos visuales de Corpus.',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 24),
           _buildColorPicker(),
@@ -124,8 +129,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
-              borderRadius:
-                  Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+              borderRadius: Theme.of(
+                context,
+              ).extension<CorpusThemeExtension>()!.radiusLarge,
             ),
             child: Column(
               children: [
@@ -181,8 +187,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius:
-            Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusLarge,
         border: Border.all(
           color: isActive
               ? Theme.of(context).colorScheme.primary
@@ -225,11 +232,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                 onPressed: () => _confirmRemovePack(pack),
               )
             : (isActive
-                ? Icon(
-                    Icons.check_circle,
-                    color: Theme.of(context).colorScheme.primary,
-                  )
-                : null),
+                  ? Icon(
+                      Icons.check_circle,
+                      color: Theme.of(context).colorScheme.primary,
+                    )
+                  : null),
         onTap: () {
           themeNotifier.setStylePack(pack.id);
           StylePackMusicService.instance.syncWithCurrentPack(force: true);
@@ -315,7 +322,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusLarge,
       ),
       child: ListTile(
         leading: Icon(
@@ -328,7 +337,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         ),
         subtitle: const Text('Orden y visibilidad de las secciones'),
         trailing: const Icon(Icons.chevron_right),
-        shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge),
+        shape: RoundedRectangleBorder(
+          borderRadius: Theme.of(
+            context,
+          ).extension<CorpusThemeExtension>()!.radiusLarge,
+        ),
         onTap: () {
           Navigator.push(
             context,
@@ -345,7 +358,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusLarge,
       ),
       child: ListTile(
         leading: Icon(
@@ -358,7 +373,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         ),
         subtitle: const Text('Orden y visibilidad de los campos'),
         trailing: const Icon(Icons.chevron_right),
-        shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge),
+        shape: RoundedRectangleBorder(
+          borderRadius: Theme.of(
+            context,
+          ).extension<CorpusThemeExtension>()!.radiusLarge,
+        ),
         onTap: () {
           Navigator.push(
             context,
@@ -375,7 +394,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusLarge,
       ),
       child: Column(
         children: [
@@ -426,7 +447,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
               color: Theme.of(context).colorScheme.primary,
             )
           : null,
-      shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge),
+      shape: RoundedRectangleBorder(
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusLarge,
+      ),
       onTap: () {
         themeNotifier.setTheme(mode);
         setState(() {});

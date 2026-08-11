@@ -74,7 +74,9 @@ class InfoScreen extends StatelessWidget {
             Card(
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               child: ListTile(
                 leading: CircleAvatar(
@@ -88,7 +90,9 @@ class InfoScreen extends StatelessWidget {
                 ),
                 subtitle: Text(
                   'Creador y Desarrollador',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 trailing: Icon(
                   Icons.open_in_new,
@@ -118,7 +122,9 @@ class InfoScreen extends StatelessWidget {
             Card(
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               child: Column(
                 children: [
@@ -171,8 +177,14 @@ class InfoScreen extends StatelessWidget {
     return ListTile(
       leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
       onTap: () => _launchUrl(url),
     );
   }

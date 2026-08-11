@@ -34,10 +34,7 @@ class ActivityFeedResult {
 
 /// Resultado de cargar la franja de amigos + solicitudes pendientes.
 class FriendsStripResult {
-  const FriendsStripResult({
-    required this.friends,
-    required this.pendingCount,
-  });
+  const FriendsStripResult({required this.friends, required this.pendingCount});
 
   final List<Map<String, dynamic>> friends;
   final int pendingCount;
@@ -155,9 +152,7 @@ class ActivityRepository {
                   .select('id, username, avatar_url')
                   .inFilter('id', allPartnerIds.toList())
             : <dynamic>[];
-        final userMap = {
-          for (var u in usersData) u['id'] as String: u,
-        };
+        final userMap = {for (var u in usersData) u['id'] as String: u};
 
         for (final ug in items) {
           final ids = ug['partner_ids'];
@@ -218,10 +213,7 @@ class ActivityRepository {
       ...asReceiver.map((e) => e['friend'] as Map<String, dynamic>),
     ];
 
-    return FriendsStripResult(
-      friends: friends,
-      pendingCount: pending.length,
-    );
+    return FriendsStripResult(friends: friends, pendingCount: pending.length);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -457,8 +449,7 @@ class ActivityRepository {
 
       // Inyectar datos de reseña si es un evento "reviewed"
       if (item['action_type'] == 'reviewed') {
-        final reviewId =
-            (item['metadata'] as Map?)?['review_id'] as String?;
+        final reviewId = (item['metadata'] as Map?)?['review_id'] as String?;
         if (reviewId != null && reviewsById.containsKey(reviewId)) {
           item = Map<String, dynamic>.from(item);
           item['_review'] = reviewsById[reviewId];
@@ -474,11 +465,7 @@ class ActivityRepository {
       bool wasMerged = false;
       if (userId != null && gameId != null && dateStr != null) {
         final date = DateTime.parse(dateStr as String);
-        for (
-          int i = merged.length - 1;
-          i >= 0 && i >= merged.length - 4;
-          i--
-        ) {
+        for (int i = merged.length - 1; i >= 0 && i >= merged.length - 4; i--) {
           final prev = merged[i];
           if (prev['user_id'] == userId && prev['game_id'] == gameId) {
             final prevDate = DateTime.parse(prev['created_at'] as String);

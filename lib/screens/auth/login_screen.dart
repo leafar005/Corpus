@@ -95,9 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: 'Correo electrónico',
                     prefixIcon: const Icon(Icons.email),
-                    border: OutlineInputBorder(
-                      borderRadius: ext.radiusMedium,
-                    ),
+                    border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
@@ -108,9 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
                     prefixIcon: const Icon(Icons.lock),
-                    border: OutlineInputBorder(
-                      borderRadius: ext.radiusMedium,
-                    ),
+                    border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   obscureText: true,
                   textInputAction: TextInputAction.done,

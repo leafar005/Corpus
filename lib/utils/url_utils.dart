@@ -28,11 +28,10 @@ Future<bool> openUrl(String url) async {
   if (kIsWeb) {
     try {
       // Crear un <a> y clickarlo — no activa popup blocker en ningún navegador
-      final anchor =
-          html.document.createElement('a') as html.AnchorElement
-            ..href = url
-            ..target = '_blank'
-            ..rel = 'noopener noreferrer';
+      final anchor = html.document.createElement('a') as html.AnchorElement
+        ..href = url
+        ..target = '_blank'
+        ..rel = 'noopener noreferrer';
       html.document.body?.append(anchor);
       anchor.click();
       anchor.remove();

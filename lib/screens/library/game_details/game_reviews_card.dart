@@ -97,7 +97,9 @@ class GameReviewsCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusMedium,
         border: Border.all(
           color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
         ),
@@ -254,7 +256,9 @@ class GameReviewsCard extends StatelessWidget {
               color: Theme.of(
                 context,
               ).colorScheme.surface.withValues(alpha: 0.5),
-              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+              borderRadius: Theme.of(
+                context,
+              ).extension<CorpusThemeExtension>()!.radiusMedium,
               border: Border.all(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
@@ -418,7 +422,9 @@ class GameReviewsCard extends StatelessWidget {
                               idx,
                             ),
                             child: ClipRRect(
-                              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                              borderRadius: Theme.of(
+                                context,
+                              ).extension<CorpusThemeExtension>()!.radiusSmall,
                               child: Image.network(
                                 imageUrls[idx],
                                 height: 100,

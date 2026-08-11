@@ -24,7 +24,7 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
-            theme: ThemeData(extensions: [const CorpusThemeExtension()]),
+            theme: ThemeData(extensions: const [CorpusThemeExtension()]),
             home: Scaffold(
               body: Builder(
                 builder: (context) => Center(

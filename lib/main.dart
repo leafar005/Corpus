@@ -9,7 +9,6 @@ import 'theme/app_theme.dart';
 import 'theme/style_pack_registry.dart';
 import 'services/notification_service.dart';
 import 'services/style_pack_music_service.dart';
-import 'utils/web_js.dart';
 
 import 'globals.dart';
 
@@ -82,8 +81,14 @@ class _CorpusAppState extends State<CorpusApp> {
         return MaterialApp(
           title: 'Corpus',
           // Aplicamos nuestros temas y el modo seleccionado
-          theme: AppTheme.getLightTheme(themeNotifier.seedColor, themeNotifier.currentPack),
-          darkTheme: AppTheme.getDarkTheme(themeNotifier.seedColor, themeNotifier.currentPack),
+          theme: AppTheme.getLightTheme(
+            themeNotifier.seedColor,
+            themeNotifier.currentPack,
+          ),
+          darkTheme: AppTheme.getDarkTheme(
+            themeNotifier.seedColor,
+            themeNotifier.currentPack,
+          ),
           themeMode: themeNotifier.currentMode,
           scrollBehavior: const AlwaysScrollbarBehavior(),
           home: const AuthGate(),

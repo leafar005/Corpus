@@ -306,7 +306,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                     )
                   : null,
               border: OutlineInputBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
                 borderSide: BorderSide.none,
               ),
               filled: true,
@@ -335,7 +337,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                 vertical: 15,
               ),
               border: OutlineInputBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
                 borderSide: BorderSide.none,
               ),
               filled: true,

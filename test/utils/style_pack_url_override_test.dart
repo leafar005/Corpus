@@ -6,12 +6,14 @@ import 'package:corpus/utils/style_pack_url_override.dart';
 
 void main() {
   setUp(() {
-    StylePackRegistry.registerBuiltIn(const StylePack(
-      id: 'persona_5_royal',
-      name: 'Persona 5 Royal',
-      seedColor: Color(0xFFD3112D),
-      accentColor: Color(0xFFFFD400),
-    ));
+    StylePackRegistry.registerBuiltIn(
+      const StylePack(
+        id: 'persona_5_royal',
+        name: 'Persona 5 Royal',
+        seedColor: Color(0xFFD3112D),
+        accentColor: Color(0xFFFFD400),
+      ),
+    );
   });
 
   test('?style=persona5 resolves to persona_5_royal', () {

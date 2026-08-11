@@ -15,10 +15,7 @@ class ImportedStylePackEntry {
   final StylePack pack;
   final String? installDir;
 
-  const ImportedStylePackEntry({
-    required this.pack,
-    this.installDir,
-  });
+  const ImportedStylePackEntry({required this.pack, this.installDir});
 
   Map<String, dynamic> toJson() => {
     'pack': pack.toJson(),
@@ -46,11 +43,14 @@ class StylePackRegistry {
   StylePackRegistry._();
 
   /// All available packs (built-in first, then user-imported).
-  static List<StylePack> get all =>
-      [..._builtIn, ..._imported.map((e) => e.pack)];
+  static List<StylePack> get all => [
+    ..._builtIn,
+    ..._imported.map((e) => e.pack),
+  ];
 
   /// Only packs the user imported (addons).
-  static List<ImportedStylePackEntry> get imported => List.unmodifiable(_imported);
+  static List<ImportedStylePackEntry> get imported =>
+      List.unmodifiable(_imported);
 
   /// Whether [id] refers to a user-imported pack.
   static bool isImported(String id) =>
@@ -69,8 +69,7 @@ class StylePackRegistry {
 
   /// Whether a pack with [id] is registered (built-in or imported).
   static bool exists(String id) =>
-      _builtIn.any((p) => p.id == id) ||
-      _imported.any((e) => e.pack.id == id);
+      _builtIn.any((p) => p.id == id) || _imported.any((e) => e.pack.id == id);
 
   /// Absolute path to background music for [packId], if bundled in an addon.
   static String? resolveMusicFilePath(String packId) {
@@ -105,13 +104,16 @@ class StylePackRegistry {
   /// Import a `.corpuspack` / `.zip` bundle with `manifest.json` at the root.
   static Future<StylePack> importFromBundle(Uint8List bytes) async {
     if (kIsWeb) {
-      throw UnsupportedError('Los addons .corpuspack solo se importan en móvil/escritorio.');
+      throw UnsupportedError(
+        'Los addons .corpuspack solo se importan en móvil/escritorio.',
+      );
     }
 
     final archive = ZipDecoder().decodeBytes(bytes);
     final manifestFile = archive.files.firstWhere(
       (f) => p.basename(f.name).toLowerCase() == 'manifest.json',
-      orElse: () => throw const FormatException('Falta manifest.json en el paquete'),
+      orElse: () =>
+          throw const FormatException('Falta manifest.json en el paquete'),
     );
 
     final manifestJson =
@@ -140,9 +142,7 @@ class StylePackRegistry {
     }
 
     _imported.removeWhere((e) => e.pack.id == pack.id);
-    _imported.add(
-      ImportedStylePackEntry(pack: pack, installDir: installDir),
-    );
+    _imported.add(ImportedStylePackEntry(pack: pack, installDir: installDir));
     await _persist();
     return pack;
   }
@@ -184,9 +184,7 @@ class StylePackRegistry {
           return ImportedStylePackEntry.fromJson(map);
         }
         // Legacy: array of bare StylePack JSON objects.
-        return ImportedStylePackEntry(
-          pack: StylePack.fromJson(map),
-        );
+        return ImportedStylePackEntry(pack: StylePack.fromJson(map));
       }).toList();
     } catch (_) {
       _imported = [];

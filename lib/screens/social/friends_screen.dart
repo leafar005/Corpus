@@ -307,7 +307,9 @@ class _FriendsScreenState extends State<FriendsScreen>
                     )
                   : null,
               border: OutlineInputBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               filled: true,
             ),

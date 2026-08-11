@@ -316,7 +316,9 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
                     )
                   : null,
               border: OutlineInputBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
                 borderSide: BorderSide.none,
               ),
               filled: true,
@@ -346,7 +348,9 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
               ).colorScheme.surfaceContainerHighest,
               foregroundColor: Theme.of(context).colorScheme.onSurface,
               shape: RoundedRectangleBorder(
-                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
               minimumSize: const Size(
                 0,

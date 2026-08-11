@@ -15,12 +15,7 @@ void main() {
     String userId = 'user-uuid-1',
     int gameId = 1942,
     String status = 'beaten',
-  }) => {
-    'id': id,
-    'user_id': userId,
-    'game_id': gameId,
-    'status': status,
-  };
+  }) => {'id': id, 'user_id': userId, 'game_id': gameId, 'status': status};
 
   group('Review.fromMap', () {
     group('Campos obligatorios', () {
@@ -186,7 +181,7 @@ void main() {
       test('parsea lista de URLs correctamente', () {
         final review = Review.fromMap({
           ...minimalMap(),
-          'image_urls': [
+          'image_urls': const [
             'https://example.com/img1.jpg',
             'https://example.com/img2.jpg',
           ],
@@ -214,7 +209,7 @@ void main() {
       test('parsea partnerIds como lista de strings', () {
         final review = Review.fromMap({
           ...minimalMap(),
-          'partner_ids': ['uid-2', 'uid-3'],
+          'partner_ids': const ['uid-2', 'uid-3'],
         });
 
         expect(review.partnerIds, ['uid-2', 'uid-3']);
@@ -223,7 +218,7 @@ void main() {
       test('parsea partners como lista de UserProfile', () {
         final review = Review.fromMap({
           ...minimalMap(),
-          'partners': [
+          'partners': const [
             {'id': 'uid-2', 'username': 'alice'},
             {'id': 'uid-3', 'username': 'bob'},
           ],
@@ -237,7 +232,7 @@ void main() {
       test('parsea user desde clave "users" (JOIN de Supabase)', () {
         final review = Review.fromMap({
           ...minimalMap(),
-          'users': {'id': 'uid-1', 'username': 'leafar005'},
+          'users': const {'id': 'uid-1', 'username': 'leafar005'},
         });
 
         expect(review.user, isNotNull);
@@ -247,7 +242,7 @@ void main() {
       test('parsea user desde clave "user" (alias alternativo)', () {
         final review = Review.fromMap({
           ...minimalMap(),
-          'user': {'id': 'uid-1', 'username': 'leafar005'},
+          'user': const {'id': 'uid-1', 'username': 'leafar005'},
         });
 
         expect(review.user, isNotNull);
@@ -317,7 +312,7 @@ void main() {
         'played_from': '2024-01-01',
         'played_until': '2024-01-20',
         'is_replay': true,
-        'image_urls': ['https://example.com/img.jpg'],
+        'image_urls': const ['https://example.com/img.jpg'],
       });
 
       final insertMap = review.toInsertMap();

@@ -267,21 +267,20 @@ class GameLinksTab extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: Theme.of(context)
-                    .extension<CorpusThemeExtension>()!
-                    .radiusMedium,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
                 border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.05),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.05),
                 ),
               ),
               child: Material(
                 type: MaterialType.transparency,
-                borderRadius: Theme.of(context)
-                    .extension<CorpusThemeExtension>()!
-                    .radiusMedium,
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
                 clipBehavior: Clip.antiAlias,
                 child: ListTile(
                   leading: Container(
@@ -293,9 +292,9 @@ class GameLinksTab extends StatelessWidget {
                           .colorScheme
                           .surfaceContainerHighest
                           .withValues(alpha: 0.5),
-                      borderRadius: Theme.of(context)
-                          .extension<CorpusThemeExtension>()!
-                          .radiusSmall,
+                      borderRadius: Theme.of(
+                        context,
+                      ).extension<CorpusThemeExtension>()!.radiusSmall,
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
@@ -316,9 +315,8 @@ class GameLinksTab extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: const Icon(Icons.open_in_new, size: 16),
-                  onTap: () => openUrl(
-                    _localizeUrlToSpain(link['url'].toString()),
-                  ),
+                  onTap: () =>
+                      openUrl(_localizeUrlToSpain(link['url'].toString())),
                 ),
               ),
             );

@@ -287,7 +287,9 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
-                        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                        borderRadius: Theme.of(
+                          context,
+                        ).extension<CorpusThemeExtension>()!.radiusMedium,
                         border: Border.all(
                           color: Theme.of(
                             context,

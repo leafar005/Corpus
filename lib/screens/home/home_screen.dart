@@ -547,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CorpusSectionTitle('Oportunidades Finales'),
+          const CorpusSectionTitle('Oportunidades Finales'),
           const SizedBox(height: 16),
           SizedBox(
             height: _isDesktop ? 220 : 240,
@@ -621,18 +621,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }
 
-                    final isP5r = Theme.of(context)
-                        .extension<CorpusThemeExtension>()!
-                        .useDynamicFrames;
+                    final isP5r = Theme.of(
+                      context,
+                    ).extension<CorpusThemeExtension>()!.useDynamicFrames;
 
                     final bundleInfo = MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: GestureDetector(
                         onTap: () {
                           if (widget.onNavigateToBundles != null) {
-                            widget.onNavigateToBundles!(
-                              bundle['title'] ?? '',
-                            );
+                            widget.onNavigateToBundles!(bundle['title'] ?? '');
                           } else if (bundle['url'] != null) {
                             openUrl(bundle['url']);
                           }
@@ -647,10 +645,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: TextStyle(
                                 color: isP5r
                                     ? Colors.white54
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.7),
+                                    : Theme.of(context).colorScheme.onSurface
+                                          .withValues(alpha: 0.7),
                                 fontSize: 13,
                                 letterSpacing: isP5r ? 1.0 : 0,
                               ),
@@ -663,18 +659,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 fontSize: isP5r ? 20 : 22,
                                 color: isP5r
                                     ? Colors.white
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .onSurface,
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 12),
                             if (isP5r)
-                              P5rTextBadge(
-                                text: '$days días',
-                              )
+                              P5rTextBadge(text: '$days días')
                             else
                               Text(
                                 'Termina en $days días y $hours horas',
@@ -700,7 +692,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const coverGap = 8.0;
                           const minTextWidth = 150.0;
                           final storeIconWidth = _isDesktop ? 48.0 + 12.0 : 0.0;
-                          final mobileCoverGridWidth = 132.0;
+                          const mobileCoverGridWidth = 132.0;
 
                           int desktopCoverCount = allGames.length;
                           if (_isDesktop && allGames.isNotEmpty) {
@@ -1092,7 +1084,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     final game = review['games'];
                     final comment = review['comment'] ?? '';
                     const commentStyle = TextStyle(fontSize: 13);
-                    final isTruncated = _isTextTruncated(comment, commentStyle, 280 - 24, 4);
+                    final isTruncated = _isTextTruncated(
+                      comment,
+                      commentStyle,
+                      280 - 24,
+                      4,
+                    );
 
                     return GestureDetector(
                       onTap: () => _showFullReviewSheet(review, game),
@@ -1114,64 +1111,88 @@ class _HomeScreenState extends State<HomeScreen> {
                                             Navigator.push(
                                               context,
                                               MaterialPageRoute(
-                                                builder: (context) => GameDetailsScreen(
-                                                  gameData: {
-                                                    'id': review['game_id'],
-                                                    if (game?['title'] != null)
-                                                      'title': game!['title'],
-                                                    if (game?['cover_url'] != null)
-                                                      'cover_url': game!['cover_url'],
-                                                  },
-                                                ),
+                                                builder: (context) =>
+                                                    GameDetailsScreen(
+                                                      gameData: {
+                                                        'id': review['game_id'],
+                                                        if (game?['title'] !=
+                                                            null)
+                                                          'title':
+                                                              game!['title'],
+                                                        if (game?['cover_url'] !=
+                                                            null)
+                                                          'cover_url':
+                                                              game!['cover_url'],
+                                                      },
+                                                    ),
                                               ),
                                             );
                                           }
                                         },
                                         child: ClipRRect(
-                                          borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                                          borderRadius: Theme.of(context)
+                                              .extension<
+                                                CorpusThemeExtension
+                                              >()!
+                                              .radiusSmall,
                                           child: Image.network(
                                             game['cover_url'],
                                             width: 40,
                                             height: 50,
                                             fit: BoxFit.cover,
                                             errorBuilder: (_, _, _) =>
-                                                const Icon(Icons.videogame_asset),
+                                                const Icon(
+                                                  Icons.videogame_asset,
+                                                ),
                                           ),
                                         ),
                                       ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            game?['title'] ?? 'Juego Desconocido',
-                                            style: const TextStyle(fontWeight: FontWeight.bold),
+                                            game?['title'] ??
+                                                'Juego Desconocido',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           Row(
                                             children: [
-                                              if (review['stash_user_avatar_url'] != null)
+                                              if (review['stash_user_avatar_url'] !=
+                                                  null)
                                                 CircleAvatar(
                                                   radius: 8,
                                                   backgroundImage: NetworkImage(
                                                     review['stash_user_avatar_url'],
                                                   ),
-                                                  onBackgroundImageError: (_, _) {},
+                                                  onBackgroundImageError:
+                                                      (_, _) {},
                                                 )
                                               else
-                                                const Icon(Icons.person, size: 16),
+                                                const Icon(
+                                                  Icons.person,
+                                                  size: 16,
+                                                ),
                                               const SizedBox(width: 4),
                                               Expanded(
                                                 child: Text(
-                                                  review['stash_user_display_name'] ?? 'Usuario',
+                                                  review['stash_user_display_name'] ??
+                                                      'Usuario',
                                                   style: TextStyle(
                                                     fontSize: 12,
-                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
                                                   ),
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -1183,7 +1204,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.star, size: 14, color: Colors.amber),
+                                          const Icon(
+                                            Icons.star,
+                                            size: 14,
+                                            color: Colors.amber,
+                                          ),
                                           const SizedBox(width: 4),
                                           Text(
                                             review['rating'].toString(),
@@ -1213,7 +1238,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        color: Theme.of(context).colorScheme.primary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                       ),
                                     ),
                                   ),
@@ -1348,7 +1375,9 @@ class _SectionShimmerState extends State<_SectionShimmer>
                 width: 220,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: _anim.value),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: _anim.value),
                   borderRadius: BorderRadius.circular(6),
                 ),
               ),
@@ -1368,8 +1397,12 @@ class _SectionShimmerState extends State<_SectionShimmer>
                   width: 260,
                   margin: const EdgeInsets.only(right: 16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: _anim.value),
-                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: _anim.value),
+                    borderRadius: Theme.of(
+                      context,
+                    ).extension<CorpusThemeExtension>()!.radiusLarge,
                   ),
                 ),
               ),

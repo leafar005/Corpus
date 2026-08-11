@@ -36,29 +36,19 @@ class CorpusSectionTitle extends StatelessWidget {
   final String text;
   final double? fontSize;
 
-  const CorpusSectionTitle(
-    this.text, {
-    super.key,
-    this.fontSize,
-  });
+  const CorpusSectionTitle(this.text, {super.key, this.fontSize});
 
   @override
   Widget build(BuildContext context) {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
 
     if (ext.useDynamicFrames) {
-      return P5rRansomTitle(
-        text: text,
-        baseFontSize: fontSize ?? 24,
-      );
+      return P5rRansomTitle(text: text, baseFontSize: fontSize ?? 24);
     }
 
     return Text(
       text,
-      style: TextStyle(
-        fontSize: fontSize ?? 20,
-        fontWeight: FontWeight.bold,
-      ),
+      style: TextStyle(fontSize: fontSize ?? 20, fontWeight: FontWeight.bold),
     );
   }
 }
@@ -102,10 +92,7 @@ class CorpusHeroTitle extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (parts.$1.isNotEmpty)
-                  P5rRansomTitle(
-                    text: parts.$1,
-                    baseFontSize: baseSize * 0.82,
-                  ),
+                  P5rRansomTitle(text: parts.$1, baseFontSize: baseSize * 0.82),
                 if (parts.$2.isNotEmpty)
                   P5rRansomTitle(
                     text: parts.$2,
@@ -122,10 +109,7 @@ class CorpusHeroTitle extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          P5rRansomTitle(
-            text: prefix,
-            baseFontSize: baseSize * 0.82,
-          ),
+          P5rRansomTitle(text: prefix, baseFontSize: baseSize * 0.82),
           P5rRansomTitle(
             text: highlight,
             baseFontSize: baseSize,

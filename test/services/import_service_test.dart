@@ -77,20 +77,23 @@ Juego 5,pausado,7
       expect(rows[4].status, 'on_hold');
     });
 
-    test('Normaliza escalas de notas de 1-100 a escala sobre 10 y mantiene 1-10', () {
-      const csvContent = '''title,rating
+    test(
+      'Normaliza escalas de notas de 1-100 a escala sobre 10 y mantiene 1-10',
+      () {
+        const csvContent = '''title,rating
 Juego Escala 10 Decimal,4.5
 Juego Escala 100,85
 Juego Escala 10,9.0
 ''';
-      final Uint8List bytes = Uint8List.fromList(utf8.encode(csvContent));
-      final rows = ImportService.parseCsv(bytes);
+        final Uint8List bytes = Uint8List.fromList(utf8.encode(csvContent));
+        final rows = ImportService.parseCsv(bytes);
 
-      expect(rows.length, 3);
-      expect(rows[0].rating, 4.5); // se mantiene 4.5 / 10
-      expect(rows[1].rating, 8.5); // 85 / 10.0 = 8.5
-      expect(rows[2].rating, 9.0); // se mantiene
-    });
+        expect(rows.length, 3);
+        expect(rows[0].rating, 4.5); // se mantiene 4.5 / 10
+        expect(rows[1].rating, 8.5); // 85 / 10.0 = 8.5
+        expect(rows[2].rating, 9.0); // se mantiene
+      },
+    );
 
     test('Ignora filas vacías o sin título válido', () {
       const csvContent = '''title,status

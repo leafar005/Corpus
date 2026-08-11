@@ -63,9 +63,7 @@ class _GroupGamesScreenState extends State<GroupGamesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: CorpusScreenTitle(widget.title),
-      ),
+      appBar: AppBar(title: CorpusScreenTitle(widget.title)),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null

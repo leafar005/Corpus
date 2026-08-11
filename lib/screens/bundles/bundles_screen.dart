@@ -1,7 +1,6 @@
 import 'dart:async';
 import '../../models/models.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/url_utils.dart';
 import '../../widgets/game_card.dart';
@@ -311,7 +310,10 @@ class _BundlesScreenState extends State<BundlesScreen> {
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -450,7 +452,9 @@ class _BundleCardState extends State<_BundleCard> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: badgeColor.withValues(alpha: 0.15),
-              borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+              borderRadius: Theme.of(
+                context,
+              ).extension<CorpusThemeExtension>()!.radiusSmall,
               border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
             ),
             child: Row(
@@ -508,7 +512,11 @@ class _BundleCardState extends State<_BundleCard> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium),
+      shape: RoundedRectangleBorder(
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusMedium,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

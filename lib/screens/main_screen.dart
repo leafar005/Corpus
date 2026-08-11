@@ -207,10 +207,9 @@ class _MainScreenState extends State<MainScreen> {
                           fontSize: 20,
                           letterSpacing: 2,
                           color: Colors.white,
-                          fontFamily:
-                              Theme.of(context)
-                                  .extension<CorpusThemeExtension>()!
-                                  .heroFontFamily,
+                          fontFamily: Theme.of(
+                            context,
+                          ).extension<CorpusThemeExtension>()!.heroFontFamily,
                         ),
                       ),
                     ],
@@ -222,7 +221,11 @@ class _MainScreenState extends State<MainScreen> {
                   const SizedBox(width: 16),
                   _buildPersona5RoyalTopNavItem(2, 'Actividad', Icons.group),
                   const SizedBox(width: 16),
-                  _buildPersona5RoyalTopNavItem(3, 'Bundles', Icons.local_offer),
+                  _buildPersona5RoyalTopNavItem(
+                    3,
+                    'Bundles',
+                    Icons.local_offer,
+                  ),
                   const SizedBox(width: 16),
                   _buildPersona5RoyalTopNavItem(4, 'Perfil', Icons.person),
                 ],
@@ -403,11 +406,7 @@ class _MainScreenState extends State<MainScreen> {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          icon,
-                          color: color,
-                          size: isSelected ? 28 : 24,
-                        ),
+                        Icon(icon, color: color, size: isSelected ? 28 : 24),
                         const SizedBox(height: 4),
                         Text(
                           label,
@@ -475,7 +474,10 @@ class _MainScreenState extends State<MainScreen> {
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
         BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
         BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Actividad'),
-        BottomNavigationBarItem(icon: Icon(Icons.local_offer), label: 'Bundles'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.local_offer),
+          label: 'Bundles',
+        ),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
       ],
     );
@@ -565,9 +567,7 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
         ),
-        bottomNavigationBar: isDesktop
-            ? null
-            : _buildMobileNavBar(context),
+        bottomNavigationBar: isDesktop ? null : _buildMobileNavBar(context),
       ),
     );
   }

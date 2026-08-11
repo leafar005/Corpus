@@ -155,7 +155,9 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                                 'Vincula tu cuenta de Steam para importar tus juegos y tiempo de juego. Pega tu URL de perfil de Steam (ej. https://steamcommunity.com/id/tunombre) o tu SteamID64.',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -274,7 +276,12 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                       children: [
                         Text(
                           'Migrar tu biblioteca de juegos y reseñas desde Stash utilizando un archivo JSON, HAR o CSV exportado desde la app.',
-                          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
@@ -293,7 +300,8 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                                 if (result != null) {
                                   final fileBytes = result.files.single.bytes;
 
-                                  if (fileBytes != null && fileBytes.isNotEmpty) {
+                                  if (fileBytes != null &&
+                                      fileBytes.isNotEmpty) {
                                     bool isCancelled = false;
                                     ValueNotifier<double> progressNotifier =
                                         ValueNotifier(0.0);
@@ -359,7 +367,9 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                                                             TextAlign.center,
                                                         style: TextStyle(
                                                           fontSize: 13,
-                                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
                                                         ),
                                                       ),
                                                 ),
@@ -562,9 +572,9 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: Theme.of(context)
-                                .extension<CorpusThemeExtension>()!
-                                .radiusMedium,
+                            borderRadius: Theme.of(
+                              context,
+                            ).extension<CorpusThemeExtension>()!.radiusMedium,
                           ),
                         ),
                         child: const Text(

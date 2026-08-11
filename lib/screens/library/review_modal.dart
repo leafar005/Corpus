@@ -185,7 +185,11 @@ class ReviewModal {
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: Theme.of(context).extension<CorpusThemeExtension>()?.radiusLarge ?? BorderRadius.circular(20),
+                  borderRadius:
+                      Theme.of(
+                        context,
+                      ).extension<CorpusThemeExtension>()?.radiusLarge ??
+                      BorderRadius.circular(20),
                 ),
                 side: BorderSide(
                   color: sel
@@ -205,7 +209,11 @@ class ReviewModal {
                   Container(
                     margin: const EdgeInsets.only(right: 8, top: 8),
                     decoration: BoxDecoration(
-                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()?.radiusSmall ?? BorderRadius.circular(8),
+                      borderRadius:
+                          Theme.of(
+                            context,
+                          ).extension<CorpusThemeExtension>()?.radiusSmall ??
+                          BorderRadius.circular(8),
                     ),
                     clipBehavior: Clip.hardEdge,
                     child: imageWidget,
@@ -290,7 +298,8 @@ class ReviewModal {
               );
             }
 
-            Color statusColor(String s) => GameStatus.colorForString(context, s);
+            Color statusColor(String s) =>
+                GameStatus.colorForString(context, s);
 
             String monthAbbr(int m) {
               const months = [
@@ -342,46 +351,43 @@ class ReviewModal {
                                       ),
                                     ),
                                   ),
-                                  if (reviewId != null) ...
-                                    [
-                                      TextButton.icon(
-                                        icon: const Icon(
-                                          Icons.edit_calendar,
-                                          size: 16,
-                                        ),
-                                        label: Text(
-                                          reviewDate != null
-                                              ? '${reviewDate!.day} ${monthAbbr(reviewDate!.month)} ${reviewDate!.year}'
-                                              : 'Fecha',
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurfaceVariant,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                        ),
-                                        onPressed: () async {
-                                          final d = await showDatePicker(
-                                            context: modalContext,
-                                            initialDate:
-                                                reviewDate ?? DateTime.now(),
-                                            firstDate: DateTime(1970),
-                                            lastDate: DateTime.now().add(
-                                              const Duration(days: 1),
-                                            ),
-                                          );
-                                          if (d != null) {
-                                            setModalState(
-                                              () => reviewDate = d,
-                                            );
-                                          }
-                                        },
+                                  if (reviewId != null) ...[
+                                    TextButton.icon(
+                                      icon: const Icon(
+                                        Icons.edit_calendar,
+                                        size: 16,
                                       ),
-                                    ],
+                                      label: Text(
+                                        reviewDate != null
+                                            ? '${reviewDate!.day} ${monthAbbr(reviewDate!.month)} ${reviewDate!.year}'
+                                            : 'Fecha',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                      ),
+                                      onPressed: () async {
+                                        final d = await showDatePicker(
+                                          context: modalContext,
+                                          initialDate:
+                                              reviewDate ?? DateTime.now(),
+                                          firstDate: DateTime(1970),
+                                          lastDate: DateTime.now().add(
+                                            const Duration(days: 1),
+                                          ),
+                                        );
+                                        if (d != null) {
+                                          setModalState(() => reviewDate = d);
+                                        }
+                                      },
+                                    ),
+                                  ],
                                 ],
                               ),
                               const SizedBox(height: 24),

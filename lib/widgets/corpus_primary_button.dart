@@ -38,8 +38,8 @@ class CorpusPrimaryButton extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final bg = backgroundColor ?? cs.primary;
     final fg = foregroundColor ?? cs.onPrimary;
-    final contentPadding = padding ??
-        const EdgeInsets.symmetric(horizontal: 24, vertical: 12);
+    final contentPadding =
+        padding ?? const EdgeInsets.symmetric(horizontal: 24, vertical: 12);
 
     Widget button;
     if (ext.useDynamicFrames) {
@@ -54,15 +54,13 @@ class CorpusPrimaryButton extends StatelessWidget {
             borderWidth: 2,
             child: Row(
               mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-              mainAxisAlignment:
-                  expand ? MainAxisAlignment.center : MainAxisAlignment.start,
+              mainAxisAlignment: expand
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
               children: [
                 Icon(icon, color: fg, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: _labelStyle(context, ext, fg),
-                ),
+                Text(label, style: _labelStyle(context, ext, fg)),
               ],
             ),
           ),
@@ -88,11 +86,9 @@ class CorpusPrimaryButton extends StatelessWidget {
           minimumSize: expand
               ? Size(double.infinity, height ?? 50)
               : height != null
-                  ? Size(0, height!)
-                  : null,
-          shape: RoundedRectangleBorder(
-            borderRadius: ext.radiusMedium,
-          ),
+              ? Size(0, height!)
+              : null,
+          shape: RoundedRectangleBorder(borderRadius: ext.radiusMedium),
         ),
       );
     }

@@ -9,18 +9,15 @@ import '../../repositories/activity_repository.dart';
 import '../../widgets/achievement_toast.dart';
 import '../../models/models.dart';
 import 'dart:io';
-import 'dart:math';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
-import '../../utils/storage_utils.dart';
 import '../profile/profile_screen.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../library/search_screen.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/coop_badge.dart';
-import '../../utils/image_compressor.dart';
 
 class ReviewDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -219,9 +216,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       );
       if (mounted) {
         setState(() => _comments.removeWhere((c) => c['id'] == commentId));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comentario eliminado')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Comentario eliminado')));
       }
     } catch (e) {
       if (mounted) {
@@ -299,15 +296,17 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     try {
       final gameId =
           (widget.gameData['igdb_id'] ??
-          widget.gameData['id'] ??
-          _currentReviewData['game_id'] as num?)?.toInt();
+                  widget.gameData['id'] ??
+                  _currentReviewData['game_id'] as num?)
+              ?.toInt();
       final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
       if (gameId == null || currentUserId == null) return;
 
-      final currentImages = (_currentReviewData['image_urls'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList();
+      final currentImages =
+          (_currentReviewData['image_urls'] as List<dynamic>? ?? [])
+              .map((e) => e.toString())
+              .toList();
 
       await _repo.deleteReview(
         reviewId: reviewId,
@@ -317,16 +316,16 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reseña eliminada')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Reseña eliminada')));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al eliminar reseña: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al eliminar reseña: $e')));
       }
     }
   }
@@ -622,7 +621,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusMedium,
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
@@ -648,7 +649,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+        borderRadius: Theme.of(
+          context,
+        ).extension<CorpusThemeExtension>()!.radiusMedium,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -908,7 +911,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     width: 100,
                                     height: 140,
                                     decoration: BoxDecoration(
-                                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                                      borderRadius: Theme.of(context)
+                                          .extension<CorpusThemeExtension>()!
+                                          .radiusSmall,
                                       color: Theme.of(context).primaryColorDark,
                                       image: coverUrl.isNotEmpty
                                           ? DecorationImage(
@@ -1071,7 +1076,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         );
                                       },
                                       child: ClipRRect(
-                                        borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                                        borderRadius: Theme.of(context)
+                                            .extension<CorpusThemeExtension>()!
+                                            .radiusSmall,
                                         child: Image.network(
                                           imageUrls[idx],
                                           height: isDesktop ? 280 : 140,
@@ -1097,7 +1104,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     .colorScheme
                                     .surfaceContainerHighest
                                     .withValues(alpha: 0.3),
-                                borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusMedium,
+                                borderRadius: Theme.of(context)
+                                    .extension<CorpusThemeExtension>()!
+                                    .radiusMedium,
                               ),
                               child: Column(
                                 children: [
@@ -1219,11 +1228,15 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                   style: TextStyle(
                                     color: _hasLiked
                                         ? Theme.of(context).colorScheme.primary
-                                        : Theme.of(context).colorScheme.onSurface,
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                                  foregroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   side: BorderSide(
                                     color: _hasLiked
                                         ? Theme.of(context).colorScheme.primary
@@ -1236,7 +1249,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             .withValues(alpha: 0.1)
                                       : null,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+                                    borderRadius: Theme.of(context)
+                                        .extension<CorpusThemeExtension>()!
+                                        .radiusLarge,
                                   ),
                                 ),
                               ),
@@ -1251,14 +1266,18 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                 ),
                                 label: Text(_comments.length.toString()),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                                  foregroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   side: BorderSide(
                                     color: Theme.of(
                                       context,
                                     ).colorScheme.surfaceContainerHighest,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusLarge,
+                                    borderRadius: Theme.of(context)
+                                        .extension<CorpusThemeExtension>()!
+                                        .radiusLarge,
                                   ),
                                 ),
                               ),
@@ -1630,7 +1649,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                 clipBehavior: Clip.none,
                                 children: [
                                   ClipRRect(
-                                    borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                                    borderRadius: Theme.of(context)
+                                        .extension<CorpusThemeExtension>()!
+                                        .radiusSmall,
                                     child: kIsWeb
                                         ? Image.network(
                                             _commentImage!.path,
@@ -1684,7 +1705,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     width: 80,
                                     height: 110,
                                     decoration: BoxDecoration(
-                                      borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                                      borderRadius: Theme.of(context)
+                                          .extension<CorpusThemeExtension>()!
+                                          .radiusSmall,
                                       color: Theme.of(context).primaryColorDark,
                                       image:
                                           (_selectedGameForComment!['cover_url'] !=

@@ -106,7 +106,7 @@ class GameDetailsController extends ChangeNotifier {
   void init({
     VoidCallback? onUserDataLoaded,
     void Function(List enrichedScreenshots, bool forceInitialSwap)?
-        onScreenshotsEnriched,
+    onScreenshotsEnriched,
   }) {
     // ── Prefs (local, rápido, no bloquea) ──────────────────────────────────
     loadPreferences();
@@ -349,7 +349,7 @@ class GameDetailsController extends ChangeNotifier {
   /// debe forzar el swap inicial — el screen lo usa para reiniciar el carrusel.
   Future<void> enrichGameData({
     void Function(List enrichedScreenshots, bool forceInitialSwap)?
-        onScreenshotsEnriched,
+    onScreenshotsEnriched,
   }) async {
     final hasSummary =
         gameData['summary'] != null &&
@@ -459,9 +459,7 @@ class GameDetailsController extends ChangeNotifier {
               ? (game['genres'] as List).map((g) => g['name']).toList()
               : [],
           'screenshots': game['screenshots'] != null
-              ? (game['screenshots'] as List)
-                    .map((s) => s['image_id'])
-                    .toList()
+              ? (game['screenshots'] as List).map((s) => s['image_id']).toList()
               : [],
           'artworks': game['artworks'] != null
               ? (game['artworks'] as List).map((a) => a['image_id']).toList()

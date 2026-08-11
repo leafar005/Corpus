@@ -183,7 +183,9 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                           onTap: () =>
                               _selectGame(game['igdb_id'] ?? game['id']),
                           child: ClipRRect(
-                            borderRadius: Theme.of(context).extension<CorpusThemeExtension>()!.radiusSmall,
+                            borderRadius: Theme.of(
+                              context,
+                            ).extension<CorpusThemeExtension>()!.radiusSmall,
                             child: coverUrl.isNotEmpty
                                 ? Image.network(coverUrl, fit: BoxFit.cover)
                                 : Container(

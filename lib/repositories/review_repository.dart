@@ -197,8 +197,7 @@ class ReviewRepository {
       // Fecha de publicación: solo se incluye en el payload cuando el usuario
       // la ha seleccionado explícitamente, para no sobreescribir el valor de
       // la BD en inserts (Postgres usa NOW() por defecto).
-      if (reviewDate != null)
-        'created_at': reviewDate.toIso8601String(),
+      if (reviewDate != null) 'created_at': reviewDate.toIso8601String(),
     };
   }
 

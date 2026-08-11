@@ -110,12 +110,23 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
-          Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), height: 32),
+          Divider(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.24),
+            height: 32,
+          ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
             child: Text(
               'Preferencias',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           FutureBuilder<SharedPreferences>(
@@ -172,7 +183,12 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
-          Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), height: 32),
+          Divider(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.24),
+            height: 32,
+          ),
 
           ListTile(
             leading: const Icon(Icons.delete_forever, color: Colors.orange),
@@ -330,7 +346,12 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
-          Divider(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24), height: 32),
+          Divider(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.24),
+            height: 32,
+          ),
           ListTile(
             leading: Icon(
               Icons.logout,
