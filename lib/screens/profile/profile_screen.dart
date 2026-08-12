@@ -40,8 +40,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? get _userProfile => _controller.userProfile;
   List<Map<String, dynamic>> get _wishlistGames => _controller.wishlistGames;
   List<Map<String, dynamic>> get _playingGames => _controller.playingGames;
-  List<Map<String, dynamic>> get _allGames => _controller.allGames;
-  List<Map<String, dynamic>> get _userReviews => _controller.userReviews;
+  List<Map<String, dynamic>> get _beatenGames => _controller.beatenGames;
+  List<Map<String, dynamic>> get _droppedGames => _controller.droppedGames;
+  List<double> get _ratings => _controller.ratings;
   List<Map<String, dynamic>?> get _hallOfFame => _controller.hallOfFame;
 
   bool get _isOwnProfile => _controller.isOwnProfile;
@@ -120,6 +121,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (_isLoading) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (_controller.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text('No se pudo cargar el perfil.'),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () {
+                      _controller.fetchProfileData();
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
@@ -1067,10 +1091,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildRatingsHistogram() {
-    final ratings = _userReviews
-        .map((r) => (r['rating'] ?? 0).toDouble())
-        .where((r) => r > 0)
-        .toList();
+    final ratings = _ratings.where((r) => r > 0).toList();
 
     if (ratings.isEmpty) return const SizedBox.shrink();
 
@@ -1184,36 +1205,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildGiantStat(
-            _allGames.length.toString().padLeft(3, '0'),
+            _controller.beatenCount.toString().padLeft(3, '0'),
             'Completados',
             () {
-              if (_allGames.isNotEmpty) {
-                setState(() {
-                  _juegosStatusFilter = 'beaten';
-                  _selectedTab = 1;
-                });
-                _scrollToTabs();
-              }
+              setState(() {
+                _juegosStatusFilter = 'beaten';
+                _selectedTab = 1;
+              });
+              _scrollToTabs();
             },
           ),
           _buildGiantStat(
-            _playingGames.length.toString().padLeft(3, '0'),
+            _controller.playingCount.toString().padLeft(3, '0'),
             'Jugando',
             () {
-              if (_playingGames.isNotEmpty) {
-                setState(() {
-                  _juegosStatusFilter = 'playing';
-                  _selectedTab = 1;
-                });
-                _scrollToTabs();
-              }
+              setState(() {
+                _juegosStatusFilter = 'playing';
+                _selectedTab = 1;
+              });
+              _scrollToTabs();
             },
           ),
           _buildGiantStat(
-            _wishlistGames.length.toString().padLeft(3, '0'),
+            _controller.wishlistCount.toString().padLeft(3, '0'),
             'En Wishlist',
             () {
-              if (_wishlistGames.isNotEmpty) {
+              if (_controller.wishlistCount > 0) {
                 setState(() {
                   _juegosStatusFilter = 'wishlist';
                   _selectedTab = 1;
@@ -1580,24 +1597,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_wishlistGames.isNotEmpty) ...[
-          _buildSectionTitle('Quiero', _wishlistGames.length, 'wishlist'),
-          _buildCarousel(_wishlistGames.take(20).toList()),
+          _buildSectionTitle('Quiero', _controller.wishlistCount, 'wishlist'),
+          _buildCarousel(_wishlistGames),
           const SizedBox(height: 24),
         ],
         if (_playingGames.isNotEmpty) ...[
-          _buildSectionTitle('Jugando', _playingGames.length, 'playing'),
-          _buildCarousel(_playingGames.take(20).toList()),
+          _buildSectionTitle('Jugando', _controller.playingCount, 'playing'),
+          _buildCarousel(_playingGames),
           const SizedBox(height: 24),
         ],
-        if (_allGames.isNotEmpty) ...[
-          _buildSectionTitle('Completados', _allGames.length, 'beaten'),
-          _buildCarousel(_allGames.take(20).toList()),
-        ] else ...[
+        if (_beatenGames.isNotEmpty) ...[
+          _buildSectionTitle('Completados', _controller.beatenCount, 'beaten'),
+          _buildCarousel(_beatenGames),
+          const SizedBox(height: 24),
+        ],
+        if (_droppedGames.isNotEmpty) ...[
+          _buildSectionTitle('A medias', _controller.droppedCount, 'dropped'),
+          _buildCarousel(_droppedGames),
+          const SizedBox(height: 24),
+        ],
+        if (_beatenGames.isEmpty && _droppedGames.isEmpty && _playingGames.isEmpty && _wishlistGames.isEmpty) ...[
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32.0),
               child: Text(
-                'Aún no tienes juegos completados con nota.',
+                'Aún no tienes juegos en tu biblioteca.',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
