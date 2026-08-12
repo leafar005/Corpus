@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { igdbGamesRequest, IGDB_FIELDS } from '../_shared/igdb-client.ts';
+import { igdbGamesRequest, IGDB_FIELDS, getIgdbAccessToken } from '../_shared/igdb-client.ts';
 
 const IGDB_CLIENT_ID = Deno.env.get('IGDB_CLIENT_ID') ?? '';
 const IGDB_CLIENT_SECRET = Deno.env.get('IGDB_CLIENT_SECRET') ?? '';
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
     // Resolver el ID exacto de "Steam" en la tabla de referencia (evita problemas de mayúsculas/formato)
     let steamSourceId: number | null = null;
     {
-      const token = await getIgdbToken();
+      const token = await getIgdbAccessToken();
       const res = await fetch('https://api.igdb.com/v4/external_game_sources', {
         method: 'POST',
         headers: {
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
 
       const query = `fields uid, game; where ${sourceFilter} & (${orConditions}); limit 500;`;
 
-      const token = await getIgdbToken();
+      const token = await getIgdbAccessToken();
       const res = await fetch('https://api.igdb.com/v4/external_games', {
         method: 'POST',
         headers: {

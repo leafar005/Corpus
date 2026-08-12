@@ -172,6 +172,10 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
         } else {
           query = query.inFilter('game_id', platinoGameIds);
         }
+      } else if (_currentStatus == 'beaten') {
+        query = query.eq('status', 'beaten');
+      } else if (_currentStatus == 'dropped') {
+        query = query.inFilter('status', ['abandoned', 'on_hold']);
       } else if (_currentStatus != null) {
         query = query.eq('status', _currentStatus!);
         if (_currentStatus == 'wishlist') {
