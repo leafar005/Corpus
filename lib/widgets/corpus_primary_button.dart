@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/corpus_theme_extension.dart';
+import '../theme/corpus_typography.dart';
 import 'p5r_dynamic_frame.dart';
 
 /// Primary action button that adapts to the active style pack.
@@ -72,10 +72,12 @@ class CorpusPrimaryButton extends StatelessWidget {
         icon: Icon(icon, size: 20, color: fg),
         label: Text(
           label,
-          style: TextStyle(
-            color: fg,
-            fontWeight: FontWeight.bold,
+          style: CorpusTypography.display(
+            context,
+            ext,
             fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: fg,
           ),
         ),
         style: ElevatedButton.styleFrom(
@@ -109,17 +111,12 @@ class CorpusPrimaryButton extends StatelessWidget {
     CorpusThemeExtension ext,
     Color color,
   ) {
-    if (ext.heroFontFamily == 'Archivo Black') {
-      return GoogleFonts.archivoBlack(
-        color: color,
-        fontSize: 16,
-        fontWeight: FontWeight.w400,
-      );
-    }
-    return TextStyle(
+    return CorpusTypography.display(
+      context,
+      ext,
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
       color: color,
-      fontWeight: FontWeight.bold,
-      fontFamily: ext.heroFontFamily,
     );
   }
 }

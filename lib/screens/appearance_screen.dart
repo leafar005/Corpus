@@ -1,11 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../services/style_pack_import_service.dart';
 import '../services/style_pack_music_service.dart';
 import '../theme/style_pack_registry.dart';
-import 'settings/info_tab_appearance_screen.dart';
-import 'settings/home_appearance_screen.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../theme/style_pack.dart';
 import '../widgets/corpus_section_title.dart';
@@ -343,12 +342,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           ).extension<CorpusThemeExtension>()!.radiusLarge,
         ),
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const HomeAppearanceScreen(),
-            ),
-          );
+          context.pushHomeAppearance();
         },
       ),
     );
@@ -379,12 +373,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           ).extension<CorpusThemeExtension>()!.radiusLarge,
         ),
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const InfoTabAppearanceScreen(),
-            ),
-          );
+          context.pushInfoTabAppearance();
         },
       ),
     );

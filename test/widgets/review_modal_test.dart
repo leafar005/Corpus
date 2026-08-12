@@ -42,6 +42,7 @@ void main() {
                         currentRatingVisuals: 0,
                         currentStatus: 'beaten',
                         commentController: commentController,
+                        inLibrary: true,
                         onSave:
                             ({
                               String? reviewId,
@@ -86,7 +87,9 @@ void main() {
         expect(find.text('Desglosar nota'), findsOneWidget);
         expect(find.text('Información Extra'), findsOneWidget);
 
-        // 2. Pulsar el chip de "Quiero" (wishlist)
+        // 2. Volver al selector y pulsar "Quiero" (wishlist)
+        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.pump();
         await tester.tap(find.text('Quiero'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
@@ -96,16 +99,96 @@ void main() {
         expect(find.text('Desglosar nota'), findsNothing);
         expect(find.text('Información Extra'), findsNothing);
 
-        // Pero el botón de guardar y los chips de estado siguen presentes y sin lanzar errores
+        // El estado seleccionado y el botón de guardar siguen presentes
         expect(find.text('Quiero'), findsOneWidget);
         expect(find.text('Guardar'), findsOneWidget);
 
-        // 4. Volver a pulsar "Terminado" y verificar que reaparecen
+        // 4. Cambiar a "Terminado" y verificar que reaparecen
+        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.pump();
         await tester.tap(find.text('Terminado'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
         expect(find.text('Nota'), findsOneWidget);
         expect(find.text('Información Extra'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Al pulsar "Jugando", se ocultan nota/reseña y la información extra queda visible',
+      (WidgetTester tester) async {
+        final commentController = TextEditingController();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(extensions: const [CorpusThemeExtension()]),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      ReviewModal.show(
+                        context: context,
+                        gameData: {'title': 'Hollow Knight'},
+                        enrichedData: {},
+                        isSaving: false,
+                        currentRating: 9.0,
+                        currentRatingGameplay: 0,
+                        currentRatingNarrative: 0,
+                        currentRatingSoundtrack: 0,
+                        currentRatingVisuals: 0,
+                        currentStatus: 'beaten',
+                        commentController: commentController,
+                        inLibrary: true,
+                        onSave:
+                            ({
+                              String? reviewId,
+                              required double rating,
+                              required double ratingGameplay,
+                              required double ratingNarrative,
+                              required double ratingSoundtrack,
+                              required double ratingVisuals,
+                              required String comment,
+                              required String status,
+                              required String completionType,
+                              required bool isReplay,
+                              required int? replayNumber,
+                              required String? platform,
+                              required double? playTimeHours,
+                              required DateTime? playedFrom,
+                              required DateTime? playedUntil,
+                              required int? progressPercent,
+                              required List<XFile> newImages,
+                              required List<String> existingImages,
+                              required List<String> partnerIds,
+                              required DateTime? reviewDate,
+                            }) async {},
+                      );
+                    },
+                    child: const Text('Abrir Modal'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Abrir Modal'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.pump();
+        await tester.tap(find.text('Jugando'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(find.text('Nota'), findsNothing);
+        expect(find.text('Desglosar nota'), findsNothing);
+        expect(find.text('Reseña'), findsNothing);
+        expect(find.text('Información Extra'), findsOneWidget);
+        expect(find.text('Tiempo de juego (horas)'), findsOneWidget);
+        expect(find.text('Guardar'), findsOneWidget);
       },
     );
   });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/corpus_theme_extension.dart';
+import '../theme/corpus_typography.dart';
 import 'p5r_ransom_title.dart';
 import 'typewriter_text.dart';
 
@@ -48,7 +49,12 @@ class CorpusSectionTitle extends StatelessWidget {
 
     return Text(
       text,
-      style: TextStyle(fontSize: fontSize ?? 20, fontWeight: FontWeight.bold),
+      style: CorpusTypography.display(
+        context,
+        ext,
+        fontSize: fontSize ?? 20,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 }
@@ -119,12 +125,12 @@ class CorpusHeroTitle extends StatelessWidget {
       );
     }
 
-    final baseStyle = TextStyle(
-      fontFamily: ext.heroFontFamily,
+    final baseStyle = CorpusTypography.display(
+      context,
+      ext,
       fontSize: baseSize,
-      fontWeight: ext.heroFontWeight,
-      height: 1.1,
-      letterSpacing: -1,
+      fontWeight: FontWeight.w500,
+      height: 1.2,
     );
 
     if (animated) {
@@ -135,11 +141,14 @@ class CorpusHeroTitle extends StatelessWidget {
         spans: [
           TextSpan(
             text: '$prefix\n',
-            style: const TextStyle(color: Colors.white),
+            style: baseStyle.copyWith(color: Colors.white),
           ),
           TextSpan(
             text: highlight,
-            style: TextStyle(color: primary),
+            style: baseStyle.copyWith(
+              color: primary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       );
@@ -151,11 +160,14 @@ class CorpusHeroTitle extends StatelessWidget {
         children: [
           TextSpan(
             text: '$prefix\n',
-            style: const TextStyle(color: Colors.white),
+            style: baseStyle.copyWith(color: Colors.white),
           ),
           TextSpan(
             text: highlight,
-            style: TextStyle(color: primary),
+            style: baseStyle.copyWith(
+              color: primary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

@@ -4,7 +4,7 @@ import 'package:corpus/globals.dart';
 import 'steam_import_setup_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:corpus/services/import_service.dart';
-import 'package:corpus/screens/settings/import_preview_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 
@@ -416,13 +416,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                                     }
 
                                     if (!isCancelled && context.mounted) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              ImportPreviewScreen(rows: rows),
-                                        ),
-                                      );
+                                      context.pushImportPreview(rows);
                                     }
                                   }
                                 }

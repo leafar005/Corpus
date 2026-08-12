@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/services/import_service.dart';
-import 'import_preview_screen.dart';
+import 'package:corpus/routes/app_routes.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../widgets/corpus_section_title.dart';
 
 class SteamImportProgressScreen extends StatefulWidget {
@@ -123,12 +124,9 @@ class _SteamImportProgressScreenState extends State<SteamImportProgressScreen> {
                 _isDone = true;
                 _status = '¡Importación completada!';
               });
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      ImportPreviewScreen(rows: _accumulatedRows),
-                ),
+              context.pushReplacementRoute(
+                AppRoutes.importPreview,
+                arguments: ImportPreviewArgs(rows: _accumulatedRows),
               );
             }
           } else {

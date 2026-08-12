@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../screens/profile/profile_screen.dart';
+import '../routes/corpus_router.dart';
 import '../theme/corpus_theme_extension.dart';
 
 class CoopBadge extends StatelessWidget {
@@ -26,16 +26,7 @@ class CoopBadge extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
-      onTap: userId != null
-          ? () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfileScreen(userId: userId!),
-                ),
-              );
-            }
-          : null,
+      onTap: userId != null ? () => context.pushProfile(userId: userId!) : null,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(

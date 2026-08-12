@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../../services/igdb_service.dart';
 import '../game_details_screen.dart';
 import 'game_details_controller.dart';
@@ -130,12 +131,7 @@ class GameRelatedTab extends StatelessWidget {
                         .toList();
                   }
                   if (MediaQuery.of(context).size.width >= 800) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => GameDetailsScreen(gameData: cleanData),
-                      ),
-                    );
+                    context.pushGameDetails(cleanData);
                   } else {
                     showModalBottomSheet(
                       context: context,

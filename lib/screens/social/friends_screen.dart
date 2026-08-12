@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../profile/profile_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 
@@ -398,13 +398,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                           ),
                         ),
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  _FriendProfileScreen(userId: userId),
-                            ),
-                          );
+                          context.pushProfile(userId: userId);
                         },
                         trailing: trailingWidget,
                       );
@@ -546,12 +540,7 @@ class _FriendsScreenState extends State<FriendsScreen>
             onTap: () {
               final friendId = friend['id'] as String?;
               if (friendId == null) return;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => _FriendProfileScreen(userId: friendId),
-                ),
-              );
+              context.pushProfile(userId: friendId);
             },
             trailing: IconButton(
               icon: Icon(
@@ -600,16 +589,5 @@ class _FriendsScreenState extends State<FriendsScreen>
         children: [_buildSearchTab(), _buildRequestsTab(), _buildFriendsTab()],
       ),
     );
-  }
-}
-
-/// Wrapper sencillo para mostrar el perfil de un amigo concreto.
-class _FriendProfileScreen extends StatelessWidget {
-  final String userId;
-  const _FriendProfileScreen({required this.userId});
-
-  @override
-  Widget build(BuildContext context) {
-    return ProfileScreen(userId: userId);
   }
 }

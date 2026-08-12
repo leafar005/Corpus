@@ -9,7 +9,7 @@ import '../../widgets/corpus_network_image.dart';
 import '../../models/models.dart';
 import '../../widgets/game_card.dart';
 import '../../services/igdb_service.dart';
-import '../library/game_details_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import 'hero_showcase.dart';
 import 'anticipated_games_section.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -944,20 +944,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               Navigator.pop(
                                 context,
                               ); // Close the bottom sheet first
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => GameDetailsScreen(
-                                    gameData: {
-                                      'id': review['game_id'],
-                                      if (game['title'] != null)
-                                        'title': game['title'],
-                                      if (game['cover_url'] != null)
-                                        'cover_url': game['cover_url'],
-                                    },
-                                  ),
-                                ),
-                              );
+                              context.pushGameDetails({
+                                'id': review['game_id'],
+                                if (game['title'] != null)
+                                  'title': game['title'],
+                                if (game['cover_url'] != null)
+                                  'cover_url': game['cover_url'],
+                              });
                             }
                           },
                           borderRadius: BorderRadius.circular(8),
@@ -1107,25 +1100,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                       InkWell(
                                         onTap: () {
                                           if (review['game_id'] != null) {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    GameDetailsScreen(
-                                                      gameData: {
-                                                        'id': review['game_id'],
-                                                        if (game?['title'] !=
-                                                            null)
-                                                          'title':
-                                                              game!['title'],
-                                                        if (game?['cover_url'] !=
-                                                            null)
-                                                          'cover_url':
-                                                              game!['cover_url'],
-                                                      },
-                                                    ),
-                                              ),
-                                            );
+                                            context.pushGameDetails({
+                                              'id': review['game_id'],
+                                              if (game?['title'] != null)
+                                                'title': game!['title'],
+                                              if (game?['cover_url'] != null)
+                                                'cover_url':
+                                                    game!['cover_url'],
+                                            });
                                           }
                                         },
                                         child: ClipRRect(

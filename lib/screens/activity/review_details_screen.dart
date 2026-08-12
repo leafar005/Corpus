@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/format_utils.dart';
 import '../../widgets/corpus_network_image.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../library/game_details_screen.dart';
 import '../library/review_modal.dart';
 import '../../widgets/full_screen_gallery.dart';
@@ -12,10 +13,8 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
-import '../profile/profile_screen.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
-import '../library/search_screen.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/coop_badge.dart';
 import 'review_details/review_details_controller.dart';
@@ -623,13 +622,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                 onTap: () {
                                   final userId = _currentReviewData['user_id'];
                                   if (userId != null) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            ProfileScreen(userId: userId),
-                                      ),
-                                    );
+                                    context.pushProfile(userId: userId);
                                   }
                                 },
                                 child: Row(
@@ -749,15 +742,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             MediaQuery.of(context).size.width >
                                             800;
                                         if (isDesktop) {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  GameDetailsScreen(
-                                                    gameData: widget.gameData,
-                                                  ),
-                                            ),
-                                          );
+                                          context.pushGameDetails(widget.gameData);
                                         } else {
                                           showModalBottomSheet(
                                             context: context,
@@ -1234,15 +1219,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             onTap: () {
                                               final uid = comment['user_id'];
                                               if (uid != null) {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        ProfileScreen(
-                                                          userId: uid,
-                                                        ),
-                                                  ),
-                                                );
+                                                context.pushProfile(userId: uid);
                                               }
                                             },
                                             child: CircleAvatar(
@@ -1275,14 +1252,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                     final uid =
                                                         comment['user_id'];
                                                     if (uid != null) {
-                                                      Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (_) =>
-                                                              ProfileScreen(
-                                                                userId: uid,
-                                                              ),
-                                                        ),
+                                                      context.pushProfile(
+                                                        userId: uid,
                                                       );
                                                     }
                                                   },
@@ -1375,15 +1346,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                             ).size.width >
                                                             800;
                                                         if (isDesktop) {
-                                                          Navigator.push(
-                                                            context,
-                                                            MaterialPageRoute(
-                                                              builder: (context) =>
-                                                                  GameDetailsScreen(
-                                                                    gameData:
-                                                                        gameData,
-                                                                  ),
-                                                            ),
+                                                          context.pushGameDetails(
+                                                            gameData,
                                                           );
                                                         } else {
                                                           showModalBottomSheet(
@@ -1745,13 +1709,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     padding: const EdgeInsets.all(4),
                                     constraints: const BoxConstraints(),
                                     onPressed: () async {
-                                      final game = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const SearchScreen(
-                                            isSelectionMode: true,
-                                          ),
-                                        ),
+                                      final game = await context.pushSearch(
+                                        isSelectionMode: true,
                                       );
                                       if (game != null) {
                                         setState(() {

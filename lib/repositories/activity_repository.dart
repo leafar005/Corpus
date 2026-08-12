@@ -216,6 +216,82 @@ class ActivityRepository {
     return FriendsStripResult(friends: friends, pendingCount: pending.length);
   }
 
+  /// Actividad reciente agrupada por usuario (para "historias" automáticas).
+  ///
+  /// Devuelve un mapa `userId → actividades` de los últimos [maxAge] días,
+  /// ordenadas de más reciente a más antigua, con un máximo de [maxPerUser]
+  /// entradas por usuario.
+  Future<Map<String, List<Map<String, dynamic>>>> fetchRecentStoriesForUsers(
+    List<String> userIds, {
+    Duration maxAge = const Duration(days: 7),
+    int maxPerUser = 15,
+  }) async {
+    if (userIds.isEmpty) return {};
+
+    final since = DateTime.now().subtract(maxAge).toUtc().toIso8601String();
+
+    final response = await _client
+        .from('activity_feed')
+        .select('''
+            *,
+            users!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
+            games!activity_feed_game_id_fkey(igdb_id, title, cover_url)
+          ''')
+        .inFilter('user_id', userIds)
+        .gte('created_at', since)
+        .order('created_at', ascending: false);
+
+    final feedItems = List<Map<String, dynamic>>.from(response);
+
+    // Enriquecer reseñas referenciadas
+    final reviewIds = feedItems
+        .where((item) => item['action_type'] == 'reviewed')
+        .map((item) => (item['metadata'] as Map?)?['review_id'] as String?)
+        .whereType<String>()
+        .toSet()
+        .toList();
+
+    final Map<String, Map<String, dynamic>> reviewsById = {};
+    if (reviewIds.isNotEmpty) {
+      try {
+        final reviewsResp = await _client
+            .from('reviews')
+            .select(
+              '*, review_likes(user_id), '
+              'review_comments(id, content, created_at, '
+              'users(id, username, display_name, avatar_url))',
+            )
+            .inFilter('id', reviewIds);
+        final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
+        await ReviewRepository(client: _client).injectPartners(reviewsList);
+        for (final r in reviewsList) {
+          reviewsById[r['id'] as String] = r;
+        }
+      } catch (_) {}
+    }
+
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final item in feedItems) {
+      final userId = item['user_id'] as String?;
+      if (userId == null) continue;
+
+      final list = grouped.putIfAbsent(userId, () => []);
+      if (list.length >= maxPerUser) continue;
+
+      final enriched = Map<String, dynamic>.from(item);
+      if (item['action_type'] == 'reviewed') {
+        final reviewId =
+            (item['metadata'] as Map?)?['review_id'] as String?;
+        if (reviewId != null && reviewsById.containsKey(reviewId)) {
+          enriched['_review'] = reviewsById[reviewId];
+        }
+      }
+      list.add(enriched);
+    }
+
+    return grouped;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Detalle de reseña (ReviewDetailsScreen)
   // ═══════════════════════════════════════════════════════════════════════════

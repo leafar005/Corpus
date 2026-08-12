@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/format_utils.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/full_screen_gallery.dart';
 import '../../widgets/coop_badge.dart';
-import '../activity/review_details_screen.dart';
-import '../profile/profile_screen.dart';
-import '../social/friends_screen.dart';
+import '../activity/activity_formatters.dart';
+import '../activity/activity_story_viewer.dart';
 import '../library/game_details_screen.dart';
 import '../../repositories/activity_repository.dart';
 import '../../widgets/corpus_network_image.dart';
@@ -16,6 +16,7 @@ import '../../widgets/paginated_scroll_mixin.dart';
 import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
+import '../../widgets/activity_story_ring.dart';
 
 /// Feed de actividad social en tiempo real.
 /// Muestra la actividad del usuario actual y la de sus amigos aceptados.
@@ -41,6 +42,7 @@ class _ActivityScreenState extends State<ActivityScreen>
 
   // Franja de amigos (estilo "historias") en la parte superior.
   List<Map<String, dynamic>> _friendsStrip = [];
+  Map<String, List<Map<String, dynamic>>> _userStories = {};
   bool _isLoadingFriendsStrip = true;
   int _pendingRequestsCount = 0;
 
@@ -94,9 +96,19 @@ class _ActivityScreenState extends State<ActivityScreen>
       if (myId == null) return;
 
       final result = await _repo.fetchFriendsStrip(myId);
+      final friendIds = result.friends
+          .map((f) => f['id'] as String?)
+          .whereType<String>()
+          .toList();
+
+      final stories = friendIds.isNotEmpty
+          ? await _repo.fetchRecentStoriesForUsers(friendIds)
+          : <String, List<Map<String, dynamic>>>{};
+
       if (mounted) {
         setState(() {
           _friendsStrip = result.friends;
+          _userStories = stories;
           _pendingRequestsCount = result.pendingCount;
           _isLoadingFriendsStrip = false;
         });
@@ -106,11 +118,33 @@ class _ActivityScreenState extends State<ActivityScreen>
     }
   }
 
-  Future<void> _openFriendsScreen() async {
-    await Navigator.push(
+  void _openUserStory(Map<String, dynamic> userData) {
+    final userId = userData['id'] as String?;
+    if (userId == null) return;
+
+    final stories = _userStories[userId];
+    if (stories == null || stories.isEmpty) {
+      context.pushProfile(userId: userId);
+      return;
+    }
+
+    Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const FriendsScreen()),
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, animation, secondaryAnimation) => ActivityStoryViewer(
+          userData: userData,
+          activities: stories,
+        ),
+        transitionsBuilder: (_, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
     );
+  }
+
+  Future<void> _openFriendsScreen() async {
+    await context.pushFriends();
     // Al volver, refrescamos por si se aceptaron/enviaron solicitudes.
     if (mounted) _fetchFriendsStrip();
   }
@@ -177,7 +211,10 @@ class _ActivityScreenState extends State<ActivityScreen>
           schema: 'public',
           table: 'activity_feed',
           callback: (payload) {
-            if (mounted) _fetchActivity(isRefresh: true, silent: true);
+            if (mounted) {
+              _fetchActivity(isRefresh: true, silent: true);
+              _fetchFriendsStrip();
+            }
           },
         )
         .subscribe();
@@ -237,101 +274,25 @@ class _ActivityScreenState extends State<ActivityScreen>
   // HELPERS DE FORMATO
   // ──────────────────────────────────────────
 
-  String _formatDate(String isoString) {
-    try {
-      final date = DateTime.parse(isoString).toLocal();
-      const months = [
-        'Ene',
-        'Feb',
-        'Mar',
-        'Abr',
-        'May',
-        'Jun',
-        'Jul',
-        'Ago',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dic',
-      ];
-      final now = DateTime.now();
-      final diff = now.difference(date);
-      if (diff.inMinutes < 1) return 'Ahora mismo';
-      if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes}m';
-      if (diff.inHours < 24) return 'Hace ${diff.inHours}h';
-      return '${date.day} ${months[date.month - 1]}. ${date.year}';
-    } catch (_) {
-      return '';
-    }
-  }
+  String _formatDate(String isoString) =>
+      ActivityFormatters.formatRelativeDate(isoString);
 
   String _getStatusText(String status) => GameStatus.labelForString(status);
 
   IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
 
-  String _getActionText(String actionType, String? status, bool isOwnActivity) {
-    switch (actionType) {
-      case 'status_change':
-        switch (status) {
-          case 'playing':
-            return isOwnActivity ? 'has empezado a jugar a' : 'está jugando a';
-          case 'beaten':
-            return isOwnActivity ? 'has completado' : 'ha completado';
-          case 'wishlist':
-            return isOwnActivity
-                ? 'has añadido a la wishlist'
-                : 'quiere jugar a';
-          case 'abandoned':
-            return isOwnActivity ? 'has abandonado' : 'ha abandonado';
-          case 'on_hold':
-            return isOwnActivity ? 'has pausado' : 'ha pausado';
-          default:
-            return isOwnActivity ? 'has actualizado' : 'actualizó';
-        }
-      case 'reviewed':
-        return isOwnActivity ? 'has reseñado' : 'ha reseñado';
-      case 'achievement':
-        return isOwnActivity
-            ? 'has desbloqueado un logro en'
-            : 'ha desbloqueado un logro en';
-      default:
-        return isOwnActivity ? 'has interactuado con' : 'hizo algo con';
-    }
-  }
+  String _getActionText(String actionType, String? status, bool isOwnActivity) =>
+      ActivityFormatters.actionText(
+        actionType,
+        status,
+        isOwnActivity: isOwnActivity,
+      );
 
-  IconData _getActionIcon(String actionType, String? status) {
-    if (actionType == 'reviewed') return Icons.rate_review_rounded;
-    if (actionType == 'achievement') return Icons.emoji_events_rounded;
-    switch (status) {
-      case 'beaten':
-        return Icons.check_circle;
-      case 'playing':
-        return Icons.sports_esports;
-      case 'wishlist':
-        return Icons.bookmark;
-      case 'abandoned':
-        return Icons.cancel;
-      case 'on_hold':
-        return Icons.pause_circle;
-      default:
-        return Icons.flag;
-    }
-  }
+  IconData _getActionIcon(String actionType, String? status) =>
+      ActivityFormatters.actionIcon(actionType, status);
 
-  Color _getActionColor(String actionType, String? status, BuildContext ctx) {
-    if (actionType == 'reviewed') return Theme.of(ctx).colorScheme.secondary;
-    if (actionType == 'achievement') return Colors.amber;
-    switch (status) {
-      case 'beaten':
-        return Colors.green;
-      case 'playing':
-        return Theme.of(ctx).colorScheme.primary;
-      case 'abandoned':
-        return Colors.red;
-      default:
-        return Theme.of(ctx).colorScheme.onSurfaceVariant;
-    }
-  }
+  Color _getActionColor(String actionType, String? status, BuildContext ctx) =>
+      ActivityFormatters.actionColor(actionType, status, ctx);
 
   // ──────────────────────────────────────────
   // CARD
@@ -381,42 +342,29 @@ class _ActivityScreenState extends State<ActivityScreen>
 
     void openReview() {
       if (review == null) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ReviewDetailsScreen(
-            gameData: gameData,
-            userData: userData,
-            reviewData: review,
-          ),
-        ),
-      ).then((_) => _fetchActivity(isRefresh: true, silent: true));
+      context
+          .pushReviewDetails(gameData, userData, review)
+          .then((_) => _fetchActivity(isRefresh: true, silent: true));
     }
 
     void openReviewComments() {
       if (review == null) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ReviewDetailsScreen(
-            gameData: gameData,
-            userData: userData,
-            reviewData: review,
+      context
+          .pushReviewDetails(
+            gameData,
+            userData,
+            review,
             focusComment: true,
-          ),
-        ),
-      ).then((_) => _fetchActivity(isRefresh: true, silent: true));
+          )
+          .then((_) => _fetchActivity(isRefresh: true, silent: true));
     }
 
     void openGameDetails() {
       final isDesktop = MediaQuery.of(context).size.width > 800;
       if (isDesktop) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => GameDetailsScreen(gameData: gameData),
-          ),
-        ).then((_) => _fetchActivity(isRefresh: true, silent: true));
+        context
+            .pushGameDetails(gameData)
+            .then((_) => _fetchActivity(isRefresh: true, silent: true));
       } else {
         showModalBottomSheet(
           context: context,
@@ -458,12 +406,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                 GestureDetector(
                   onTap: () {
                     if (activityUserId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProfileScreen(userId: activityUserId),
-                        ),
-                      );
+                      context.pushProfile(userId: activityUserId);
                     }
                   },
                   child: Row(
@@ -488,13 +431,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                   child: GestureDetector(
                     onTap: () {
                       if (activityUserId != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ProfileScreen(userId: activityUserId),
-                          ),
-                        );
+                        context.pushProfile(userId: activityUserId);
                       }
                     },
                     child: RichText(
@@ -892,6 +829,14 @@ class _ActivityScreenState extends State<ActivityScreen>
                   _friendsStrip,
                 );
                 sortedFriends.sort((a, b) {
+                  final aId = a['id'] as String?;
+                  final bId = b['id'] as String?;
+
+                  final aHasStory =
+                      aId != null && (_userStories[aId]?.isNotEmpty ?? false);
+                  final bHasStory =
+                      bId != null && (_userStories[bId]?.isNotEmpty ?? false);
+
                   final aPlaying =
                       a['currently_playing_appid'] != null &&
                       a['currently_playing_name'] != null;
@@ -899,14 +844,18 @@ class _ActivityScreenState extends State<ActivityScreen>
                       b['currently_playing_appid'] != null &&
                       b['currently_playing_name'] != null;
 
-                  final aId = a['id'] as String?;
-                  final bId = b['id'] as String?;
-
                   final aOnline = aId != null && onlineUsers.contains(aId);
                   final bOnline = bId != null && onlineUsers.contains(bId);
 
-                  final aScore = aPlaying ? 2 : (aOnline ? 1 : 0);
-                  final bScore = bPlaying ? 2 : (bOnline ? 1 : 0);
+                  // Prioridad: historia reciente > jugando > online > alfabético
+                  final aScore =
+                      (aHasStory ? 4 : 0) +
+                      (aPlaying ? 2 : 0) +
+                      (aOnline ? 1 : 0);
+                  final bScore =
+                      (bHasStory ? 4 : 0) +
+                      (bPlaying ? 2 : 0) +
+                      (bOnline ? 1 : 0);
 
                   if (aScore != bScore) {
                     return bScore.compareTo(aScore);
@@ -949,19 +898,22 @@ class _ActivityScreenState extends State<ActivityScreen>
                     final isOnline =
                         friendId != null && onlineUsers.contains(friendId);
 
+                    final hasStory =
+                        friendId != null &&
+                        (_userStories[friendId]?.isNotEmpty ?? false);
+
                     final playingColor = Colors.greenAccent[400]!;
                     const onlineColor =
-                        Colors.blueAccent; // Color cuando solo están conectados
+                        Colors.blueAccent;
 
                     return GestureDetector(
                       onTap: () {
                         if (friendId == null) return;
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ProfileScreen(userId: friendId),
-                          ),
-                        );
+                        _openUserStory(friend);
+                      },
+                      onLongPress: () {
+                        if (friendId == null) return;
+                        context.pushProfile(userId: friendId);
                       },
                       child: Container(
                         width: 72,
@@ -972,17 +924,13 @@ class _ActivityScreenState extends State<ActivityScreen>
                             Stack(
                               clipBehavior: Clip.none,
                               children: [
-                                CircleAvatar(
-                                  radius: 28,
+                                ActivityStoryRing(
+                                  radius: 26,
+                                  hasStory: hasStory,
+                                  avatarUrl: avatarUrl,
                                   backgroundColor: Theme.of(
                                     context,
                                   ).colorScheme.surfaceContainerHighest,
-                                  backgroundImage: avatarUrl != null
-                                      ? NetworkImage(avatarUrl)
-                                      : null,
-                                  child: avatarUrl == null
-                                      ? const Icon(Icons.person, size: 26)
-                                      : null,
                                 ),
                                 // Dibujamos el punto si están jugando O si están online
                                 if (isPlaying || isOnline)
@@ -1094,7 +1042,10 @@ class _ActivityScreenState extends State<ActivityScreen>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: () => _fetchActivity(isRefresh: true),
+              onRefresh: () async {
+                await _fetchActivity(isRefresh: true);
+                await _fetchFriendsStrip();
+              },
               child: _activities.isEmpty
                   ? ListView(
                       controller: scrollController,

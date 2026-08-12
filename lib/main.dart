@@ -6,11 +6,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'screens/main_screen.dart';
 import 'env.dart';
 import 'theme/app_theme.dart';
+import 'theme/corpus_typography.dart';
 import 'theme/style_pack_registry.dart';
 import 'services/notification_service.dart';
 import 'services/style_pack_music_service.dart';
 
 import 'globals.dart';
+import 'routes/app_root.dart';
 
 void main() async {
   // 1. Asegura que los motores de Flutter están listos
@@ -48,6 +50,11 @@ void main() async {
   // 5. Carga packs importados por el usuario
   await StylePackRegistry.loadImported();
   await themeNotifier.initialize();
+  await CorpusTypography.preloadFonts([
+    AppTheme.fontPreviewOverride,
+    themeNotifier.currentPack.fontFamily,
+    themeNotifier.currentPack.heroFontFamily,
+  ]);
   await StylePackMusicService.instance.init(themeNotifier);
 
   // 6. Inicializa el servicio de notificaciones (Android + Windows + Web)
@@ -91,7 +98,7 @@ class _CorpusAppState extends State<CorpusApp> {
           ),
           themeMode: themeNotifier.currentMode,
           scrollBehavior: const AlwaysScrollbarBehavior(),
-          home: const AuthGate(),
+          home: const AppRoot(child: AuthGate()),
         );
       },
     );

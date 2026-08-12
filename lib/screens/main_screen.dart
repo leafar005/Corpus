@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,9 +11,11 @@ import 'bundles/bundles_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import '../theme/corpus_theme_extension.dart';
+import '../theme/corpus_typography.dart';
 import '../theme/style_pack.dart';
 import '../widgets/p5r_dynamic_frame.dart';
 import '../utils/web_js.dart';
+import '../routes/app_routes.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -23,6 +26,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  StreamSubscription<void>? _webPopStateSub;
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = [
     GlobalKey<NavigatorState>(),
@@ -65,11 +69,22 @@ class _MainScreenState extends State<MainScreen> {
     // Pre-instanciamos la primera pantalla
     _getScreen(0);
     _loadSavedTab();
+    if (kIsWeb) {
+      _webPopStateSub = webPopStateStream().listen((_) {
+        _applyTabFromUrl();
+      });
+    }
     // Señalar al splash HTML que ya tenemos la UI lista para mostrar.
     // addPostFrameCallback garantiza que el primer frame ya ha sido pintado.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       dispatchCorpusReady();
     });
+  }
+
+  @override
+  void dispose() {
+    _webPopStateSub?.cancel();
+    super.dispose();
   }
 
   bool get _shouldPersistTab {
@@ -82,6 +97,22 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _loadSavedTab() async {
+    if (kIsWeb) {
+      final pathname = getWebPathname();
+      if (pathname != null) {
+        final fromUrl = AppRoutes.tabIndexFromPublicPath(pathname);
+        if (fromUrl != null) {
+          if (mounted) {
+            setState(() {
+              _currentIndex = fromUrl;
+              _initializedTabs.add(fromUrl);
+            });
+          }
+          return;
+        }
+      }
+    }
+
     if (!_shouldPersistTab) return;
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
@@ -90,18 +121,47 @@ class _MainScreenState extends State<MainScreen> {
         _currentIndex = savedIndex;
         _initializedTabs.add(savedIndex);
       });
+      if (kIsWeb) {
+        setWebPath(AppRoutes.publicPathForTab(savedIndex), replace: true);
+      }
     }
+  }
+
+  void _applyTabFromUrl() {
+    if (!kIsWeb) return;
+    final pathname = getWebPathname();
+    if (pathname == null) return;
+
+    final index = AppRoutes.tabIndexFromPublicPath(pathname);
+    if (index == null || index == _currentIndex) return;
+
+    setState(() {
+      _currentIndex = index;
+      _initializedTabs.add(index);
+    });
+    if (_shouldPersistTab) {
+      SharedPreferences.getInstance().then(
+        (prefs) => prefs.setInt('main_tab_index', index),
+      );
+    }
+  }
+
+  void _syncWebUrlForTab(int index, {bool replace = false}) {
+    if (!kIsWeb) return;
+    setWebPath(AppRoutes.publicPathForTab(index), replace: replace);
   }
 
   void _onTabTapped(int index) async {
     if (_currentIndex == index) {
       // Si toca la misma pestaña, hace "pop" hasta el principio de esa pestaña
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+      _syncWebUrlForTab(index, replace: true);
     } else {
       setState(() {
         _currentIndex = index;
         _initializedTabs.add(index); // Marca la pestaña como inicializada
       });
+      _syncWebUrlForTab(index);
       if (_shouldPersistTab) {
         SharedPreferences.getInstance().then(
           (prefs) => prefs.setInt('main_tab_index', index),
@@ -120,7 +180,18 @@ class _MainScreenState extends State<MainScreen> {
       child: Navigator(
         key: _navigatorKeys[index],
         onGenerateRoute: (routeSettings) {
-          return MaterialPageRoute(builder: (context) => _getScreen(index));
+          final tabRoute = switch (index) {
+            0 => AppRoutes.tabHome,
+            1 => AppRoutes.tabSearch,
+            2 => AppRoutes.tabActivity,
+            3 => AppRoutes.tabBundles,
+            4 => AppRoutes.tabProfile,
+            _ => AppRoutes.tabHome,
+          };
+          return MaterialPageRoute(
+            settings: RouteSettings(name: tabRoute),
+            builder: (context) => _getScreen(index),
+          );
         },
       ),
     );
@@ -202,14 +273,13 @@ class _MainScreenState extends State<MainScreen> {
                       const SizedBox(width: 12),
                       Text(
                         'CORPUS',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
+                        style: CorpusTypography.display(
+                          context,
+                          Theme.of(context).extension<CorpusThemeExtension>()!,
                           fontSize: 20,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: 2,
                           color: Colors.white,
-                          fontFamily: Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()!.heroFontFamily,
                         ),
                       ),
                     ],

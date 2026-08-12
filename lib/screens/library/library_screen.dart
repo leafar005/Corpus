@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'search_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
@@ -141,10 +141,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           // Abrimos el buscador y esperamos a que el usuario termine
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const SearchScreen()),
-          );
+          await context.pushSearch();
           // Cuando la ventana de búsqueda se cierra, forzamos un redibujado.
           // Esto hará que el FutureBuilder vuelva a descargar los juegos de Supabase
           // mostrando tu nueva adquisición al instante.

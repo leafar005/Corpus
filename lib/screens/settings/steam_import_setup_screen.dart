@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:corpus/globals.dart';
-import 'steam_import_progress_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 
 class SteamImportSetupScreen extends StatefulWidget {
   const SteamImportSetupScreen({super.key});
@@ -18,13 +18,7 @@ class _SteamImportSetupScreenState extends State<SteamImportSetupScreen> {
     final minPlaytimeMinutes = (_minHours * 60).round();
 
     Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            SteamImportProgressScreen(minPlaytimeMinutes: minPlaytimeMinutes),
-      ),
-    );
+    context.pushSteamImportProgress(minPlaytimeMinutes);
   }
 
   @override

@@ -13,12 +13,10 @@ import 'package:image_picker/image_picker.dart';
 import '../../globals.dart';
 import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
-import '../activity/review_details_screen.dart';
-
-import 'group_games_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
+import '../library/review_modal.dart';
 import '../../widgets/achievement_toast.dart';
 import '../../theme/corpus_theme_extension.dart';
-import 'review_modal.dart';
 import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
 import '../../widgets/guest_login_prompt.dart';
@@ -221,15 +219,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       Navigator.of(context, rootNavigator: true).pop();
 
       if (result.review != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ReviewDetailsScreen(
-              gameData: widget.gameData,
-              userData: user,
-              reviewData: result.review!,
-            ),
-          ),
+        context.pushReviewDetails(
+          widget.gameData,
+          user,
+          result.review!,
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -533,12 +526,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     // Abrimos la pantalla con el 100% de los datos listos
     if (MediaQuery.of(context).size.width >= 800) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GameDetailsScreen(gameData: cleanData),
-        ),
-      );
+      context.pushGameDetails(cleanData);
     } else {
       showModalBottomSheet(
         context: context,
@@ -578,6 +566,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       currentStatus: _status,
       commentController: _commentController,
       onSave: _saveReview,
+      inLibrary: _inLibrary,
     );
   }
 
@@ -1217,15 +1206,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
               borderRadius: BorderRadius.circular(4),
               onTap: developerId != null
                   ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GroupGamesScreen(
-                            title: developer.toString(),
-                            collectionId: developerId as int,
-                            isCompany: true,
-                          ),
-                        ),
+                      context.pushGroupGames(
+                        developer.toString(),
+                        developerId as int,
+                        isCompany: true,
                       );
                     }
                   : null,

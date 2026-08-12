@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../utils/style_pack_url_override.dart';
 import 'style_pack.dart';
 import 'style_pack_registry.dart';
 import 'corpus_theme_extension.dart';
+import 'corpus_typography.dart';
 
 /// Notificador global para cambiar el tema en tiempo real.
 ///
@@ -90,21 +90,16 @@ class ThemeNotifier extends ChangeNotifier {
 
 /// Definición de los distintos temas de la aplicación (Modo Oscuro, Claro, etc.)
 class AppTheme {
-  /// Build a [TextTheme] for the given [fontFamily].
-  /// If [fontFamily] is a Google Font name, uses [GoogleFonts]; otherwise
-  /// falls back to the default Material text theme with that family applied.
-  static TextTheme? _textThemeFor(String? fontFamily, Brightness brightness) {
-    if (fontFamily == null) return null;
-    final base = ThemeData(brightness: brightness).textTheme;
-    if (fontFamily == 'Archivo Black') {
-      return GoogleFonts.archivoBlackTextTheme(base);
-    }
-    try {
-      return GoogleFonts.getTextTheme(fontFamily);
-    } catch (_) {
-      return base.apply(fontFamily: fontFamily);
-    }
-  }
+  /// Vista previa temporal del cuerpo de texto. Pon `null` para usar el pack.
+  static const String? fontPreviewOverride = 'Syne';
+
+  static String? _bodyFontFamily(StylePack pack) =>
+      fontPreviewOverride ?? pack.fontFamily;
+
+  static String? _heroFontFamily(StylePack pack) => pack.heroFontFamily;
+
+  static TextTheme? _textThemeFor(String? fontFamily, Brightness brightness) =>
+      CorpusTypography.textThemeFor(fontFamily, brightness);
 
   // TEMA OSCURO
   static ThemeData getDarkTheme(Color seedColor, [StylePack? pack]) {
@@ -125,15 +120,20 @@ class AppTheme {
           onSurfaceVariant: Colors.grey,
         );
 
-    final ext = CorpusThemeExtension.fromPack(pack);
-    final textTheme = _textThemeFor(pack.fontFamily, Brightness.dark);
+    final ext = CorpusThemeExtension.fromPack(pack).copyWith(
+      heroFontFamily: _heroFontFamily(pack),
+    );
+    final fontFamily = _bodyFontFamily(pack);
+    final textTheme = _textThemeFor(fontFamily, Brightness.dark);
 
     return ThemeData(
       brightness: Brightness.dark,
+      fontFamily: fontFamily,
       scaffoldBackgroundColor: bgColor,
       primaryColor: colorScheme.primary,
       colorScheme: colorScheme,
       textTheme: textTheme,
+      primaryTextTheme: textTheme,
       extensions: [ext],
       chipTheme: ChipThemeData(
         backgroundColor: surfaceColor,
@@ -151,8 +151,8 @@ class AppTheme {
         titleTextStyle: TextStyle(
           color: Colors.white,
           fontSize: 20,
-          fontWeight: FontWeight.bold,
-          fontFamily: pack.fontFamily,
+          fontWeight: FontWeight.w600,
+          fontFamily: fontFamily,
         ),
       ),
       cardTheme: CardThemeData(
@@ -172,8 +172,8 @@ class AppTheme {
           ),
           padding: const EdgeInsets.symmetric(vertical: 16),
           textStyle: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontFamily: pack.fontFamily,
+            fontWeight: FontWeight.w600,
+            fontFamily: fontFamily,
           ),
         ),
       ),
@@ -225,15 +225,20 @@ class AppTheme {
           onSurfaceVariant: Colors.grey.shade700,
         );
 
-    final ext = CorpusThemeExtension.fromPack(pack);
-    final textTheme = _textThemeFor(pack.fontFamily, Brightness.light);
+    final ext = CorpusThemeExtension.fromPack(pack).copyWith(
+      heroFontFamily: _heroFontFamily(pack),
+    );
+    final fontFamily = _bodyFontFamily(pack);
+    final textTheme = _textThemeFor(fontFamily, Brightness.light);
 
     return ThemeData(
       brightness: Brightness.light,
+      fontFamily: fontFamily,
       scaffoldBackgroundColor: bgColor,
       primaryColor: colorScheme.primary,
       colorScheme: colorScheme,
       textTheme: textTheme,
+      primaryTextTheme: textTheme,
       extensions: [ext],
       chipTheme: ChipThemeData(
         backgroundColor: surfaceColor,
@@ -251,8 +256,8 @@ class AppTheme {
         titleTextStyle: TextStyle(
           color: colorScheme.onSurface,
           fontSize: 20,
-          fontWeight: FontWeight.bold,
-          fontFamily: pack.fontFamily,
+          fontWeight: FontWeight.w600,
+          fontFamily: fontFamily,
         ),
       ),
       cardTheme: CardThemeData(
@@ -273,8 +278,8 @@ class AppTheme {
           ),
           padding: const EdgeInsets.symmetric(vertical: 16),
           textStyle: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontFamily: pack.fontFamily,
+            fontWeight: FontWeight.w600,
+            fontFamily: fontFamily,
           ),
         ),
       ),

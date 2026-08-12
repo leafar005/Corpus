@@ -5,12 +5,10 @@ import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/corpus_network_image.dart';
 import '../library/game_details_screen.dart';
-import '../settings_screen.dart';
-import 'achievements_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../utils/level_calculator.dart';
 import '../../widgets/game_card.dart';
 import '../../models/models.dart';
-import '../social/friends_screen.dart';
 import 'profile_achievements_tab.dart';
 import 'profile_journal_tab.dart';
 import 'profile_reviews_tab.dart';
@@ -308,12 +306,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _FriendsBadgeButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const FriendsScreen(),
-                        ),
-                      );
+                      context.pushFriends();
                     },
                   ),
                   IconButton(
@@ -323,15 +316,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                     ),
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SettingsScreen(
-                            userProfile: _userProfile!,
-                            hallOfFame: _hallOfFame,
-                          ),
-                        ),
-                      ).then((_) => _controller.fetchProfileData());
+                      context
+                          .pushSettings(_userProfile!, _hallOfFame)
+                          .then((_) => _controller.fetchProfileData());
                     },
                   ),
                 ],
@@ -458,13 +445,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _userProfile?['id'] ??
                   Supabase.instance.client.auth.currentUser?.id;
               if (userId == null) return;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      AchievementsScreen(userId: userId, initialXp: xp),
-                ),
-              ).then((_) => _controller.fetchProfileData());
+              context
+                  .pushAchievements(userId, xp)
+                  .then((_) => _controller.fetchProfileData());
             }
           : null,
       child: Column(
@@ -644,12 +627,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _FriendsBadgeButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const FriendsScreen(),
-                        ),
-                      );
+                      context.pushFriends();
                     },
                   ),
                   IconButton(
@@ -659,15 +637,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                     ),
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SettingsScreen(
-                            userProfile: _userProfile!,
-                            hallOfFame: _hallOfFame,
-                          ),
-                        ),
-                      ).then((_) => _controller.fetchProfileData());
+                      context
+                          .pushSettings(_userProfile!, _hallOfFame)
+                          .then((_) => _controller.fetchProfileData());
                     },
                   ),
                 ],
@@ -1310,17 +1282,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           MediaQuery.of(context).size.width >
                                           800;
                                       if (isDesktop) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                GameDetailsScreen(
-                                                  gameData: game,
-                                                ),
-                                          ),
-                                        ).then(
-                                          (_) => _controller.fetchProfileData(),
-                                        );
+                                        context
+                                            .pushGameDetails(game)
+                                            .then(
+                                              (_) =>
+                                                  _controller.fetchProfileData(),
+                                            );
                                       } else {
                                         showModalBottomSheet(
                                           context: context,
