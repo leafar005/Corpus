@@ -89,7 +89,10 @@ Deno.serve(async (req) => {
         "new_bundle",
         "Nuevo bundle disponible",
         bundleList,
-        { type: "new_bundle" },
+        {
+          type: "new_bundle",
+          ...(titles.length === 1 ? { bundle_title: titles[0] } : {}),
+        },
         supabase
       );
 
@@ -130,7 +133,10 @@ Deno.serve(async (req) => {
       "bundle_expiring",
       "Bundle a punto de terminar",
       `Queda menos de 24h: ${bundleList}`,
-      { type: "bundle_expiring" },
+      {
+        type: "bundle_expiring",
+        ...(expiringBundles.length === 1 ? { bundle_title: expiringBundles[0].title } : {}),
+      },
       supabase
     );
 
