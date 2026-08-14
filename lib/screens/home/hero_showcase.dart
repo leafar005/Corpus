@@ -236,10 +236,11 @@ class _HeroShowcaseState extends State<HeroShowcase>
     String? screenshotUrl,
     double panValue,
   ) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (screenshotUrl != null)
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (screenshotUrl != null)
           _buildPanningImageLayer(
             NetworkImage(screenshotUrl),
             panValue,
@@ -249,8 +250,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
           Container(color: Colors.black),
         Container(color: Colors.black.withValues(alpha: 0.7)),
       ],
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildProgressBars() {
     final count = widget.playingGames.length;
@@ -342,6 +344,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
           final title = gameData['title'] as String? ?? 'Desconocido';
 
           return Stack(
+            clipBehavior: Clip.none,
             fit: StackFit.expand,
             children: [
               if (_previousGame != null)
@@ -389,11 +392,12 @@ class _HeroShowcaseState extends State<HeroShowcase>
                       final isPortrait =
                           constraints.maxHeight > constraints.maxWidth;
 
-                      final textSection = Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+                      final textSection = SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                           CorpusHeroTitle(
                             prefix: 'Bienvenido,',
                             highlight: widget.userName,
@@ -464,7 +468,8 @@ class _HeroShowcaseState extends State<HeroShowcase>
                             label: 'Editar reseña',
                           ),
                         ],
-                      );
+                      ),
+                    );
 
                       final coverSection = AnimatedSwitcher(
                         duration: const Duration(milliseconds: 600),
@@ -519,15 +524,21 @@ class _HeroShowcaseState extends State<HeroShowcase>
 
                       if (isPortrait) {
                         return Stack(
+                          clipBehavior: Clip.none,
                           children: [
                             Positioned(
-                              top: constraints.maxHeight * 0.10,
+                              top: constraints.maxHeight * 0.12,
                               left: 24,
                               right: 24,
-                              child: textSection,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight: constraints.maxHeight * 0.88,
+                                ),
+                                child: textSection,
+                              ),
                             ),
                             Positioned(
-                              bottom: 32,
+                              bottom: -40,
                               right: 16,
                               child: coverSection,
                             ),
@@ -752,11 +763,12 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                   final isPortrait =
                       constraints.maxHeight > constraints.maxWidth;
 
-                  final textSection = Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+                  final textSection = SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                       TypewriterText(
                         style: TextStyle(
                           fontFamily: Theme.of(
@@ -796,7 +808,8 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                         ),
                       ),
                     ],
-                  );
+                  ),
+                );
 
                   if (isPortrait) {
                     return Stack(
@@ -805,7 +818,12 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                           top: constraints.maxHeight * 0.10,
                           left: 24,
                           right: 24,
-                          child: textSection,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight: constraints.maxHeight * 0.90,
+                            ),
+                            child: textSection,
+                          ),
                         ),
                       ],
                     );
@@ -1040,11 +1058,12 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
             builder: (context, constraints) {
               final isPortrait = constraints.maxHeight > constraints.maxWidth;
 
-              final textSection = Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
+              final textSection = SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   CorpusHeroTitle(
                     prefix: 'Bienvenido,',
                     highlight: widget.userName,
@@ -1069,7 +1088,8 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                     label: 'Buscar un juego',
                   ),
                 ],
-              );
+              ),
+            );
 
               if (isPortrait) {
                 return Stack(
@@ -1078,7 +1098,12 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                       top: constraints.maxHeight * 0.10,
                       left: 24,
                       right: 24,
-                      child: textSection,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: constraints.maxHeight * 0.90,
+                        ),
+                        child: textSection,
+                      ),
                     ),
                   ],
                 );
