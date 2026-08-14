@@ -41,7 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> get _wishlistGames => _controller.wishlistGames;
   List<Map<String, dynamic>> get _playingGames => _controller.playingGames;
   List<Map<String, dynamic>> get _beatenGames => _controller.beatenGames;
-  List<Map<String, dynamic>> get _droppedGames => _controller.droppedGames;
+  List<Map<String, dynamic>> get _platinumGames => _controller.platinumGames;
   List<double> get _ratings => _controller.ratings;
   List<Map<String, dynamic>?> get _hallOfFame => _controller.hallOfFame;
 
@@ -1199,48 +1199,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildGiantStatsRow({bool isMobile = false}) {
+    final stats = [
+      _buildGiantStat(
+        _controller.beatenCount.toString().padLeft(3, '0'),
+        'Completados',
+        () {
+          setState(() {
+            _juegosStatusFilter = 'beaten';
+            _selectedTab = 1;
+          });
+          _scrollToTabs();
+        },
+      ),
+      _buildGiantStat(
+        _controller.platinumCount.toString().padLeft(3, '0'),
+        'Platinos',
+        () {
+          setState(() {
+            _juegosStatusFilter = 'completed';
+            _selectedTab = 1;
+          });
+          _scrollToTabs();
+        },
+      ),
+      _buildGiantStat(
+        _controller.playingCount.toString().padLeft(3, '0'),
+        'Jugando',
+        () {
+          setState(() {
+            _juegosStatusFilter = 'playing';
+            _selectedTab = 1;
+          });
+          _scrollToTabs();
+        },
+      ),
+      _buildGiantStat(
+        _controller.wishlistCount.toString().padLeft(3, '0'),
+        'En Wishlist',
+        () {
+          if (_controller.wishlistCount > 0) {
+            setState(() {
+              _juegosStatusFilter = 'wishlist';
+              _selectedTab = 1;
+            });
+            _scrollToTabs();
+          }
+        },
+      ),
+    ];
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildGiantStat(
-            _controller.beatenCount.toString().padLeft(3, '0'),
-            'Completados',
-            () {
-              setState(() {
-                _juegosStatusFilter = 'beaten';
-                _selectedTab = 1;
-              });
-              _scrollToTabs();
-            },
-          ),
-          _buildGiantStat(
-            _controller.playingCount.toString().padLeft(3, '0'),
-            'Jugando',
-            () {
-              setState(() {
-                _juegosStatusFilter = 'playing';
-                _selectedTab = 1;
-              });
-              _scrollToTabs();
-            },
-          ),
-          _buildGiantStat(
-            _controller.wishlistCount.toString().padLeft(3, '0'),
-            'En Wishlist',
-            () {
-              if (_controller.wishlistCount > 0) {
-                setState(() {
-                  _juegosStatusFilter = 'wishlist';
-                  _selectedTab = 1;
-                });
-                _scrollToTabs();
-              }
-            },
-          ),
-        ],
-      ),
+      child: isMobile
+          ? Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [stats[0], stats[1]],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [stats[2], stats[3]],
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: stats,
+            ),
     );
   }
 
@@ -1611,12 +1638,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildCarousel(_beatenGames),
           const SizedBox(height: 24),
         ],
-        if (_droppedGames.isNotEmpty) ...[
-          _buildSectionTitle('A medias', _controller.droppedCount, 'dropped'),
-          _buildCarousel(_droppedGames),
+        if (_platinumGames.isNotEmpty) ...[
+          _buildSectionTitle('Platinos', _controller.platinumCount, 'completed'),
+          _buildCarousel(_platinumGames),
           const SizedBox(height: 24),
         ],
-        if (_beatenGames.isEmpty && _droppedGames.isEmpty && _playingGames.isEmpty && _wishlistGames.isEmpty) ...[
+        if (_beatenGames.isEmpty && _platinumGames.isEmpty && _playingGames.isEmpty && _wishlistGames.isEmpty) ...[
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32.0),
