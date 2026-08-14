@@ -77,10 +77,9 @@ class ActivityRepository {
   ///
   /// La lógica de merge/agrupamiento de eventos (dentro de 24 h) se aplica
   /// sobre los resultados antes de devolverlos.
-  Future<ActivityFeedResult> fetchActivityPage(int offset) async {
-    const pageSize = 30;
+  Future<ActivityFeedResult> fetchActivityPage(int offset, {int limit = 30}) async {
     final from = offset;
-    final to = offset + pageSize - 1;
+    final to = offset + limit - 1;
 
     // 1. Feed principal
     final response = await _client
@@ -175,8 +174,8 @@ class ActivityRepository {
 
     return ActivityFeedResult(
       mergedActivities: mergedActivities,
-      hasMore: feedItems.length == pageSize,
-      nextOffset: offset + pageSize,
+      hasMore: feedItems.length == limit,
+      nextOffset: offset + limit,
     );
   }
 
