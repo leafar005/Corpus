@@ -122,7 +122,17 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           isActive: isClassicActive,
           isImported: false,
         ),
-        if (imported.isEmpty) ...[
+        if (kDebugMode) ...[
+          for (final pack in StylePackRegistry.debugBuiltIn) ...[
+            const SizedBox(height: 12),
+            _buildPackTile(
+              pack: pack,
+              isActive: pack.id == activeId,
+              isImported: false,
+            ),
+          ],
+        ],
+        if (imported.isEmpty && !kDebugMode) ...[
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
@@ -217,6 +227,8 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         subtitle: Text(
           isImported
               ? (pack.description ?? 'Addon importado')
+              : StylePackRegistry.isDebugOnly(pack.id)
+              ? 'Preview de desarrollo (solo debug)'
               : 'Tema predeterminado de Corpus',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
@@ -236,10 +248,10 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                       color: Theme.of(context).colorScheme.primary,
                     )
                   : null),
-        onTap: () {
-          themeNotifier.setStylePack(pack.id);
+        onTap: () async {
+          await themeNotifier.setStylePack(pack.id);
           StylePackMusicService.instance.syncWithCurrentPack(force: true);
-          setState(() {});
+          if (mounted) setState(() {});
         },
       ),
     );

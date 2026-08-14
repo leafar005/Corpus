@@ -1,183 +1,121 @@
 import 'package:flutter/material.dart';
 
 import '../../globals.dart';
-import '../../theme/style_pack_registry.dart';
-import '../../widgets/design/corpus_button.dart';
+import '../../theme/corpus_theme_extension.dart';
+import '../../theme/corpus_typography.dart';
+import '../../widgets/design/corpus_tabs.dart';
+import 'sections/design_buttons_section.dart';
+import 'sections/design_feedback_section.dart';
+import 'sections/design_foundations_section.dart';
+import 'sections/design_inputs_section.dart';
+import 'sections/design_navigation_section.dart';
+import 'sections/design_selection_section.dart';
+import 'sections/design_style_packs_section.dart';
+import 'sections/design_surfaces_section.dart';
 
 /// Living style guide — components and rules are added here incrementally.
-class DesignScreen extends StatelessWidget {
+class DesignScreen extends StatefulWidget {
   const DesignScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final pack = themeNotifier.currentPack;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Design System',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Pack activo: ${pack.name}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.black54,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  _Section(
-                    title: 'Variantes',
-                    subtitle: 'Morado primario, acento, outline y ghost.',
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        CorpusButton(
-                          label: 'Primario',
-                          icon: Icons.play_arrow_rounded,
-                          onPressed: () {},
-                        ),
-                        CorpusButton(
-                          label: 'Acento',
-                          variant: CorpusButtonVariant.accent,
-                          icon: Icons.star_rounded,
-                          onPressed: () {},
-                        ),
-                        CorpusButton(
-                          label: 'Secundario',
-                          variant: CorpusButtonVariant.secondary,
-                          onPressed: () {},
-                        ),
-                        CorpusButton(
-                          label: 'Outline',
-                          variant: CorpusButtonVariant.outline,
-                          onPressed: () {},
-                        ),
-                        CorpusButton(
-                          label: 'Ghost',
-                          variant: CorpusButtonVariant.ghost,
-                          onPressed: () {},
-                        ),
-                        const CorpusButton(
-                          label: 'Deshabilitado',
-                          onPressed: null,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 36),
-                  _Section(
-                    title: 'Tamaños',
-                    subtitle: 'Small, medium y large con la misma variante.',
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        CorpusButton(
-                          label: 'Small',
-                          size: CorpusButtonSize.small,
-                          onPressed: () {},
-                        ),
-                        CorpusButton(
-                          label: 'Medium',
-                          size: CorpusButtonSize.medium,
-                          onPressed: () {},
-                        ),
-                        CorpusButton(
-                          label: 'Large',
-                          size: CorpusButtonSize.large,
-                          icon: Icons.arrow_forward_rounded,
-                          iconTrailing: true,
-                          onPressed: () {},
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 36),
-                  _Section(
-                    title: 'Ancho completo',
-                    subtitle: 'Para CTAs en formularios y modales.',
-                    child: CorpusButton(
-                      label: 'Continuar',
-                      icon: Icons.check_rounded,
-                      expand: true,
-                      onPressed: () {},
-                    ),
-                  ),
-                  const SizedBox(height: 36),
-                  _Section(
-                    title: 'Style packs',
-                    subtitle:
-                        'Cambia el pack en Apariencia o con ?style=persona5 en la URL.',
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final p in StylePackRegistry.all)
-                          ActionChip(
-                            label: Text(p.name),
-                            onPressed: () => themeNotifier.setStylePack(p.id),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  State<DesignScreen> createState() => _DesignScreenState();
 }
 
-class _Section extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Widget child;
+class _DesignScreenState extends State<DesignScreen> {
+  int _categoryIndex = 0;
 
-  const _Section({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
+  static const _categories = [
+    'Fundamentos',
+    'Botones',
+    'Inputs',
+    'Selección',
+    'Navegación',
+    'Feedback',
+    'Superficies',
+    'Style packs',
+  ];
+
+  Widget _sectionForIndex(int index) => switch (index) {
+    0 => const DesignFoundationsSection(),
+    1 => const DesignButtonsSection(),
+    2 => const DesignInputsSection(),
+    3 => const DesignSelectionSection(),
+    4 => const DesignNavigationSection(),
+    5 => const DesignFeedbackSection(),
+    6 => const DesignSurfacesSection(),
+    7 => const DesignStylePacksSection(),
+    _ => const SizedBox.shrink(),
+  };
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: Colors.black87,
-            fontWeight: FontWeight.w600,
+    return ListenableBuilder(
+      listenable: themeNotifier,
+      builder: (context, _) {
+        final pack = themeNotifier.currentPack;
+        final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+        final cs = Theme.of(context).colorScheme;
+        final isDesktop = MediaQuery.sizeOf(context).width >= 800;
+        final horizontalPadding = isDesktop ? 40.0 : 20.0;
+
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 840),
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPadding,
+                          isDesktop ? 40 : 24,
+                          horizontalPadding,
+                          isDesktop ? 48 : 32,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Design System',
+                              style: CorpusTypography.display(
+                                context,
+                                ext,
+                                fontSize: isDesktop ? 32 : 26,
+                                fontWeight: FontWeight.bold,
+                                color: cs.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Pack activo: ${pack.name}',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: cs.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 24),
+                            CorpusTabs(
+                              labels: _categories,
+                              selectedIndex: _categoryIndex,
+                              onChanged: (i) =>
+                                  setState(() => _categoryIndex = i),
+                              isScrollable: true,
+                              contentPadding: EdgeInsets.all(
+                                isDesktop ? 24 : 16,
+                              ),
+                              child: _sectionForIndex(_categoryIndex),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Colors.black45,
-          ),
-        ),
-        const SizedBox(height: 16),
-        child,
-      ],
+        );
+      },
     );
   }
 }

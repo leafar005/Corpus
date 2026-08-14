@@ -71,7 +71,11 @@ class ThemeNotifier extends ChangeNotifier {
   }
 
   Future<void> setStylePack(String id) async {
+    if (!StylePackRegistry.exists(id)) return;
     _applyStylePack(id, persist: true);
+    notifyListeners();
+    final pack = currentPack;
+    await CorpusTypography.preloadFonts([pack.fontFamily, pack.heroFontFamily]);
     notifyListeners();
   }
 

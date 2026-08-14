@@ -347,6 +347,7 @@ class ActivityRepository {
     required String? content,
     required XFile? commentImage,
     required Map<String, dynamic>? attachedGame,
+    String? parentCommentId,
   }) async {
     String? imageUrl;
 
@@ -368,6 +369,7 @@ class ActivityRepository {
       'content': content?.isNotEmpty == true ? content : null,
       'image_url': imageUrl,
       'attached_game': attachedGame,
+      if (parentCommentId != null) 'parent_comment_id': parentCommentId,
     });
   }
 

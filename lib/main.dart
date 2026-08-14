@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/main_screen.dart';
 import 'env.dart';
+import 'package:corpus/theme/style_pack.dart';
 import 'theme/app_theme.dart';
 import 'theme/corpus_typography.dart';
 import 'theme/style_pack_registry.dart';
@@ -51,6 +52,9 @@ void main() async {
 
   // 5. Carga packs importados por el usuario
   await StylePackRegistry.loadImported();
+  if (kDebugMode) {
+    StylePackRegistry.registerDebugBuiltIn(StylePack.persona5RoyalPack());
+  }
   await themeNotifier.initialize();
   await CorpusTypography.preloadFonts([
     AppTheme.fontPreviewOverride,

@@ -96,6 +96,7 @@ class _CorpusButtonState extends State<CorpusButton> {
     final pressedDepth = _pressed && _enabled;
 
     return MouseRegion(
+      cursor: _enabled ? SystemMouseCursors.click : MouseCursor.defer,
       onEnter: _enabled ? (_) => setState(() => _hovered = true) : null,
       onExit: _enabled ? (_) => setState(() => _hovered = false) : null,
       child: GestureDetector(

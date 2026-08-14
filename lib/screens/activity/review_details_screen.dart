@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/utils/comment_thread_utils.dart';
 import 'package:corpus/utils/format_utils.dart';
 import '../../widgets/corpus_network_image.dart';
 import 'package:corpus/routes/corpus_router.dart';
@@ -43,12 +44,16 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   final FocusNode _commentFocusNode = FocusNode();
   XFile? _commentImage;
   Map<String, dynamic>? _selectedGameForComment;
+  String? _replyToCommentId;
+  String? _replyToUsername;
 
   Map<String, dynamic> get _currentReviewData => _controller.currentReviewData;
   bool get _isLoading => _controller.isLoading;
   int get _likesCount => _controller.likesCount;
   bool get _hasLiked => _controller.hasLiked;
   List<Map<String, dynamic>> get _comments => _controller.comments;
+  List<Map<String, dynamic>> get _orderedComments =>
+      orderCommentsThreaded(_comments);
   bool get _isSubmitting => _controller.isSubmitting;
   List<Map<String, dynamic>> get _partnersData => _controller.partnersData;
 
@@ -93,11 +98,14 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         content: content,
         commentImage: _commentImage,
         attachedGame: _selectedGameForComment,
+        parentCommentId: _replyToCommentId,
       );
       _commentController.clear();
       setState(() {
         _commentImage = null;
         _selectedGameForComment = null;
+        _replyToCommentId = null;
+        _replyToUsername = null;
       });
     } catch (e) {
       if (mounted) {
@@ -149,6 +157,38 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         );
       }
     }
+  }
+
+  void _startReply(Map<String, dynamic> comment) {
+    final user = comment['users'] as Map<String, dynamic>?;
+    final targetUsername = user?['username']?.toString() ?? 'Usuario';
+    final prefix = '@$targetUsername ';
+    final withoutOldPrefix = _commentController.text.replaceFirst(
+      RegExp(r'^@\w+\s*'),
+      '',
+    );
+
+    setState(() {
+      _replyToCommentId = comment['id'] as String?;
+      _replyToUsername = targetUsername;
+      _commentController.text = prefix + withoutOldPrefix;
+      _commentController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _commentController.text.length),
+      );
+    });
+    _commentFocusNode.requestFocus();
+  }
+
+  void _clearReplyTarget() {
+    if (_replyToCommentId == null) return;
+    setState(() {
+      _replyToCommentId = null;
+      _replyToUsername = null;
+      _commentController.text = _commentController.text.replaceFirst(
+        RegExp(r'^@\w+\s*'),
+        '',
+      );
+    });
   }
 
   Widget _buildCommentContent(String text) {
@@ -1193,23 +1233,20 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                 ListView.separated(
                                   shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: _comments.length,
+                                  itemCount: _orderedComments.length,
                                   separatorBuilder: (context, index) =>
                                       const SizedBox(height: 16),
                                   itemBuilder: (context, index) {
-                                    final comment = _comments[index];
+                                    final comment = _orderedComments[index];
                                     final user = comment['users'];
                                     final isMyComment =
                                         comment['user_id'] == currentUserId;
-                                    final contentStr =
-                                        comment['content']?.toString() ?? '';
-                                    final isReply = contentStr
-                                        .trim()
-                                        .startsWith('@');
+                                    final threadDepth =
+                                        comment['_thread_depth'] as int? ?? 0;
 
                                     return Padding(
                                       padding: EdgeInsets.only(
-                                        left: isReply ? 40.0 : 0.0,
+                                        left: threadDepth * 40.0,
                                       ),
                                       child: Row(
                                         crossAxisAlignment:
@@ -1445,30 +1482,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                       .colorScheme
                                                       .onSurfaceVariant,
                                                 ),
-                                                onPressed: () {
-                                                  final targetUsername =
-                                                      user?['username'] ??
-                                                      'Usuario';
-                                                  final prefix =
-                                                      '@$targetUsername ';
-                                                  if (!_commentController.text
-                                                      .contains(prefix)) {
-                                                    _commentController.text =
-                                                        prefix +
-                                                        _commentController.text;
-                                                  }
-                                                  _commentController.selection =
-                                                      TextSelection.fromPosition(
-                                                        TextPosition(
-                                                          offset:
-                                                              _commentController
-                                                                  .text
-                                                                  .length,
-                                                        ),
-                                                      );
-                                                  _commentFocusNode
-                                                      .requestFocus();
-                                                },
+                                                onPressed: () =>
+                                                    _startReply(comment),
                                                 constraints:
                                                     const BoxConstraints(),
                                                 padding: const EdgeInsets.all(
@@ -1529,6 +1544,31 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                         ),
                         child: Column(
                           children: [
+                            if (_replyToCommentId != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Respondiendo a @$_replyToUsername',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, size: 18),
+                                      onPressed: _clearReplyTarget,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             if (_commentImage != null)
                               Padding(
                                 padding: const EdgeInsets.only(

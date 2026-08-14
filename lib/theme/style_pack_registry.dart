@@ -36,17 +36,40 @@ class ImportedStylePackEntry {
 /// [SharedPreferences] so they survive restarts.
 class StylePackRegistry {
   static final List<StylePack> _builtIn = [StylePack.defaultPack()];
+  static final List<StylePack> _debugBuiltIn = [];
   static List<ImportedStylePackEntry> _imported = [];
 
   static const String _prefsKey = 'imported_style_packs';
 
   StylePackRegistry._();
 
+  static Iterable<StylePack> get _debugIterable =>
+      kDebugMode ? _debugBuiltIn : const <StylePack>[];
+
+  /// Packs available in pickers (built-in, debug-only when debugging, imported).
+  static List<StylePack> get selectable {
+    final seen = <String>{};
+    final out = <StylePack>[];
+    for (final pack in [
+      ..._builtIn,
+      ..._debugIterable,
+      ..._imported.map((e) => e.pack),
+    ]) {
+      if (seen.add(pack.id)) out.add(pack);
+    }
+    return out;
+  }
+
+  /// Debug-only built-in packs (empty outside [kDebugMode]).
+  static List<StylePack> get debugBuiltIn =>
+      kDebugMode ? List.unmodifiable(_debugBuiltIn) : const [];
+
+  /// Whether [id] is a dev-only pack (not shipped in release).
+  static bool isDebugOnly(String id) =>
+      kDebugMode && _debugBuiltIn.any((p) => p.id == id);
+
   /// All available packs (built-in first, then user-imported).
-  static List<StylePack> get all => [
-    ..._builtIn,
-    ..._imported.map((e) => e.pack),
-  ];
+  static List<StylePack> get all => selectable;
 
   /// Only packs the user imported (addons).
   static List<ImportedStylePackEntry> get imported =>
@@ -61,15 +84,20 @@ class StylePackRegistry {
     for (final pack in _builtIn) {
       if (pack.id == id) return pack;
     }
+    for (final pack in _debugIterable) {
+      if (pack.id == id) return pack;
+    }
     for (final entry in _imported) {
       if (entry.pack.id == id) return entry.pack;
     }
     return _builtIn.first;
   }
 
-  /// Whether a pack with [id] is registered (built-in or imported).
+  /// Whether a pack with [id] is registered (built-in, debug, or imported).
   static bool exists(String id) =>
-      _builtIn.any((p) => p.id == id) || _imported.any((e) => e.pack.id == id);
+      _builtIn.any((p) => p.id == id) ||
+      _debugIterable.any((p) => p.id == id) ||
+      _imported.any((e) => e.pack.id == id);
 
   /// Absolute path to background music for [packId], if bundled in an addon.
   static String? resolveMusicFilePath(String packId) {
@@ -87,6 +115,14 @@ class StylePackRegistry {
   static void registerBuiltIn(StylePack pack) {
     if (_builtIn.every((p) => p.id != pack.id)) {
       _builtIn.add(pack);
+    }
+  }
+
+  /// Register a pack only available while running in debug mode (e.g. P5R dev preview).
+  static void registerDebugBuiltIn(StylePack pack) {
+    if (!kDebugMode) return;
+    if (_debugBuiltIn.every((p) => p.id != pack.id)) {
+      _debugBuiltIn.add(pack);
     }
   }
 
