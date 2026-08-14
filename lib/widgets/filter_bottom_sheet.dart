@@ -219,8 +219,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     items: widget.isProfileMode
                         ? const [
                             DropdownMenuItem(
-                              value: 'updated_at',
-                              child: Text('Fecha de Añadido'),
+                              value: 'last_played_at',
+                              child: Text('Fecha Jugado'),
                             ),
                             DropdownMenuItem(
                               value: 'rating',
