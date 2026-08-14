@@ -16,6 +16,7 @@ import '../theme/style_pack.dart';
 import '../widgets/p5r_dynamic_frame.dart';
 import '../utils/web_js.dart';
 import '../routes/app_routes.dart';
+import '../services/deep_link_service.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -79,10 +80,20 @@ class _MainScreenState extends State<MainScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       dispatchCorpusReady();
     });
+    DeepLinkService.pendingTab.addListener(_onPendingTab);
+  }
+
+  void _onPendingTab() {
+    final index = DeepLinkService.pendingTab.value;
+    if (index != null) {
+      DeepLinkService.pendingTab.value = null;
+      _onTabTapped(index);
+    }
   }
 
   @override
   void dispose() {
+    DeepLinkService.pendingTab.removeListener(_onPendingTab);
     _webPopStateSub?.cancel();
     super.dispose();
   }

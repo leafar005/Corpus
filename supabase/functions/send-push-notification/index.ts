@@ -132,7 +132,7 @@ async function sendToTokens(
             android: {
               notification: {
                 channel_id: "corpus_default",
-                icon: "ic_notification",
+                icon: "launcher_icon",
                 color: "#7E57C2",
                 default_vibrate_timings: true,
               },

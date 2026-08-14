@@ -46,7 +46,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
   GameFilters _filters = GameFilters(
-    sortBy: 'updated_at',
+    sortBy: 'last_played_at',
     sortAscending: false,
   );
 
@@ -86,135 +86,139 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     await loadMore();
   }
 
+  Future<PostgrestTransformBuilder<List<Map<String, dynamic>>>> _buildQuery() async {
+    var query = Supabase.instance.client
+        .from('user_games')
+        .select('*, games!inner(*)')
+        .eq('user_id', widget.userId);
+
+    if (_searchQuery.isNotEmpty) {
+      query = query.ilike('games.title', '%$_searchQuery%');
+    }
+
+    if (_filters.genres.isNotEmpty) {
+      for (var id in _filters.genres) {
+        final name = IgdbConstants.genres.firstWhere(
+          (e) => e['id'] == id,
+          orElse: () => {'name': ''},
+        )['name'];
+        if (name != '') query = query.contains('games.genres', '["$name"]');
+      }
+    }
+    if (_filters.themes.isNotEmpty) {
+      for (var id in _filters.themes) {
+        final name = IgdbConstants.themes.firstWhere(
+          (e) => e['id'] == id,
+          orElse: () => {'name': ''},
+        )['name'];
+        if (name != '') query = query.contains('games.themes', '["$name"]');
+      }
+    }
+    if (_filters.gameModes.isNotEmpty) {
+      for (var id in _filters.gameModes) {
+        final name = IgdbConstants.gameModes.firstWhere(
+          (e) => e['id'] == id,
+          orElse: () => {'name': ''},
+        )['name'];
+        if (name != '') {
+          query = query.contains('games.game_modes', '["$name"]');
+        }
+      }
+    }
+    if (_filters.playerPerspectives.isNotEmpty) {
+      for (var id in _filters.playerPerspectives) {
+        final name = IgdbConstants.playerPerspectives.firstWhere(
+          (e) => e['id'] == id,
+          orElse: () => {'name': ''},
+        )['name'];
+        if (name != '') {
+          query = query.contains('games.player_perspectives', '["$name"]');
+        }
+      }
+    }
+    if (_filters.platforms.isNotEmpty) {
+      for (var id in _filters.platforms) {
+        final name = IgdbConstants.popularPlatforms.firstWhere(
+          (e) => e['id'] == id,
+          orElse: () => {'name': ''},
+        )['name'];
+        if (name != '') {
+          query = query.contains('games.platforms', '["$name"]');
+        }
+      }
+    }
+
+    if (_currentStatus == 'completed') {
+      final platinoReviews = await Supabase.instance.client
+          .from('reviews')
+          .select('game_id')
+          .eq('user_id', widget.userId)
+          .eq('completion_type', '100_percent');
+
+      final platinoGameIds = platinoReviews
+          .map((r) => r['game_id'] as int)
+          .toList();
+      if (platinoGameIds.isEmpty) {
+        query = query.inFilter('game_id', [-1]); 
+      } else {
+        query = query.inFilter('game_id', platinoGameIds);
+      }
+    } else if (_currentStatus == 'beaten') {
+      query = query.eq('status', 'beaten');
+    } else if (_currentStatus == 'dropped') {
+      query = query.inFilter('status', ['abandoned', 'on_hold']);
+    } else if (_currentStatus != null) {
+      query = query.eq('status', _currentStatus!);
+      if (_currentStatus == 'wishlist') {
+        query = query.neq('is_steam_only', true);
+      }
+    }
+
+    PostgrestTransformBuilder<List<Map<String, dynamic>>> orderQuery;
+
+    switch (_filters.sortBy) {
+      case 'title':
+        orderQuery = query.order(
+          'games(title)',
+          ascending: _filters.sortAscending,
+        );
+        break;
+      case 'release_date':
+        orderQuery = query.order(
+          'games(release_date)',
+          ascending: _filters.sortAscending,
+        );
+        break;
+      case 'rating':
+        orderQuery = query.order('rating', ascending: _filters.sortAscending);
+        break;
+      case 'metacritic_score':
+        orderQuery = query.order(
+          'games(metacritic_score)',
+          ascending: _filters.sortAscending,
+          nullsFirst: _filters.sortAscending,
+        );
+        break;
+      case 'last_played_at':
+      default:
+        orderQuery = query.order(
+          'last_played_at',
+          ascending: _filters.sortAscending,
+          nullsFirst: _filters.sortAscending,
+        );
+        break;
+    }
+    return orderQuery;
+  }
+
   @override
   Future<void> loadMore() async {
     if (isLoadingMore || !hasMore) return;
     setState(() => isLoadingMore = true);
-
     try {
       final from = _page * _pageSize;
       final to = from + _pageSize - 1;
-
-      var query = Supabase.instance.client
-          .from('user_games')
-          .select('*, games!inner(*)')
-          .eq('user_id', widget.userId);
-
-      if (_searchQuery.isNotEmpty) {
-        query = query.ilike('games.title', '%$_searchQuery%');
-      }
-
-      if (_filters.genres.isNotEmpty) {
-        for (var id in _filters.genres) {
-          final name = IgdbConstants.genres.firstWhere(
-            (e) => e['id'] == id,
-            orElse: () => {'name': ''},
-          )['name'];
-          if (name != '') query = query.contains('games.genres', '["$name"]');
-        }
-      }
-      if (_filters.themes.isNotEmpty) {
-        for (var id in _filters.themes) {
-          final name = IgdbConstants.themes.firstWhere(
-            (e) => e['id'] == id,
-            orElse: () => {'name': ''},
-          )['name'];
-          if (name != '') query = query.contains('games.themes', '["$name"]');
-        }
-      }
-      if (_filters.gameModes.isNotEmpty) {
-        for (var id in _filters.gameModes) {
-          final name = IgdbConstants.gameModes.firstWhere(
-            (e) => e['id'] == id,
-            orElse: () => {'name': ''},
-          )['name'];
-          if (name != '') {
-            query = query.contains('games.game_modes', '["$name"]');
-          }
-        }
-      }
-      if (_filters.playerPerspectives.isNotEmpty) {
-        for (var id in _filters.playerPerspectives) {
-          final name = IgdbConstants.playerPerspectives.firstWhere(
-            (e) => e['id'] == id,
-            orElse: () => {'name': ''},
-          )['name'];
-          if (name != '') {
-            query = query.contains('games.player_perspectives', '["$name"]');
-          }
-        }
-      }
-      if (_filters.platforms.isNotEmpty) {
-        for (var id in _filters.platforms) {
-          final name = IgdbConstants.popularPlatforms.firstWhere(
-            (e) => e['id'] == id,
-            orElse: () => {'name': ''},
-          )['name'];
-          if (name != '') {
-            query = query.contains('games.platforms', '["$name"]');
-          }
-        }
-      }
-
-      if (_currentStatus == 'completed') {
-        // Platino: filtramos buscando los game_ids en reviews que tengan completion_type = '100_percent'
-        final platinoReviews = await Supabase.instance.client
-            .from('reviews')
-            .select('game_id')
-            .eq('user_id', widget.userId)
-            .eq('completion_type', '100_percent');
-
-        final platinoGameIds = platinoReviews
-            .map((r) => r['game_id'] as int)
-            .toList();
-        if (platinoGameIds.isEmpty) {
-          query = query.inFilter('game_id', [-1]); // Forzar lista vacía
-        } else {
-          query = query.inFilter('game_id', platinoGameIds);
-        }
-      } else if (_currentStatus != null) {
-        query = query.eq('status', _currentStatus!);
-        if (_currentStatus == 'wishlist') {
-          query = query.neq('is_steam_only', true);
-        }
-      }
-
-      // Ordenar según los filtros (usando referencedTable y evitando reasignar el FilterBuilder a TransformBuilder)
-      PostgrestTransformBuilder<List<Map<String, dynamic>>> orderQuery;
-
-      switch (_filters.sortBy) {
-        case 'title':
-          orderQuery = query.order(
-            'games(title)',
-            ascending: _filters.sortAscending,
-          );
-          break;
-        case 'release_date':
-          orderQuery = query.order(
-            'games(release_date)',
-            ascending: _filters.sortAscending,
-          );
-          break;
-        case 'rating':
-          orderQuery = query.order('rating', ascending: _filters.sortAscending);
-          break;
-        case 'metacritic_score':
-          orderQuery = query.order(
-            'games(metacritic_score)',
-            ascending: _filters.sortAscending,
-            nullsFirst: _filters
-                .sortAscending, // nulls al final cuando ordenamos desc (mayor nota primero)
-          );
-          break;
-        case 'updated_at':
-        default:
-          orderQuery = query.order(
-            'updated_at',
-            ascending: _filters.sortAscending,
-          );
-          break;
-      }
-
+      final orderQuery = await _buildQuery();
       final res = await orderQuery.range(from, to);
 
       final newItems = List<Map<String, dynamic>>.from(
@@ -245,6 +249,28 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           hasMore = false;
         });
       }
+    }
+  }
+  Future<void> _refreshInPlace() async {
+    if (_games.isEmpty) {
+      await _refresh();
+      return;
+    }
+    try {
+      final orderQuery = await _buildQuery();
+      final res = await orderQuery.range(0, _games.length - 1);
+      final newItems = List<Map<String, dynamic>>.from(res)
+          .where((r) => r['games'] != null)
+          .toList();
+      if (mounted && newItems.isNotEmpty) {
+        setState(() {
+          _games
+            ..clear()
+            ..addAll(newItems);
+        });
+      }
+    } catch (e) {
+      debugPrint('[CORPUS] Error en refreshInPlace: $e');
     }
   }
 

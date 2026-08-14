@@ -202,6 +202,23 @@ class _ActivityScreenState extends State<ActivityScreen>
     }
   }
 
+  Future<void> _refreshInPlace() async {
+    if (_activities.isEmpty) {
+      _fetchActivity(isRefresh: true, silent: true);
+      return;
+    }
+    try {
+      final result = await _repo.fetchActivityPage(0, limit: _offset);
+      if (mounted) {
+        setState(() {
+          _activities = result.mergedActivities;
+        });
+      }
+    } catch (e) {
+      debugPrint('[ActivityScreen] Error en refreshInPlace: $e');
+    }
+  }
+
   /// Suscripción Realtime: cuando llega un nuevo evento al feed, recargamos.
   void _subscribeRealtime() {
     _realtimeChannel = _supabase
@@ -344,7 +361,7 @@ class _ActivityScreenState extends State<ActivityScreen>
       if (review == null) return;
       context
           .pushReviewDetails(gameData, userData, review)
-          .then((_) => _fetchActivity(isRefresh: true, silent: true));
+          .then((_) => _refreshInPlace());
     }
 
     void openReviewComments() {
@@ -356,7 +373,7 @@ class _ActivityScreenState extends State<ActivityScreen>
             review,
             focusComment: true,
           )
-          .then((_) => _fetchActivity(isRefresh: true, silent: true));
+          .then((_) => _refreshInPlace());
     }
 
     void openGameDetails() {
@@ -364,7 +381,7 @@ class _ActivityScreenState extends State<ActivityScreen>
       if (isDesktop) {
         context
             .pushGameDetails(gameData)
-            .then((_) => _fetchActivity(isRefresh: true, silent: true));
+            .then((_) => _refreshInPlace());
       } else {
         showModalBottomSheet(
           context: context,
@@ -382,7 +399,7 @@ class _ActivityScreenState extends State<ActivityScreen>
               scrollController: scrollController,
             ),
           ),
-        ).then((_) => _fetchActivity(isRefresh: true, silent: true));
+        ).then((_) => _refreshInPlace());
       }
     }
 

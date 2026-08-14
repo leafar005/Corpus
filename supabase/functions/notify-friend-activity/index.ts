@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
         tokens,
         title: notifTitle,
         body: notifBody,
-        data: { type: "friend_activity", user_id: userId, game_id: String(gameId ?? "") },
+        data: { type: "friend_activity", user_id: userId, game_id: String(gameId ?? ""), review_id: record?.review_id ?? "" },
       }),
     });
 

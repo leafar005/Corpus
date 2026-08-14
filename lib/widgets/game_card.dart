@@ -59,31 +59,34 @@ class _GameCardState extends State<GameCard> {
   Widget _buildPlaceholder(BuildContext context, String title) => Container(
     color: Theme.of(context).primaryColorDark,
     padding: const EdgeInsets.all(8.0),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          Icons.videogame_asset,
-          size: 40,
-          color: Theme.of(
-            context,
-          ).colorScheme.onPrimary.withValues(alpha: 0.54),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.videogame_asset,
+            size: 40,
             color: Theme.of(
               context,
             ).colorScheme.onPrimary.withValues(alpha: 0.54),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(
+                context,
+              ).colorScheme.onPrimary.withValues(alpha: 0.54),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 

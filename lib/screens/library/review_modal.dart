@@ -110,9 +110,9 @@ class ReviewModal {
         : '';
     // Review model does not have played_from/played_until/progress_percent yet.
     // They might be in user_games or they might be missing. We'll leave them as null/0 for now.
-    DateTime? reviewPlayedFrom;
-    DateTime? reviewPlayedUntil;
-    int reviewProgressPercent = 0;
+    DateTime? reviewPlayedFrom = hasReview ? r!.playedFrom : null;
+    DateTime? reviewPlayedUntil = hasReview ? r!.playedUntil : null;
+    int reviewProgressPercent = hasReview ? (r!.progressPercent ?? 0) : 0;
     // Fecha de publicación de la reseña (editable solo al editar)
     DateTime? reviewDate = hasReview ? r!.createdAt : null;
 

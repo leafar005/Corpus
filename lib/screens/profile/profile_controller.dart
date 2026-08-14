@@ -15,11 +15,18 @@ class ProfileController extends ChangeNotifier {
   StreamSubscription<AuthState>? _authSub;
 
   bool isLoading = true;
+  bool hasError = false;
+  String? errorMessage;
   Map<String, dynamic>? userProfile;
   List<Map<String, dynamic>> wishlistGames = [];
+  int wishlistCount = 0;
   List<Map<String, dynamic>> playingGames = [];
-  List<Map<String, dynamic>> allGames = [];
-  List<Map<String, dynamic>> userReviews = [];
+  int playingCount = 0;
+  List<Map<String, dynamic>> beatenGames = [];
+  int beatenCount = 0;
+  List<Map<String, dynamic>> platinumGames = [];
+  int platinumCount = 0;
+  List<double> ratings = [];
   List<Map<String, dynamic>?> hallOfFame = List.filled(5, null);
 
   bool get isOwnProfile {
@@ -78,12 +85,21 @@ class ProfileController extends ChangeNotifier {
       );
       userProfile = data.userProfile;
       wishlistGames = data.wishlistGames;
+      wishlistCount = data.wishlistCount;
       playingGames = data.playingGames;
-      allGames = data.beatenGames;
-      userReviews = data.reviews;
+      playingCount = data.playingCount;
+      beatenGames = data.beatenGames;
+      beatenCount = data.beatenCount;
+      platinumGames = data.platinumGames;
+      platinumCount = data.platinumCount;
+      ratings = data.ratings;
       hallOfFame = data.hallOfFame;
+      hasError = false;
+      errorMessage = null;
     } catch (e, st) {
-      debugPrint('[ProfileController] Error cargando perfil: $e\n$st');
+      debugPrint('[ProfileController] Error cargando perfil EXACTO: ${e.runtimeType} - $e\n$st');
+      hasError = true;
+      errorMessage = e.toString();
     } finally {
       isLoading = false;
       _notify();

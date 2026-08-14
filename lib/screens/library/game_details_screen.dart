@@ -5,14 +5,13 @@ import 'game_details/game_related_tab.dart';
 import 'game_details/game_media_tab.dart';
 import 'game_details/game_stash_tab.dart';
 import 'game_details/game_info_tab.dart';
-import 'game_details/game_reviews_card.dart';
+import 'game_details/game_hero_section.dart';
 import 'dart:async';
 import 'dart:math';
 
 import 'package:image_picker/image_picker.dart';
 import '../../globals.dart';
 import '../../services/igdb_service.dart';
-import '../../utils/igdb_constants.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../library/review_modal.dart';
 import '../../widgets/achievement_toast.dart';
@@ -22,7 +21,6 @@ import '../../models/models.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/corpus_primary_button.dart';
-import '../../widgets/full_screen_gallery.dart';
 import '../../widgets/corpus_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -1004,56 +1002,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Widget _buildContent(BuildContext context) {
-    final title =
-        widget.gameData['title'] ??
-        _enrichedData['title'] ??
-        (_isEnriching ? 'Cargando...' : 'Desconocido');
-    final coverUrl =
-        widget.gameData['cover_url'] ?? _enrichedData['cover_url'] ?? '';
-    final highResCoverUrl = coverUrl.replaceAll('t_cover_big', 't_1080p');
-
-    // Datos con fallback a _enrichedData (para cuando venimos de la biblioteca)
     final summary = widget.gameData['summary'] ?? _enrichedData['summary'];
-    final developer =
-        (widget.gameData['developer'] != null &&
-            widget.gameData['developer'] != 'Desconocido' &&
-            widget.gameData['developer'] != 'Desarrollador desconocido')
-        ? widget.gameData['developer']
-        : _enrichedData['developer'];
-    final developerId =
-        widget.gameData['developer_id'] ?? _enrichedData['developer_id'];
-    final originalGame = _getOriginalGameInfo();
-    final hasParentGame = originalGame != null;
-
-    // Resolver categoría usando IgdbConstants (centralizado)
-    // Fix #3: Lectura segura del tipo numérico (puede llegar como int, double o num desde JSON/Supabase)
-    final dynamic rawCat =
-        widget.gameData['category'] ??
-        widget.gameData['game_type'] ??
-        _enrichedData['category'] ??
-        _enrichedData['game_type'];
-    final int? categoryId = (rawCat is num)
-        ? rawCat.toInt()
-        : int.tryParse(rawCat?.toString() ?? '');
-
-    final int? resolvedCategory = IgdbConstants.resolveCategory(
-      categoryId,
-      title,
-      hasParentGame: hasParentGame,
-      summary:
-          widget.gameData['summary']?.toString() ??
-          _enrichedData['summary']?.toString(),
-    );
-    final String? categoryLabel =
-        resolvedCategory != null && !IgdbConstants.isMainGame(resolvedCategory)
-        ? IgdbConstants.getCategoryName(resolvedCategory)
-        : null;
-    final Color catColor = resolvedCategory != null
-        ? IgdbConstants.getCategoryColor(
-            resolvedCategory,
-            themeSecondary: Theme.of(context).colorScheme.secondary,
-          )
-        : Theme.of(context).colorScheme.onSurfaceVariant;
 
     final List<dynamic> genresList =
         (widget.gameData['genres'] as List?)?.isNotEmpty == true
@@ -1138,213 +1087,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final List<dynamic> gameEnginesList = rawEngines.isNotEmpty
         ? rawEngines
         : (_enrichedData['game_engines'] as List? ?? []);
-
-    // Formatear fecha de lanzamiento
-    String? releaseDate;
-    final rawReleaseDate =
-        widget.gameData['release_date'] ?? _enrichedData['release_date'];
-    if (rawReleaseDate != null) {
-      try {
-        final date = DateTime.parse(rawReleaseDate.toString());
-        const months = [
-          'Enero',
-          'Febrero',
-          'Marzo',
-          'Abril',
-          'Mayo',
-          'Junio',
-          'Julio',
-          'Agosto',
-          'Septiembre',
-          'Octubre',
-          'Noviembre',
-          'Diciembre',
-        ];
-        releaseDate =
-            '${date.day} de ${months[date.month - 1]} de ${date.year}';
-      } catch (_) {}
-    }
-
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
-    final Widget coverArtWidget = Container(
-      decoration: BoxDecoration(
-        borderRadius: ext.radiusMedium,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: ext.radiusMedium,
-        child: highResCoverUrl.isNotEmpty
-            ? CorpusNetworkImage(url: highResCoverUrl, fit: BoxFit.cover)
-            : Container(color: Theme.of(context).primaryColorDark, height: 350),
-      ),
-    );
-
-    final Widget headerInfoWidget = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 32,
-            height: 1.1,
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (developer != null &&
-            developer != 'Desconocido' &&
-            developer != 'Desarrollador desconocido')
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(4),
-              onTap: developerId != null
-                  ? () {
-                      context.pushGroupGames(
-                        developer.toString(),
-                        developerId as int,
-                        isCompany: true,
-                      );
-                    }
-                  : null,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.business,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        developer,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        if (releaseDate != null || categoryLabel != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (releaseDate != null)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.calendar_today,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        releaseDate,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                if (categoryLabel != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: catColor.withValues(alpha: 0.2),
-                      borderRadius: ext.radiusMedium,
-                      border: Border.all(
-                        color: catColor.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: Text(
-                      categoryLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: catColor,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        // --- BOTÓN DE JUEGO ORIGINAL ---
-        if (_getOriginalGameInfo() case final originalGame?)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 8),
-            child: ActionChip(
-              avatar: Icon(
-                Icons.arrow_back_rounded,
-                size: 16,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              label: Text(
-                'Juego original',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 13,
-                ),
-              ),
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.15),
-              side: BorderSide(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.4),
-              ),
-              shape: RoundedRectangleBorder(borderRadius: ext.radiusLarge),
-              onPressed: () =>
-                  _navigateToOriginalGame(originalGame.id, originalGame.name),
-            ),
-          ),
-      ],
-    );
-
-    final Widget interactiveWidget = _isLoadingUserData
-        ? const Center(child: CircularProgressIndicator())
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildStatusButton(),
-              GameReviewsCard(
-                reviews: _reviews,
-                gameData: widget.gameData,
-                userData: _userData,
-                partnersData: _partnersData,
-                isDesktop: MediaQuery.of(context).size.width >= 800,
-                onEditReview: (review) =>
-                    _showReviewModal(existingReview: review),
-                onDeleteReview: (review) => _deleteReview(review),
-                onShowFullScreenGallery: (context, urls, index) =>
-                    showFullScreenGallery(context, urls, index),
-              ),
-            ],
-          );
 
     final List screenshotsList =
         (widget.gameData['screenshots'] as List?)?.isNotEmpty == true
@@ -1438,9 +1180,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
 
     final bool isDesktop = MediaQuery.of(context).size.width > 800;
-    final double topPadding = MediaQueryData.fromView(
-      View.of(context),
-    ).padding.top;
 
     return ListenableBuilder(
       listenable: _controller,
@@ -1450,199 +1189,27 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           body: CustomScrollView(
             controller: _scrollController,
             slivers: [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _GameDetailsHeaderDelegate(
-                  topPadding: topPadding,
-                  title: title,
-                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                  leading: const BackButton(color: Colors.white),
-                  background: highResCoverUrl.isNotEmpty
-                      ? Stack(
-                          clipBehavior: Clip.none,
-                          fit: StackFit.expand,
-                          children: [
-                            AnimatedSwitcher(
-                              duration: const Duration(seconds: 1),
-                              transitionBuilder:
-                                  (Widget child, Animation<double> animation) {
-                                    return FadeTransition(
-                                      opacity: animation,
-                                      child: child,
-                                    );
-                                  },
-                              child: _selectedScreenshotUrl != null
-                                  ? _buildFadeInImage(
-                                      _selectedScreenshotUrl!,
-                                      key: ValueKey(_selectedScreenshotUrl),
-                                    )
-                                  : (!_isEnriching
-                                        ? _buildFadeInImage(
-                                            highResCoverUrl,
-                                            key: ValueKey(highResCoverUrl),
-                                          )
-                                        : Container(
-                                            key: const ValueKey('empty'),
-                                            color: Theme.of(
-                                              context,
-                                            ).primaryColorDark,
-                                          )),
-                            ),
-
-                            Container(
-                              color: Colors.black.withValues(alpha: 0.3),
-                            ),
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: -2,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                    stops: const [
-                                      0.0,
-                                      0.12,
-                                      0.22,
-                                      0.35,
-                                      0.5,
-                                      0.65,
-                                      0.8,
-                                      1.0,
-                                    ],
-                                    colors: [
-                                      Theme.of(context).scaffoldBackgroundColor,
-                                      Theme.of(context).scaffoldBackgroundColor
-                                          .withValues(alpha: 0.9),
-                                      Theme.of(context).scaffoldBackgroundColor
-                                          .withValues(alpha: 0.7),
-                                      Theme.of(context).scaffoldBackgroundColor
-                                          .withValues(alpha: 0.5),
-                                      Theme.of(context).scaffoldBackgroundColor
-                                          .withValues(alpha: 0.3),
-                                      Theme.of(context).scaffoldBackgroundColor
-                                          .withValues(alpha: 0.15),
-                                      Theme.of(context).scaffoldBackgroundColor
-                                          .withValues(alpha: 0.05),
-                                      Colors.transparent,
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : Container(color: Theme.of(context).primaryColorDark),
-                ),
-              ),
-
-              if (isDesktop)
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40.0,
-                    vertical: 24.0,
-                  ),
-                  sliver: SliverCrossAxisGroup(
-                    slivers: [
-                      SliverConstrainedCrossAxis(
-                        maxExtent: 280,
-                        sliver: SliverToBoxAdapter(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              coverArtWidget,
-                              const SizedBox(height: 24),
-                              interactiveWidget,
-                              _buildFriendsWithGame(context),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SliverConstrainedCrossAxis(
-                        maxExtent: 40,
-                        sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
-                      ),
-                      SliverCrossAxisExpanded(
-                        flex: 1,
-                        sliver: SliverMainAxisGroup(
-                          slivers: [
-                            SliverToBoxAdapter(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  headerInfoWidget,
-                                  const SizedBox(height: 12),
-                                ],
-                              ),
-                            ),
-                            SliverPersistentHeader(
-                              pinned: true,
-                              delegate: _GameDetailsTabBarDelegate(
-                                height: 56.0,
-                                child: _buildNavBar(
-                                  isDesktop: true,
-                                  infoTabIdx: infoTabIdx,
-                                  communityTabIdx: communityTabIdx,
-                                  mediaTabIdx: mediaTabIdx,
-                                  relatedTabIdx: relatedTabIdx,
-                                  linksTabIdx: linksTabIdx,
-                                  hasMedia: hasMedia,
-                                  hasRelated: hasRelated,
-                                  hasLinks: hasLinks,
-                                ),
-                              ),
-                            ),
-                            SliverToBoxAdapter(
-                              child: Padding(
-                                padding: const EdgeInsets.only(top: 24.0),
-                                child: buildCurrentTabContent(),
-                              ),
-                            ),
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: 60),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(width: 120, child: coverArtWidget),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [headerInfoWidget],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        interactiveWidget,
-                        _buildFriendsWithGame(context),
-                        const SizedBox(height: 12),
-                      ],
-                    ),
-                  ),
-                ),
-                SliverPersistentHeader(
+              GameHeroSection(
+                gameData: widget.gameData,
+                controller: _controller,
+                isDesktop: isDesktop,
+                inLibrary: _inLibrary,
+                status: _status,
+                reviews: _reviews,
+                userData: _userData,
+                partnersData: _partnersData,
+                friendsWithGame: _friendsWithGame,
+                isGuest: _isGuest,
+                enrichedData: _enrichedData,
+                onShowReviewModal: () => _showReviewModal(),
+                onEditReview: (review) => _showReviewModal(existingReview: review),
+                onDeleteReview: _deleteReview,
+                tabsSliver: SliverPersistentHeader(
                   pinned: true,
                   delegate: _GameDetailsTabBarDelegate(
                     height: 56.0,
                     child: _buildNavBar(
-                      isDesktop: false,
+                      isDesktop: isDesktop,
                       infoTabIdx: infoTabIdx,
                       communityTabIdx: communityTabIdx,
                       mediaTabIdx: mediaTabIdx,
@@ -1654,14 +1221,14 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
+                tabContentSliver: SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.only(top: 24.0),
                     child: buildCurrentTabContent(),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 60)),
-              ],
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 60)),
             ],
           ),
         );
