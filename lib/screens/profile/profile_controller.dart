@@ -24,8 +24,8 @@ class ProfileController extends ChangeNotifier {
   int playingCount = 0;
   List<Map<String, dynamic>> beatenGames = [];
   int beatenCount = 0;
-  List<Map<String, dynamic>> droppedGames = [];
-  int droppedCount = 0;
+  List<Map<String, dynamic>> platinumGames = [];
+  int platinumCount = 0;
   List<double> ratings = [];
   List<Map<String, dynamic>?> hallOfFame = List.filled(5, null);
 
@@ -90,8 +90,8 @@ class ProfileController extends ChangeNotifier {
       playingCount = data.playingCount;
       beatenGames = data.beatenGames;
       beatenCount = data.beatenCount;
-      droppedGames = data.droppedGames;
-      droppedCount = data.droppedCount;
+      platinumGames = data.platinumGames;
+      platinumCount = data.platinumCount;
       ratings = data.ratings;
       hallOfFame = data.hallOfFame;
       hasError = false;

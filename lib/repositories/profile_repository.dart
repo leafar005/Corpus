@@ -10,8 +10,8 @@ class ProfileData {
     required this.playingCount,
     required this.beatenGames,
     required this.beatenCount,
-    required this.droppedGames,
-    required this.droppedCount,
+    required this.platinumGames,
+    required this.platinumCount,
     required this.ratings,
     required this.hallOfFame,
   });
@@ -23,8 +23,8 @@ class ProfileData {
   final int playingCount;
   final List<Map<String, dynamic>> beatenGames;
   final int beatenCount;
-  final List<Map<String, dynamic>> droppedGames;
-  final int droppedCount;
+  final List<Map<String, dynamic>> platinumGames;
+  final int platinumCount;
   
   /// Lista de todas las notas (ratings) del usuario para el histograma, sin los joins pesados.
   final List<double> ratings;
@@ -39,8 +39,8 @@ class ProfileData {
     int? playingCount,
     List<Map<String, dynamic>>? beatenGames,
     int? beatenCount,
-    List<Map<String, dynamic>>? droppedGames,
-    int? droppedCount,
+    List<Map<String, dynamic>>? platinumGames,
+    int? platinumCount,
     List<double>? ratings,
     List<Map<String, dynamic>?>? hallOfFame,
   }) {
@@ -52,8 +52,8 @@ class ProfileData {
       playingCount: playingCount ?? this.playingCount,
       beatenGames: beatenGames ?? this.beatenGames,
       beatenCount: beatenCount ?? this.beatenCount,
-      droppedGames: droppedGames ?? this.droppedGames,
-      droppedCount: droppedCount ?? this.droppedCount,
+      platinumGames: platinumGames ?? this.platinumGames,
+      platinumCount: platinumCount ?? this.platinumCount,
       ratings: ratings ?? this.ratings,
       hallOfFame: hallOfFame ?? this.hallOfFame,
     );
@@ -155,18 +155,30 @@ class ProfileRepository {
           .select('user_id')
           .eq('user_id', userId)
           .eq('status', 'beaten'),
-      _client
-          .from('user_games')
-          .select('*, games!inner(*)')
-          .eq('user_id', userId)
-          .inFilter('status', ['abandoned', 'on_hold'])
-          .order('last_played_at', ascending: false, nullsFirst: false)
-          .limit(20),
-      _client
-          .from('user_games')
-          .select('user_id')
-          .eq('user_id', userId)
-          .inFilter('status', ['abandoned', 'on_hold']),
+      (() async {
+        final platinoReviews = await _client
+            .from('reviews')
+            .select('game_id')
+            .eq('user_id', userId)
+            .eq('completion_type', '100_percent');
+        final platinoGameIds = platinoReviews.map((r) => r['game_id'] as int).toList();
+        if (platinoGameIds.isEmpty) return [];
+        return await _client
+            .from('user_games')
+            .select('*, games!inner(*)')
+            .eq('user_id', userId)
+            .inFilter('game_id', platinoGameIds)
+            .order('last_played_at', ascending: false, nullsFirst: false)
+            .limit(20);
+      })(),
+      (() async {
+        final platinoReviews = await _client
+            .from('reviews')
+            .select('game_id')
+            .eq('user_id', userId)
+            .eq('completion_type', '100_percent');
+        return platinoReviews;
+      })(),
       fetchHallOfFame(userId),
       _client
           .from('reviews')
@@ -180,8 +192,8 @@ class ProfileRepository {
     final playingCountRes = results[3] as List<dynamic>;
     final beatenRes = results[4] as List<dynamic>;
     final beatenCountRes = results[5] as List<dynamic>;
-    final droppedRes = results[6] as List<dynamic>;
-    final droppedCountRes = results[7] as List<dynamic>;
+    final platinumRes = results[6] as List<dynamic>;
+    final platinumCountRes = results[7] as List<dynamic>;
     final rawHallOfFame = results[8] as List<dynamic>;
     final ratingsRes = results[9] as List<dynamic>;
 
@@ -193,8 +205,8 @@ class ProfileRepository {
       playingCount: playingCountRes.length,
       beatenGames: _enrichList(beatenRes, useLastPlayed: true),
       beatenCount: beatenCountRes.length,
-      droppedGames: _enrichList(droppedRes, useLastPlayed: true),
-      droppedCount: droppedCountRes.length,
+      platinumGames: _enrichList(platinumRes, useLastPlayed: true),
+      platinumCount: platinumCountRes.length,
       ratings: ratingsRes
           .map((e) => (e['rating'] as num?)?.toDouble() ?? 0.0)
           .toList(),

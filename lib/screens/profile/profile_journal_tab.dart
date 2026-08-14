@@ -134,6 +134,24 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     }
   }
 
+  PostgrestFilterBuilder<List<Map<String, dynamic>>> _buildQuery() {
+    var query = Supabase.instance.client
+        .from('reviews')
+        .select('*, games!inner(*)')
+        .eq('user_id', widget.userId);
+
+    if (_searchQuery.isNotEmpty) {
+      query = query.ilike('games.title', '%$_searchQuery%');
+    }
+
+    if (_selectedYear != null) {
+      query = query
+          .gte(_orderColumn, '$_selectedYear-01-01T00:00:00.000Z')
+          .lte(_orderColumn, '$_selectedYear-12-31T23:59:59.999Z');
+    }
+    return query;
+  }
+
   @override
   Future<void> loadMore() async {
     if (isLoadingMore || !hasMore) return;
@@ -143,22 +161,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       final from = _page * _pageSize;
       final to = from + _pageSize - 1;
 
-      var query = Supabase.instance.client
-          .from('reviews')
-          .select('*, games!inner(*)')
-          .eq('user_id', widget.userId);
-
-      if (_searchQuery.isNotEmpty) {
-        query = query.ilike('games.title', '%$_searchQuery%');
-      }
-
-      if (_selectedYear != null) {
-        query = query
-            .gte(_orderColumn, '$_selectedYear-01-01T00:00:00.000Z')
-            .lte(_orderColumn, '$_selectedYear-12-31T23:59:59.999Z');
-      }
-
-      final res = await query
+      final res = await _buildQuery()
           .order(_orderColumn, ascending: false)
           .range(from, to);
 
@@ -202,6 +205,30 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     await loadMore();
   }
 
+  Future<void> _refreshInPlace() async {
+    if (_reviews.isEmpty) {
+      await _refresh();
+      return;
+    }
+    try {
+      final res = await _buildQuery()
+          .order(_orderColumn, ascending: false)
+          .range(0, _reviews.length - 1);
+      final newItems = List<Map<String, dynamic>>.from(res)
+          .where((r) => r['games'] != null)
+          .toList();
+      if (mounted && newItems.isNotEmpty) {
+        setState(() {
+          _reviews
+            ..clear()
+            ..addAll(newItems);
+        });
+      }
+    } catch (e) {
+      debugPrint('[CORPUS] Error en refreshInPlace (diario): $e');
+    }
+  }
+
   String _getStatusText(String status) => GameStatus.labelForString(status);
 
   String _platformLabel(String? platform) {
@@ -237,7 +264,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
           reviewData: review,
         ),
       ),
-    ).then((_) => _refresh());
+    ).then((_) => _refreshInPlace());
   }
 
   void _openGame(Map<String, dynamic> review) {
@@ -246,7 +273,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       MaterialPageRoute(
         builder: (context) => GameDetailsScreen(gameData: review['games']),
       ),
-    );
+    ).then((_) => _refreshInPlace());
   }
 
   /// Aplana [_reviews] en una lista de "filas" (cabecera de mes o entrada)

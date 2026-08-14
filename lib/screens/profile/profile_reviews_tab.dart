@@ -61,6 +61,22 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
     super.dispose();
   }
 
+  PostgrestFilterBuilder<List<Map<String, dynamic>>> _buildQuery() {
+    var query = Supabase.instance.client
+        .from('reviews')
+        .select(
+          '*, games!inner(*), review_likes(user_id), review_comments(id)',
+        )
+        .eq('user_id', widget.userId)
+        .not('comment', 'is', null)
+        .neq('comment', '');
+
+    if (_searchQuery.isNotEmpty) {
+      query = query.ilike('games.title', '%$_searchQuery%');
+    }
+    return query;
+  }
+
   @override
   Future<void> loadMore() async {
     if (isLoadingMore || !hasMore) return;
@@ -70,20 +86,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       final from = _page * _pageSize;
       final to = from + _pageSize - 1;
 
-      var query = Supabase.instance.client
-          .from('reviews')
-          .select(
-            '*, games!inner(*), review_likes(user_id), review_comments(id)',
-          )
-          .eq('user_id', widget.userId)
-          .not('comment', 'is', null)
-          .neq('comment', '');
-
-      if (_searchQuery.isNotEmpty) {
-        query = query.ilike('games.title', '%$_searchQuery%');
-      }
-
-      final res = await query
+      final res = await _buildQuery()
           .order('created_at', ascending: false)
           .range(from, to);
 
@@ -127,6 +130,30 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
     await loadMore();
   }
 
+  Future<void> _refreshInPlace() async {
+    if (_reviews.isEmpty) {
+      await _refresh();
+      return;
+    }
+    try {
+      final res = await _buildQuery()
+          .order('created_at', ascending: false)
+          .range(0, _reviews.length - 1);
+      final newItems = List<Map<String, dynamic>>.from(res)
+          .where((r) => r['games'] != null)
+          .toList();
+      if (mounted && newItems.isNotEmpty) {
+        setState(() {
+          _reviews
+            ..clear()
+            ..addAll(newItems);
+        });
+      }
+    } catch (e) {
+      debugPrint('[CORPUS] Error en refreshInPlace (reseñas): $e');
+    }
+  }
+
   String _formatDate(String? isoString) {
     if (isoString == null) return '';
     try {
@@ -161,7 +188,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
           reviewData: review,
         ),
       ),
-    ).then((_) => _refresh());
+    ).then((_) => _refreshInPlace());
   }
 
   @override
