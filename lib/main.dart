@@ -9,6 +9,8 @@ import 'theme/app_theme.dart';
 import 'theme/style_pack_registry.dart';
 import 'services/notification_service.dart';
 import 'services/style_pack_music_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'services/deep_link_service.dart';
 
 import 'globals.dart';
 
@@ -68,8 +70,15 @@ class _CorpusAppState extends State<CorpusApp> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       StylePackMusicService.instance.syncWithCurrentPack(force: true);
+
+      // Deep link en frío: la app estaba completamente cerrada y se abrió
+      // tocando una notificación push.
+      final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      if (initialMessage != null) {
+        DeepLinkService.handle(initialMessage.data);
+      }
     });
   }
 
@@ -79,6 +88,7 @@ class _CorpusAppState extends State<CorpusApp> {
       listenable: themeNotifier,
       builder: (context, child) {
         return MaterialApp(
+          navigatorKey: DeepLinkService.navigatorKey,
           title: 'Corpus',
           // Aplicamos nuestros temas y el modo seleccionado
           theme: AppTheme.getLightTheme(
