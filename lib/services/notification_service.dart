@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'deep_link_service.dart';
 import '../env.dart';
 
 // ─── Background message handler (debe ser top-level) ────────────────────────
@@ -101,6 +104,19 @@ class NotificationService {
 
       // Escuchar tap en notificación cuando la app está en background (no terminada)
       FirebaseMessaging.onMessageOpenedApp.listen(_onNotificationOpenedApp);
+    }
+
+    final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp == true) {
+      final payload = launchDetails!.notificationResponse?.payload;
+      if (payload != null && payload.isNotEmpty) {
+        try {
+          final data = Map<String, dynamic>.from(jsonDecode(payload));
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            DeepLinkService.handle(data);
+          });
+        } catch (_) {}
+      }
     }
 
     _initialized = true;
@@ -238,7 +254,7 @@ class NotificationService {
   Future<void> showNotification({
     required String title,
     required String body,
-    String? payload,
+    Map<String, dynamic>? data,
     int id = 0,
   }) async {
     if (!_isSupported || kIsWeb) return; // En web lo gestiona el service worker
@@ -268,7 +284,7 @@ class NotificationService {
       windows: Platform.isWindows ? windowsDetails : null,
     );
 
-    await _localNotifications.show(id, title, body, details, payload: payload);
+    await _localNotifications.show(id, title, body, details, payload: data != null ? jsonEncode(data) : null);
   }
 
   // ─── Notificación de prueba ────────────────────────────────────────────────
@@ -302,7 +318,7 @@ class NotificationService {
     showNotification(
       title: title,
       body: body,
-      payload: data['type'],
+      data: data,
       id: message.hashCode,
     );
   }
@@ -317,20 +333,20 @@ class NotificationService {
     // Aquí se podría mostrar un SnackBar o banner in-app si se desea.
   }
 
-  /// Tap en notificación cuando la app estaba en background (pero no terminada).
   void _onNotificationOpenedApp(RemoteMessage message) {
-    debugPrint(
-      '[NotificationService] App abierta desde notificación: ${message.data}',
-    );
-    // TODO: Navegar a la pantalla relevante según message.data['type']
+    DeepLinkService.handle(message.data);
   }
 
   /// Tap en notificación local (Windows foreground o Android foreground).
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint(
-      '[NotificationService] Notificación local tapeada: ${response.payload}',
-    );
-    // TODO: Navegar a la pantalla relevante según response.payload
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final data = Map<String, dynamic>.from(jsonDecode(payload));
+      DeepLinkService.handle(data);
+    } catch (e) {
+      debugPrint('[NotificationService] Payload inválido: $e');
+    }
   }
 }
 
