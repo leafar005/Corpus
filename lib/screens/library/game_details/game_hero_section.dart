@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:corpus/widgets/corpus_section_title.dart';
 import 'package:flutter/material.dart';
 
 import 'game_details_controller.dart';
@@ -804,27 +805,30 @@ class _GameDetailsHeaderDelegate extends SliverPersistentHeaderDelegate {
             height: 56.0,
             child: Container(
               color: backgroundColor.withValues(alpha: titleOpacity * 0.9),
-              child: Row(
-                children: [
-                  leading,
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Opacity(
-                      opacity: titleOpacity,
-                      child: Text(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: titleOpacity,
+                    child: Center(
+                      child: CorpusPackAwareTitle(
                         title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        abbreviateIfLong: true,
+                        baseFontSize: 20,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                Row(
+                  children: [
+                    leading,
+                    const Spacer(),
+                  ],
+                ),
+              ],
+            ),
             ),
           ),
         ],

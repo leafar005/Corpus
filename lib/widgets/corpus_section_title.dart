@@ -2,30 +2,124 @@ import 'package:flutter/material.dart';
 
 import '../theme/corpus_theme_extension.dart';
 import '../theme/corpus_typography.dart';
+import '../utils/game_title_utils.dart';
 import 'p5r_ransom_title.dart';
 import 'typewriter_text.dart';
 
 /// App bar / screen heading — pack-aware typography for top-level screen titles.
 class CorpusScreenTitle extends StatelessWidget {
   final String text;
+  final bool abbreviateIfLong;
+  /// Width of trailing AppBar actions to balance visual centering (e.g. 56 per icon).
+  final double trailingBalanceWidth;
 
-  const CorpusScreenTitle(this.text, {super.key});
+  const CorpusScreenTitle(
+    this.text, {
+    super.key,
+    this.abbreviateIfLong = false,
+    this.trailingBalanceWidth = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final title = CorpusPackAwareTitle(text, abbreviateIfLong: abbreviateIfLong);
+
+    if (!ext.useDynamicFrames) return title;
+
+    return CorpusVisuallyBalancedTitle(
+      trailingBalanceWidth: trailingBalanceWidth,
+      child: title,
+    );
+  }
+}
+
+/// Shifts a P5R compact title so it sits on the true screen center when an AppBar
+/// leading back button (or asymmetric actions) would otherwise push it right.
+class CorpusVisuallyBalancedTitle extends StatelessWidget {
+  final Widget child;
+  final double trailingBalanceWidth;
+
+  /// Matches [AppBar.leadingWidth] default.
+  static const double defaultLeadingWidth = 56;
+
+  const CorpusVisuallyBalancedTitle({
+    super.key,
+    required this.child,
+    this.trailingBalanceWidth = 0,
+  });
+
+  /// Horizontal offset to visually center [child] on screen inside an AppBar title slot.
+  static double computeOffset({
+    required bool hasLeading,
+    double leadingWidth = defaultLeadingWidth,
+    double trailingBalanceWidth = 0,
+  }) {
+    final resolvedLeading = hasLeading ? leadingWidth : 0;
+    return (resolvedLeading - trailingBalanceWidth) / 2;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final offset = computeOffset(
+      hasLeading: Navigator.canPop(context),
+      trailingBalanceWidth: trailingBalanceWidth,
+    );
+
+    if (offset == 0) return child;
+
+    return Transform.translate(offset: Offset(-offset, 0), child: child);
+  }
+}
+
+/// Pack-aware compact title for app bars and collapsed headers.
+///
+/// With the P5R style pack (`useDynamicFrames`), uses [P5rRansomTitle]. Game titles
+/// can pass [abbreviateIfLong] to collapse long names into initials (e.g. P5R).
+/// Other packs use a single-line [Text] with ellipsis.
+class CorpusPackAwareTitle extends StatelessWidget {
+  final String text;
+  final bool abbreviateIfLong;
+  final double baseFontSize;
+  final Color? color;
+
+  const CorpusPackAwareTitle(
+    this.text, {
+    super.key,
+    this.abbreviateIfLong = false,
+    this.baseFontSize = 18,
+    this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final titleStyle = Theme.of(context).appBarTheme.titleTextStyle;
+    final resolvedColor = color ?? titleStyle?.color ?? Colors.white;
+    final shouldAbbreviate = abbreviateIfLong && ext.useDynamicFrames;
+    final displayText =
+        shouldAbbreviate ? abbreviateGameTitleIfNeeded(text) : text;
 
     if (ext.useDynamicFrames) {
       return P5rRansomTitle(
-        text: text,
-        baseFontSize: 18,
-        color: titleStyle?.color ?? Colors.white,
+        text: displayText,
+        baseFontSize: baseFontSize,
+        color: resolvedColor,
         compact: true,
       );
     }
 
-    return Text(text, style: titleStyle);
+    return Text(
+      displayText,
+      style: titleStyle ??
+          TextStyle(
+            fontSize: baseFontSize,
+            fontWeight: FontWeight.bold,
+            color: resolvedColor,
+          ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 }
 

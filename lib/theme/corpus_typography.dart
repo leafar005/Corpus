@@ -44,10 +44,10 @@ class CorpusTypography {
     );
 
     return switch (fontFamily) {
-      'Syne' => GoogleFonts.syne(textStyle: textStyle),
+      'Syne' => GoogleFonts.syne(textStyle: textStyle).copyWith(color: color),
       'Archivo Black' => GoogleFonts.archivoBlack(
         textStyle: textStyle.copyWith(fontWeight: FontWeight.w400),
-      ),
+      ).copyWith(color: color),
       _ => textStyle,
     };
   }

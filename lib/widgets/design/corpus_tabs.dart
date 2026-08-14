@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/corpus_theme_extension.dart';
-import '../../theme/corpus_typography.dart';
 import 'corpus_pointer.dart';
 
-/// Classic connected tab bar — inactive tabs on a muted strip, active tab
-/// merges into the content panel below (see reference wireframe).
+/// Connected tab bar — selected tab with rounded top corners merges into the
+/// content panel below. Inactive tabs stay transparent.
 ///
-/// Pass [child] to render the panel under the selected tab. Without [child],
-/// only the tab headers are shown (useful in scrollable page layouts).
+/// Pass [child] to render the panel under the selected tab.
 class CorpusTabs extends StatelessWidget {
   final List<String> labels;
   final int selectedIndex;
@@ -35,8 +33,8 @@ class CorpusTabs extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     final borderColor = cs.outlineVariant;
-    final inactiveBg = cs.surfaceContainerHighest;
     final activeBg = cs.surface;
+    final topRadius = ext.borderRadiusLarge > 0 ? ext.borderRadiusLarge : 12.0;
 
     final tabRow = _CorpusTabRow(
       labels: labels,
@@ -45,10 +43,9 @@ class CorpusTabs extends StatelessWidget {
       onChanged: onChanged,
       isScrollable: isScrollable,
       borderColor: borderColor,
-      inactiveBg: inactiveBg,
       activeBg: activeBg,
-      primaryColor: cs.primary,
-      useDynamicFrames: ext.useDynamicFrames,
+      topCornerRadius: topRadius,
+      connectToContent: child != null,
     );
 
     if (child == null) return tabRow;
@@ -89,10 +86,9 @@ class _CorpusTabRow extends StatelessWidget {
   final ValueChanged<int> onChanged;
   final bool isScrollable;
   final Color borderColor;
-  final Color inactiveBg;
   final Color activeBg;
-  final Color primaryColor;
-  final bool useDynamicFrames;
+  final double topCornerRadius;
+  final bool connectToContent;
 
   const _CorpusTabRow({
     required this.labels,
@@ -101,43 +97,13 @@ class _CorpusTabRow extends StatelessWidget {
     required this.onChanged,
     required this.isScrollable,
     required this.borderColor,
-    required this.inactiveBg,
     required this.activeBg,
-    required this.primaryColor,
-    required this.useDynamicFrames,
+    required this.topCornerRadius,
+    this.connectToContent = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final tabs = <Widget>[];
-    for (var i = 0; i < labels.length; i++) {
-      if (i > 0) {
-        final prevSelected = i - 1 == selectedIndex;
-        final nextSelected = i == selectedIndex;
-        if (!prevSelected && !nextSelected) {
-          tabs.add(
-            Container(width: 1, color: borderColor.withValues(alpha: 0.8)),
-          );
-        }
-      }
-
-      tabs.add(
-        _CorpusTabHeader(
-          label: labels[i],
-          icon: icons != null && i < icons!.length ? icons![i] : null,
-          selected: i == selectedIndex,
-          onTap: () => onChanged(i),
-          borderColor: borderColor,
-          inactiveBg: inactiveBg,
-          activeBg: activeBg,
-          primaryColor: primaryColor,
-          useDynamicFrames: useDynamicFrames,
-          isFirst: i == 0,
-          isLast: i == labels.length - 1,
-        ),
-      );
-    }
-
     Widget row;
     if (isScrollable) {
       row = SingleChildScrollView(
@@ -146,7 +112,19 @@ class _CorpusTabRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
-            children: tabs,
+            children: [
+              for (var i = 0; i < labels.length; i++)
+                _CorpusTabHeader(
+                  label: labels[i],
+                  icon: icons != null && i < icons!.length ? icons![i] : null,
+                  selected: i == selectedIndex,
+                  onTap: () => onChanged(i),
+                  borderColor: borderColor,
+                  activeBg: activeBg,
+                  topCornerRadius: topCornerRadius,
+                  connectToContent: connectToContent,
+                ),
+            ],
           ),
         ),
       );
@@ -162,29 +140,16 @@ class _CorpusTabRow extends StatelessWidget {
                 selected: i == selectedIndex,
                 onTap: () => onChanged(i),
                 borderColor: borderColor,
-                inactiveBg: inactiveBg,
                 activeBg: activeBg,
-                primaryColor: primaryColor,
-                useDynamicFrames: useDynamicFrames,
-                isFirst: i == 0,
-                isLast: i == labels.length - 1,
+                topCornerRadius: topCornerRadius,
+                connectToContent: connectToContent,
               ),
             ),
         ],
       );
     }
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: inactiveBg,
-        border: Border(
-          top: BorderSide(color: borderColor),
-          left: BorderSide(color: borderColor),
-          right: BorderSide(color: borderColor),
-        ),
-      ),
-      child: row,
-    );
+    return row;
   }
 }
 
@@ -194,12 +159,9 @@ class _CorpusTabHeader extends StatefulWidget {
   final bool selected;
   final VoidCallback onTap;
   final Color borderColor;
-  final Color inactiveBg;
   final Color activeBg;
-  final Color primaryColor;
-  final bool useDynamicFrames;
-  final bool isFirst;
-  final bool isLast;
+  final double topCornerRadius;
+  final bool connectToContent;
 
   const _CorpusTabHeader({
     required this.label,
@@ -207,12 +169,9 @@ class _CorpusTabHeader extends StatefulWidget {
     required this.selected,
     required this.onTap,
     required this.borderColor,
-    required this.inactiveBg,
     required this.activeBg,
-    required this.primaryColor,
-    required this.useDynamicFrames,
-    required this.isFirst,
-    required this.isLast,
+    required this.topCornerRadius,
+    this.connectToContent = false,
   });
 
   @override
@@ -222,13 +181,46 @@ class _CorpusTabHeader extends StatefulWidget {
 class _CorpusTabHeaderState extends State<_CorpusTabHeader> {
   bool _hovered = false;
 
+  /// Label color with guaranteed contrast against [tabFill].
+  static Color _selectedLabelColor(Color tabFill, ColorScheme cs) {
+    final bgLight =
+        ThemeData.estimateBrightnessForColor(tabFill) == Brightness.light;
+
+    if (bgLight) {
+      if (_contrastRatio(cs.primary, tabFill) >= 3.0) {
+        return cs.primary;
+      }
+      return const Color(0xFF1D1B20);
+    }
+
+    if (_contrastRatio(cs.onSurface, tabFill) >= 3.0) {
+      return cs.onSurface;
+    }
+    return Colors.white;
+  }
+
+  static double _contrastRatio(Color foreground, Color background) {
+    final fgL = foreground.computeLuminance();
+    final bgL = background.computeLuminance();
+    final lighter = fgL > bgL ? fgL : bgL;
+    final darker = fgL > bgL ? bgL : fgL;
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final cs = Theme.of(context).colorScheme;
+    final tabFill = widget.selected ? widget.activeBg : Colors.transparent;
     final fg = widget.selected
-        ? cs.onSurface
+        ? _selectedLabelColor(tabFill, cs)
         : (_hovered ? cs.onSurface : cs.onSurfaceVariant);
+
+    final labelStyle = TextStyle(
+      fontSize: 14,
+      fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+      color: fg,
+      fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
+    );
 
     final content = Row(
       mainAxisSize: MainAxisSize.min,
@@ -238,18 +230,42 @@ class _CorpusTabHeaderState extends State<_CorpusTabHeader> {
           Icon(widget.icon, size: 16, color: fg),
           const SizedBox(width: 6),
         ],
-        Text(
-          widget.label,
-          style: CorpusTypography.display(
-            context,
-            ext,
-            fontSize: 14,
-            fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
-            color: fg,
-          ),
+        DefaultTextStyle.merge(
+          style: labelStyle,
+          child: Text(widget.label, style: labelStyle),
         ),
       ],
     );
+
+    final topRadius = BorderRadius.only(
+      topLeft: Radius.circular(widget.topCornerRadius),
+      topRight: Radius.circular(widget.topCornerRadius),
+    );
+
+    final tabBody = AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: widget.selected
+            ? widget.activeBg
+            : (_hovered
+                  ? cs.onSurface.withValues(alpha: 0.06)
+                  : Colors.transparent),
+        borderRadius: widget.selected ? topRadius : null,
+        border: widget.selected
+            ? Border(
+                left: BorderSide(color: widget.borderColor),
+                right: BorderSide(color: widget.borderColor),
+                bottom: BorderSide(color: widget.activeBg, width: 1),
+              )
+            : null,
+      ),
+      child: content,
+    );
+
+    final tabShell = widget.selected && widget.connectToContent
+        ? Transform.translate(offset: const Offset(0, 1), child: tabBody)
+        : tabBody;
 
     return CorpusPointer(
       child: MouseRegion(
@@ -258,34 +274,7 @@ class _CorpusTabHeaderState extends State<_CorpusTabHeader> {
         child: GestureDetector(
           onTap: widget.onTap,
           behavior: HitTestBehavior.opaque,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            margin: EdgeInsets.only(bottom: widget.selected ? -1 : 0),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: widget.selected
-                  ? widget.activeBg
-                  : (_hovered
-                        ? widget.inactiveBg.withValues(alpha: 0.85)
-                        : widget.inactiveBg),
-              border: Border(
-                top: BorderSide(
-                  color: widget.selected ? widget.primaryColor : widget.borderColor,
-                  width: widget.selected ? (widget.useDynamicFrames ? 4 : 3) : 1,
-                ),
-                left: widget.isFirst || widget.selected
-                    ? BorderSide(color: widget.borderColor)
-                    : BorderSide.none,
-                right: widget.isLast || widget.selected
-                    ? BorderSide(color: widget.borderColor)
-                    : BorderSide.none,
-                bottom: widget.selected
-                    ? BorderSide(color: widget.activeBg, width: 1)
-                    : BorderSide(color: widget.borderColor),
-              ),
-            ),
-            child: content,
-          ),
+          child: tabShell,
         ),
       ),
     );

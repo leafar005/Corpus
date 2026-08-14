@@ -632,7 +632,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            title: CorpusScreenTitle(title),
+            title: CorpusScreenTitle(
+              title,
+              abbreviateIfLong: true,
+              trailingBalanceWidth: CorpusVisuallyBalancedTitle.defaultLeadingWidth,
+            ),
             backgroundColor: Colors.transparent,
             elevation: 0,
             actions: [

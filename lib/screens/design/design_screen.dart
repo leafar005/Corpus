@@ -56,23 +56,26 @@ class _DesignScreenState extends State<DesignScreen> {
         final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
         final cs = Theme.of(context).colorScheme;
         final isDesktop = MediaQuery.sizeOf(context).width >= 800;
-        final horizontalPadding = isDesktop ? 40.0 : 20.0;
+        final headerPadding = isDesktop ? 40.0 : 20.0;
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
-            child: Center(
+            child: Align(
+              alignment: Alignment.topCenter,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 840),
+                constraints: BoxConstraints(
+                  maxWidth: isDesktop ? 840 : double.infinity,
+                ),
                 child: CustomScrollView(
                   slivers: [
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(
-                          horizontalPadding,
+                          headerPadding,
                           isDesktop ? 40 : 24,
-                          horizontalPadding,
-                          isDesktop ? 48 : 32,
+                          headerPadding,
+                          24,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,21 +96,22 @@ class _DesignScreenState extends State<DesignScreen> {
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(color: cs.onSurfaceVariant),
                             ),
-                            const SizedBox(height: 24),
-                            CorpusTabs(
-                              labels: _categories,
-                              selectedIndex: _categoryIndex,
-                              onChanged: (i) =>
-                                  setState(() => _categoryIndex = i),
-                              isScrollable: true,
-                              contentPadding: EdgeInsets.all(
-                                isDesktop ? 24 : 16,
-                              ),
-                              child: _sectionForIndex(_categoryIndex),
-                            ),
                           ],
                         ),
                       ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: CorpusTabs(
+                        labels: _categories,
+                        selectedIndex: _categoryIndex,
+                        onChanged: (i) => setState(() => _categoryIndex = i),
+                        isScrollable: true,
+                        contentPadding: EdgeInsets.all(isDesktop ? 24 : 16),
+                        child: _sectionForIndex(_categoryIndex),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: SizedBox(height: isDesktop ? 48 : 32),
                     ),
                   ],
                 ),

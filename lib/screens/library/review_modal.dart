@@ -113,8 +113,10 @@ class ReviewModal {
     DateTime? reviewPlayedFrom = hasReview ? r!.playedFrom : null;
     DateTime? reviewPlayedUntil = hasReview ? r!.playedUntil : null;
     int reviewProgressPercent = hasReview ? (r!.progressPercent ?? 0) : 0;
-    // Fecha de publicación de la reseña (editable solo al editar)
-    DateTime? reviewDate = hasReview ? r!.createdAt : null;
+    // Fecha de finalización: solo se envía a la BD si el usuario la elige en el picker.
+    // Si editamos una reseña existente, mostramos created_at pero no lo reenviamos al guardar.
+    DateTime? reviewDate;
+    final DateTime? initialReviewDate = hasReview ? r!.createdAt : null;
 
     // El controller de comentario vive dentro del modal (con texto inicial)
     final reviewCommentController = TextEditingController(
@@ -799,9 +801,13 @@ class ReviewModal {
                                       size: 16,
                                     ),
                                     label: Text(
-                                      reviewDate != null
-                                          ? '${reviewDate!.day} ${monthAbbr(reviewDate!.month)} ${reviewDate!.year}'
-                                          : 'Fecha',
+                                      () {
+                                        final displayDate =
+                                            reviewDate ?? initialReviewDate;
+                                        return displayDate != null
+                                            ? '${displayDate.day} ${monthAbbr(displayDate.month)} ${displayDate.year}'
+                                            : 'Fecha';
+                                      }(),
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                     style: TextButton.styleFrom(
@@ -817,7 +823,9 @@ class ReviewModal {
                                       final d = await showDatePicker(
                                         context: modalContext,
                                         initialDate:
-                                            reviewDate ?? DateTime.now(),
+                                            reviewDate ??
+                                            initialReviewDate ??
+                                            DateTime.now(),
                                         firstDate: DateTime(1970),
                                         lastDate: DateTime.now().add(
                                           const Duration(days: 1),
