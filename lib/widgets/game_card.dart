@@ -201,12 +201,12 @@ class _GameCardState extends State<GameCard> {
                             left: 6,
                             child: Builder(
                               builder: (context) {
-                                final int? resolved =
-                                    IgdbConstants.resolveCategory(
-                                      widget.game.category,
-                                      title,
-                                      hasParentGame:
-                                          widget.game.parentGameId != null,
+                                  final int? resolved =
+                                      IgdbConstants.resolveCategory(
+                                        widget.game.resolvedCategory,
+                                        title,
+                                        hasParentGame:
+                                            widget.game.parentGameId != null,
                                       summary: widget.game.summary,
                                     );
 

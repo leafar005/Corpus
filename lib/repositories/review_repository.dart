@@ -236,10 +236,10 @@ class ReviewRepository {
               'genres': gameData['genres'] ?? enrichedData['genres'],
               'category': () {
                 final dynamic rawCat =
-                    gameData['category'] ??
                     gameData['game_type'] ??
-                    enrichedData['category'] ??
-                    enrichedData['game_type'];
+                    gameData['category'] ??
+                    enrichedData['game_type'] ??
+                    enrichedData['category'];
                 final int? catId = (rawCat is num)
                     ? rawCat.toInt()
                     : int.tryParse(rawCat?.toString() ?? '');

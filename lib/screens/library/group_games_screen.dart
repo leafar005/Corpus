@@ -9,6 +9,7 @@ class GroupGamesScreen extends StatefulWidget {
   final int collectionId;
   final bool isFranchise;
   final bool isCompany;
+  final bool isPublisher;
 
   const GroupGamesScreen({
     super.key,
@@ -16,6 +17,7 @@ class GroupGamesScreen extends StatefulWidget {
     required this.collectionId,
     this.isFranchise = false,
     this.isCompany = false,
+    this.isPublisher = false,
   });
 
   @override
@@ -38,6 +40,7 @@ class _GroupGamesScreenState extends State<GroupGamesScreen> {
       final games = widget.isCompany
           ? await IGDBService.getAchievementGames(
               companyId: widget.collectionId,
+              asPublisher: widget.isPublisher,
               limit: 100,
             )
           : await IGDBService.getGamesByCollection(

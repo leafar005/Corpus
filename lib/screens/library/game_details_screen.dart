@@ -1040,10 +1040,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     // Resolver categoría usando IgdbConstants (centralizado)
     // Fix #3: Lectura segura del tipo numérico (puede llegar como int, double o num desde JSON/Supabase)
     final dynamic rawCat =
-        widget.gameData['category'] ??
         widget.gameData['game_type'] ??
-        _enrichedData['category'] ??
-        _enrichedData['game_type'];
+        widget.gameData['category'] ??
+        _enrichedData['game_type'] ??
+        _enrichedData['category'];
     final int? categoryId = (rawCat is num)
         ? rawCat.toInt()
         : int.tryParse(rawCat?.toString() ?? '');
@@ -1293,6 +1293,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 friendsWithGame: _friendsWithGame,
                 isGuest: _isGuest,
                 enrichedData: _enrichedData,
+                resolvedCategory: resolvedCategory,
+                categoryLabel: categoryLabel,
+                originalGame: originalGame,
+                onNavigateToGame: (game) => _navigateToOriginalGame(game.id, game.name),
                 onShowReviewModal: () => _showReviewModal(),
                 onEditReview: (review) => _showReviewModal(existingReview: review),
                 onDeleteReview: _deleteReview,
