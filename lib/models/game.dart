@@ -26,6 +26,7 @@ class Game {
     this.franchises = const [],
     this.collection,
     this.category,
+    this.gameType,
     this.parentGameId,
     this.isSteamOnly = false,
     this.metacriticScore,
@@ -49,6 +50,7 @@ class Game {
   final List<String> franchises;
   final String? collection;
   final int? category;
+  final int? gameType;
   final int? parentGameId;
   final bool isSteamOnly;
 
@@ -65,6 +67,9 @@ class Game {
     if (metacriticUpdatedAt == null) return false;
     return DateTime.now().difference(metacriticUpdatedAt!).inDays < 30;
   }
+
+  /// Resuelve la categoría final, priorizando gameType sobre el category obsoleto.
+  int? get resolvedCategory => gameType ?? category;
 
   /// Construye un [Game] desde una fila de Supabase.
   factory Game.fromMap(Map<String, dynamic> map) {
@@ -91,6 +96,7 @@ class Game {
       franchises: _parseStringList(map['franchises']),
       collection: _parseCollectionName(map['collection']),
       category: (map['category'] as num?)?.toInt(),
+      gameType: (map['game_type'] as num?)?.toInt(),
       parentGameId: (map['parent_game'] as num?)?.toInt(),
       isSteamOnly: map['is_steam_only'] == true,
       metacriticScore: (map['metacritic_score'] as num?)?.toInt(),
@@ -118,6 +124,7 @@ class Game {
     if (franchises.isNotEmpty) 'franchises': franchises,
     if (collection != null) 'collection': collection,
     if (category != null) 'category': category,
+    if (gameType != null) 'game_type': gameType,
     if (parentGameId != null) 'parent_game': parentGameId,
     if (isSteamOnly) 'is_steam_only': true,
     if (metacriticScore != null) 'metacritic_score': metacriticScore,

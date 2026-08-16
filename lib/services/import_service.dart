@@ -450,7 +450,7 @@ class ImportService {
           'platforms': getNames(gameData['platforms']),
           'developer': developer,
           'summary': gameData['summary'],
-          'category': gameData['category'] ?? gameData['game_type'] ?? 0,
+          'category': gameData['game_type'] ?? gameData['category'] ?? 0,
           'collection': gameData['collection'] != null
               ? {
                   'name':
