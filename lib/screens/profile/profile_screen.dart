@@ -21,6 +21,7 @@ import '../../theme/corpus_theme_extension.dart';
 import '../../utils/format_utils.dart';
 
 import 'profile_controller.dart';
+import '../../widgets/genre_radar_section.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -1026,6 +1027,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _buildRatingsHistogram(),
               ),
+              const SizedBox(height: 32),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: GenreRadarSection(userId: userId),
+              ),
             ],
             SizedBox(height: getBottomSpacer(context)),
           ],
@@ -1070,11 +1076,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
     return const SizedBox.shrink();
+    return const SizedBox.shrink();
   }
 
   Widget _buildSidebarInfo({bool isMobile = false}) {
     final bio = _userProfile?['bio'];
     final platforms = List<String>.from(_userProfile?['platforms'] ?? []);
+    final resolvedUserId =
+        _userProfile?['id'] as String? ??
+        widget.userId ??
+        Supabase.instance.client.auth.currentUser?.id;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1108,6 +1119,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 24),
         ],
+        if (!isMobile && resolvedUserId != null)
+          GenreRadarSection(userId: resolvedUserId),
       ],
     );
   }
