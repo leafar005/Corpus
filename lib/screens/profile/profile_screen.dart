@@ -1697,7 +1697,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color = const Color(0xFF3DDC84);
         break;
       case 'vr':
-        icon = Icons.view_in_ar;
+        imagePath = 'assets/images/vr.png';
         color = Theme.of(context).colorScheme.onSurfaceVariant;
         break;
       case 'firetv':

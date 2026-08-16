@@ -653,7 +653,13 @@ class GameInfoTab extends StatelessWidget {
                         height: 20,
                         fit: BoxFit.contain,
                       )
-                    : null,
+                    : (style['materialIcon'] != null
+                        ? Icon(
+                            style['materialIcon'],
+                            size: 20,
+                            color: style['textColor'],
+                          )
+                        : null),
                 label: Text(
                   p.toString(),
                   style: TextStyle(

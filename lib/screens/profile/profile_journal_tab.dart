@@ -574,19 +574,26 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                 width: 140,
                 child: Row(
                   children: [
-                    if (platform != null &&
-                        IgdbConstants.getPlatformStyle(platform)['icon'] !=
-                            null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6.0),
-                        child: Image.asset(
-                          IgdbConstants.getPlatformStyle(platform)['icon']
-                              as String,
-                          width: 16,
-                          height: 16,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    if (platform != null)
+                      if (IgdbConstants.getPlatformStyle(platform)['icon'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6.0),
+                          child: Image.asset(
+                            IgdbConstants.getPlatformStyle(platform)['icon'] as String,
+                            width: 16,
+                            height: 16,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        )
+                      else if (IgdbConstants.getPlatformStyle(platform)['materialIcon'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6.0),
+                          child: Icon(
+                            IgdbConstants.getPlatformStyle(platform)['materialIcon'] as IconData,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
                     Expanded(
                       child: Text(
                         _platformLabel(platform),
