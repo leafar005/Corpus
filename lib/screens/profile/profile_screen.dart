@@ -1668,8 +1668,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         imagePath = 'assets/images/switch.png';
         color = Colors.red;
         break;
+      case 'switch2':
+        imagePath = 'assets/images/switch2.png';
+        color = Colors.red;
+        break;
       case 'wii':
         imagePath = 'assets/images/wii.png';
+        color = Theme.of(context).colorScheme.onSurfaceVariant;
+        break;
+      case 'wiiu':
+        imagePath = 'assets/images/wiiu.png';
+        color = const Color(0xFF009AC7);
+        break;
+      case '3ds':
+        imagePath = 'assets/images/3ds.png';
+        color = const Color(0xFFCE181E);
+        break;
+      case 'ds':
+        imagePath = 'assets/images/ds.png';
         color = Theme.of(context).colorScheme.onSurfaceVariant;
         break;
       case 'mac':
@@ -1679,6 +1695,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case 'android':
         imagePath = 'assets/images/android.png';
         color = const Color(0xFF3DDC84);
+        break;
+      case 'vr':
+        icon = Icons.view_in_ar;
+        color = Theme.of(context).colorScheme.onSurfaceVariant;
+        break;
+      case 'firetv':
+        icon = Icons.tv;
+        color = Theme.of(context).colorScheme.onSurfaceVariant;
         break;
       case 'nintendo':
         imagePath = 'assets/images/switch.png';
