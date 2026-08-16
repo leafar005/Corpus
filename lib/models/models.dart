@@ -10,3 +10,4 @@ export 'review.dart';
 export 'user_profile.dart';
 export 'user_game.dart';
 export 'achievement.dart';
+export 'game_filters.dart';
