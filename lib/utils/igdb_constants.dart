@@ -126,8 +126,6 @@ class IgdbConstants {
       return 5;
     }
 
-    // Si tiene parent_game pero no matcheó ningún keyword, y no hay categoría explícita de IGDB, asumimos DLC.
-    if (hasParentGame && (igdbCategory == null || igdbCategory == 0)) return 1;
 
     // Es un juego base normal → devolver null (no mostrar badge).
     return null;
@@ -234,11 +232,31 @@ class IgdbConstants {
     {"id": 6, "name": "PC (Windows)"},
     {"id": 14, "name": "Mac"},
     {"id": 3, "name": "Linux"},
-    {"id": 48, "name": "PlayStation 4"},
     {"id": 167, "name": "PlayStation 5"},
-    {"id": 49, "name": "Xbox One"},
+    {"id": 48, "name": "PlayStation 4"},
+    {"id": 9, "name": "PlayStation 3"},
+    {"id": 8, "name": "PlayStation 2"},
+    {"id": 7, "name": "PlayStation"},
+    {"id": 46, "name": "PlayStation Vita"},
+    {"id": 38, "name": "PlayStation Portable"},
     {"id": 169, "name": "Xbox Series X|S"},
+    {"id": 49, "name": "Xbox One"},
+    {"id": 12, "name": "Xbox 360"},
+    {"id": 11, "name": "Xbox"},
     {"id": 130, "name": "Nintendo Switch"},
+    {"id": 41, "name": "Wii U"},
+    {"id": 5, "name": "Wii"},
+    {"id": 21, "name": "Nintendo GameCube"},
+    {"id": 4, "name": "Nintendo 64"},
+    {"id": 19, "name": "Super Nintendo (SNES)"},
+    {"id": 18, "name": "Nintendo (NES)"},
+    {"id": 37, "name": "Nintendo 3DS"},
+    {"id": 20, "name": "Nintendo DS"},
+    {"id": 24, "name": "Game Boy Advance"},
+    {"id": 33, "name": "Game Boy"},
+    {"id": 23, "name": "Dreamcast"},
+    {"id": 32, "name": "Sega Saturn"},
+    {"id": 29, "name": "Sega Mega Drive / Genesis"},
     {"id": 34, "name": "Android"},
     {"id": 39, "name": "iOS"},
   ];

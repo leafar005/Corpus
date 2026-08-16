@@ -35,7 +35,9 @@ class _FilterOptionScreenState extends State<FilterOptionScreen> {
   // no se recalculan en cada build/tap.
   late final List<String> _labels;
   late final List<Color?> _brandColors;
-  late final List<Widget?> _avatars;
+  
+  // Lista aplanada que contiene Strings (Headers) o ints (índices de widget.items)
+  late final List<dynamic> _flatItems;
 
   @override
   void initState() {
@@ -54,21 +56,38 @@ class _FilterOptionScreenState extends State<FilterOptionScreen> {
       _brandColors = _labels
           .map((l) => IgdbConstants.getPlatformStyle(l)['color'] as Color?)
           .toList();
-      _avatars = _labels.map((label) {
-        final icon = IgdbConstants.getPlatformStyle(label)['icon'] as String?;
-        if (icon == null) return null;
-        return Image.asset(
-          icon,
-          height: 22,
-          width: 22,
-          fit: BoxFit.contain,
-          gaplessPlayback: true,
-          cacheWidth: 44,
-        );
-      }).toList();
+
+      final Map<String, List<int>> groups = {
+        'PlayStation': [],
+        'Xbox': [],
+        'Nintendo': [],
+        'Sega': [],
+        'PC & Mac': [],
+        'Móviles': [],
+        'Otros': [],
+      };
+      
+      for (var i = 0; i < _labels.length; i++) {
+        final label = _labels[i];
+        if (label.contains('PlayStation')) groups['PlayStation']!.add(i);
+        else if (label.contains('Xbox')) groups['Xbox']!.add(i);
+        else if (label.contains('Nintendo') || label.contains('Wii') || label.contains('Game Boy') || label.contains('DS')) groups['Nintendo']!.add(i);
+        else if (label.contains('Sega') || label.contains('Dreamcast')) groups['Sega']!.add(i);
+        else if (label.contains('PC') || label.contains('Mac') || label.contains('Linux')) groups['PC & Mac']!.add(i);
+        else if (label.contains('Android') || label.contains('iOS')) groups['Móviles']!.add(i);
+        else groups['Otros']!.add(i);
+      }
+
+      _flatItems = [];
+      for (final entry in groups.entries) {
+        if (entry.value.isNotEmpty) {
+          _flatItems.add(entry.key);
+          _flatItems.addAll(entry.value);
+        }
+      }
     } else {
       _brandColors = List.filled(widget.items.length, null);
-      _avatars = List.filled(widget.items.length, null);
+      _flatItems = List.generate(widget.items.length, (i) => i);
     }
   }
 
@@ -119,8 +138,48 @@ class _FilterOptionScreenState extends State<FilterOptionScreen> {
       // chips de la categoría de golpe, aunque no fueran visibles).
       body: ListView.builder(
         padding: EdgeInsets.only(bottom: getBottomSpacer(context)),
-        itemCount: widget.items.length,
-        itemBuilder: (context, index) {
+        itemCount: _flatItems.length,
+        itemBuilder: (context, idx) {
+          final dynamic flatItem = _flatItems[idx];
+          
+          if (flatItem is String) {
+            final iconPath = IgdbConstants.getPlatformStyle(flatItem)['icon'] as String?;
+            
+            return Padding(
+              padding: const EdgeInsets.only(left: 16, top: 20, bottom: 8),
+              child: Row(
+                children: [
+                  if (flatItem == 'PC & Mac') ...[
+                    Icon(
+                      Icons.computer,
+                      size: 18,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                  ] else if (iconPath != null) ...[
+                    Image.asset(
+                      iconPath,
+                      height: 18,
+                      width: 18,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    flatItem.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final int index = flatItem as int;
           final id = widget.items[index]['id'] as int;
           final isSelected = _selected.contains(id);
           final brandColor = _brandColors[index];
@@ -130,7 +189,6 @@ class _FilterOptionScreenState extends State<FilterOptionScreen> {
             onChanged: (_) => _toggle(id),
             controlAffinity: ListTileControlAffinity.trailing,
             activeColor: brandColor ?? scheme.primary,
-            secondary: _avatars[index],
             title: Text(
               _labels[index],
               style: TextStyle(
