@@ -32,7 +32,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   List<String> _selectedPlatforms = [];
   final List<String> _allPlatforms = [
     'pc',
-    'linux',
     'playstation',
     'xbox',
     'switch',
@@ -43,10 +42,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'ds',
     'mac',
     'android',
-    'vr',
-    'firetv',
   ];
   late List<Map<String, dynamic>?> _localHallOfFame;
+  final ScrollController _platformsScrollController = ScrollController();
 
   bool _isLoading = false;
 
@@ -97,6 +95,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
+    _platformsScrollController.dispose();
     _usernameController.dispose();
     _displayNameController.dispose();
     _bioController.dispose();
@@ -663,164 +662,160 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   ),
                                   const SizedBox(height: 12),
                                   SizedBox(
-                                    height: 60,
-                                    child: ReorderableListView(
-                                      scrollDirection: Axis.horizontal,
-                                      buildDefaultDragHandles: false,
-                                      onReorderItem: (oldIndex, newIndex) {
-                                        setState(() {
-                                          if (oldIndex < newIndex) {
-                                            newIndex -= 1;
-                                          }
-                                          final String item = _allPlatforms
-                                              .removeAt(oldIndex);
-                                          _allPlatforms.insert(newIndex, item);
+                                    height: 75,
+                                    child: Scrollbar(
+                                      controller: _platformsScrollController,
+                                      thumbVisibility: true,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(bottom: 15.0),
+                                        child: ReorderableListView(
+                                          scrollController: _platformsScrollController,
+                                          scrollDirection: Axis.horizontal,
+                                          buildDefaultDragHandles: false,
+                                          onReorderItem: (oldIndex, newIndex) {
+                                            setState(() {
+                                              if (oldIndex < newIndex) {
+                                                newIndex -= 1;
+                                              }
+                                              final String item = _allPlatforms
+                                                  .removeAt(oldIndex);
+                                              _allPlatforms.insert(newIndex, item);
 
-                                          // Reordenar también la lista de seleccionados basándose en este nuevo orden general
-                                          _selectedPlatforms.sort(
-                                            (a, b) => _allPlatforms
-                                                .indexOf(a)
-                                                .compareTo(
-                                                  _allPlatforms.indexOf(b),
-                                                ),
-                                          );
-                                        });
-                                      },
-                                      children: _allPlatforms.asMap().entries.map((entry) {
-                                        final int index = entry.key;
-                                        final String p = entry.value;
-                                        Widget child;
-                                        switch (p) {
-                                          case 'pc':
-                                            child = _buildPlatformBadge(
-                                              'pc',
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
-                                              icon: Icons.computer,
-                                            );
-                                            break;
-                                          case 'linux':
-                                            child = _buildPlatformBadge(
-                                              'linux',
-                                              Colors.orangeAccent.shade700,
-                                              imagePath:
-                                                  'assets/images/linux.png',
-                                            );
-                                            break;
-                                          case 'playstation':
-                                            child = _buildPlatformBadge(
-                                              'playstation',
-                                              Colors.blue,
-                                              imagePath:
-                                                  'assets/images/playstation.png',
-                                            );
-                                            break;
-                                          case 'xbox':
-                                            child = _buildPlatformBadge(
-                                              'xbox',
-                                              Colors.green,
-                                              imagePath:
-                                                  'assets/images/xbox.png',
-                                            );
-                                            break;
-                                          case 'switch':
-                                            child = _buildPlatformBadge(
-                                              'switch',
-                                              Colors.red,
-                                              imagePath:
-                                                  'assets/images/switch.png',
-                                            );
-                                            break;
-                                          case 'switch2':
-                                            child = _buildPlatformBadge(
-                                              'switch2',
-                                              Colors.red,
-                                              imagePath:
-                                                  'assets/images/switch2.png',
-                                            );
-                                            break;
-                                          case 'wii':
-                                            child = _buildPlatformBadge(
-                                              'wii',
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
-                                              imagePath:
-                                                  'assets/images/wii.png',
-                                            );
-                                            break;
-                                          case 'wiiu':
-                                            child = _buildPlatformBadge(
-                                              'wiiu',
-                                              const Color(0xFF009AC7),
-                                              imagePath:
-                                                  'assets/images/wiiu.png',
-                                            );
-                                            break;
-                                          case '3ds':
-                                            child = _buildPlatformBadge(
-                                              '3ds',
-                                              const Color(0xFFCE181E),
-                                              imagePath:
-                                                  'assets/images/3ds.png',
-                                            );
-                                            break;
-                                          case 'ds':
-                                            child = _buildPlatformBadge(
-                                              'ds',
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
-                                              imagePath:
-                                                  'assets/images/ds.png',
-                                            );
-                                            break;
-                                          case 'mac':
-                                            child = _buildPlatformBadge(
-                                              'mac',
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
-                                              imagePath:
-                                                  'assets/images/mac.png',
-                                            );
-                                            break;
-                                          case 'android':
-                                            child = _buildPlatformBadge(
-                                              'android',
-                                              const Color(0xFF3DDC84),
-                                              imagePath:
-                                                  'assets/images/android.png',
-                                            );
-                                            break;
-                                          case 'vr':
-                                            child = _buildPlatformBadge(
-                                              'vr',
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
-                                              icon: Icons.view_in_ar,
-                                            );
-                                            break;
-                                          case 'firetv':
-                                            child = _buildPlatformBadge(
-                                              'firetv',
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSurfaceVariant,
-                                              icon: Icons.tv,
-                                            );
-                                            break;
-                                          default:
-                                            child = Container();
-                                        }
-                                        return ReorderableDelayedDragStartListener(
-                                          key: ValueKey(p),
-                                          index: index,
-                                          child: child,
-                                        );
-                                      }).toList(),
+                                              // Reordenar también la lista de seleccionados basándose en este nuevo orden general
+                                              _selectedPlatforms.sort(
+                                                (a, b) => _allPlatforms
+                                                    .indexOf(a)
+                                                    .compareTo(
+                                                      _allPlatforms.indexOf(b),
+                                                    ),
+                                              );
+                                            });
+                                          },
+                                          children: _allPlatforms.asMap().entries.map((entry) {
+                                            final int index = entry.key;
+                                            final String p = entry.value;
+                                            Widget child;
+                                            switch (p) {
+                                              case 'pc':
+                                                child = _buildPlatformBadge(
+                                                  'pc',
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurfaceVariant,
+                                                  icon: Icons.computer,
+                                                );
+                                                break;
+                                              case 'playstation':
+                                                child = _buildPlatformBadge(
+                                                  'playstation',
+                                                  Colors.blue,
+                                                  imagePath:
+                                                      'assets/images/playstation.png',
+                                                );
+                                                break;
+                                              case 'xbox':
+                                                child = _buildPlatformBadge(
+                                                  'xbox',
+                                                  Colors.green,
+                                                  imagePath:
+                                                      'assets/images/xbox.png',
+                                                );
+                                                break;
+                                              case 'switch':
+                                                child = _buildPlatformBadge(
+                                                  'switch',
+                                                  Colors.red,
+                                                  imagePath:
+                                                      'assets/images/switch.png',
+                                                );
+                                                break;
+                                              case 'switch2':
+                                                child = _buildPlatformBadge(
+                                                  'switch2',
+                                                  Colors.red,
+                                                  imagePath:
+                                                      'assets/images/switch2.png',
+                                                );
+                                                break;
+                                              case 'wii':
+                                                child = _buildPlatformBadge(
+                                                  'wii',
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurfaceVariant,
+                                                  imagePath:
+                                                      'assets/images/wii.png',
+                                                );
+                                                break;
+                                              case 'wiiu':
+                                                child = _buildPlatformBadge(
+                                                  'wiiu',
+                                                  const Color(0xFF009AC7),
+                                                  imagePath:
+                                                      'assets/images/wiiu.png',
+                                                );
+                                                break;
+                                              case '3ds':
+                                                child = _buildPlatformBadge(
+                                                  '3ds',
+                                                  const Color(0xFFCE181E),
+                                                  imagePath:
+                                                      'assets/images/3ds.png',
+                                                );
+                                                break;
+                                              case 'ds':
+                                                child = _buildPlatformBadge(
+                                                  'ds',
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurfaceVariant,
+                                                  imagePath:
+                                                      'assets/images/ds.png',
+                                                );
+                                                break;
+                                              case 'mac':
+                                                child = _buildPlatformBadge(
+                                                  'mac',
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurfaceVariant,
+                                                  imagePath:
+                                                      'assets/images/mac.png',
+                                                );
+                                                break;
+                                              case 'android':
+                                                child = _buildPlatformBadge(
+                                                  'android',
+                                                  const Color(0xFF3DDC84),
+                                                  imagePath:
+                                                      'assets/images/android.png',
+                                                );
+                                                break;
+                                              default:
+                                                child = Container();
+                                            }
+                                            
+                                            final isDesktop = kIsWeb || 
+                                                defaultTargetPlatform == TargetPlatform.macOS || 
+                                                defaultTargetPlatform == TargetPlatform.windows || 
+                                                defaultTargetPlatform == TargetPlatform.linux;
+                                            
+                                            if (isDesktop) {
+                                              return ReorderableDragStartListener(
+                                                key: ValueKey(p),
+                                                index: index,
+                                                child: child,
+                                              );
+                                            } else {
+                                              return ReorderableDelayedDragStartListener(
+                                                key: ValueKey(p),
+                                                index: index,
+                                                child: child,
+                                              );
+                                            }
+                                          }).toList(),
+                                        ),
+                                      ),
                                     ),
                                   ),
 

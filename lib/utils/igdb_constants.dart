@@ -422,6 +422,21 @@ class IgdbConstants {
         'textColor': Colors.white,
       };
     }
+    if (lower.contains('vr') || lower.contains('oculus') || lower.contains('cardboard')) {
+      return {
+        'color': Colors.grey.shade300,
+        'icon': 'assets/images/vr.png',
+        'textColor': Colors.black87,
+      };
+    }
+    if (lower.contains('fire tv') || lower.contains('amazon')) {
+      return {
+        'color': Colors.orange,
+        'icon': null,
+        'materialIcon': Icons.tv,
+        'textColor': Colors.black87,
+      };
+    }
     return {
       'color': Colors.blueGrey.withValues(alpha: 0.3),
       'icon': null,
