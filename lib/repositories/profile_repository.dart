@@ -14,6 +14,7 @@ class ProfileData {
     required this.platinumCount,
     required this.ratings,
     required this.hallOfFame,
+    required this.friendsCount,
   });
 
   final Map<String, dynamic>? userProfile;
@@ -31,6 +32,8 @@ class ProfileData {
   
   final List<Map<String, dynamic>?> hallOfFame;
 
+  final int friendsCount;
+
   ProfileData copyWith({
     Map<String, dynamic>? userProfile,
     List<Map<String, dynamic>>? wishlistGames,
@@ -43,6 +46,7 @@ class ProfileData {
     int? platinumCount,
     List<double>? ratings,
     List<Map<String, dynamic>?>? hallOfFame,
+    int? friendsCount,
   }) {
     return ProfileData(
       userProfile: userProfile ?? this.userProfile,
@@ -56,6 +60,7 @@ class ProfileData {
       platinumCount: platinumCount ?? this.platinumCount,
       ratings: ratings ?? this.ratings,
       hallOfFame: hallOfFame ?? this.hallOfFame,
+      friendsCount: friendsCount ?? this.friendsCount,
     );
   }
 }
@@ -184,6 +189,11 @@ class ProfileRepository {
           .from('reviews')
           .select('rating')
           .eq('user_id', userId),
+      _client
+          .from('friendships')
+          .select('requester_id')
+          .eq('status', 'accepted')
+          .or('requester_id.eq.$userId,addressee_id.eq.$userId'),
     ]);
 
     final wishlistRes = results[0] as List<dynamic>;
@@ -196,6 +206,7 @@ class ProfileRepository {
     final platinumCountRes = results[7] as List<dynamic>;
     final rawHallOfFame = results[8] as List<dynamic>;
     final ratingsRes = results[9] as List<dynamic>;
+    final friendshipsRes = results[10] as List<dynamic>;
 
     return ProfileData(
       userProfile: userProfile,
@@ -211,6 +222,7 @@ class ProfileRepository {
           .map((e) => (e['rating'] as num?)?.toDouble() ?? 0.0)
           .toList(),
       hallOfFame: _parseHallOfFame(rawHallOfFame),
+      friendsCount: friendshipsRes.length,
     );
   }
 

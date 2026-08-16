@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
@@ -11,6 +10,7 @@ import '../../utils/level_calculator.dart';
 import '../../widgets/game_card.dart';
 import '../../models/models.dart';
 import '../social/friends_screen.dart';
+import '../social/user_friends_screen.dart';
 import 'profile_achievements_tab.dart';
 import 'profile_journal_tab.dart';
 import 'profile_reviews_tab.dart';
@@ -330,16 +330,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               right: 4,
               child: Row(
                 children: [
-                  _FriendsBadgeButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const FriendsScreen(),
-                        ),
-                      );
-                    },
-                  ),
                   IconButton(
                     icon: const Icon(
                       Icons.settings,
@@ -418,15 +408,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: nameFontSize,
-                    fontWeight: FontWeight.bold,
-                    height: 1.1,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: nameFontSize,
+                          fontWeight: FontWeight.bold,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                    if (_userProfile != null)
+                      _buildFriendsCountLink(isDesktop: false, compact: true, onImage: false),
+                  ],
                 ),
                 const SizedBox(height: nameHandleGap),
                 Row(
@@ -666,16 +665,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               right: 4,
               child: Row(
                 children: [
-                  _FriendsBadgeButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const FriendsScreen(),
-                        ),
-                      );
-                    },
-                  ),
                   IconButton(
                     icon: const Icon(
                       Icons.settings,
@@ -742,28 +731,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(-1, -1),
-                                color: Colors.black,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                displayName,
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      offset: Offset(-1, -1),
+                                      color: Colors.black,
+                                    ),
+                                    Shadow(
+                                      offset: Offset(1, -1),
+                                      color: Colors.black,
+                                    ),
+                                    Shadow(offset: Offset(1, 1), color: Colors.black),
+                                    Shadow(
+                                      offset: Offset(-1, 1),
+                                      color: Colors.black,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              Shadow(
-                                offset: Offset(1, -1),
-                                color: Colors.black,
-                              ),
-                              Shadow(offset: Offset(1, 1), color: Colors.black),
-                              Shadow(
-                                offset: Offset(-1, 1),
-                                color: Colors.black,
-                              ),
-                            ],
-                          ),
+                            ),
+                            if (_userProfile != null)
+                              _buildFriendsCountLink(isDesktop: true, onImage: true),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Row(
@@ -821,28 +820,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(-1, -1),
-                                color: Colors.black,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                displayName,
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      offset: Offset(-1, -1),
+                                      color: Colors.black,
+                                    ),
+                                    Shadow(
+                                      offset: Offset(1, -1),
+                                      color: Colors.black,
+                                    ),
+                                    Shadow(offset: Offset(1, 1), color: Colors.black),
+                                    Shadow(
+                                      offset: Offset(-1, 1),
+                                      color: Colors.black,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              Shadow(
-                                offset: Offset(1, -1),
-                                color: Colors.black,
-                              ),
-                              Shadow(offset: Offset(1, 1), color: Colors.black),
-                              Shadow(
-                                offset: Offset(-1, 1),
-                                color: Colors.black,
-                              ),
-                            ],
-                          ),
+                            ),
+                            if (_userProfile != null)
+                              _buildFriendsCountLink(isDesktop: false, onImage: true),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Row(
@@ -1195,6 +1204,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+
+  Widget _buildFriendsCountLink({
+    required bool isDesktop,
+    bool compact = false,
+    bool onImage = true,
+  }) {
+    final count = _controller.friendsCount;
+    final fontSize = compact ? 13.0 : (isDesktop ? 18.0 : 16.0);
+    
+    final color = onImage 
+        ? Colors.white 
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+        
+    final shadows = onImage ? const [
+        Shadow(offset: Offset(-1, -1), color: Colors.black),
+        Shadow(offset: Offset(1, -1), color: Colors.black),
+        Shadow(offset: Offset(1, 1), color: Colors.black),
+        Shadow(offset: Offset(-1, 1), color: Colors.black),
+      ] : <Shadow>[];
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (_isOwnProfile) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const FriendsScreen()),
+            ).then((_) => _controller.fetchProfileData());
+          } else {
+            final userId = _userProfile!['id'] as String;
+            final username = _userProfile!['username'] as String? ?? 'Usuario';
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => UserFriendsScreen(userId: userId, username: username)),
+            ).then((_) => _controller.fetchProfileData());
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(Icons.group_rounded, size: fontSize + 2, color: color, shadows: shadows),
+              const SizedBox(width: 4),
+              Text(
+                '$count ${count == 1 ? 'amigo' : 'amigos'}',
+                style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  shadows: shadows,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1661,59 +1732,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-/// Botón de amigos con badge que muestra las solicitudes pendientes.
-class _FriendsBadgeButton extends StatefulWidget {
-  final VoidCallback onPressed;
-  const _FriendsBadgeButton({required this.onPressed});
-
-  @override
-  State<_FriendsBadgeButton> createState() => _FriendsBadgeButtonState();
-}
-
-class _FriendsBadgeButtonState extends State<_FriendsBadgeButton> {
-  int _pendingCount = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPendingCount();
-  }
-
-  Future<void> _loadPendingCount() async {
-    try {
-      final myId = Supabase.instance.client.auth.currentUser?.id;
-      if (myId == null) return;
-      final data = await Supabase.instance.client
-          .from('friendships')
-          .select('requester_id')
-          .eq('addressee_id', myId)
-          .eq('status', 'pending');
-      if (mounted) {
-        setState(() => _pendingCount = (data as List).length);
-      }
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Badge(
-      isLabelVisible: _pendingCount > 0,
-      label: Text(_pendingCount.toString()),
-      child: IconButton(
-        icon: const Icon(
-          Icons.people_rounded,
-          color: Colors.white,
-          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-        ),
-        tooltip: 'Amigos',
-        onPressed: () {
-          widget.onPressed();
-          _loadPendingCount();
-        },
-      ),
-    );
-  }
-}
+// Boton eliminado para un conteo centralizado
 
 class _MobileProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
   // Tabs: padding 12*2 + text 15 + borde 3 ≈ 42 → reservamos 48
