@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../profile/profile_screen.dart';
+import '../../widgets/friendship_button.dart';
 
 class UserFriendsScreen extends StatefulWidget {
   final String userId;
@@ -136,12 +137,8 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
                         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                         side: BorderSide.none,
                       );
-                    } else if (isMutual) {
-                      trailing = Chip(
-                        label: const Text('Amigos en común', style: TextStyle(fontSize: 12)),
-                        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                        side: BorderSide.none,
-                      );
+                    } else if (friendId != null) {
+                      trailing = FriendshipButton(targetUserId: friendId, isIconOnly: true);
                     }
 
                     return ListTile(

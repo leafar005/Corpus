@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/corpus_network_image.dart';
+import '../../widgets/friendship_button.dart';
 import '../library/game_details_screen.dart';
 import '../settings_screen.dart';
 import 'achievements_screen.dart';
@@ -684,6 +685,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     },
                   ),
                 ],
+              ),
+            ),
+          if (!isMe)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + (isDesktop ? 10.0 : 4.0),
+              right: 16,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: FriendshipButton(targetUserId: _userProfile!['id'] as String),
               ),
             ),
 

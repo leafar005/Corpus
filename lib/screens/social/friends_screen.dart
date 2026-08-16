@@ -26,7 +26,8 @@ class _FriendsScreenState extends State<FriendsScreen>
   String? _searchError;
 
   // Estado de la pestaña "Solicitudes"
-  List<Map<String, dynamic>> _pendingRequests = [];
+  List<Map<String, dynamic>> _receivedRequests = [];
+  List<Map<String, dynamic>> _sentRequests = [];
   bool _isLoadingRequests = true;
 
   // Estado de la pestaña "Mis Amigos"
@@ -68,16 +69,26 @@ class _FriendsScreenState extends State<FriendsScreen>
     }
     setState(() => _isLoadingRequests = true);
     try {
-      final data = await _supabase
+      final receivedData = await _supabase
           .from('friendships')
           .select(
             '*, requester:requester_id(id, username, avatar_url, display_name)',
           )
           .eq('addressee_id', _myId)
           .eq('status', 'pending');
+          
+      final sentData = await _supabase
+          .from('friendships')
+          .select(
+            '*, addressee:addressee_id(id, username, avatar_url, display_name)',
+          )
+          .eq('requester_id', _myId)
+          .eq('status', 'pending');
+
       if (mounted) {
         setState(() {
-          _pendingRequests = List<Map<String, dynamic>>.from(data);
+          _receivedRequests = List<Map<String, dynamic>>.from(receivedData);
+          _sentRequests = List<Map<String, dynamic>>.from(sentData);
           _isLoadingRequests = false;
         });
       }
@@ -419,7 +430,7 @@ class _FriendsScreenState extends State<FriendsScreen>
     if (_isLoadingRequests) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_pendingRequests.isEmpty) {
+    if (_receivedRequests.isEmpty && _sentRequests.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -442,52 +453,122 @@ class _FriendsScreenState extends State<FriendsScreen>
     }
     return RefreshIndicator(
       onRefresh: _loadRequests,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _pendingRequests.length,
-        separatorBuilder: (_, i) => const Divider(height: 1),
-        itemBuilder: (ctx, i) {
-          final req = _pendingRequests[i];
-          final requester = req['requester'] as Map<String, dynamic>? ?? {};
-          final requesterId = requester['id'] as String? ?? '';
-          final displayName =
-              requester['display_name'] as String? ??
-              requester['username'] as String? ??
-              'Usuario';
-          return ListTile(
-            leading: _buildUserAvatar(requester['avatar_url'] as String?),
-            title: Text(
-              displayName,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text('@${requester['username'] ?? ''}'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.check_circle_rounded,
-                    color: Colors.green,
-                    size: 30,
-                  ),
-                  tooltip: 'Aceptar',
-                  onPressed: () => _acceptRequest(requesterId),
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          if (_receivedRequests.isNotEmpty) ...[
+            const CorpusSectionTitle('Recibidas'),
+            ..._receivedRequests.map((req) {
+              final requester = req['requester'] as Map<String, dynamic>? ?? {};
+              final requesterId = requester['id'] as String? ?? '';
+              final displayName =
+                  requester['display_name'] as String? ??
+                  requester['username'] as String? ??
+                  'Usuario';
+              return ListTile(
+                leading: _buildUserAvatar(requester['avatar_url'] as String?),
+                title: Text(
+                  displayName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.cancel_rounded,
-                    color: Colors.red,
-                    size: 30,
-                  ),
-                  tooltip: 'Rechazar',
-                  onPressed: () => _rejectRequest(requesterId),
+                subtitle: Text('@${requester['username'] ?? ''}'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProfileScreen(userId: requesterId),
+                    ),
+                  );
+                },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.check_circle_rounded,
+                        color: Colors.green,
+                        size: 30,
+                      ),
+                      tooltip: 'Aceptar',
+                      onPressed: () => _acceptRequest(requesterId),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.cancel_rounded,
+                        color: Colors.red,
+                        size: 30,
+                      ),
+                      tooltip: 'Rechazar',
+                      onPressed: () => _rejectRequest(requesterId),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
+              );
+            }),
+            if (_sentRequests.isNotEmpty) const Divider(height: 32),
+          ],
+          if (_sentRequests.isNotEmpty) ...[
+            const CorpusSectionTitle('Enviadas'),
+            ..._sentRequests.map((req) {
+              final addressee = req['addressee'] as Map<String, dynamic>? ?? {};
+              final addresseeId = addressee['id'] as String? ?? '';
+              final displayName =
+                  addressee['display_name'] as String? ??
+                  addressee['username'] as String? ??
+                  'Usuario';
+              return ListTile(
+                leading: _buildUserAvatar(addressee['avatar_url'] as String?),
+                title: Text(
+                  displayName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('@${addressee['username'] ?? ''}'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProfileScreen(userId: addresseeId),
+                    ),
+                  );
+                },
+                trailing: TextButton.icon(
+                  onPressed: () => _cancelSentRequest(addresseeId),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  label: const Text('Cancelar'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              );
+            }),
+          ],
+        ],
       ),
     );
+  }
+
+  Future<void> _cancelSentRequest(String addresseeId) async {
+    try {
+      await _supabase.from('friendships').delete().match({
+        'requester_id': _myId,
+        'addressee_id': addresseeId,
+      });
+      if (mounted) {
+        setState(() {
+          _sentRequests.removeWhere((r) => r['addressee_id'] == addresseeId);
+          _sentOrAccepted.remove(addresseeId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitud cancelada')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cancelar la solicitud')),
+        );
+      }
+    }
   }
 
   Widget _buildFriendsTab() {
@@ -578,8 +659,8 @@ class _FriendsScreenState extends State<FriendsScreen>
             const Tab(icon: Icon(Icons.search), text: 'Buscar'),
             Tab(
               icon: Badge(
-                isLabelVisible: _pendingRequests.isNotEmpty,
-                label: Text(_pendingRequests.length.toString()),
+                isLabelVisible: _receivedRequests.isNotEmpty,
+                label: Text(_receivedRequests.length.toString()),
                 child: const Icon(Icons.notifications_rounded),
               ),
               text: 'Solicitudes',
