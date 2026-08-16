@@ -185,14 +185,14 @@ class ActivityRepository {
       _client
           .from('friendships')
           .select(
-            'friend:addressee_id(id, username, avatar_url, display_name, currently_playing_appid, currently_playing_name)',
+            'friend:addressee_id(id, username, avatar_url, display_name, currently_playing_appid, currently_playing_name, xp)',
           )
           .eq('requester_id', userId)
           .eq('status', 'accepted'),
       _client
           .from('friendships')
           .select(
-            'friend:requester_id(id, username, avatar_url, display_name, currently_playing_appid, currently_playing_name)',
+            'friend:requester_id(id, username, avatar_url, display_name, currently_playing_appid, currently_playing_name, xp)',
           )
           .eq('addressee_id', userId)
           .eq('status', 'accepted'),

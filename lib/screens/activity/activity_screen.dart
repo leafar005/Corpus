@@ -928,7 +928,16 @@ class _ActivityScreenState extends State<ActivityScreen>
                   if (aScore != bScore) {
                     return bScore.compareTo(aScore);
                   }
-                  // En caso de empate, ordenamos alfabéticamente por nombre
+
+                  // En caso de empate (ambos jugando o ambos offline), ordenamos por actividad (XP).
+                  // Así los usuarios más inactivos (pocos juegos) se van al final.
+                  final aXp = (a['xp'] as num?)?.toInt() ?? 0;
+                  final bXp = (b['xp'] as num?)?.toInt() ?? 0;
+                  if (aXp != bXp) {
+                    return bXp.compareTo(aXp); // Mayor XP primero
+                  }
+
+                  // En caso de empate de XP, ordenamos alfabéticamente por nombre
                   final aName =
                       (a['display_name'] as String? ??
                               a['username'] as String? ??

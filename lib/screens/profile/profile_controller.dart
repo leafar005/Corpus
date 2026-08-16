@@ -28,6 +28,7 @@ class ProfileController extends ChangeNotifier {
   int platinumCount = 0;
   List<double> ratings = [];
   List<Map<String, dynamic>?> hallOfFame = List.filled(5, null);
+  int friendsCount = 0;
 
   bool get isOwnProfile {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
@@ -94,6 +95,7 @@ class ProfileController extends ChangeNotifier {
       platinumCount = data.platinumCount;
       ratings = data.ratings;
       hallOfFame = data.hallOfFame;
+      friendsCount = data.friendsCount;
       hasError = false;
       errorMessage = null;
     } catch (e, st) {
