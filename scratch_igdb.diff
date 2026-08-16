@@ -1,0 +1,395 @@
+commit 24d49e3c1a0ca5b5a2eda2113f1bb3c3a7e3e021
+Author: Rafael Casado <rafael.casado@udc.es>
+Date:   Mon Aug 3 21:49:06 2026 +0200
+
+    fix(ui): improve metacritic badge position and scaling on game cards
+
+diff --git a/lib/utils/igdb_constants.dart b/lib/utils/igdb_constants.dart
+index 9de9ca5..d607ff2 100644
+--- a/lib/utils/igdb_constants.dart
++++ b/lib/utils/igdb_constants.dart
+@@ -127,7 +127,7 @@ class IgdbConstants {
+     }
+ 
+     // Si tiene parent_game pero no matcheó ningún keyword, y no hay categoría explícita de IGDB, asumimos DLC.
+-    if (hasParentGame && igdbCategory == null) return 1;
++    if (hasParentGame && (igdbCategory == null || igdbCategory == 0)) return 1;
+ 
+     // Es un juego base normal → devolver null (no mostrar badge).
+     return null;
+
+commit 9170c13691e9e2142106b43145f89e64d2df73c7
+Author: Rafael Casado <rafael.casado@udc.es>
+Date:   Mon Aug 3 17:01:58 2026 +0200
+
+    fix(igdb): fix TLOU Part II false remake detection and support legacy franchise field (closes #17)
+
+diff --git a/lib/utils/igdb_constants.dart b/lib/utils/igdb_constants.dart
+index 279cb41..9de9ca5 100644
+--- a/lib/utils/igdb_constants.dart
++++ b/lib/utils/igdb_constants.dart
+@@ -48,9 +48,12 @@ class IgdbConstants {
+     'kiwami',
+     'twin snakes',
+     'reloaded',
+-    'part i',
++    // 'part i' eliminado: se usa regex con word boundary para no afectar 'Part II', 'Part III', etc.
+   ];
+ 
++  /// Regex para detectar exactamente "Part I" (no "Part II", "Part III"...) mediante word boundary.
++  static final RegExp _partIRegex = RegExp(r'\bpart i\b', caseSensitive: false);
++
+   /// Keywords que indican que un juego es Remaster (category 9).
+   static const List<String> _remasterKeywords = [
+     'remaster',
+@@ -106,7 +109,10 @@ class IgdbConstants {
+     final lowerTitle = title.toLowerCase();
+     final lowerSummary = summary?.toLowerCase() ?? '';
+ 
+-    if (_remakeKeywords.any((k) => lowerTitle.contains(k))) return 8;
++    if (_remakeKeywords.any((k) => lowerTitle.contains(k)) ||
++        _partIRegex.hasMatch(title)) {
++      return 8;
++    }
+     if (_remasterKeywords.any((k) => lowerTitle.contains(k)) ||
+         _hdRegex.hasMatch(lowerTitle)) {
+       return 9;
+
+commit 956b5b4e9b276617ffc90d77b5c4b3e6c415061e
+Author: Rafael Casado <rafael.casado@udc.es>
+Date:   Thu Jul 30 12:56:22 2026 +0200
+
+    feat(api): integración con Steam para importar biblioteca, estado 'jugando' y Metacritic
+    
+    Closes #1
+
+diff --git a/lib/utils/igdb_constants.dart b/lib/utils/igdb_constants.dart
+index 2fb7264..279cb41 100644
+--- a/lib/utils/igdb_constants.dart
++++ b/lib/utils/igdb_constants.dart
+@@ -120,8 +120,8 @@ class IgdbConstants {
+       return 5;
+     }
+ 
+-    // Si tiene parent_game pero no matcheó ningún keyword, asumimos DLC.
+-    if (hasParentGame) return 1;
++    // Si tiene parent_game pero no matcheó ningún keyword, y no hay categoría explícita de IGDB, asumimos DLC.
++    if (hasParentGame && igdbCategory == null) return 1;
+ 
+     // Es un juego base normal → devolver null (no mostrar badge).
+     return null;
+
+commit 4c414b33026ede159e9068986d2dd77f980351b7
+Author: Rafael Casado <rafael.casado@udc.es>
+Date:   Tue Jul 28 18:13:14 2026 +0200
+
+    feat: actualización del README, solucionar problemas con la progresion, implementadas pantallas de seguimiento de trofeos, y refactorizacion de proyecto
+
+diff --git a/lib/utils/igdb_constants.dart b/lib/utils/igdb_constants.dart
+index a104a8d..2fb7264 100644
+--- a/lib/utils/igdb_constants.dart
++++ b/lib/utils/igdb_constants.dart
+@@ -13,45 +13,69 @@ class IgdbConstants {
+ 
+   /// Datos de cada categoría: nombre en español + color + keywords de detección
+   static const Map<int, Map<String, dynamic>> _categoryData = {
+-    0:  {'name': 'Juego Principal', 'colorValue': 0xFF2196F3}, // Colors.blue
+-    1:  {'name': 'DLC',             'colorValue': 0xFFE040FB}, // Colors.purpleAccent
+-    2:  {'name': 'Expansión',       'colorValue': 0xFFE040FB},
+-    3:  {'name': 'Bundle',          'colorValue': 0xFFFFAB40}, // Colors.orangeAccent
+-    4:  {'name': 'Exp. Standalone', 'colorValue': 0xFFE040FB},
+-    5:  {'name': 'Mod',             'colorValue': 0xFF9E9E9E},
+-    6:  {'name': 'Episodio',        'colorValue': 0xFF9E9E9E},
+-    7:  {'name': 'Temporada',       'colorValue': 0xFF9E9E9E},
+-    8:  {'name': 'Remake',          'colorValue': 0xFFCDDC39}, // Se sobreescribe con Theme.secondary en UI
+-    9:  {'name': 'Remaster',        'colorValue': 0xFF64FFDA}, // Colors.tealAccent
+-    10: {'name': 'Ed. Expandida', 'colorValue': 0xFFFF4081}, // Colors.pinkAccent
+-    11: {'name': 'Port',            'colorValue': 0xFFB2FF59}, // Colors.lightGreenAccent
+-    12: {'name': 'Fork',            'colorValue': 0xFF9E9E9E},
+-    13: {'name': 'Pack',            'colorValue': 0xFFFFAB40},
+-    14: {'name': 'Actualización',   'colorValue': 0xFF18FFFF}, // Colors.cyanAccent
++    0: {'name': 'Juego Principal', 'colorValue': 0xFF2196F3}, // Colors.blue
++    1: {'name': 'DLC', 'colorValue': 0xFFE040FB}, // Colors.purpleAccent
++    2: {'name': 'Expansión', 'colorValue': 0xFFE040FB},
++    3: {'name': 'Bundle', 'colorValue': 0xFFFFAB40}, // Colors.orangeAccent
++    4: {'name': 'Exp. Standalone', 'colorValue': 0xFFE040FB},
++    5: {'name': 'Mod', 'colorValue': 0xFF9E9E9E},
++    6: {'name': 'Episodio', 'colorValue': 0xFF9E9E9E},
++    7: {'name': 'Temporada', 'colorValue': 0xFF9E9E9E},
++    8: {
++      'name': 'Remake',
++      'colorValue': 0xFFCDDC39,
++    }, // Se sobreescribe con Theme.secondary en UI
++    9: {'name': 'Remaster', 'colorValue': 0xFF64FFDA}, // Colors.tealAccent
++    10: {
++      'name': 'Ed. Expandida',
++      'colorValue': 0xFFFF4081,
++    }, // Colors.pinkAccent
++    11: {'name': 'Port', 'colorValue': 0xFFB2FF59}, // Colors.lightGreenAccent
++    12: {'name': 'Fork', 'colorValue': 0xFF9E9E9E},
++    13: {'name': 'Pack', 'colorValue': 0xFFFFAB40},
++    14: {
++      'name': 'Actualización',
++      'colorValue': 0xFF18FFFF,
++    }, // Colors.cyanAccent
+   };
+ 
+   /// Keywords que indican que un juego es Remake (category 8)
+   /// aunque IGDB lo haya marcado como main_game (0).
+   static const List<String> _remakeKeywords = [
+-    'remake', 'resynced', 'reforged', 'kiwami', 'twin snakes', 'reloaded', 'part i',
++    'remake',
++    'resynced',
++    'reforged',
++    'kiwami',
++    'twin snakes',
++    'reloaded',
++    'part i',
+   ];
+ 
+   /// Keywords que indican que un juego es Remaster (category 9).
+   static const List<String> _remasterKeywords = [
+-    'remaster', 'definitive edition', "director's cut", 'redux', 'resurrected', 'anniversary edition',
++    'remaster',
++    'definitive edition',
++    "director's cut",
++    'redux',
++    'resurrected',
++    'anniversary edition',
+   ];
++
+   /// Regex adicional para detectar "HD" como palabra completa.
+   static final RegExp _hdRegex = RegExp(r'\bhd\b');
+ 
+   /// Keywords que indican DLC/addon (category 1).
+-  static const List<String> _dlcKeywords = [
+-    'dlc', 'expansion pass',
+-  ];
++  static const List<String> _dlcKeywords = ['dlc', 'expansion pass'];
+ 
+   /// Keywords que indican Edición Expandida (category 10).
+   static const List<String> _expandedKeywords = [
+-    'ultimate edition', 'game of the year', 'goty', 'royal', 'golden', 
+-    'complete edition', 'deluxe edition',
++    'ultimate edition',
++    'game of the year',
++    'goty',
++    'royal',
++    'golden',
++    'complete edition',
++    'deluxe edition',
+   ];
+ 
+   // ============================================================
+@@ -67,7 +91,12 @@ class IgdbConstants {
+   /// [summary] — sinopsis del juego (útil para detectar mods si IGDB falla).
+   ///
+   /// Devuelve el `int` de categoría resuelto, o null si es un juego base normal.
+-  static int? resolveCategory(int? igdbCategory, String title, {bool hasParentGame = false, String? summary}) {
++  static int? resolveCategory(
++    int? igdbCategory,
++    String title, {
++    bool hasParentGame = false,
++    String? summary,
++  }) {
+     // Si IGDB ya devolvió una categoría no-base, confiar en ella.
+     if (igdbCategory != null && igdbCategory != 0) {
+       return igdbCategory;
+@@ -78,12 +107,18 @@ class IgdbConstants {
+     final lowerSummary = summary?.toLowerCase() ?? '';
+ 
+     if (_remakeKeywords.any((k) => lowerTitle.contains(k))) return 8;
+-    if (_remasterKeywords.any((k) => lowerTitle.contains(k)) || _hdRegex.hasMatch(lowerTitle)) return 9;
++    if (_remasterKeywords.any((k) => lowerTitle.contains(k)) ||
++        _hdRegex.hasMatch(lowerTitle)) {
++      return 9;
++    }
+     if (_expandedKeywords.any((k) => lowerTitle.contains(k))) return 10;
+     if (_dlcKeywords.any((k) => lowerTitle.contains(k))) return 1;
+ 
+     // Si IGDB lo catalogó mal pero el título o resumen menciona que es un mod como palabra suelta
+-    if (RegExp(r'\bmod\b').hasMatch(lowerTitle) || RegExp(r'\bmod\b').hasMatch(lowerSummary)) return 5;
++    if (RegExp(r'\bmod\b').hasMatch(lowerTitle) ||
++        RegExp(r'\bmod\b').hasMatch(lowerSummary)) {
++      return 5;
++    }
+ 
+     // Si tiene parent_game pero no matcheó ningún keyword, asumimos DLC.
+     if (hasParentGame) return 1;
+@@ -111,8 +146,9 @@ class IgdbConstants {
+   }
+ 
+   /// Lista de categorías para filtros UI.
+-  static List<Map<String, dynamic>> get categories =>
+-      _categoryData.entries.map((e) => {'id': e.key, 'name': e.value['name']}).toList();
++  static List<Map<String, dynamic>> get categories => _categoryData.entries
++      .map((e) => {'id': e.key, 'name': e.value['name']})
++      .toList();
+ 
+   // ============================================================
+   // OTROS DATOS ESTÁTICOS DE IGDB (sin cambios)
+@@ -141,7 +177,7 @@ class IgdbConstants {
+     {"id": 33, "name": "Arcade"},
+     {"id": 34, "name": "Visual Novel"},
+     {"id": 35, "name": "Card & Board Game"},
+-    {"id": 36, "name": "MOBA"}
++    {"id": 36, "name": "MOBA"},
+   ];
+ 
+   static const List<Map<String, dynamic>> themes = [
+@@ -166,7 +202,7 @@ class IgdbConstants {
+     {"id": 23, "name": "Stealth"},
+     {"id": 27, "name": "Comedy"},
+     {"id": 28, "name": "Business"},
+-    {"id": 44, "name": "Romance"}
++    {"id": 44, "name": "Romance"},
+   ];
+ 
+   static const List<Map<String, dynamic>> gameModes = [
+@@ -175,7 +211,7 @@ class IgdbConstants {
+     {"id": 3, "name": "Co-operative"},
+     {"id": 4, "name": "Split screen"},
+     {"id": 5, "name": "Massively Multiplayer Online (MMO)"},
+-    {"id": 6, "name": "Battle Royale"}
++    {"id": 6, "name": "Battle Royale"},
+   ];
+ 
+   static const List<Map<String, dynamic>> playerPerspectives = [
+@@ -185,7 +221,7 @@ class IgdbConstants {
+     {"id": 4, "name": "Side view"},
+     {"id": 5, "name": "Text"},
+     {"id": 6, "name": "Auditory"},
+-    {"id": 7, "name": "Virtual Reality"}
++    {"id": 7, "name": "Virtual Reality"},
+   ];
+ 
+   static const List<Map<String, dynamic>> popularPlatforms = [
+@@ -198,7 +234,7 @@ class IgdbConstants {
+     {"id": 169, "name": "Xbox Series X|S"},
+     {"id": 130, "name": "Nintendo Switch"},
+     {"id": 34, "name": "Android"},
+-    {"id": 39, "name": "iOS"}
++    {"id": 39, "name": "iOS"},
+   ];
+ 
+   // ============================================================
+@@ -264,32 +300,80 @@ class IgdbConstants {
+   static Map<String, dynamic> getPlatformStyle(String platform) {
+     final lower = platform.toLowerCase();
+     if (lower.contains('pc') || lower.contains('windows')) {
+-      return {'color': Colors.blue.shade700, 'icon': 'assets/images/windows.png', 'textColor': Colors.white};
++      return {
++        'color': Colors.blue.shade700,
++        'icon': 'assets/images/windows.png',
++        'textColor': Colors.white,
++      };
+     }
+     if (lower.contains('linux')) {
+-      return {'color': Colors.orangeAccent.shade700, 'icon': 'assets/images/linux.png', 'textColor': Colors.white};
++      return {
++        'color': Colors.orangeAccent.shade700,
++        'icon': 'assets/images/linux.png',
++        'textColor': Colors.white,
++      };
+     }
+-    if (lower.contains('playstation') || lower == 'psn' || lower == 'ps2' || lower == 'ps3' || lower == 'ps4' || lower == 'ps5' || lower.contains('vita')) {
+-      return {'color': const Color(0xFF003791), 'icon': 'assets/images/playstation.png', 'textColor': Colors.white};
++    if (lower.contains('playstation') ||
++        lower == 'psn' ||
++        lower == 'ps2' ||
++        lower == 'ps3' ||
++        lower == 'ps4' ||
++        lower == 'ps5' ||
++        lower.contains('vita')) {
++      return {
++        'color': const Color(0xFF003791),
++        'icon': 'assets/images/playstation.png',
++        'textColor': Colors.white,
++      };
+     }
+     if (lower.contains('xbox')) {
+-      return {'color': const Color(0xFF107C10), 'icon': 'assets/images/xbox.png', 'textColor': Colors.white};
++      return {
++        'color': const Color(0xFF107C10),
++        'icon': 'assets/images/xbox.png',
++        'textColor': Colors.white,
++      };
+     }
+     if (lower.contains('wii')) {
+-      return {'color': Colors.grey.shade400, 'icon': 'assets/images/wii.png', 'textColor': Colors.black87};
++      return {
++        'color': Colors.grey.shade400,
++        'icon': 'assets/images/wii.png',
++        'textColor': Colors.black87,
++      };
+     }
+     if (lower.contains('switch') || lower.contains('nintendo')) {
+-      return {'color': const Color(0xFFE60012), 'icon': 'assets/images/switch.png', 'textColor': Colors.white};
++      return {
++        'color': const Color(0xFFE60012),
++        'icon': 'assets/images/switch.png',
++        'textColor': Colors.white,
++      };
+     }
+-    if (lower.contains('mac') || lower.contains('ios') || lower.contains('apple')) {
+-      return {'color': Colors.grey.shade800, 'icon': 'assets/images/mac.png', 'textColor': Colors.white};
++    if (lower.contains('mac') ||
++        lower.contains('ios') ||
++        lower.contains('apple')) {
++      return {
++        'color': Colors.grey.shade800,
++        'icon': 'assets/images/mac.png',
++        'textColor': Colors.white,
++      };
+     }
+     if (lower.contains('android')) {
+-      return {'color': const Color(0xFF3DDC84), 'icon': 'assets/images/android.png', 'textColor': Colors.black87};
++      return {
++        'color': const Color(0xFF3DDC84),
++        'icon': 'assets/images/android.png',
++        'textColor': Colors.black87,
++      };
+     }
+     if (lower.contains('google') || lower.contains('stadia')) {
+-      return {'color': Colors.deepOrange, 'icon': 'assets/images/google.png', 'textColor': Colors.white};
++      return {
++        'color': Colors.deepOrange,
++        'icon': 'assets/images/google.png',
++        'textColor': Colors.white,
++      };
+     }
+-    return {'color': Colors.blueGrey.withValues(alpha: 0.3), 'icon': null, 'textColor': Colors.white};
++    return {
++      'color': Colors.blueGrey.withValues(alpha: 0.3),
++      'icon': null,
++      'textColor': Colors.white,
++    };
+   }
+ }
+
+commit e507303894991055f7bb1c1470c9dd50f19374a3
+Author: Rafael Casado <rafael.casado@udc.es>
+Date:   Tue Jul 28 16:18:37 2026 +0200
+
+    feat(achievements): implementar pestana de logros en perfil, recompensas XP dinamicas por hito y ordenacion por XP
+
+diff --git a/lib/utils/igdb_constants.dart b/lib/utils/igdb_constants.dart
+index f568c4b..a104a8d 100644
+--- a/lib/utils/igdb_constants.dart
++++ b/lib/utils/igdb_constants.dart
+@@ -17,13 +17,13 @@ class IgdbConstants {
+     1:  {'name': 'DLC',             'colorValue': 0xFFE040FB}, // Colors.purpleAccent
+     2:  {'name': 'Expansión',       'colorValue': 0xFFE040FB},
+     3:  {'name': 'Bundle',          'colorValue': 0xFFFFAB40}, // Colors.orangeAccent
+-    4:  {'name': 'Expansión Standalone', 'colorValue': 0xFFE040FB},
++    4:  {'name': 'Exp. Standalone', 'colorValue': 0xFFE040FB},
+     5:  {'name': 'Mod',             'colorValue': 0xFF9E9E9E},
+     6:  {'name': 'Episodio',        'colorValue': 0xFF9E9E9E},
+     7:  {'name': 'Temporada',       'colorValue': 0xFF9E9E9E},
+     8:  {'name': 'Remake',          'colorValue': 0xFFCDDC39}, // Se sobreescribe con Theme.secondary en UI
+     9:  {'name': 'Remaster',        'colorValue': 0xFF64FFDA}, // Colors.tealAccent
+-    10: {'name': 'Edición Expandida', 'colorValue': 0xFFFF4081}, // Colors.pinkAccent
++    10: {'name': 'Ed. Expandida', 'colorValue': 0xFFFF4081}, // Colors.pinkAccent
+     11: {'name': 'Port',            'colorValue': 0xFFB2FF59}, // Colors.lightGreenAccent
+     12: {'name': 'Fork',            'colorValue': 0xFF9E9E9E},
+     13: {'name': 'Pack',            'colorValue': 0xFFFFAB40},

@@ -5,7 +5,7 @@ import 'package:corpus/globals.dart';
 import 'dart:async';
 import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
-import '../../widgets/filter_bottom_sheet.dart';
+import 'filter_screen.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -172,11 +172,11 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   }
 
   void _openFilters() async {
-    final result = await showModalBottomSheet<GameFilters>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => FilterBottomSheet(initialFilters: _filters),
+    final result = await Navigator.push<GameFilters>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FilterScreen(initialFilters: _filters),
+      ),
     );
 
     if (result != null) {
