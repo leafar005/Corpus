@@ -13,6 +13,7 @@ import '../../../widgets/full_screen_gallery.dart';
 import '../../../theme/corpus_theme_extension.dart';
 import '../../../widgets/corpus_primary_button.dart';
 import '../../../widgets/corpus_network_image.dart';
+import '../../../utils/igdb_constants.dart';
 
 class GameHeroSection extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -31,6 +32,11 @@ class GameHeroSection extends StatefulWidget {
   final VoidCallback onShowReviewModal;
   final void Function(Review review) onEditReview;
   final void Function(Review review) onDeleteReview;
+
+  final int? resolvedCategory;
+  final String? categoryLabel;
+  final ({int id, String? name})? originalGame;
+  final void Function(({int id, String? name}))? onNavigateToGame;
 
   final Widget tabsSliver;
   final Widget tabContentSliver;
@@ -51,6 +57,10 @@ class GameHeroSection extends StatefulWidget {
     required this.onShowReviewModal,
     required this.onEditReview,
     required this.onDeleteReview,
+    this.resolvedCategory,
+    this.categoryLabel,
+    this.originalGame,
+    this.onNavigateToGame,
     required this.tabsSliver,
     required this.tabContentSliver,
   });
@@ -436,6 +446,15 @@ class _GameHeroSectionState extends State<GameHeroSection> {
     final developerId =
         widget.gameData['developer_id'] ?? widget.enrichedData['developer_id'];
 
+    final hasPublisher =
+        widget.gameData['publisher'] != null &&
+        widget.gameData['publisher'].toString().isNotEmpty;
+    final publisher = hasPublisher
+        ? widget.gameData['publisher']
+        : widget.enrichedData['publisher'];
+    final publisherId =
+        widget.gameData['publisher_id'] ?? widget.enrichedData['publisher_id'];
+
     String releaseDate = 'Fecha desconocida';
     final rawReleaseDate =
         widget.gameData['release_date'] ?? widget.enrichedData['release_date'];
@@ -487,52 +506,80 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       ),
     );
 
-    final headerInfoWidget = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Text(
-          name,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            height: 1.1,
-            color: Colors.white,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 10)],
+    final developerWidget = InkWell(
+      borderRadius: BorderRadius.circular(4),
+      onTap: developerId != null
+          ? () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => GroupGamesScreen(
+                    title: developer.toString(),
+                    collectionId: developerId as int,
+                    isCompany: true,
+                  ),
+                ),
+              );
+            }
+          : null,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.business,
+            size: 16,
+            color: Colors.white.withValues(alpha: 0.9),
           ),
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 8),
-        InkWell(
-          borderRadius: BorderRadius.circular(4),
-          onTap: developerId != null
-              ? () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => GroupGamesScreen(
-                        title: developer.toString(),
-                        collectionId: developerId as int,
-                        isCompany: true,
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              developer,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w500,
+                shadows: const [
+                  Shadow(color: Colors.black54, blurRadius: 4),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final publisherWidget = (publisher != null && publisher.toString().isNotEmpty)
+        ? InkWell(
+            borderRadius: BorderRadius.circular(4),
+            onTap: publisherId != null
+                ? () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GroupGamesScreen(
+                          title: publisher.toString(),
+                          collectionId: publisherId as int,
+                          isCompany: true,
+                          isPublisher: true,
+                        ),
                       ),
-                    ),
-                  );
-                }
-              : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+                    );
+                  }
+                : null,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  Icons.business,
+                  Icons.storefront,
                   size: 16,
                   color: Colors.white.withValues(alpha: 0.9),
                 ),
                 const SizedBox(width: 4),
-                Expanded(
+                Flexible(
                   child: Text(
-                    developer,
+                    publisher,
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white.withValues(alpha: 0.9),
@@ -547,7 +594,105 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 ),
               ],
             ),
+          )
+        : null;
+
+    final headerInfoWidget = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (widget.resolvedCategory != null &&
+            !IgdbConstants.isMainGame(widget.resolvedCategory))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: IgdbConstants.getCategoryColor(
+                      widget.resolvedCategory!,
+                      themeSecondary: theme.colorScheme.secondary,
+                    ),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    widget.categoryLabel ??
+                        IgdbConstants.getCategoryName(widget.resolvedCategory!),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (widget.originalGame != null)
+                  ActionChip(
+                    label: const Text('Ver juego original'),
+                    avatar: const Icon(Icons.arrow_forward, size: 16),
+                    onPressed: () {
+                      if (widget.onNavigateToGame != null) {
+                        widget.onNavigateToGame!(widget.originalGame!);
+                      }
+                    },
+                    backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.8),
+                    labelStyle: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                      fontSize: 12,
+                    ),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
           ),
+        Text(
+          name,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            height: 1.1,
+            color: Colors.white,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 10)],
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: widget.isDesktop
+              ? Row(
+                  children: [
+                    Flexible(child: developerWidget),
+                    if (publisherWidget != null) ...[
+                      Text(
+                        '  ·  ',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      Flexible(child: publisherWidget),
+                    ],
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    developerWidget,
+                    if (publisherWidget != null) ...[
+                      const SizedBox(height: 4),
+                      publisherWidget,
+                    ],
+                  ],
+                ),
         ),
         const SizedBox(height: 4),
         Row(
@@ -614,22 +759,10 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                             width: double.infinity,
                             height: double.infinity,
                           )
-                        : (coverUrl != null
-                              ? CorpusNetworkImage(
-                                  url: coverUrl.replaceAll(
-                                    't_cover_big',
-                                    't_1080p',
-                                  ),
-                                  key: ValueKey(coverUrl),
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  alignment: Alignment.topCenter,
-                                )
-                              : Container(
-                                  key: const ValueKey('placeholder'),
-                                  color: theme.scaffoldBackgroundColor,
-                                )),
+                        : Container(
+                            key: const ValueKey('placeholder'),
+                            color: theme.scaffoldBackgroundColor,
+                          ),
                   ),
                 ),
                 Positioned.fill(
