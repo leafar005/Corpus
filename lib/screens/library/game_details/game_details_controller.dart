@@ -417,6 +417,9 @@ class GameDetailsController extends ChangeNotifier {
         // Extraer desarrollador
         String? developer;
         int? developerId;
+        // Extraer publisher (principal)
+        String? publisher;
+        int? publisherId;
         if (game['involved_companies'] != null &&
             (game['involved_companies'] as List).isNotEmpty) {
           final companies = game['involved_companies'] as List;
@@ -430,6 +433,23 @@ class GameDetailsController extends ChangeNotifier {
               developerId = companies[0]['company']['id'];
             } catch (_) {}
           }
+          try {
+            final pub = companies.firstWhere((c) => c['publisher'] == true);
+            publisher = pub['company']['name'];
+            publisherId = pub['company']['id'];
+          } catch (_) {
+            // No hay publisher marcado explícitamente: lo dejamos vacío en
+            // lugar de asumir uno, para no mostrar datos incorrectos.
+          }
+          // Si el publisher coincide con el developer, no lo mostramos aparte
+          // (evita duplicar "Nintendo · Nintendo" en la UI).
+          if (publisher != null &&
+              developer != null &&
+              publisher.toString().trim().toLowerCase() ==
+                  developer.toString().trim().toLowerCase()) {
+            publisher = null;
+            publisherId = null;
+          }
         }
 
         // Poblar enrichedData con TODOS los campos de IGDB.
@@ -437,6 +457,8 @@ class GameDetailsController extends ChangeNotifier {
           if (game['summary'] != null) 'summary': game['summary'],
           'developer': developer,
           'developer_id': developerId,
+          'publisher': publisher,
+          'publisher_id': publisherId,
           if (game['name'] != null) 'title': game['name'],
           if (game['cover'] != null)
             'cover_url': IGDBService.getCoverUrl(game['cover']['image_id']),
