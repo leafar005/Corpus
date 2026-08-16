@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/models.dart';
 
 class ProfileData {
   const  ProfileData({
@@ -276,5 +277,52 @@ class ProfileRepository {
       debugPrint('[ProfileRepository] Error parseando hall of fame: $e');
     }
     return result;
+  }
+
+  Future<List<GenreRadarEntry>> fetchGenreRadarEntries(String userId) async {
+    final rows = await _client
+        .from('user_games')
+        .select(
+          'game_id, status, play_time_hours, last_played_at, updated_at, '
+          'games!inner(igdb_id, title, cover_url, genres)',
+        )
+        .eq('user_id', userId)
+        .inFilter('status', const ['beaten', 'completed']);
+
+    final entries = <GenreRadarEntry>[];
+
+    for (final row in rows) {
+      final status = row['status'] as String?;
+      if (status != 'beaten' && status != 'completed') continue;
+
+      final gameData = row['games'] as Map<String, dynamic>?;
+      if (gameData == null) continue;
+
+      final genres = Game.fromMap(gameData)
+          .genres
+          .where((g) => g.toLowerCase() != 'indie')
+          .toList();
+      if (genres.isEmpty) continue;
+
+      final lastPlayed = row['last_played_at'] != null
+          ? DateTime.tryParse(row['last_played_at'].toString())
+          : null;
+      final updated = row['updated_at'] != null
+          ? DateTime.tryParse(row['updated_at'].toString())
+          : null;
+      final effectiveDate = lastPlayed ?? updated;
+      if (effectiveDate == null) continue;
+
+      entries.add(GenreRadarEntry(
+        gameId: (row['game_id'] as num).toInt(),
+        gameTitle: gameData['title'] as String? ?? '',
+        coverUrl: Game.fromMap(gameData).coverUrl,
+        genres: genres,
+        hours: 0.0,
+        effectiveDate: effectiveDate,
+      ));
+    }
+
+    return entries;
   }
 }
