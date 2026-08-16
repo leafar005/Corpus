@@ -266,51 +266,51 @@ class IgdbConstants {
   // ============================================================
 
   static const Map<String, String> _genreEmojis = {
-    'Action': '💥 Action',
-    'Adventure': '🗺️ Adventure',
-    'Role-playing (RPG)': '🛡️ Role-playing (RPG)',
+    'Action': '💥 Acción',
+    'Adventure': '🗺️ Aventura',
+    'Role-playing (RPG)': '🛡️ Rol (RPG)',
     'Shooter': '🎯 Shooter',
-    'Strategy': '♟️ Strategy',
-    'Puzzle': '🧩 Puzzle',
-    'Racing': '🏎️ Racing',
-    'Simulator': '🕹️ Simulator',
-    'Sport': '⚽ Sport',
-    'Fighting': '🥊 Fighting',
-    'Platform': '🍄 Platform',
+    'Strategy': '♟️ Estrategia',
+    'Puzzle': '🧩 Puzles',
+    'Racing': '🏎️ Carreras',
+    'Simulator': '🕹️ Simulación',
+    'Sport': '⚽ Deportes',
+    'Fighting': '🥊 Lucha',
+    'Platform': '🍄 Plataformas',
     'Indie': '🎨 Indie',
-    'Music': '🎵 Music',
+    'Music': '🎵 Música',
     'Arcade': '👾 Arcade',
-    'Visual Novel': '📖 Visual Novel',
+    'Visual Novel': '📖 Novela Visual',
     'Point-and-click': '🖱️ Point-and-click',
-    'Tactical': '🧠 Tactical',
-    'Card & Board Game': '🃏 Card & Board Game',
+    'Tactical': '🧠 Táctica',
+    'Card & Board Game': '🃏 Cartas y Tablero',
     "Hack and slash/Beat 'em up": '⚔️ Hack and slash/Beat \'em up',
     'Pinball': '🎰 Pinball',
-    'Quiz/Trivia': '❓ Quiz/Trivia',
-    'Real Time Strategy (RTS)': '⏱️ Real Time Strategy (RTS)',
-    'Turn-based strategy (TBS)': '⏳ Turn-based strategy (TBS)',
+    'Quiz/Trivia': '❓ Trivial',
+    'Real Time Strategy (RTS)': '⏱️ Estrategia en tiempo real (RTS)',
+    'Turn-based strategy (TBS)': '⏳ Estrategia por turnos (TBS)',
     'MOBA': '🏟️ MOBA',
   };
 
   static const Map<String, String> _themeEmojis = {
-    'Action': '💥 Action',
-    'Fantasy': '🧙‍♂️ Fantasy',
-    'Science fiction': '🚀 Science fiction',
-    'Horror': '👻 Horror',
-    'Survival': '🏕️ Survival',
-    'Thriller': '😱 Thriller',
-    'Comedy': '😂 Comedy',
-    'Kids': '🧒 Kids',
+    'Action': '💥 Acción',
+    'Fantasy': '🧙‍♂️ Fantasía',
+    'Science fiction': '🚀 Ciencia ficción',
+    'Horror': '👻 Terror',
+    'Survival': '🏕️ Supervivencia',
+    'Thriller': '😱 Suspense',
+    'Comedy': '😂 Comedia',
+    'Kids': '🧒 Infantil',
     'Romance': '💖 Romance',
     'Drama': '🎭 Drama',
-    'Historical': '🏛️ Historical',
-    'Non-fiction': '📚 Non-fiction',
+    'Historical': '🏛️ Histórico',
+    'Non-fiction': '📚 No ficción',
     'Sandbox': '🏖️ Sandbox',
-    'Educational': '🎓 Educational',
-    'Mystery': '🕵️ Mystery',
+    'Educational': '🎓 Educativo',
+    'Mystery': '🕵️ Misterio',
     'Party': '🎉 Party',
-    'Open world': '🌍 Open world',
-    'Stealth': '🥷 Stealth',
+    'Open world': '🌍 Mundo abierto',
+    'Stealth': '🥷 Sigilo',
   };
 
   static String formatGenreWithEmoji(String genre) {
@@ -357,11 +357,39 @@ class IgdbConstants {
         'textColor': Colors.white,
       };
     }
+    if (lower.contains('wii u')) {
+      return {
+        'color': const Color(0xFF009AC7),
+        'icon': 'assets/images/wiiu.png',
+        'textColor': Colors.white,
+      };
+    }
     if (lower.contains('wii')) {
       return {
         'color': Colors.grey.shade400,
         'icon': 'assets/images/wii.png',
         'textColor': Colors.black87,
+      };
+    }
+    if (lower.contains('3ds')) {
+      return {
+        'color': const Color(0xFFCE181E),
+        'icon': 'assets/images/3ds.png',
+        'textColor': Colors.white,
+      };
+    }
+    if (lower.contains('ds')) {
+      return {
+        'color': Colors.grey.shade400,
+        'icon': 'assets/images/ds.png',
+        'textColor': Colors.black87,
+      };
+    }
+    if (lower.contains('switch 2')) {
+      return {
+        'color': const Color(0xFFE60012),
+        'icon': 'assets/images/switch2.png',
+        'textColor': Colors.white,
       };
     }
     if (lower.contains('switch') || lower.contains('nintendo')) {
