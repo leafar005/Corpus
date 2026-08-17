@@ -227,6 +227,12 @@ class ProfileRepository {
     );
   }
 
+  @visibleForTesting
+  static List<Map<String, dynamic>> enrichList(List<dynamic> rawGames, {bool useLastPlayed = false}) => _enrichList(rawGames, useLastPlayed: useLastPlayed);
+
+  @visibleForTesting
+  static List<Map<String, dynamic>?> parseHallOfFame(List<dynamic> rawHallOfFame) => _parseHallOfFame(rawHallOfFame);
+
   static List<Map<String, dynamic>> _enrichList(
     List<dynamic> rawGames, {
     bool useLastPlayed = false,
