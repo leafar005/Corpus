@@ -198,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .from('reviews')
             .select('game_id')
             .eq('user_id', userId)
-            .eq('completion_type', 'on_hold'),
+            .eq('status', 'on_hold'),
       ]);
 
       final userResp = results[0] as Map<String, dynamic>?;
