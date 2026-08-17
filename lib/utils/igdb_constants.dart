@@ -118,7 +118,7 @@ class IgdbConstants {
       return 9;
     }
     if (_expandedKeywords.any((k) => lowerTitle.contains(k))) return 10;
-    if (_dlcKeywords.any((k) => lowerTitle.contains(k))) return 1;
+    if (hasParentGame || _dlcKeywords.any((k) => lowerTitle.contains(k))) return 1;
 
     // Si IGDB lo catalogó mal pero el título o resumen menciona que es un mod como palabra suelta
     if (RegExp(r'\bmod\b').hasMatch(lowerTitle) ||
