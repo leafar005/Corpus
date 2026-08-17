@@ -114,6 +114,26 @@ class ReviewModal {
     int reviewProgressPercent = hasReview ? (r!.progressPercent ?? 0) : 0;
     // Fecha de publicación de la reseña (editable solo al editar)
     DateTime? reviewDate = hasReview ? r!.createdAt : null;
+    // Snapshot inmutable de la fecha original, para restaurarla si el usuario
+    // cambia de estado por error durante la edición (ver applyStatusChange).
+    final DateTime? initialReviewDate = reviewDate;
+
+    /// Aplica un cambio de estado desde los chips de "Estado".
+    /// Si pasa de un estado no finalizado (quiero/jugando) a uno finalizado
+    /// (terminado/abandonado), autorellena la fecha con hoy. Si se revierte a
+    /// un estado no finalizado antes de guardar, restaura la fecha original
+    /// (por si ha sido un misclick).
+    void applyStatusChange(String v) {
+      final wasFinished = GameStatus.fromString(reviewStatus).isFinished;
+      final willBeFinished = GameStatus.fromString(v).isFinished;
+      if (!wasFinished && willBeFinished) {
+        reviewDate = DateTime.now();
+      } else if (wasFinished && !willBeFinished) {
+        reviewDate = initialReviewDate;
+      }
+      reviewStatus = v;
+      reviewCompletionType = 'none';
+    }
 
     // El controller de comentario vive dentro del modal (con texto inicial)
     final reviewCommentController = TextEditingController(
@@ -411,10 +431,7 @@ class ReviewModal {
                                     Icons.favorite,
                                     reviewStatus,
                                     statusColor('wishlist'),
-                                    (v) {
-                                      reviewStatus = v;
-                                      reviewCompletionType = 'none';
-                                    },
+                                    applyStatusChange,
                                   ),
                                   chip(
                                     'playing',
@@ -422,10 +439,7 @@ class ReviewModal {
                                     Icons.videogame_asset,
                                     reviewStatus,
                                     statusColor('playing'),
-                                    (v) {
-                                      reviewStatus = v;
-                                      reviewCompletionType = 'none';
-                                    },
+                                    applyStatusChange,
                                   ),
                                   chip(
                                     'beaten',
@@ -433,10 +447,7 @@ class ReviewModal {
                                     Icons.check_circle,
                                     reviewStatus,
                                     statusColor('beaten'),
-                                    (v) {
-                                      reviewStatus = v;
-                                      reviewCompletionType = 'none';
-                                    },
+                                    applyStatusChange,
                                   ),
                                   chip(
                                     'abandoned',
@@ -444,10 +455,7 @@ class ReviewModal {
                                     Icons.cancel_outlined,
                                     reviewStatus,
                                     statusColor('abandoned'),
-                                    (v) {
-                                      reviewStatus = v;
-                                      reviewCompletionType = 'none';
-                                    },
+                                    applyStatusChange,
                                   ),
                                 ],
                               ),

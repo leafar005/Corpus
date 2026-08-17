@@ -413,6 +413,30 @@ class ActivityRepository {
     }
   }
 
+  /// Obtiene la reseña más reciente de un usuario para un juego concreto.
+  /// Útil para la navegación desde eventos de "status_change" antiguos en el feed.
+  Future<Map<String, dynamic>?> fetchLatestReviewForUserAndGame(String userId, int gameId) async {
+    try {
+      final resp = await _client
+          .from('reviews')
+          .select('*, review_likes(user_id), review_comments(id)')
+          .eq('user_id', userId)
+          .eq('game_id', gameId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      
+      if (resp != null) {
+        final reviewsList = [Map<String, dynamic>.from(resp)];
+        await ReviewRepository(client: _client).injectPartners(reviewsList);
+        return reviewsList.first;
+      }
+    } catch (e) {
+      debugPrint('[ActivityRepository] fetchLatestReviewForUserAndGame error: $e');
+    }
+    return null;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Helpers de lógica pura (testeables sin Supabase)
   // ═══════════════════════════════════════════════════════════════════════════
