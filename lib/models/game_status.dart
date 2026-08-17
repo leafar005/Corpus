@@ -24,6 +24,7 @@ enum GameStatus {
       case 'wishlist':
       case 'want':
       case 'quiero':
+      case 'backlog':
         return GameStatus.wishlist;
       case 'playing':
       case 'jugando':

@@ -54,7 +54,7 @@ void main() {
       // Fila 2: God of War
       final gow = rows[1];
       expect(gow.title, 'God of War (2018)');
-      expect(gow.status, 'beaten');
+      expect(gow.status, 'completed');
       expect(gow.rating, 9.5);
     });
 
@@ -65,16 +65,20 @@ Juego 2,jugando,8
 Juego 3,wishlist,0
 Juego 4,abandonado,4
 Juego 5,pausado,7
+Juego 6,completed,10
+Juego 7,backlog,0
 ''';
       final Uint8List bytes = Uint8List.fromList(utf8.encode(csvContent));
       final rows = ImportService.parseCsv(bytes);
 
-      expect(rows.length, 5);
+      expect(rows.length, 7);
       expect(rows[0].status, 'beaten');
       expect(rows[1].status, 'playing');
       expect(rows[2].status, 'wishlist');
       expect(rows[3].status, 'abandoned');
       expect(rows[4].status, 'on_hold');
+      expect(rows[5].status, 'completed');
+      expect(rows[6].status, 'wishlist');
     });
 
     test(
