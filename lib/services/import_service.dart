@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:csv/csv.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/utils/stash_json_to_csv_converter.dart';
+import 'package:corpus/models/game_status.dart';
 
 class CsvGameRow {
   String title;
@@ -97,33 +98,10 @@ class ImportService {
       releaseYear = int.tryParse(rawReleaseYear.split('.').first);
     }
 
-    final rawStatusClean = (rawStatus ?? 'wishlist').toLowerCase().trim();
-    String cleanStatus = 'wishlist';
-    if (rawStatusClean == 'beaten' ||
-        rawStatusClean == 'completed' ||
-        rawStatusClean == 'finished' ||
-        rawStatusClean == 'terminado') {
-      cleanStatus = 'beaten';
-    } else if (rawStatusClean == 'playing' ||
-        rawStatusClean == 'jugando' ||
-        rawStatusClean == 'in progress') {
-      cleanStatus = 'playing';
-    } else if (rawStatusClean == 'want' ||
-        rawStatusClean == 'wishlist' ||
-        rawStatusClean == 'backlog' ||
-        rawStatusClean == 'quiero') {
-      cleanStatus = 'wishlist';
-    } else if (rawStatusClean == 'archived' ||
-        rawStatusClean == 'abandoned' ||
-        rawStatusClean == 'dropped' ||
-        rawStatusClean == 'abandonado') {
-      cleanStatus = 'abandoned';
-    } else if (rawStatusClean == 'on_hold' ||
-        rawStatusClean == 'on hold' ||
-        rawStatusClean == 'paused' ||
-        rawStatusClean == 'pausado') {
-      cleanStatus = 'on_hold';
-    }
+    final cleanStatus = GameStatus.fromStringOrDefault(
+      rawStatus,
+      fallback: GameStatus.wishlist,
+    ).dbValue;
 
     double? cleanRating;
     if (rawRating != null && rawRating.isNotEmpty) {
@@ -471,14 +449,9 @@ class ImportService {
         userGamesPayload.add({
           'user_id': userId,
           'game_id': igdbId,
-          'status': row.status,
-          'rating': cleanRating,
-          'comment': row.comment?.isNotEmpty == true ? row.comment : null,
           'play_time_hours': (row.playTimeHours ?? 0) > 0
               ? row.playTimeHours
               : null,
-          'last_played_at': effectiveLastPlayedAt,
-          'updated_at': effectiveUpdatedAt,
           if (row.steamOwned) 'steam_owned': true,
           if (row.steamPlaytimeMinutes != null)
             'steam_playtime_minutes': row.steamPlaytimeMinutes,
@@ -514,13 +487,13 @@ class ImportService {
                 ignoreDuplicates: true,
               );
         }
+        if (reviewsPayload.isNotEmpty) {
+          await supabase.from('reviews').insert(reviewsPayload);
+        }
         if (userGamesPayload.isNotEmpty) {
           await supabase
               .from('user_games')
               .upsert(userGamesPayload, onConflict: 'user_id, game_id');
-        }
-        if (reviewsPayload.isNotEmpty) {
-          await supabase.from('reviews').insert(reviewsPayload);
         }
 
         // Limpiar activity_feed DESPUÉS de insertar juegos Y reseñas:
