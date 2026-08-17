@@ -455,8 +455,32 @@ class _ActivityScreenState extends State<ActivityScreen>
       }
     }
 
+    void handleStatusChangeTap() async {
+      final uId = activityUserId;
+      final internalGameId = activity['game_id'] as int?;
+
+      if (uId != null && internalGameId != null) {
+        final review = await _repo.fetchLatestReviewForUserAndGame(uId, internalGameId);
+        if (review != null && mounted) {
+           Navigator.push(
+             context,
+             MaterialPageRoute(
+               builder: (context) => ReviewDetailsScreen(
+                 gameData: gameData,
+                 userData: userData,
+                 reviewData: review,
+               ),
+             ),
+           ).then((_) => _refreshInPlace());
+           return;
+        }
+      }
+      
+      openGameDetails();
+    }
+
     return GestureDetector(
-      onTap: isReview ? openReview : openGameDetails,
+      onTap: isReview ? openReview : handleStatusChangeTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         decoration: BoxDecoration(

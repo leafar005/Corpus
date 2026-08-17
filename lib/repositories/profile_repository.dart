@@ -284,7 +284,7 @@ class ProfileRepository {
         .from('user_games')
         .select(
           'game_id, status, play_time_hours, last_played_at, updated_at, '
-          'games!inner(igdb_id, title, cover_url, genres)',
+          'games!inner(igdb_id, title, cover_url, cover, genres)',
         )
         .eq('user_id', userId)
         .inFilter('status', const ['beaten', 'completed']);
