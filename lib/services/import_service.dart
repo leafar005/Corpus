@@ -412,12 +412,7 @@ class ImportService {
                       .subtract(const Duration(hours: 2))
                       .toUtc()
                       .toIso8601String());
-        final String effectiveUpdatedAt =
-            effectiveLastPlayedAt ??
-            DateTime.now()
-                .subtract(const Duration(hours: 2))
-                .toUtc()
-                .toIso8601String();
+
 
         gamesPayload.add({
           'igdb_id': igdbId,
@@ -479,6 +474,7 @@ class ImportService {
 
       try {
         if (gamesPayload.isNotEmpty) {
+          // Paso 1: insertar juegos nuevos (ignorar conflicto si ya existen)
           await supabase
               .from('games')
               .upsert(
@@ -486,6 +482,20 @@ class ImportService {
                 onConflict: 'igdb_id',
                 ignoreDuplicates: true,
               );
+
+          // Paso 2: para juegos que ya existían con cover_url = NULL,
+          // actualizamos solo ese campo con el valor que acabamos de obtener de IGDB.
+          // Así no sobreescribimos datos buenos, pero sí rellenamos huecos.
+          final coversToFix = gamesPayload
+              .where((g) => g['cover_url'] != null && (g['cover_url'] as String).isNotEmpty)
+              .toList();
+          for (final game in coversToFix) {
+            await supabase
+                .from('games')
+                .update({'cover_url': game['cover_url']})
+                .eq('igdb_id', game['igdb_id'])
+                .isFilter('cover_url', null); // solo si sigue siendo NULL
+          }
         }
         if (reviewsPayload.isNotEmpty) {
           await supabase.from('reviews').insert(reviewsPayload);

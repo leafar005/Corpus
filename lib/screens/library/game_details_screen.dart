@@ -5,7 +5,6 @@ import 'game_details/game_related_tab.dart';
 import 'game_details/game_media_tab.dart';
 import 'game_details/game_stash_tab.dart';
 import 'game_details/game_info_tab.dart';
-import 'game_details/game_reviews_card.dart';
 import 'game_details/game_hero_section.dart';
 import 'dart:async';
 import 'dart:math';
@@ -16,7 +15,6 @@ import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
 import '../activity/review_details_screen.dart';
 
-import 'group_games_screen.dart';
 import '../../widgets/achievement_toast.dart';
 import '../../theme/corpus_theme_extension.dart';
 import 'review_modal.dart';
@@ -25,7 +23,6 @@ import '../../models/models.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/corpus_primary_button.dart';
-import '../../widgets/full_screen_gallery.dart';
 import '../../widgets/corpus_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -504,9 +501,19 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           if (igdbGame != null) {
             cleanData['title'] = igdbGame['name'] ?? cleanData['title'];
             if (igdbGame['cover'] != null) {
-              cleanData['cover_url'] = IGDBService.getCoverUrl(
+              final newCoverUrl = IGDBService.getCoverUrl(
                 igdbGame['cover']['image_id'],
               );
+              cleanData['cover_url'] = newCoverUrl;
+              // Persistir la portada en BD para que el feed y el perfil
+              // la muestren correctamente sin volver a consultar IGDB.
+              Supabase.instance.client
+                  .from('games')
+                  .update({'cover_url': newCoverUrl})
+                  .eq('igdb_id', id)
+                  .isFilter('cover_url', null) // solo si aún es NULL
+                  .then((_) {})
+                  .catchError((_) {}); // fire-and-forget, no bloqueante
             }
             if (igdbGame['summary'] != null) {
               cleanData['summary'] = igdbGame['summary'];
@@ -1022,18 +1029,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         (_isEnriching ? 'Cargando...' : 'Desconocido');
     final coverUrl =
         widget.gameData['cover_url'] ?? _enrichedData['cover_url'] ?? '';
-    final highResCoverUrl = coverUrl.replaceAll('t_cover_big', 't_1080p');
 
     // Datos con fallback a _enrichedData (para cuando venimos de la biblioteca)
     final summary = widget.gameData['summary'] ?? _enrichedData['summary'];
-    final developer =
-        (widget.gameData['developer'] != null &&
-            widget.gameData['developer'] != 'Desconocido' &&
-            widget.gameData['developer'] != 'Desarrollador desconocido')
-        ? widget.gameData['developer']
-        : _enrichedData['developer'];
-    final developerId =
-        widget.gameData['developer_id'] ?? _enrichedData['developer_id'];
     final originalGame = _getOriginalGameInfo();
     final hasParentGame = originalGame != null;
 
@@ -1060,12 +1058,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         resolvedCategory != null && !IgdbConstants.isMainGame(resolvedCategory)
         ? IgdbConstants.getCategoryName(resolvedCategory)
         : null;
-    final Color catColor = resolvedCategory != null
-        ? IgdbConstants.getCategoryColor(
-            resolvedCategory,
-            themeSecondary: Theme.of(context).colorScheme.secondary,
-          )
-        : Theme.of(context).colorScheme.onSurfaceVariant;
+    // catColor: delegado a GameInfoTab vía IgdbConstants
 
     final List<dynamic> genresList =
         (widget.gameData['genres'] as List?)?.isNotEmpty == true
@@ -1150,35 +1143,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final List<dynamic> gameEnginesList = rawEngines.isNotEmpty
         ? rawEngines
         : (_enrichedData['game_engines'] as List? ?? []);
-
-    // Formatear fecha de lanzamiento
-    String? releaseDate;
-    final rawReleaseDate =
-        widget.gameData['release_date'] ?? _enrichedData['release_date'];
-    if (rawReleaseDate != null) {
-      try {
-        final date = DateTime.parse(rawReleaseDate.toString());
-        const months = [
-          'Enero',
-          'Febrero',
-          'Marzo',
-          'Abril',
-          'Mayo',
-          'Junio',
-          'Julio',
-          'Agosto',
-          'Septiembre',
-          'Octubre',
-          'Noviembre',
-          'Diciembre',
-        ];
-        releaseDate =
-            '${date.day} de ${months[date.month - 1]} de ${date.year}';
-      } catch (_) {}
-    }
-
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
-
 
     final List screenshotsList =
         (widget.gameData['screenshots'] as List?)?.isNotEmpty == true
