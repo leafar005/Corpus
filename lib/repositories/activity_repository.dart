@@ -94,10 +94,8 @@ class ActivityRepository {
 
     final feedItems = List<Map<String, dynamic>>.from(response);
 
-    // 2. Reseñas referenciadas — batch único
     final reviewIds = feedItems
-        .where((item) => item['action_type'] == 'reviewed')
-        .map((item) => (item['metadata'] as Map?)?['review_id'] as String?)
+        .map((item) => (item['review_id'] as String?) ?? (item['metadata'] as Map?)?['review_id'] as String?)
         .whereType<String>()
         .toSet()
         .toList();
@@ -215,6 +213,127 @@ class ActivityRepository {
     return FriendsStripResult(friends: friends, pendingCount: pending.length);
   }
 
+  /// Actividad reciente agrupada por usuario (para "historias" automáticas).
+  ///
+  /// Devuelve un mapa `userId → actividades` de los últimos [maxAge] días,
+  /// ordenadas de más reciente a más antigua, con un máximo de [maxPerUser]
+  /// entradas por usuario.
+  Future<Map<String, List<Map<String, dynamic>>>> fetchRecentStoriesForUsers(
+    List<String> userIds, {
+    Duration maxAge = const Duration(days: 7),
+    int maxPerUser = 15,
+  }) async {
+    if (userIds.isEmpty) return {};
+
+    final since = DateTime.now().subtract(maxAge).toUtc().toIso8601String();
+
+    final response = await _client
+        .from('activity_feed')
+        .select('''
+            *,
+            users!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
+            games!activity_feed_game_id_fkey(igdb_id, title, cover_url)
+          ''')
+        .inFilter('user_id', userIds)
+        .gte('created_at', since)
+        .order('created_at', ascending: false);
+
+    final feedItems = List<Map<String, dynamic>>.from(response);
+
+    final reviewIds = feedItems
+        .map((item) => (item['review_id'] as String?) ?? (item['metadata'] as Map?)?['review_id'] as String?)
+        .whereType<String>()
+        .toSet()
+        .toList();
+
+    final Map<String, Map<String, dynamic>> reviewsById = {};
+    if (reviewIds.isNotEmpty) {
+      try {
+        final reviewsResp = await _client
+            .from('reviews')
+            .select('*, review_likes(user_id), review_comments(id)')
+            .inFilter('id', reviewIds);
+        final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
+        await ReviewRepository(client: _client).injectPartners(reviewsList);
+        for (final r in reviewsList) {
+          reviewsById[r['id'] as String] = r;
+        }
+      } catch (_) {}
+    }
+
+    // Partners (misma lógica que fetchActivityPage)
+    final Map<String, List<dynamic>> partnersByUserGame = {};
+    final storyUserIds = feedItems
+        .map((e) => e['user_id'] as String?)
+        .whereType<String>()
+        .toSet()
+        .toList();
+    final storyGameIds = feedItems
+        .map((e) => e['game_id'])
+        .where((e) => e != null)
+        .toSet()
+        .toList();
+
+    if (storyUserIds.isNotEmpty && storyGameIds.isNotEmpty) {
+      try {
+        final ugResp = await _client
+            .from('user_games')
+            .select('user_id, game_id, partner_ids')
+            .inFilter('user_id', storyUserIds)
+            .inFilter('game_id', storyGameIds);
+
+        final items = List<Map<String, dynamic>>.from(ugResp);
+        final Set<String> allPartnerIds = {};
+        for (var ug in items) {
+          final ids = ug['partner_ids'];
+          if (ids is List) allPartnerIds.addAll(ids.map((e) => e.toString()));
+        }
+
+        final usersData = allPartnerIds.isNotEmpty
+            ? await _client
+                  .from('users')
+                  .select('id, username, avatar_url')
+                  .inFilter('id', allPartnerIds.toList())
+            : <dynamic>[];
+        final userMap = {for (var u in usersData) u['id'] as String: u};
+
+        for (final ug in items) {
+          final ids = ug['partner_ids'];
+          if (ids is List && ids.isNotEmpty) {
+            partnersByUserGame['${ug['user_id']}_${ug['game_id']}'] = ids
+                .map((id) => userMap[id.toString()])
+                .where((u) => u != null)
+                .toList();
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Fusionar eventos duplicados (status_change + reviewed del mismo juego)
+    final mergedItems = mergeActivityItems(
+      feedItems: feedItems,
+      reviewsById: reviewsById,
+      partnersByUserGame: partnersByUserGame,
+    );
+
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final item in mergedItems) {
+      final userId = item['user_id'] as String?;
+      if (userId == null) continue;
+
+      final list = grouped.putIfAbsent(userId, () => []);
+      if (list.length >= maxPerUser) continue;
+      list.add(item);
+    }
+
+    // Invertir las listas para que el visor de historias las reproduzca de más antigua a más reciente
+    for (final userId in grouped.keys) {
+      grouped[userId] = grouped[userId]!.reversed.toList();
+    }
+
+    return grouped;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Detalle de reseña (ReviewDetailsScreen)
   // ═══════════════════════════════════════════════════════════════════════════
@@ -271,6 +390,7 @@ class ActivityRepository {
     required String? content,
     required XFile? commentImage,
     required Map<String, dynamic>? attachedGame,
+    String? parentCommentId,
   }) async {
     String? imageUrl;
 
@@ -292,6 +412,7 @@ class ActivityRepository {
       'content': content?.isNotEmpty == true ? content : null,
       'image_url': imageUrl,
       'attached_game': attachedGame,
+      if (parentCommentId != null) 'parent_comment_id': parentCommentId,
     });
   }
 
@@ -470,13 +591,11 @@ class ActivityRepository {
         item['_partners'] = partnersByUserGame['${uId}_$gId'];
       }
 
-      // Inyectar datos de reseña si es un evento "reviewed"
-      if (item['action_type'] == 'reviewed') {
-        final reviewId = (item['metadata'] as Map?)?['review_id'] as String?;
-        if (reviewId != null && reviewsById.containsKey(reviewId)) {
-          item = Map<String, dynamic>.from(item);
-          item['_review'] = reviewsById[reviewId];
-        }
+      // Inyectar datos de reseña si están referenciados
+      final reviewId = (item['review_id'] as String?) ?? (item['metadata'] as Map?)?['review_id'] as String?;
+      if (reviewId != null && reviewsById.containsKey(reviewId)) {
+        item = Map<String, dynamic>.from(item);
+        item['_review'] = reviewsById[reviewId];
       }
 
       // Intentar fusionar con un evento reciente del mismo usuario y juego
