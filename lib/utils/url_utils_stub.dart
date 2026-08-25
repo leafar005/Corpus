@@ -1,6 +1,8 @@
 // lib/utils/url_utils_stub.dart
 // Fallback para plataformas no web.
 
+import 'dart:async';
+
 class AnchorElement {
   String href = '';
   String target = '';
@@ -9,21 +11,39 @@ class AnchorElement {
   void remove() {}
 }
 
-class Document {
-  Body? body;
-  dynamic createElement(String tag) => AnchorElement();
+class Location {
+  String pathname = '/';
+  String search = '';
 }
 
-class Body {
-  void append(dynamic element) {}
+class History {
+  void pushState(dynamic state, String title, String url) {}
+  void replaceState(dynamic state, String title, String url) {}
+}
+
+class PopStateEvent {
+  PopStateEvent(String type);
+}
+
+class Window {
+  Location location = Location();
+  History history = History();
+  final Stream<PopStateEvent> onPopState = const Stream.empty();
+
+  void dispatchEvent(Event event) {}
 }
 
 class Event {
   Event(String type);
 }
 
-class Window {
-  void dispatchEvent(Event event) {}
+class Body {
+  void append(dynamic element) {}
+}
+
+class Document {
+  Body? body;
+  dynamic createElement(String tag) => AnchorElement();
 }
 
 final document = Document();
