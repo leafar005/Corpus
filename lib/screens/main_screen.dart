@@ -333,104 +333,101 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildLiquidGlassNavBar(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // El LiquidGlassBottomNavBar no permite overlays en sus ítems directamente,
-    // así que envolvemos el nav bar en un Stack y pintamos el badge encima
-    // usando posición calculada para el ítem central (índice 2 de 5).
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(35),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).shadowColor.withValues(alpha: 0.15),
-                blurRadius: 20,
-                spreadRadius: 0,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(35),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final barWidth = constraints.maxWidth - 40; // 20px padding a cada lado
+          const barHeight = 64.0;
+          const bottomMargin = 12.0;
+          const totalHeight = barHeight + bottomMargin;
+
+          return SizedBox(
+            width: constraints.maxWidth,
+            height: totalHeight,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                LiquidGlassBottomNavBar(
-                  itemStyle: LiquidGlassNavItemStyle(
-                    selectedColor: isDark
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.black,
-                    unselectedColor: isDark ? Colors.white70 : Colors.black54,
-                  ),
-                  items: const [
-                    LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
-                    LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
-                    LiquidGlassTabBarItem(icon: Icons.group, label: 'Actividad'),
-                    LiquidGlassTabBarItem(
-                      icon: Icons.local_offer,
-                      label: 'Bundles',
+                // Centramos y posicionamos la barra nosotros mismos.
+                // alignment/margin del widget se ponen a neutral para que no interfieran.
+                Positioned(
+                  bottom: bottomMargin,
+                  left: (constraints.maxWidth - barWidth) / 2,
+                  child: LiquidGlassBottomNavBar(
+                    width: barWidth,
+                    height: barHeight,
+                    alignment: Alignment.topLeft,
+                    margin: EdgeInsets.zero,
+                    itemStyle: LiquidGlassNavItemStyle(
+                      selectedColor: isDark
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.black,
+                      unselectedColor: isDark ? Colors.white70 : Colors.black54,
                     ),
-                    LiquidGlassTabBarItem(icon: Icons.person, label: 'Perfil'),
-                  ],
-                  selectedIndex: _currentIndex,
-                  onChanged: (index) => _onTabTapped(index),
-                  pillStyle: const LiquidGlassNavPillStyle(
-                    animated: true,
-                    mode: LiquidGlassPillMode.both,
-                    enableInnerRadiusTransparent: true,
-                    magnification: 1.25,
-                    glassStyle: LiquidGlassStyle(
-                      refraction: LiquidGlassRefraction(
-                        distortion: 0.15,
-                        distortionWidth: 24.0,
-                        chromaticAberration: 0.025,
+                    items: const [
+                      LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
+                      LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
+                      LiquidGlassTabBarItem(icon: Icons.group, label: 'Actividad'),
+                      LiquidGlassTabBarItem(
+                        icon: Icons.local_offer,
+                        label: 'Bundles',
+                      ),
+                      LiquidGlassTabBarItem(icon: Icons.person, label: 'Perfil'),
+                    ],
+                    selectedIndex: _currentIndex,
+                    onChanged: (index) => _onTabTapped(index),
+                    pillStyle: const LiquidGlassNavPillStyle(
+                      animated: true,
+                      mode: LiquidGlassPillMode.both,
+                      enableInnerRadiusTransparent: true,
+                      magnification: 1.25,
+                      glassStyle: LiquidGlassStyle(
+                        refraction: LiquidGlassRefraction(
+                          distortion: 0.15,
+                          distortionWidth: 24.0,
+                          chromaticAberration: 0.025,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 // Badge flotante sobre el ítem Actividad (índice 2 de 5).
-                // Posición: 2/5 del ancho + offset al centro del ítem, arriba.
                 Positioned(
-                  // El ítem 2 ocupa el rango [2/5, 3/5] del ancho total.
-                  // Centramos el badge en ese rango y lo subimos al borde superior.
                   left: 0,
                   right: 0,
-                  top: 6,
-                  child: _buildLiquidGlassBadge(),
+                  top: 0,
+                  height: totalHeight,
+                  child: _buildLiquidGlassBadge(barWidth: barWidth),
                 ),
               ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
   /// Badge para el LiquidGlass nav bar, centrado en el slot del ítem Actividad (2/5).
-  Widget _buildLiquidGlassBadge() {
+  Widget _buildLiquidGlassBadge({required double barWidth}) {
     return ValueListenableBuilder<int>(
       valueListenable: unreadActivityCount,
       builder: (context, count, _) {
         if (count == 0) return const SizedBox.shrink();
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            // Cada uno de los 5 ítems ocupa 1/5 del ancho total.
-            final itemWidth = constraints.maxWidth / 5;
-            // El ítem de Actividad es el índice 2 → su centro está en 2.5/5.
-            final centerX = itemWidth * 2.5;
-            // El icono tiene ~24 px; el badge va en la esquina sup-der del icono.
-            final badgeLeft = centerX + 8;
-            return Stack(
-              children: [
-                Positioned(
-                  left: badgeLeft,
-                  top: 0,
-                  child: _buildBadgeDot(count),
-                ),
-              ],
-            );
-          },
+        // Cada uno de los 5 ítems ocupa 1/5 del ancho de la barra.
+        // La barra está centrada, así que hay un offset de 20px a cada lado.
+        const sideOffset = 20.0;
+        final itemWidth = barWidth / 5;
+        // El ítem de Actividad es el índice 2 → su centro está en 2.5/5 de barWidth.
+        final centerX = sideOffset + itemWidth * 2.5;
+        // El badge va en la esquina sup-der del icono (~24 px).
+        final badgeLeft = centerX + 8;
+        return Stack(
+          children: [
+            Positioned(
+              left: badgeLeft,
+              top: 6,
+              child: _buildBadgeDot(count),
+            ),
+          ],
         );
       },
     );
