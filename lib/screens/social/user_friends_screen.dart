@@ -128,7 +128,7 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
                     final displayName = friend['display_name'] as String? ?? friend['username'] as String? ?? 'Usuario';
 
                     final isMe = friendId == _myId;
-                    final isMutual = friendId != null && _myFriendsIds.contains(friendId);
+
 
                     Widget? trailing;
                     if (isMe) {

@@ -31,20 +31,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('main_tab_index', 0);
 
-      await Supabase.instance.client.auth.signUp(
+      final response = await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         // ¡Atención aquí! Este 'data' es exactamente lo que atrapa nuestro Trigger en Supabase (new.raw_user_meta_data)
         data: {'username': username},
+        emailRedirectTo: 'https://corpus-games.vercel.app',
       );
-      if (mounted) {
+
+      if (!mounted) return;
+
+      if (response.session != null) {
+        // Sesión activa: el usuario ya está logueado.
+        // El AuthGate detectará el cambio y mostrará MainScreen.
+        // Solo hacemos pop si esta pantalla fue empujada encima de otra.
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      } else {
+        // Confirmación de email requerida: avisamos y volvemos al login.
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('¡Registro exitoso! Ya puedes iniciar sesión.'),
+            content: Text(
+              'Revisa tu correo y confirma tu cuenta para poder entrar.',
+            ),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 5),
           ),
         );
-        Navigator.pop(context); // Cierra esta pantalla y vuelve al login
+        Navigator.pop(context);
       }
     } on AuthException catch (error) {
       if (mounted) {
