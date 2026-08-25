@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-08-26
+
+### Añadido
+- **Sistema de Amigos Integral:** Nueva lista de amigos interactiva en el perfil de usuario. Ahora puedes aceptar solicitudes, ver el estado de tus amigos (ordenados por su actividad más reciente) y navegar directamente a sus perfiles.
+- **Autenticación (Flujo de Contraseña):** Añadida la opción de recuperar/restablecer contraseña desde la pantalla de login, además de inicio de sesión (auto-login) automático y transparente al registrar una nueva cuenta.
+- **Plataformas e Iconos Extendidos:** Agregado soporte nativo e iconos personalizados para Wii U, 3DS, DS, Switch 2, VR y FireTV.
+- **Editoras (Publishers):** La pantalla de información de los juegos ahora recupera y muestra el nombre de las editoras (publishers) importadas directamente desde IGDB.
+- **Sistema de Diseño Base (Design System):** Se han cimentado las bases de toda la interfaz (`Corpus Button`, `Chip`, `Slider`, tipografía `Syne`, etc.), unificando el estilo y haciéndolo modular.
+
+### Cambiado
+- **Radar de Géneros Interactivo:** Rediseño del gráfico radial de géneros en el perfil de usuario. Ahora es interactivo; al tocar los bordes del radar se despliega la lista de juegos completados de ese género.
+- **Mejoras en el Activity Feed (Historias):** El carrusel de Historias fluye ahora en un orden cronológico natural, el temporizador de visualización dura 10 segundos, y *todos* los estados de juego disponen de sistema de comentarios y "Likes", eliminando la limitación a solo juegos completados.
+- **Detección Inteligente de DLCs y Remakes:** Mejora en el motor de lectura de metadatos de IGDB para categorizar infaliblemente DLCs, Remakes, Remasters o Mods usando cruce de variables (`gameType` y `parentGame`).
+- **Filtros de Biblioteca Avanzados (Estilo Stash):** Las plataformas en los modales de filtrado ahora aparecen ordenadas de forma inteligente por sus familias (Nintendo, PlayStation, Xbox, etc.) e incluyen consolas clásicas para búsquedas mucho más orgánicas.
+- **Motor de Navegación:** Transición interna completa a un sistema de router centralizado (`app_routes`) para garantizar transiciones estables y un enrutamiento por rutas nombradas.
+
+### Arreglado
+- **Notificaciones Web Push en iOS:** Resuelto el problema crítico de entrega de notificaciones en Safari (iOS) y añadido un globo rojo numérico (badge) a la campana para notificaciones no leídas.
+- **Cálculo Desincronizado de XP:** Reparado un desajuste en los Triggers de la base de datos que fallaban al calcular la Experiencia (XP) al marcar juegos completados y se han cerrado brechas de seguridad (RLS) en los logros de usuarios.
+- **Importador de CSV a Prueba de Balas:** Reparado el parser de la herramienta de importación, el cual ahora evita inyectar juegos duplicados en tu base de datos cuando se suben archivos antiguos o conflictivos.
+- **Precisión del Activity Feed:** Subsanado un error que insertaba eventos fantasma de reseñas vacías al poner un juego en "Wishlist", se sanearon los disparadores obsoletos y se vinculó la eliminación en cascada.
+- **Perfeccionamiento Visual (UI):** Ajustada la proporción (AspectRatio) para que las portadas del Hall of Fame no se deformen, centrado en monitores ultrawide corregido, y solventada la recuperación manual de *Covers* perdidas por la base de datos externa.
+
 ## [1.1.3] - 2026-08-14
 
 ### Añadido
