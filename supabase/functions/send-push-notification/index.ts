@@ -138,6 +138,19 @@ async function sendToTokens(
               },
               priority: "high",
             },
+            // Bloque webpush: necesario para tokens web (Chrome, Safari PWA iOS 16.4+).
+            // Sin este bloque, Safari puede ignorar la notificación o no entregarla al SW.
+            webpush: {
+              headers: {
+                Urgency: "high",
+              },
+              notification: {
+                title,
+                body,
+                icon: "/icons/Icon-192.png",
+                badge: "/icons/Icon-192.png",
+              },
+            },
           },
         };
 

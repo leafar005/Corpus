@@ -16,26 +16,42 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Detecta si el Service Worker corre en Safari/WebKit (iOS PWA).
+// En Safari, el SDK compat de Firebase NO auto-muestra notificaciones
+// aunque el payload traiga un objeto 'notification' — a diferencia de
+// Chrome/Firefox donde el SDK sí las gestiona automáticamente.
+// Fuente: https://firebase.google.com/docs/cloud-messaging/js/receive
+function isWebKitSW() {
+  // self.navigator.userAgent está disponible en SW desde Safari 16+
+  try {
+    return /safari/i.test(self.navigator.userAgent) && !/chrome/i.test(self.navigator.userAgent);
+  } catch (_) {
+    return false;
+  }
+}
+
 // Recibe mensajes en background.
-// NOTA: Si el payload contiene 'notification', el SDK de Firebase Web Push
-// ya muestra automáticamente la notificación en el navegador/PWA.
-// Si llamamos a self.registration.showNotification cuando payload.notification existe,
-// la notificación aparece duplicada.
+// - Chrome/Firefox: si el payload tiene 'notification', el SDK lo muestra automáticamente.
+//   Si llamamos también a showNotification la notificación aparece duplicada → salimos.
+// - Safari/iOS PWA: el SDK NO auto-muestra nada, así que siempre llamamos showNotification.
 messaging.onBackgroundMessage(function(payload) {
   console.log('[Corpus SW] Notificación en background:', payload);
 
-  if (payload.notification) {
-    console.log('[Corpus SW] Payload con notification autogestionado por Firebase SDK. Omitiendo duplicado.');
+  const safariMode = isWebKitSW();
+
+  if (payload.notification && !safariMode) {
+    // Chrome/Firefox: el SDK ya gestiona el notification payload — evitamos duplicado.
+    console.log('[Corpus SW] Payload con notification autogestionado por Firebase SDK (no-Safari). Omitiendo duplicado.');
     return;
   }
 
-  const title = payload.data?.title ?? 'Corpus';
+  // Safari (o payload data-only): mostramos la notificación manualmente.
+  const title = payload.notification?.title ?? payload.data?.title ?? 'Corpus';
   const options = {
-    body: payload.data?.body ?? '',
+    body: payload.notification?.body ?? payload.data?.body ?? '',
     icon: '/icons/Icon-192.png',
     badge: '/icons/Icon-192.png',
     data: payload.data ?? {},
-    // Vibración y comportamiento al hacer tap
     vibrate: [200, 100, 200],
   };
 
