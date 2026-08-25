@@ -2,6 +2,15 @@ import 'package:flutter/material.dart';
 
 class IgdbConstants {
   // ============================================================
+  // PROPORCIÓN DE CARÁTULA (COVER ART)
+  // ============================================================
+  // Ratio ancho/alto (3:4) usado por game_hero_section.dart / game_details.
+  // Única fuente de verdad: cualquier grid, fila o contenedor que muestre
+  // una GameCard debe usar esta constante para que BoxFit.cover no recorte
+  // la carátula de forma distinta según la pantalla.
+  static const double coverAspectRatio = 3 / 4;
+
+  // ============================================================
   // CATEGORÍAS DE JUEGO (IGDB)
   // ============================================================
   // Fuente: https://api-docs.igdb.com/#game-enums
