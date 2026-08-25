@@ -194,9 +194,8 @@ class ReviewRepository {
       'progress_percent': isWishlist ? null : progressPercent,
       'image_urls': isWishlist ? <String>[] : imageUrls,
       'partner_ids': isWishlist ? [] : partnerIds,
-      // Fecha de publicación: solo se incluye en el payload cuando el usuario
-      // la ha seleccionado explícitamente, para no sobreescribir el valor de
-      // la BD en inserts (Postgres usa NOW() por defecto).
+      // Fecha de finalización: solo se incluye cuando el usuario la elige o al
+      // marcar como terminado (el trigger sincroniza last_played_at desde aquí).
       if (reviewDate != null) 'created_at': reviewDate.toIso8601String(),
     };
   }
@@ -409,39 +408,26 @@ class ReviewRepository {
       finalImageUrls.addAll(uploaded);
     }
 
-    // Construir payload de reseña mediante método sanitizador estático
-    final reviewData = sanitizeReviewData(
-      userId: userId,
-      igdbId: igdbId,
-      status: status,
-      rating: rating,
-      ratingGameplay: ratingGameplay,
-      ratingNarrative: ratingNarrative,
-      ratingSoundtrack: ratingSoundtrack,
-      ratingVisuals: ratingVisuals,
-      comment: comment,
-      completionType: completionType,
-      isReplay: isReplay,
-      replayNumber: replayNumber,
-      platform: platform,
-      playTimeHours: playTimeHours,
-      playedFrom: playedFrom,
-      playedUntil: playedUntil,
-      progressPercent: progressPercent,
-      imageUrls: finalImageUrls,
-      partnerIds: partnerIds,
-      reviewDate: reviewDate,
-    );
+    DateTime? effectiveReviewDate = reviewDate;
 
     // Insert o update según si ya existe la reseña
     if (reviewId != null) {
       try {
         final oldReview = await _client
             .from('reviews')
-            .select('image_urls')
+            .select('status, image_urls')
             .eq('id', reviewId)
             .maybeSingle();
-        if (oldReview != null && oldReview['image_urls'] != null) {
+        if (oldReview != null) {
+          final oldStatus = oldReview['status'] as String?;
+          final wasNotFinished =
+              oldStatus != 'beaten' && oldStatus != 'completed';
+          final isNowFinished = status == 'beaten' || status == 'completed';
+          if (wasNotFinished && isNowFinished && effectiveReviewDate == null) {
+            effectiveReviewDate = DateTime.now();
+          }
+
+          if (oldReview['image_urls'] != null) {
           final List<String> oldUrls = (oldReview['image_urls'] as List)
               .map((e) => e.toString())
               .toList();
@@ -454,6 +440,7 @@ class ReviewRepository {
               '[ReviewRepository] Eliminadas ${removedUrls.length} imágenes quitadas en la edición de la reseña.',
             );
           }
+          }
         }
       } catch (e) {
         debugPrint(
@@ -461,9 +448,59 @@ class ReviewRepository {
         );
       }
 
-      await _client.from('reviews').update(reviewData).eq('id', reviewId);
+      await _client.from('reviews').update(
+        sanitizeReviewData(
+          userId: userId,
+          igdbId: igdbId,
+          status: status,
+          rating: rating,
+          ratingGameplay: ratingGameplay,
+          ratingNarrative: ratingNarrative,
+          ratingSoundtrack: ratingSoundtrack,
+          ratingVisuals: ratingVisuals,
+          comment: comment,
+          completionType: completionType,
+          isReplay: isReplay,
+          replayNumber: replayNumber,
+          platform: platform,
+          playTimeHours: playTimeHours,
+          playedFrom: playedFrom,
+          playedUntil: playedUntil,
+          progressPercent: progressPercent,
+          imageUrls: finalImageUrls,
+          partnerIds: partnerIds,
+          reviewDate: effectiveReviewDate,
+        ),
+      ).eq('id', reviewId);
     } else {
-      await _client.from('reviews').insert(reviewData);
+      if ((status == 'beaten' || status == 'completed') &&
+          effectiveReviewDate == null) {
+        effectiveReviewDate = DateTime.now();
+      }
+      await _client.from('reviews').insert(
+        sanitizeReviewData(
+          userId: userId,
+          igdbId: igdbId,
+          status: status,
+          rating: rating,
+          ratingGameplay: ratingGameplay,
+          ratingNarrative: ratingNarrative,
+          ratingSoundtrack: ratingSoundtrack,
+          ratingVisuals: ratingVisuals,
+          comment: comment,
+          completionType: completionType,
+          isReplay: isReplay,
+          replayNumber: replayNumber,
+          platform: platform,
+          playTimeHours: playTimeHours,
+          playedFrom: playedFrom,
+          playedUntil: playedUntil,
+          progressPercent: progressPercent,
+          imageUrls: finalImageUrls,
+          partnerIds: partnerIds,
+          reviewDate: effectiveReviewDate,
+        ),
+      );
     }
 
     // El trigger sync_user_games_rating_from_review se encarga automáticamente
