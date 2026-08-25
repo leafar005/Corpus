@@ -289,13 +289,29 @@ class NotificationService {
   // ─── Notificación de prueba ────────────────────────────────────────────────
 
   Future<void> sendTestNotification() async {
-    if (kIsWeb) {
-      // En web: mostrar via API del navegador directamente si tenemos permiso
-      debugPrint(
-        '[NotificationService] Test notification en web — enviada vía FCM al dispositivo.',
-      );
-      return;
+    final token = kIsWeb
+        ? await FirebaseMessaging.instance.getToken(vapidKey: Env.firebaseVapidKey)
+        : (Platform.isAndroid ? await FirebaseMessaging.instance.getToken() : null);
+
+    if (token != null) {
+      try {
+        await Supabase.instance.client.functions.invoke(
+          'send-push-notification',
+          body: {
+            'tokens': [token],
+            'title': 'Corpus — Notificación de prueba',
+            'body': 'Las notificaciones funcionan correctamente.',
+            'data': {'type': 'test'},
+          },
+        );
+        debugPrint('[NotificationService] Test notification enviada al token: $token');
+        return; // FCM se encargará de mostrarla
+      } catch (e) {
+        debugPrint('[NotificationService] Error enviando push de prueba: $e');
+      }
     }
+
+    // Fallback: mostrar en local (útil para Windows donde no hay FCM)
     await showNotification(
       title: 'Corpus — Notificación de prueba',
       body: 'Las notificaciones funcionan correctamente.',
