@@ -11,6 +11,7 @@ import 'services/notification_service.dart';
 import 'services/style_pack_music_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/deep_link_service.dart';
+import 'screens/auth/reset_password_screen.dart';
 
 import 'globals.dart';
 
@@ -131,6 +132,22 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     _authSub =
         (widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange)
             .listen((data) {
+              // El usuario volvió desde el link de reset de contraseña:
+              // Supabase valida el token y emite passwordRecovery.
+              // Navegamos a la pantalla de nueva contraseña por encima de todo.
+              if (data.event == AuthChangeEvent.passwordRecovery) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (DeepLinkService.navigatorKey.currentState != null) {
+                    DeepLinkService.navigatorKey.currentState!.push(
+                      MaterialPageRoute(
+                        builder: (_) => const ResetPasswordScreen(),
+                        fullscreenDialog: true,
+                      ),
+                    );
+                  }
+                });
+                return;
+              }
               if (data.session?.user != null) {
                 _setupPresence();
               } else {
