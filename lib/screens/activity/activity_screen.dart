@@ -840,7 +840,7 @@ class _ActivityScreenState extends State<ActivityScreen>
 
   Widget _buildFriendsStrip() {
     return Container(
-      height: 96,
+      height: 110,
       padding: const EdgeInsets.only(top: 8, bottom: 4),
       decoration: BoxDecoration(
         border: Border(
@@ -970,8 +970,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                         context.pushProfile(userId: friendId);
                       },
                       child: Container(
-                        width: 72,
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        width: 76,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -979,7 +979,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                               clipBehavior: Clip.none,
                               children: [
                                 ActivityStoryRing(
-                                  radius: 26,
+                                  radius: 30,
                                   hasStory: hasStory,
                                   avatarUrl: avatarUrl,
                                   backgroundColor: Theme.of(
@@ -989,11 +989,11 @@ class _ActivityScreenState extends State<ActivityScreen>
                                 // Dibujamos el punto si están jugando O si están online
                                 if (isPlaying || isOnline)
                                   Positioned(
-                                    bottom: -1,
-                                    right: -1,
+                                    bottom: 0,
+                                    right: 0,
                                     child: Container(
-                                      width: 15,
-                                      height: 15,
+                                      width: 17,
+                                      height: 17,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         // Prioridad al color verde si están jugando, azul si solo están en la app
