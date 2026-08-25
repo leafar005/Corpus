@@ -194,7 +194,11 @@ class _ActivityScreenState extends State<ActivityScreen>
           schema: 'public',
           table: 'activity_feed',
           callback: (payload) {
-            if (mounted) _fetchActivity(isRefresh: true, silent: true);
+            if (!mounted) return;
+            // Incrementar badge de notificaciones no leídas en la nav bar.
+            // El reset lo hace MainScreen cuando el usuario abre la pestaña.
+            unreadActivityCount.value++;
+            _fetchActivity(isRefresh: true, silent: true);
           },
         )
         .subscribe();
@@ -287,38 +291,27 @@ class _ActivityScreenState extends State<ActivityScreen>
   IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
 
   String _getActionText(String actionType, String? status, bool isOwnActivity) {
-    switch (actionType) {
-      case 'status_change':
-        switch (status) {
-          case 'playing':
-            return isOwnActivity ? 'has empezado a jugar a' : 'está jugando a';
-          case 'beaten':
-            return isOwnActivity ? 'has completado' : 'ha completado';
-          case 'wishlist':
-            return isOwnActivity
-                ? 'has añadido a la wishlist'
-                : 'quiere jugar a';
-          case 'abandoned':
-            return isOwnActivity ? 'has abandonado' : 'ha abandonado';
-          case 'on_hold':
-            return isOwnActivity ? 'has pausado' : 'ha pausado';
-          default:
-            return isOwnActivity ? 'has actualizado' : 'actualizó';
-        }
-      case 'reviewed':
-        return isOwnActivity ? 'has reseñado' : 'ha reseñado';
+    switch (status) {
+      case 'playing':
+        return isOwnActivity ? 'has empezado a jugar a' : 'está jugando a';
+      case 'beaten':
+        return isOwnActivity ? 'has completado' : 'ha completado';
+      case 'wishlist':
+        return isOwnActivity ? 'has añadido a la wishlist' : 'quiere jugar a';
+      case 'abandoned':
+        return isOwnActivity ? 'has abandonado' : 'ha abandonado';
+      case 'on_hold':
+        return isOwnActivity ? 'has pausado' : 'ha pausado';
       case 'achievement':
         return isOwnActivity
             ? 'has desbloqueado un logro en'
             : 'ha desbloqueado un logro en';
       default:
-        return isOwnActivity ? 'has interactuado con' : 'hizo algo con';
+        return isOwnActivity ? 'has actualizado' : 'actualizó';
     }
   }
 
-  IconData _getActionIcon(String actionType, String? status) {
-    if (actionType == 'reviewed') return Icons.rate_review_rounded;
-    if (actionType == 'achievement') return Icons.emoji_events_rounded;
+  IconData _getActionIcon(String? status) {
     switch (status) {
       case 'beaten':
         return Icons.check_circle;
@@ -330,14 +323,15 @@ class _ActivityScreenState extends State<ActivityScreen>
         return Icons.cancel;
       case 'on_hold':
         return Icons.pause_circle;
+      case 'achievement':
+        return Icons.emoji_events_rounded;
       default:
         return Icons.flag;
     }
   }
 
-  Color _getActionColor(String actionType, String? status, BuildContext ctx) {
-    if (actionType == 'reviewed') return Theme.of(ctx).colorScheme.secondary;
-    if (actionType == 'achievement') return Colors.amber;
+  Color _getActionColor(String? status, BuildContext ctx) {
+    if (status == 'achievement') return Colors.amber;
     switch (status) {
       case 'beaten':
         return Colors.green;
@@ -370,16 +364,23 @@ class _ActivityScreenState extends State<ActivityScreen>
     final coverUrl = gameData['cover_url'] as String?;
 
     final actionType = activity['action_type'] as String? ?? 'status_change';
-    final status = meta['status'] as String?;
+    // El status efectivo: para eventos 'reviewed', tomamos el status de la propia
+    // reseña (que refleja el estado real del juego). Para 'achievement' usamos
+    // una clave especial. Para status_change usamos el metadata directamente.
+    final String? effectiveStatus = actionType == 'reviewed'
+        ? (review?['status'] as String? ?? meta['status'] as String?)
+        : actionType == 'achievement'
+        ? 'achievement'
+        : meta['status'] as String?;
     final dateStr = _formatDate(activity['created_at'] as String? ?? '');
 
     final myId = _supabase.auth.currentUser?.id;
     final activityUserId = userData['id'] as String?;
     final isOwnActivity = myId == activityUserId;
 
-    final actionText = _getActionText(actionType, status, isOwnActivity);
-    final actionIcon = _getActionIcon(actionType, status);
-    final actionColor = _getActionColor(actionType, status, context);
+    final actionText = _getActionText(actionType, effectiveStatus, isOwnActivity);
+    final actionIcon = _getActionIcon(effectiveStatus);
+    final actionColor = _getActionColor(effectiveStatus, context);
 
     // Datos de la reseña enriquecida
     final rating = review != null
@@ -620,11 +621,11 @@ class _ActivityScreenState extends State<ActivityScreen>
                       ),
                       const SizedBox(height: 8),
                       // Estado del juego
-                      if (status != null)
+                      if (effectiveStatus != null && effectiveStatus != 'achievement')
                         Row(
                           children: [
                             Icon(
-                              _getStatusIcon(status),
+                              _getStatusIcon(effectiveStatus),
                               size: 18,
                               color: Theme.of(
                                 context,
@@ -632,7 +633,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              _getStatusText(status),
+                              _getStatusText(effectiveStatus),
                               style: TextStyle(
                                 color: Theme.of(
                                   context,
@@ -715,7 +716,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                               username: partner['username'] ?? 'Usuario',
                               avatarUrl: partner['avatar_url'],
                               size: 20,
-                              status: status,
+                              status: effectiveStatus,
                               userId: partner['id'] as String?,
                             );
                           }).toList(),
