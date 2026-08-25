@@ -108,6 +108,7 @@ class ReviewDetailsController extends ChangeNotifier {
     required String content,
     XFile? commentImage,
     Map<String, dynamic>? attachedGame,
+    String? parentCommentId,
   }) async {
     if (content.isEmpty && commentImage == null && attachedGame == null) return;
 
@@ -126,6 +127,7 @@ class ReviewDetailsController extends ChangeNotifier {
         content: content.isNotEmpty ? content : null,
         commentImage: commentImage,
         attachedGame: attachedGame,
+        parentCommentId: parentCommentId,
       );
       await fetchInteractions();
     } finally {
