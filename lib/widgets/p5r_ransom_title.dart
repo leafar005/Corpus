@@ -18,12 +18,14 @@ class P5rRansomTitle extends StatelessWidget {
     this.padding,
   });
 
+  static const int maxWordsPerLine = 2;
+
   static final RegExp _accentPattern = RegExp(
     r'[àáâãäåæçèéêëìíîïñòóôõöùúûüýÿ]',
     caseSensitive: false,
   );
 
-  static const int _maxWordsPerLine = 2;
+  static const int _maxWordsPerLine = maxWordsPerLine;
 
   @override
   Widget build(BuildContext context) {

@@ -134,8 +134,12 @@ class CorpusStyledPanel extends StatelessWidget {
     return Container(
       margin: margin,
       padding: padding ?? const EdgeInsets.all(16),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: cs.surface,
+        borderRadius: ext.radiusLarge,
+      ),
+      foregroundDecoration: BoxDecoration(
         borderRadius: ext.radiusLarge,
         border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
       ),
