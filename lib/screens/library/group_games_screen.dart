@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/igdb_constants.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
 import '../../models/models.dart';
@@ -79,9 +80,9 @@ class _GroupGamesScreenState extends State<GroupGamesScreen> {
             )
           : GridView.builder(
               padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: 160,
-                childAspectRatio: 0.7,
+                childAspectRatio: IgdbConstants.coverAspectRatio,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
               ),

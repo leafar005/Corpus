@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/globals.dart';
@@ -415,9 +416,9 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
             bottom: getBottomSpacer(context),
           ),
           sliver: SliverGrid.builder(
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 150,
-              childAspectRatio: 0.7,
+              childAspectRatio: IgdbConstants.coverAspectRatio,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
             ),

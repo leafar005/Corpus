@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../utils/igdb_constants.dart';
 import '../../models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -597,9 +598,9 @@ class _BundleCardState extends State<_BundleCard> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                          SliverGridDelegateWithMaxCrossAxisExtent(
                             maxCrossAxisExtent: 140,
-                            childAspectRatio: 0.68,
+                            childAspectRatio: IgdbConstants.coverAspectRatio,
                             crossAxisSpacing: 10,
                             mainAxisSpacing: 10,
                           ),

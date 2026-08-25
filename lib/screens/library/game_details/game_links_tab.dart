@@ -265,7 +265,7 @@ class GameLinksTab extends StatelessWidget {
             final domain = extractDomain(link['url'].toString());
 
             return Container(
-              margin: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
+              margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: Theme.of(

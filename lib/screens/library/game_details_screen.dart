@@ -13,11 +13,11 @@ import 'package:image_picker/image_picker.dart';
 import '../../globals.dart';
 import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
-import '../activity/review_details_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
+import '../library/review_modal.dart';
 
 import '../../widgets/achievement_toast.dart';
 import '../../theme/corpus_theme_extension.dart';
-import 'review_modal.dart';
 import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
 import '../../widgets/guest_login_prompt.dart';
@@ -219,15 +219,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       Navigator.of(context, rootNavigator: true).pop();
 
       if (result.review != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ReviewDetailsScreen(
-              gameData: widget.gameData,
-              userData: user,
-              reviewData: result.review!,
-            ),
-          ),
+        context.pushReviewDetails(
+          widget.gameData,
+          user,
+          result.review!,
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -541,12 +536,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     // Abrimos la pantalla con el 100% de los datos listos
     if (MediaQuery.of(context).size.width >= 800) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GameDetailsScreen(gameData: cleanData),
-        ),
-      );
+      context.pushGameDetails(cleanData);
     } else {
       showModalBottomSheet(
         context: context,
@@ -586,6 +576,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       currentStatus: _status,
       commentController: _commentController,
       onSave: _saveReview,
+      inLibrary: _inLibrary,
     );
   }
 
@@ -986,8 +977,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     return Container(
       margin: EdgeInsets.only(
         top: 0,
-        left: isDesktop ? 0 : 16,
-        right: isDesktop ? 0 : 16,
+        left: isDesktop ? 0 : 24,
+        right: isDesktop ? 0 : 24,
       ),
       decoration: BoxDecoration(
         border: Border(
@@ -1027,8 +1018,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         widget.gameData['title'] ??
         _enrichedData['title'] ??
         (_isEnriching ? 'Cargando...' : 'Desconocido');
-    final coverUrl =
-        widget.gameData['cover_url'] ?? _enrichedData['cover_url'] ?? '';
 
     // Datos con fallback a _enrichedData (para cuando venimos de la biblioteca)
     final summary = widget.gameData['summary'] ?? _enrichedData['summary'];
@@ -1283,7 +1272,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 ),
                 tabContentSliver: SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 24.0),
+                    padding: EdgeInsets.fromLTRB(
+                      isDesktop ? 0 : 24.0,
+                      24.0,
+                      isDesktop ? 0 : 24.0,
+                      0,
+                    ),
                     child: buildCurrentTabContent(),
                   ),
                 ),

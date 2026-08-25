@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/format_utils.dart';
-import '../activity/review_details_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
+import '../../globals.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
 
@@ -179,16 +180,13 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
   }
 
   void _openReview(Map<String, dynamic> review) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReviewDetailsScreen(
-          gameData: review['games'],
-          userData: widget.userData,
-          reviewData: review,
-        ),
-      ),
-    ).then((_) => _refreshInPlace());
+    context
+        .pushReviewDetails(
+          review['games'],
+          widget.userData,
+          review,
+        )
+        .then((_) => _refreshInPlace());
   }
 
   @override
@@ -266,7 +264,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
     }
 
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, getBottomSpacer(context)),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
           if (index >= _reviews.length) {

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/igdb_service.dart';
-import '../library/game_details_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../../widgets/p5r_styled_panel.dart';
@@ -178,14 +178,10 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
     return GestureDetector(
       onTap: () {
         if (game['id'] != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => GameDetailsScreen(
-                gameData: {'igdb_id': game['id'], 'title': title},
-              ),
-            ),
-          );
+          context.pushGameDetails({
+            'igdb_id': game['id'],
+            'title': title,
+          });
         }
       },
       child: CorpusStyledPanel(

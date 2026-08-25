@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/level_calculator.dart';
-import 'package:corpus/screens/profile/achievement_games_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 
@@ -1162,28 +1162,27 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                             if (companyId != null ||
                                 collectionId != null ||
                                 franchiseId != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => AchievementGamesScreen(
-                                    achievementId: aId,
-                                    achievementName:
-                                        achievement['name'] as String,
-                                    companyId: companyId,
-                                    collectionId: collectionId,
-                                    franchiseId: franchiseId,
-                                    collectionId2: collectionId2,
-                                    franchiseId2: franchiseId2,
-                                    milestones:
-                                        _sagaMilestones[groupId] ??
-                                        <Map<String, dynamic>>[
-                                          {'target': 1, 'xp': 10},
-                                        ],
-                                    achievementIcon: badgeIcon,
-                                    achievementColor: badgeColor,
-                                  ),
-                                ),
-                              ).then((_) {
+                              context
+                                  .pushAchievementGames(
+                                    AchievementGamesArgs(
+                                      achievementId: aId,
+                                      achievementName:
+                                          achievement['name'] as String,
+                                      companyId: companyId,
+                                      collectionId: collectionId,
+                                      franchiseId: franchiseId,
+                                      collectionId2: collectionId2,
+                                      franchiseId2: franchiseId2,
+                                      milestones:
+                                          _sagaMilestones[groupId] ??
+                                          <Map<String, dynamic>>[
+                                            {'target': 1, 'xp': 10},
+                                          ],
+                                      achievementIcon: badgeIcon,
+                                      achievementColor: badgeColor,
+                                    ),
+                                  )
+                                  .then((_) {
                                 _fetchAchievementsData();
                               });
                             }

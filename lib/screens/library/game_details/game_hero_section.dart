@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:corpus/widgets/corpus_section_title.dart';
 import 'package:flutter/material.dart';
 
 import 'game_details_controller.dart';
 import 'game_reviews_card.dart';
-import '../group_games_screen.dart';
-import '../../activity/review_details_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../../models/models.dart';
 import '../../../services/igdb_service.dart';
 import '../../../repositories/review_repository.dart';
@@ -175,15 +175,10 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       Navigator.of(context, rootNavigator: true).pop();
 
       if (data.review != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ReviewDetailsScreen(
-              gameData: widget.gameData,
-              userData: user,
-              reviewData: data.review!,
-            ),
-          ),
+        context.pushReviewDetails(
+          widget.gameData,
+          user,
+          data.review!,
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -510,15 +505,10 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       borderRadius: BorderRadius.circular(4),
       onTap: developerId != null
           ? () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => GroupGamesScreen(
-                    title: developer.toString(),
-                    collectionId: developerId as int,
-                    isCompany: true,
-                  ),
-                ),
+              context.pushGroupGames(
+                developer.toString(),
+                developerId as int,
+                isCompany: true,
               );
             }
           : null,
@@ -555,16 +545,10 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             borderRadius: BorderRadius.circular(4),
             onTap: publisherId != null
                 ? () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => GroupGamesScreen(
-                          title: publisher.toString(),
-                          collectionId: publisherId as int,
-                          isCompany: true,
-                          isPublisher: true,
-                        ),
-                      ),
+                    context.pushGroupGames(
+                      publisher.toString(),
+                      publisherId as int,
+                      isCompany: true,
                     );
                   }
                 : null,
@@ -948,27 +932,30 @@ class _GameDetailsHeaderDelegate extends SliverPersistentHeaderDelegate {
             height: 56.0,
             child: Container(
               color: backgroundColor.withValues(alpha: titleOpacity * 0.9),
-              child: Row(
-                children: [
-                  leading,
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Opacity(
-                      opacity: titleOpacity,
-                      child: Text(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: titleOpacity,
+                    child: Center(
+                      child: CorpusPackAwareTitle(
                         title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        abbreviateIfLong: true,
+                        baseFontSize: 20,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                Row(
+                  children: [
+                    leading,
+                    const Spacer(),
+                  ],
+                ),
+              ],
+            ),
             ),
           ),
         ],

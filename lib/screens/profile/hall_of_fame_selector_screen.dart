@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
+import 'package:corpus/utils/igdb_constants.dart';
 import '../../widgets/corpus_network_image.dart';
 
 class HallOfFameSelectorScreen extends StatefulWidget {
@@ -163,13 +164,12 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                   Expanded(
                     child: GridView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 140,
-                            childAspectRatio: 0.7,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                          ),
+                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 140,
+                        childAspectRatio: IgdbConstants.coverAspectRatio,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
                       itemCount: filteredGames.length,
                       itemBuilder: (context, index) {
                         final game = filteredGames[index];

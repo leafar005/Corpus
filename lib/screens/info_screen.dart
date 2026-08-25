@@ -78,28 +78,55 @@ class InfoScreen extends StatelessWidget {
                   context,
                 ).extension<CorpusThemeExtension>()!.radiusMedium,
               ),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  child: const Icon(Icons.person),
-                ),
-                title: const Text(
-                  'leafar005',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  'Creador y Desarrollador',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const CircleAvatar(
+                      backgroundImage: NetworkImage('https://avatars.githubusercontent.com/leafar005'),
+                    ),
+                    title: const Text(
+                      'leafar005',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      'Creador y Desarrollador',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.open_in_new,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                    onTap: () => _launchUrl('https://github.com/leafar005'),
                   ),
-                ),
-                trailing: Icon(
-                  Icons.open_in_new,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  size: 20,
-                ),
-                onTap: () => _launchUrl('https://github.com/leafar005'),
+                  Divider(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    height: 1,
+                  ),
+                  ListTile(
+                    leading: const CircleAvatar(
+                      backgroundImage: NetworkImage('https://avatars.githubusercontent.com/coldrzz'),
+                    ),
+                    title: const Text(
+                      'coldrzz',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      'Desarrollador',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.open_in_new,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                    onTap: () => _launchUrl('https://github.com/coldrzz'),
+                  ),
+                ],
               ),
             ),
 

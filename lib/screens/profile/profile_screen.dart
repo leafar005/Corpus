@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
+import '../../utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/corpus_network_image.dart';
 import '../../widgets/friendship_button.dart';
 import '../library/game_details_screen.dart';
-import '../settings_screen.dart';
-import 'achievements_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../utils/level_calculator.dart';
 import '../../widgets/game_card.dart';
 import '../../models/models.dart';
-import '../social/friends_screen.dart';
-import '../social/user_friends_screen.dart';
+
 import 'profile_achievements_tab.dart';
 import 'profile_journal_tab.dart';
 import 'profile_reviews_tab.dart';
@@ -19,6 +18,7 @@ import 'profile_games_grid_tab.dart';
 import 'currently_playing_badge.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../utils/format_utils.dart';
+import '../../widgets/profile_stat_icon.dart';
 
 import 'profile_controller.dart';
 import '../../widgets/genre_radar_section.dart';
@@ -332,6 +332,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               right: 4,
               child: Row(
                 children: [
+                  _FriendsBadgeButton(
+                    onPressed: () {
+                      context.pushFriends();
+                    },
+                  ),
                   IconButton(
                     icon: const Icon(
                       Icons.settings,
@@ -339,15 +344,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                     ),
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SettingsScreen(
-                            userProfile: _userProfile!,
-                            hallOfFame: _hallOfFame,
-                          ),
-                        ),
-                      ).then((_) => _controller.fetchProfileData());
+                      context
+                          .pushSettings(_userProfile!, _hallOfFame)
+                          .then((_) => _controller.fetchProfileData());
                     },
                   ),
                 ],
@@ -483,13 +482,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _userProfile?['id'] ??
                   Supabase.instance.client.auth.currentUser?.id;
               if (userId == null) return;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      AchievementsScreen(userId: userId, initialXp: xp),
-                ),
-              ).then((_) => _controller.fetchProfileData());
+              context
+                  .pushAchievements(userId, xp)
+                  .then((_) => _controller.fetchProfileData());
             }
           : null,
       child: Column(
@@ -667,6 +662,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               right: 4,
               child: Row(
                 children: [
+                  _FriendsBadgeButton(
+                    onPressed: () {
+                      context.pushFriends();
+                    },
+                  ),
                   IconButton(
                     icon: const Icon(
                       Icons.settings,
@@ -674,15 +674,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                     ),
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SettingsScreen(
-                            userProfile: _userProfile!,
-                            hallOfFame: _hallOfFame,
-                          ),
-                        ),
-                      ).then((_) => _controller.fetchProfileData());
+                      context
+                          .pushSettings(_userProfile!, _hallOfFame)
+                          .then((_) => _controller.fetchProfileData());
                     },
                   ),
                 ],
@@ -1076,7 +1070,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
     return const SizedBox.shrink();
-    return const SizedBox.shrink();
   }
 
   Widget _buildSidebarInfo({bool isMobile = false}) {
@@ -1257,19 +1250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          if (_isOwnProfile) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const FriendsScreen()),
-            ).then((_) => _controller.fetchProfileData());
-          } else {
-            final userId = _userProfile!['id'] as String;
-            final username = _userProfile!['username'] as String? ?? 'Usuario';
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => UserFriendsScreen(userId: userId, username: username)),
-            ).then((_) => _controller.fetchProfileData());
-          }
+          context.pushFriends().then((_) => _controller.fetchProfileData());
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
@@ -1300,6 +1281,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _buildGiantStat(
         _controller.beatenCount.toString().padLeft(3, '0'),
         'Completados',
+        ProfileStatIconType.beaten,
         () {
           setState(() {
             _juegosStatusFilter = 'beaten';
@@ -1311,6 +1293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _buildGiantStat(
         _controller.platinumCount.toString().padLeft(3, '0'),
         'Platinos',
+        ProfileStatIconType.platinum,
         () {
           setState(() {
             _juegosStatusFilter = 'completed';
@@ -1322,6 +1305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _buildGiantStat(
         _controller.playingCount.toString().padLeft(3, '0'),
         'Jugando',
+        ProfileStatIconType.playing,
         () {
           setState(() {
             _juegosStatusFilter = 'playing';
@@ -1333,6 +1317,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _buildGiantStat(
         _controller.wishlistCount.toString().padLeft(3, '0'),
         'En Wishlist',
+        ProfileStatIconType.wishlist,
         () {
           if (_controller.wishlistCount > 0) {
             setState(() {
@@ -1351,45 +1336,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? Column(
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [stats[0], stats[1]],
+                  children: [
+                    Expanded(child: Center(child: stats[0])),
+                    Expanded(child: Center(child: stats[1])),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [stats[2], stats[3]],
+                  children: [
+                    Expanded(child: Center(child: stats[2])),
+                    Expanded(child: Center(child: stats[3])),
+                  ],
                 ),
               ],
             )
           : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: stats,
+              children: stats
+                  .map((stat) => Expanded(child: Center(child: stat)))
+                  .toList(),
             ),
     );
   }
 
-  Widget _buildGiantStat(String number, String label, VoidCallback onTap) {
+  Widget _buildGiantStat(
+    String number,
+    String label,
+    ProfileStatIconType iconType,
+    VoidCallback onTap,
+  ) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: onTap,
-        child: Column(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              number,
-              style: const TextStyle(
-                fontSize: 42,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: Center(
+                child: ProfileStatIcon(type: iconType, size: 32),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  number,
+                  style: const TextStyle(
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1421,7 +1433,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4.0),
                       child: AspectRatio(
-                        aspectRatio: 0.72,
+                        aspectRatio: IgdbConstants.coverAspectRatio,
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: [
@@ -1451,17 +1463,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           MediaQuery.of(context).size.width >
                                           800;
                                       if (isDesktop) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                GameDetailsScreen(
-                                                  gameData: game,
-                                                ),
-                                          ),
-                                        ).then(
-                                          (_) => _controller.fetchProfileData(),
-                                        );
+                                        context
+                                            .pushGameDetails(game)
+                                            .then(
+                                              (_) =>
+                                                  _controller.fetchProfileData(),
+                                            );
                                       } else {
                                         showModalBottomSheet(
                                           context: context,
@@ -1567,7 +1574,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title, int count, String? status) {
+  Widget _buildSectionTitle(String title, int count, String? status, {ProfileStatIconType? iconType}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
@@ -1585,6 +1592,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
               child: Row(
                 children: [
+                  if (iconType != null) ...[
+                    ProfileStatIcon(type: iconType, size: 22),
+                    const SizedBox(width: 8),
+                  ],
                   Text(
                     title,
                     style: const TextStyle(
@@ -1639,7 +1650,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final game = games[index];
           return Padding(
             padding: const EdgeInsets.only(right: 12.0),
-            child: SizedBox(width: 110, child: _buildGameCard(game)),
+            child: AspectRatio(
+              aspectRatio: IgdbConstants.coverAspectRatio,
+              child: _buildGameCard(game),
+            ),
           );
         },
       ),
@@ -1745,22 +1759,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_wishlistGames.isNotEmpty) ...[
-          _buildSectionTitle('Quiero', _controller.wishlistCount, 'wishlist'),
+          _buildSectionTitle('Quiero', _controller.wishlistCount, 'wishlist', iconType: ProfileStatIconType.wishlist),
           _buildCarousel(_wishlistGames),
           const SizedBox(height: 24),
         ],
         if (_playingGames.isNotEmpty) ...[
-          _buildSectionTitle('Jugando', _controller.playingCount, 'playing'),
+          _buildSectionTitle('Jugando', _controller.playingCount, 'playing', iconType: ProfileStatIconType.playing),
           _buildCarousel(_playingGames),
           const SizedBox(height: 24),
         ],
         if (_beatenGames.isNotEmpty) ...[
-          _buildSectionTitle('Completados', _controller.beatenCount, 'beaten'),
+          _buildSectionTitle('Completados', _controller.beatenCount, 'beaten', iconType: ProfileStatIconType.beaten),
           _buildCarousel(_beatenGames),
           const SizedBox(height: 24),
         ],
         if (_platinumGames.isNotEmpty) ...[
-          _buildSectionTitle('Platinos', _controller.platinumCount, 'completed'),
+          _buildSectionTitle('Platinos', _controller.platinumCount, 'completed', iconType: ProfileStatIconType.platinum),
           _buildCarousel(_platinumGames),
           const SizedBox(height: 24),
         ],
@@ -1856,5 +1870,58 @@ class _MobileProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
         oldDelegate.hasCurrentlyPlaying != hasCurrentlyPlaying ||
         oldDelegate.profileBuilder != profileBuilder ||
         oldDelegate.tabBarBuilder != tabBarBuilder;
+  }
+}
+
+class _FriendsBadgeButton extends StatefulWidget {
+  final VoidCallback onPressed;
+  const _FriendsBadgeButton({required this.onPressed});
+
+  @override
+  State<_FriendsBadgeButton> createState() => _FriendsBadgeButtonState();
+}
+
+class _FriendsBadgeButtonState extends State<_FriendsBadgeButton> {
+  int _pendingCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPendingCount();
+  }
+
+  Future<void> _loadPendingCount() async {
+    try {
+      final myId = Supabase.instance.client.auth.currentUser?.id;
+      if (myId == null) return;
+      final data = await Supabase.instance.client
+          .from('friendships')
+          .select('requester_id')
+          .eq('addressee_id', myId)
+          .eq('status', 'pending');
+      if (mounted) {
+        setState(() => _pendingCount = (data as List).length);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Badge(
+      isLabelVisible: _pendingCount > 0,
+      label: Text(_pendingCount.toString()),
+      child: IconButton(
+        icon: const Icon(
+          Icons.people_rounded,
+          color: Colors.white,
+          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+        tooltip: 'Amigos',
+        onPressed: () {
+          widget.onPressed();
+          _loadPendingCount();
+        },
+      ),
+    );
   }
 }
