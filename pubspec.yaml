@@ -35,6 +35,7 @@ dependencies:
 
   cross_file: ^0.3.5+4
   cached_network_image: ^3.4.1
+  flutter_svg: ^2.3.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -48,6 +49,19 @@ flutter:
   assets:
     - assets/images/
     - assets/guest_showcase/
+  fonts:
+    - family: Syne
+      fonts:
+        - asset: assets/fonts/Syne/static/Syne-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Syne/static/Syne-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Syne/static/Syne-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Syne/static/Syne-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Syne/static/Syne-ExtraBold.ttf
+          weight: 800
 
 # flutter_launcher_icons
 flutter_launcher_icons:

@@ -73,14 +73,37 @@ class StylePack {
     surfaceLight: Colors.white,
     surfaceDark: Colors.grey.shade900,
     accentColor: Colors.amber,
-    fontFamily: null,
-    heroFontFamily: 'Helvetica',
+    fontFamily: 'Syne',
+    heroFontFamily: null,
     heroFontSize: 48,
-    heroFontWeight: FontWeight.w900,
+    heroFontWeight: FontWeight.w500,
     borderRadiusSmall: 8,
     borderRadiusMedium: 12,
     borderRadiusLarge: 16,
     navBarStyle: NavBarStyle.liquidGlass,
+  );
+
+  /// Built-in Persona 5 Royal pack (also available as `.corpuspack` addon).
+  static StylePack persona5RoyalPack() => const StylePack(
+    id: 'persona_5_royal',
+    name: 'Persona 5 Royal',
+    description:
+        'Estilo inspirado en la identidad visual de Persona 5 Royal.',
+    seedColor: Color(0xFFD3112D),
+    scaffoldLight: Color(0xFFFFFFFF),
+    scaffoldDark: Color(0xFF000000),
+    surfaceLight: Color(0xFFFFFFFF),
+    surfaceDark: Color(0xFF121212),
+    accentColor: Color(0xFFFFD400),
+    fontFamily: 'Archivo Black',
+    heroFontFamily: 'Archivo Black',
+    heroFontSize: 52,
+    heroFontWeight: FontWeight.w900,
+    borderRadiusSmall: 0,
+    borderRadiusMedium: 2,
+    borderRadiusLarge: 4,
+    navBarStyle: NavBarStyle.persona5Royal,
+    useDynamicFrames: true,
   );
 
   // ── Serialisation ────────────────────────────────────────────────────────
