@@ -2,8 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/format_utils.dart';
-import '../library/game_details_screen.dart';
-import '../activity/review_details_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../utils/igdb_constants.dart';
 import '../../models/models.dart';
@@ -255,25 +254,19 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
   }
 
   void _openReview(Map<String, dynamic> review) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReviewDetailsScreen(
-          gameData: review['games'],
-          userData: widget.userData,
-          reviewData: review,
-        ),
-      ),
-    ).then((_) => _refreshInPlace());
+    context
+        .pushReviewDetails(
+          review['games'],
+          widget.userData,
+          review,
+        )
+        .then((_) => _refreshInPlace());
   }
 
   void _openGame(Map<String, dynamic> review) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => GameDetailsScreen(gameData: review['games']),
-      ),
-    ).then((_) => _refreshInPlace());
+    context
+        .pushGameDetails(review['games'])
+        .then((_) => _refreshInPlace());
   }
 
   /// Aplana [_reviews] en una lista de "filas" (cabecera de mes o entrada)

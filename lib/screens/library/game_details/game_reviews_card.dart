@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../activity/review_details_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../../models/models.dart';
 import '../../../widgets/coop_badge.dart';
 import '../../../theme/corpus_theme_extension.dart';
@@ -238,16 +238,10 @@ class GameReviewsCard extends StatelessWidget {
 
         return GestureDetector(
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ReviewDetailsScreen(
-                  gameData: gameData,
-                  userData: userData?.toMap() ?? {}, // Assuming it expects map
-                  reviewData: review
-                      .toMap(), // Need to add toMap to Review, or update ReviewDetailsScreen
-                ),
-              ),
+            context.pushReviewDetails(
+              gameData,
+              userData?.toMap() ?? {},
+              review.toMap(),
             );
           },
           child: Container(

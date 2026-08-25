@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../library/game_details_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 
 class CurrentlyPlayingBadge extends StatefulWidget {
   final String userId;
@@ -79,12 +79,7 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
             .maybeSingle();
 
         if (res != null && context.mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => GameDetailsScreen(gameData: res),
-            ),
-          );
+          context.pushGameDetails(res);
         }
       },
       child: Container(

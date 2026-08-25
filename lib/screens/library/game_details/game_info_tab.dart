@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../utils/url_utils.dart';
 import '../../../utils/igdb_constants.dart';
 import '../../../utils/format_utils.dart';
-import '../group_games_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../../theme/corpus_theme_extension.dart';
 
 class GameInfoTab extends StatelessWidget {
@@ -467,14 +467,9 @@ class GameInfoTab extends StatelessWidget {
                           ).extension<CorpusThemeExtension>()!.radiusLarge,
                         ),
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => GroupGamesScreen(
-                                title: collectionName!,
-                                collectionId: collectionId!,
-                              ),
-                            ),
+                          context.pushGroupGames(
+                            collectionName!,
+                            collectionId!,
                           );
                         },
                       )
@@ -522,15 +517,10 @@ class GameInfoTab extends StatelessWidget {
                               ).extension<CorpusThemeExtension>()!.radiusLarge,
                             ),
                             onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => GroupGamesScreen(
-                                    title: f['name'].toString(),
-                                    collectionId: f['id'] as int,
-                                    isFranchise: true,
-                                  ),
-                                ),
+                              context.pushGroupGames(
+                                f['name'].toString(),
+                                f['id'] as int,
+                                isFranchise: true,
                               );
                             },
                           )

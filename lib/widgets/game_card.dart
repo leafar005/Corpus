@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:corpus/screens/library/game_details_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/models/models.dart';
@@ -126,13 +126,9 @@ class _GameCardState extends State<GameCard> {
               return;
             }
 
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    GameDetailsScreen(gameData: widget.game.toMap()),
-              ),
-            ).then((_) => widget.onReturn());
+            context
+                .pushGameDetails(widget.game.toMap())
+                .then((_) => widget.onReturn());
           },
           borderRadius:
               Theme.of(
@@ -289,8 +285,8 @@ class _GameCardState extends State<GameCard> {
                                     color: Theme.of(
                                       context,
                                     ).colorScheme.surface,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),

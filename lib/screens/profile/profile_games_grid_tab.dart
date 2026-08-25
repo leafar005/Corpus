@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/models/models.dart';
+import '../../globals.dart';
 import '../../utils/igdb_constants.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../library/filter_screen.dart';
@@ -460,11 +461,11 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     }
 
     final grid = SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, getBottomSpacer(context)),
       sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 120,
-          childAspectRatio: 0.7,
+          childAspectRatio: IgdbConstants.coverAspectRatio,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),

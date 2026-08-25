@@ -4,10 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../theme/corpus_typography.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/corpus_primary_button.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../../widgets/typewriter_text.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../library/game_details_screen.dart';
 import '../../widgets/corpus_network_image.dart';
 
@@ -198,14 +200,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
     if (isDesktop) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => GameDetailsScreen(
-            gameData: cleanData,
-            autoOpenReview: autoOpenReview,
-          ),
-        ),
+      context.pushGameDetails(
+        cleanData,
+        autoOpenReview: autoOpenReview,
       );
     } else {
       showModalBottomSheet(
@@ -429,27 +426,38 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                     instant: false,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
+                                    style: CorpusTypography.fromTheme(
+                                      context,
                                       fontSize: isPortrait ? 22 : 24,
                                       fontWeight: FontWeight.w500,
                                     ),
                                     spans: [
                                       TextSpan(
                                         text: _randomPrefix,
-                                        style: const TextStyle(
+                                        style: CorpusTypography.fromTheme(
+                                          context,
+                                          fontSize: isPortrait ? 22 : 24,
+                                          fontWeight: FontWeight.w500,
                                           color: Colors.white70,
                                         ),
                                       ),
                                       TextSpan(
                                         text: title,
-                                        style: TextStyle(
-                                          color: Theme.of(context).primaryColor,
+                                        style: CorpusTypography.fromTheme(
+                                          context,
+                                          fontSize: isPortrait ? 22 : 24,
                                           fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).primaryColor,
                                         ),
                                       ),
-                                      const TextSpan(
+                                      TextSpan(
                                         text: '?',
-                                        style: TextStyle(color: Colors.white70),
+                                        style: CorpusTypography.fromTheme(
+                                          context,
+                                          fontSize: isPortrait ? 22 : 24,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white70,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -770,31 +778,51 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                       TypewriterText(
-                        style: TextStyle(
-                          fontFamily: Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()?.heroFontFamily,
-                          fontWeight:
-                              Theme.of(context)
-                                  .extension<CorpusThemeExtension>()
-                                  ?.heroFontWeight ??
-                              FontWeight.w900,
+                        style: CorpusTypography.display(
+                          context,
+                          Theme.of(context).extension<CorpusThemeExtension>()!,
                           fontSize: isPortrait ? 42 : 48,
-                          height: 1.1,
-                          letterSpacing: -1,
+                          fontWeight: FontWeight.w500,
+                          height: 1.2,
                           color: Colors.white,
                         ),
                         spans: [
-                          const TextSpan(
+                          TextSpan(
                             text: 'Comienza a registrar\ntus juegos ',
+                            style: CorpusTypography.display(
+                              context,
+                              Theme.of(context)
+                                  .extension<CorpusThemeExtension>()!,
+                              fontSize: isPortrait ? 42 : 48,
+                              fontWeight: FontWeight.w500,
+                              height: 1.2,
+                              color: Colors.white,
+                            ),
                           ),
                           TextSpan(
                             text: 'ahora',
-                            style: TextStyle(
+                            style: CorpusTypography.display(
+                              context,
+                              Theme.of(context)
+                                  .extension<CorpusThemeExtension>()!,
+                              fontSize: isPortrait ? 42 : 48,
+                              fontWeight: FontWeight.w600,
+                              height: 1.2,
                               color: Theme.of(context).primaryColor,
                             ),
                           ),
-                          const TextSpan(text: '.'),
+                          TextSpan(
+                            text: '.',
+                            style: CorpusTypography.display(
+                              context,
+                              Theme.of(context)
+                                  .extension<CorpusThemeExtension>()!,
+                              fontSize: isPortrait ? 42 : 48,
+                              fontWeight: FontWeight.w500,
+                              height: 1.2,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -1071,10 +1099,8 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                   const SizedBox(height: 16),
                   TypewriterText(
                     baseCharDuration: const Duration(milliseconds: 15),
-                    style: TextStyle(
-                      fontFamily: Theme.of(
-                        context,
-                      ).extension<CorpusThemeExtension>()?.heroFontFamily,
+                    style: CorpusTypography.fromTheme(
+                      context,
                       fontSize: isPortrait ? 20 : 22,
                       fontWeight: FontWeight.w500,
                       color: Colors.white70,

@@ -448,6 +448,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
       currentRatingVisuals: 0.0,
       currentStatus: row.status,
       commentController: TextEditingController(text: row.comment ?? ''),
+      inLibrary: true,
       onSave:
           ({
             required rating,

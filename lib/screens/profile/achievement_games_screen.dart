@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:corpus/utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/models.dart';
 import '../../widgets/milestone_progress_bar.dart';
@@ -595,11 +596,11 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
                     padding: const EdgeInsets.all(16),
                     sliver: SliverGrid(
                       gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                          SliverGridDelegateWithMaxCrossAxisExtent(
                             maxCrossAxisExtent: 180,
                             mainAxisSpacing: 16,
                             crossAxisSpacing: 16,
-                            childAspectRatio: 0.75,
+                            childAspectRatio: IgdbConstants.coverAspectRatio,
                           ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {

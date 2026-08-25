@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
-import 'profile/edit_profile_screen.dart';
-import 'info_screen.dart';
-import 'appearance_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:corpus/screens/settings/integrations_screen.dart';
-import 'package:corpus/screens/settings/notifications_screen.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
 
@@ -43,15 +39,7 @@ class SettingsScreen extends StatelessWidget {
             title: 'Cuenta',
             subtitle: 'Editar perfil, nombre de usuario',
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditProfileScreen(
-                    userProfile: userProfile,
-                    hallOfFame: hallOfFame,
-                  ),
-                ),
-              );
+              context.pushEditProfile(userProfile, hallOfFame);
             },
           ),
           _buildSettingsTile(
@@ -60,12 +48,7 @@ class SettingsScreen extends StatelessWidget {
             title: 'Apariencia',
             subtitle: 'Modo, color principal',
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AppearanceScreen(),
-                ),
-              );
+              context.pushAppearance();
             },
           ),
           _buildSettingsTile(
@@ -74,12 +57,7 @@ class SettingsScreen extends StatelessWidget {
             title: 'Notificaciones',
             subtitle: 'Avisos, interacciones',
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationsScreen(),
-                ),
-              );
+              context.pushNotifications();
             },
           ),
           _buildSettingsTile(
@@ -89,12 +67,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: 'Vincular Steam, importar Stash',
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const IntegrationsScreen(),
-                ),
-              );
+              context.pushIntegrations();
             },
           ),
           _buildSettingsTile(
@@ -103,10 +76,7 @@ class SettingsScreen extends StatelessWidget {
             title: 'Información',
             subtitle: 'Acerca de Corpus',
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const InfoScreen()),
-              );
+              context.pushInfo();
             },
           ),
 

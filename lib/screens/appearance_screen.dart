@@ -1,11 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../globals.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../services/style_pack_import_service.dart';
 import '../services/style_pack_music_service.dart';
 import '../theme/style_pack_registry.dart';
-import 'settings/info_tab_appearance_screen.dart';
-import 'settings/home_appearance_screen.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../theme/style_pack.dart';
 import '../widgets/corpus_section_title.dart';
@@ -123,7 +122,17 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           isActive: isClassicActive,
           isImported: false,
         ),
-        if (imported.isEmpty) ...[
+        if (kDebugMode) ...[
+          for (final pack in StylePackRegistry.debugBuiltIn) ...[
+            const SizedBox(height: 12),
+            _buildPackTile(
+              pack: pack,
+              isActive: pack.id == activeId,
+              isImported: false,
+            ),
+          ],
+        ],
+        if (imported.isEmpty && !kDebugMode) ...[
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
@@ -218,6 +227,8 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         subtitle: Text(
           isImported
               ? (pack.description ?? 'Addon importado')
+              : StylePackRegistry.isDebugOnly(pack.id)
+              ? 'Preview de desarrollo (solo debug)'
               : 'Tema predeterminado de Corpus',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
@@ -237,10 +248,10 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                       color: Theme.of(context).colorScheme.primary,
                     )
                   : null),
-        onTap: () {
-          themeNotifier.setStylePack(pack.id);
+        onTap: () async {
+          await themeNotifier.setStylePack(pack.id);
           StylePackMusicService.instance.syncWithCurrentPack(force: true);
-          setState(() {});
+          if (mounted) setState(() {});
         },
       ),
     );
@@ -343,12 +354,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           ).extension<CorpusThemeExtension>()!.radiusLarge,
         ),
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const HomeAppearanceScreen(),
-            ),
-          );
+          context.pushHomeAppearance();
         },
       ),
     );
@@ -379,12 +385,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           ).extension<CorpusThemeExtension>()!.radiusLarge,
         ),
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const InfoTabAppearanceScreen(),
-            ),
-          );
+          context.pushInfoTabAppearance();
         },
       ),
     );

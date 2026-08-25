@@ -48,7 +48,7 @@ class GenreRadarChart extends StatelessWidget {
           fillColor: scheme.primary.withValues(alpha: 0.28),
           strokeColor: scheme.primary,
           gridColor: scheme.onSurface.withValues(alpha: 0.15),
-          labelColor: scheme.onSurface,
+          labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurface, fontSize: 12) ?? TextStyle(color: scheme.onSurface, fontSize: 12),
         ),
       ),
     );
@@ -60,7 +60,7 @@ class _RadarPainter extends CustomPainter {
   final Color fillColor;
   final Color strokeColor;
   final Color gridColor;
-  final Color labelColor;
+  final TextStyle labelStyle;
 
   static const int _ringCount = 4;
   static const double _radiusFraction = 0.55; // equilibrado para aspectRatio 1.35
@@ -70,7 +70,7 @@ class _RadarPainter extends CustomPainter {
     required this.fillColor,
     required this.strokeColor,
     required this.gridColor,
-    required this.labelColor,
+    required this.labelStyle,
   });
 
   @override
@@ -158,7 +158,7 @@ class _RadarPainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: text,
-          style: TextStyle(color: labelColor, fontSize: 12),
+          style: labelStyle,
         ),
         textAlign: TextAlign.center,
         textDirection: TextDirection.ltr,

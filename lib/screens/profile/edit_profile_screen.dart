@@ -4,7 +4,9 @@ import '../../widgets/corpus_network_image.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'hall_of_fame_selector_screen.dart';
+import 'package:corpus/routes/corpus_router.dart';
+import 'package:corpus/utils/igdb_constants.dart';
+import 'package:corpus/widgets/corpus_primary_button.dart';
 import '../../utils/image_compressor.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
@@ -946,7 +948,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4.0),
                       child: AspectRatio(
-                        aspectRatio: 0.72,
+                        aspectRatio: IgdbConstants.coverAspectRatio,
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: [
@@ -980,15 +982,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 cursor: SystemMouseCursors.click,
                                 child: GestureDetector(
                                   onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            HallOfFameSelectorScreen(
-                                              pinOrder: index + 1,
-                                            ),
-                                      ),
-                                    ).then((updated) {
+                                    context
+                                        .pushHallOfFameSelector(index + 1)
+                                        .then((updated) {
                                       if (updated == true) _refreshHallOfFame();
                                     });
                                   },
