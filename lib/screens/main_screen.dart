@@ -14,6 +14,7 @@ import '../theme/style_pack.dart';
 import '../widgets/p5r_dynamic_frame.dart';
 import '../utils/web_js.dart';
 import '../services/deep_link_service.dart';
+import '../globals.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -124,6 +125,8 @@ class _MainScreenState extends State<MainScreen> {
         );
       }
     }
+    // Al abrir la pestaña Actividad, marcamos todas las notificaciones como vistas.
+    if (index == 2) unreadActivityCount.value = 0;
   }
 
   Widget _buildNavigator(int index) {
@@ -261,7 +264,7 @@ class _MainScreenState extends State<MainScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
+          _withActivityBadge(index, Icon(icon, color: color, size: 20)),
           const SizedBox(width: 8),
           Text(
             label,
@@ -312,7 +315,7 @@ class _MainScreenState extends State<MainScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 20),
+            _withActivityBadge(index, Icon(icon, color: color, size: 20)),
             const SizedBox(width: 8),
             Text(
               label,
@@ -330,6 +333,9 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildLiquidGlassNavBar(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // El LiquidGlassBottomNavBar no permite overlays en sus ítems directamente,
+    // así que envolvemos el nav bar en un Stack y pintamos el badge encima
+    // usando posición calculada para el ítem central (índice 2 de 5).
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -347,42 +353,86 @@ class _MainScreenState extends State<MainScreen> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(35),
-            child: LiquidGlassBottomNavBar(
-              itemStyle: LiquidGlassNavItemStyle(
-                selectedColor: isDark
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.black,
-                unselectedColor: isDark ? Colors.white70 : Colors.black54,
-              ),
-              items: const [
-                LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
-                LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
-                LiquidGlassTabBarItem(icon: Icons.group, label: 'Actividad'),
-                LiquidGlassTabBarItem(
-                  icon: Icons.local_offer,
-                  label: 'Bundles',
-                ),
-                LiquidGlassTabBarItem(icon: Icons.person, label: 'Perfil'),
-              ],
-              selectedIndex: _currentIndex,
-              onChanged: (index) => _onTabTapped(index),
-              pillStyle: const LiquidGlassNavPillStyle(
-                animated: true,
-                mode: LiquidGlassPillMode.both,
-                enableInnerRadiusTransparent: true,
-                magnification: 1.25,
-                glassStyle: LiquidGlassStyle(
-                  refraction: LiquidGlassRefraction(
-                    distortion: 0.15,
-                    distortionWidth: 24.0,
-                    chromaticAberration: 0.025,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                LiquidGlassBottomNavBar(
+                  itemStyle: LiquidGlassNavItemStyle(
+                    selectedColor: isDark
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.black,
+                    unselectedColor: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                  items: const [
+                    LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
+                    LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
+                    LiquidGlassTabBarItem(icon: Icons.group, label: 'Actividad'),
+                    LiquidGlassTabBarItem(
+                      icon: Icons.local_offer,
+                      label: 'Bundles',
+                    ),
+                    LiquidGlassTabBarItem(icon: Icons.person, label: 'Perfil'),
+                  ],
+                  selectedIndex: _currentIndex,
+                  onChanged: (index) => _onTabTapped(index),
+                  pillStyle: const LiquidGlassNavPillStyle(
+                    animated: true,
+                    mode: LiquidGlassPillMode.both,
+                    enableInnerRadiusTransparent: true,
+                    magnification: 1.25,
+                    glassStyle: LiquidGlassStyle(
+                      refraction: LiquidGlassRefraction(
+                        distortion: 0.15,
+                        distortionWidth: 24.0,
+                        chromaticAberration: 0.025,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                // Badge flotante sobre el ítem Actividad (índice 2 de 5).
+                // Posición: 2/5 del ancho + offset al centro del ítem, arriba.
+                Positioned(
+                  // El ítem 2 ocupa el rango [2/5, 3/5] del ancho total.
+                  // Centramos el badge en ese rango y lo subimos al borde superior.
+                  left: 0,
+                  right: 0,
+                  top: 6,
+                  child: _buildLiquidGlassBadge(),
+                ),
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// Badge para el LiquidGlass nav bar, centrado en el slot del ítem Actividad (2/5).
+  Widget _buildLiquidGlassBadge() {
+    return ValueListenableBuilder<int>(
+      valueListenable: unreadActivityCount,
+      builder: (context, count, _) {
+        if (count == 0) return const SizedBox.shrink();
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // Cada uno de los 5 ítems ocupa 1/5 del ancho total.
+            final itemWidth = constraints.maxWidth / 5;
+            // El ítem de Actividad es el índice 2 → su centro está en 2.5/5.
+            final centerX = itemWidth * 2.5;
+            // El icono tiene ~24 px; el badge va en la esquina sup-der del icono.
+            final badgeLeft = centerX + 8;
+            return Stack(
+              children: [
+                Positioned(
+                  left: badgeLeft,
+                  top: 0,
+                  child: _buildBadgeDot(count),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -422,7 +472,10 @@ class _MainScreenState extends State<MainScreen> {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(icon, color: color, size: isSelected ? 28 : 24),
+                        _withActivityBadge(
+                          index,
+                          Icon(icon, color: color, size: isSelected ? 28 : 24),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           label,
@@ -486,15 +539,18 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       selectedItemColor: Theme.of(context).colorScheme.primary,
       unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-        BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
-        BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Actividad'),
+      items: [
+        const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
+        const BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
         BottomNavigationBarItem(
+          icon: _withActivityBadge(2, const Icon(Icons.group)),
+          label: 'Actividad',
+        ),
+        const BottomNavigationBarItem(
           icon: Icon(Icons.local_offer),
           label: 'Bundles',
         ),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
       ],
     );
   }
@@ -521,12 +577,15 @@ class _MainScreenState extends State<MainScreen> {
     final isSelected = _currentIndex == index;
     return IconButton(
       onPressed: () => _onTabTapped(index),
-      icon: Icon(
-        icon,
-        color: isSelected
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.onSurfaceVariant,
-        size: isSelected ? 28 : 24,
+      icon: _withActivityBadge(
+        index,
+        Icon(
+          icon,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          size: isSelected ? 28 : 24,
+        ),
       ),
     );
   }
@@ -540,6 +599,62 @@ class _MainScreenState extends State<MainScreen> {
       NavBarStyle.minimal => _buildMinimalNavBar(context),
       NavBarStyle.persona5Royal => _buildPersona5RoyalNavBar(context),
     };
+  }
+
+  // ─── Helpers de badge ────────────────────────────────────────────────────
+
+  /// Envuelve [child] con un badge de notificaciones si [tabIndex] == 2 (Actividad)
+  /// y hay elementos no leídos. Devuelve [child] sin cambios para otros índices.
+  Widget _withActivityBadge(int tabIndex, Widget child) {
+    if (tabIndex != 2) return child;
+    return ValueListenableBuilder<int>(
+      valueListenable: unreadActivityCount,
+      builder: (context, count, _) {
+        if (count == 0) return child;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            child,
+            Positioned(
+              right: -6,
+              top: -4,
+              child: _buildBadgeDot(count),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Punto/número rojo del badge.
+  Widget _buildBadgeDot(int count) {
+    final label = count > 9 ? '9+' : '$count';
+    return Container(
+      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: Colors.red.shade600,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withValues(alpha: 0.5),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          height: 1.2,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
   }
 
   @override

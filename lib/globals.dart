@@ -12,6 +12,10 @@ final ThemeNotifier themeNotifier = ThemeNotifier();
 final ValueNotifier<Set<String>> onlineUsersNotifier =
     ValueNotifier<Set<String>>({});
 
+// Badge de actividad no leída: se incrementa al llegar eventos realtime
+// mientras el usuario no está en la pestaña Actividad.
+final ValueNotifier<int> unreadActivityCount = ValueNotifier<int>(0);
+
 // Flag para desactivar temporizadores infinitos de carrusel/fondo en tests E2E y evitar que pumpAndSettle se cuelgue
 bool kDisableCarouselForTests = false;
 
