@@ -639,4 +639,52 @@ class ActivityRepository {
 
     return merged;
   }
+
+  /// IDs de activity_feed que el usuario ya ha visto, limitado a [activityIds]
+  /// para no traer todo el historial de vistas.
+  Future<Set<String>> fetchViewedStoryIds({
+    required String userId,
+    required List<String> activityIds,
+  }) async {
+    if (activityIds.isEmpty) return {};
+
+    final response = await _client
+        .from('story_views')
+        .select('activity_id')
+        .eq('user_id', userId)
+        .inFilter('activity_id', activityIds);
+
+    return (response as List).map((row) => row['activity_id'] as String).toSet();
+  }
+
+  /// Marca un slide de historia como visto (idempotente).
+  Future<void> markStoryViewed({
+    required String userId,
+    required String activityId,
+  }) async {
+    await _client.from('story_views').upsert(
+      {'user_id': userId, 'activity_id': activityId},
+      onConflict: 'user_id,activity_id',
+    );
+  }
+
+  // ── Helpers puros (testeables) ──────────────────────────────
+
+  /// Índice del primer slide no visto dentro de una lista de actividades
+  /// ordenada de más antigua a más reciente. 0 si todas están vistas.
+  static int firstUnseenIndex(
+    List<Map<String, dynamic>> activities,
+    Set<String> viewedIds,
+  ) {
+    final idx = activities.indexWhere((a) => !viewedIds.contains(a['id']));
+    return idx == -1 ? 0 : idx;
+  }
+
+
+  /// true si el grupo tiene algún slide sin ver.
+  static bool groupHasUnseenStory(
+    List<Map<String, dynamic>> activities,
+    Set<String> viewedIds,
+  ) =>
+      activities.any((a) => !viewedIds.contains(a['id']));
 }

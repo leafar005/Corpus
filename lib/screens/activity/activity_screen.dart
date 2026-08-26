@@ -105,6 +105,16 @@ class _ActivityScreenState extends State<ActivityScreen>
           ? await _repo.fetchRecentStoriesForUsers(friendIds)
           : <String, List<Map<String, dynamic>>>{};
 
+      final allActivityIds = stories.values
+          .expand((list) => list)
+          .map((a) => a['id'] as String?)
+          .whereType<String>()
+          .toList();
+
+      final viewed = allActivityIds.isNotEmpty
+          ? await _repo.fetchViewedStoryIds(userId: myId, activityIds: allActivityIds)
+          : <String>{};
+
       if (mounted) {
         setState(() {
           _friendsStrip = result.friends;
@@ -112,33 +122,49 @@ class _ActivityScreenState extends State<ActivityScreen>
           _pendingRequestsCount = result.pendingCount;
           _isLoadingFriendsStrip = false;
         });
+        viewedStoryIdsNotifier.value = {...viewedStoryIdsNotifier.value, ...viewed};
       }
     } catch (e) {
       if (mounted) setState(() => _isLoadingFriendsStrip = false);
     }
   }
 
-  void _openUserStory(Map<String, dynamic> userData) {
-    final userId = userData['id'] as String?;
-    if (userId == null) return;
+  void _openUserStory(List<Map<String, dynamic>> orderedFriends, int tappedIndex) {
+    final storyFriends = orderedFriends.where((f) {
+      final id = f['id'] as String?;
+      return id != null && (_userStories[id]?.isNotEmpty ?? false);
+    }).toList();
 
-    final stories = _userStories[userId];
-    if (stories == null || stories.isEmpty) {
-      context.pushProfile(userId: userId);
+    final tappedId = orderedFriends[tappedIndex]['id'] as String?;
+    if (tappedId == null) return;
+
+    final groupIndex = storyFriends.indexWhere((f) => f['id'] == tappedId);
+    if (groupIndex == -1) {
+      context.pushProfile(userId: tappedId); // amigo sin historias → perfil normal
       return;
     }
+
+    final groups = storyFriends
+        .map((f) => StoryGroup(userData: f, activities: _userStories[f['id']]!))
+        .toList();
+
+    final viewedIds = viewedStoryIdsNotifier.value;
+    final initialActivityIndex = ActivityRepository.firstUnseenIndex(
+      groups[groupIndex].activities,
+      viewedIds,
+    );
 
     Navigator.push(
       context,
       PageRouteBuilder(
         opaque: false,
-        pageBuilder: (_, animation, secondaryAnimation) => ActivityStoryViewer(
-          userData: userData,
-          activities: stories,
+        pageBuilder: (_, __, ___) => ActivityStoryViewer(
+          groups: groups,
+          initialGroupIndex: groupIndex,
+          initialActivityIndex: initialActivityIndex,
         ),
-        transitionsBuilder: (_, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -866,10 +892,11 @@ class _ActivityScreenState extends State<ActivityScreen>
                 label: const Text('Añade amigos para ver su actividad'),
               ),
             )
-          // NUEVO: Escuchamos los cambios en el estado online global
-          : ValueListenableBuilder<Set<String>>(
-              valueListenable: onlineUsersNotifier,
-              builder: (context, onlineUsers, child) {
+          : AnimatedBuilder(
+              animation: Listenable.merge([onlineUsersNotifier, viewedStoryIdsNotifier]),
+              builder: (context, child) {
+                final onlineUsers = onlineUsersNotifier.value;
+                final viewedIds = viewedStoryIdsNotifier.value;
                 final sortedFriends = List<Map<String, dynamic>>.from(
                   _friendsStrip,
                 );
@@ -963,7 +990,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                     return GestureDetector(
                       onTap: () {
                         if (friendId == null) return;
-                        _openUserStory(friend);
+                        _openUserStory(sortedFriends, index);
                       },
                       onLongPress: () {
                         if (friendId == null) return;
@@ -981,6 +1008,11 @@ class _ActivityScreenState extends State<ActivityScreen>
                                 ActivityStoryRing(
                                   radius: 30,
                                   hasStory: hasStory,
+                                  hasUnseenStory: hasStory &&
+                                      ActivityRepository.groupHasUnseenStory(
+                                        _userStories[friendId]!,
+                                        viewedIds,
+                                      ),
                                   avatarUrl: avatarUrl,
                                   backgroundColor: Theme.of(
                                     context,
@@ -1012,26 +1044,17 @@ class _ActivityScreenState extends State<ActivityScreen>
                               ],
                             ),
                             const SizedBox(height: 4),
-                            if (isPlaying)
-                              Text(
-                                playingGame,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: playingColor,
-                                ),
-                              )
-                            else
-                              Text(
-                                displayName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11),
-                                textAlign: TextAlign.center,
+                            Text(
+                              displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal,
+                                color: isPlaying ? playingColor : null,
                               ),
+                            ),
                           ],
                         ),
                       ),

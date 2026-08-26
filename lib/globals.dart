@@ -12,6 +12,11 @@ final ThemeNotifier themeNotifier = ThemeNotifier();
 final ValueNotifier<Set<String>> onlineUsersNotifier =
     ValueNotifier<Set<String>>({});
 
+/// IDs de activity_feed vistos por el usuario actual (actualización optimista
+/// + reactiva para pintar los anillos de historias en gris al instante).
+final ValueNotifier<Set<String>> viewedStoryIdsNotifier =
+    ValueNotifier<Set<String>>({});
+
 // Badge de actividad no leída: se incrementa al llegar eventos realtime
 // mientras el usuario no está en la pestaña Actividad.
 final ValueNotifier<int> unreadActivityCount = ValueNotifier<int>(0);

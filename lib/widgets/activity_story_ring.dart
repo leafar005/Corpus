@@ -9,6 +9,7 @@ class ActivityStoryRing extends StatelessWidget {
     super.key,
     required this.radius,
     required this.hasStory,
+    this.hasUnseenStory = true,
     this.avatarUrl,
     this.backgroundColor,
     this.ringWidth = 2.5,
@@ -17,6 +18,7 @@ class ActivityStoryRing extends StatelessWidget {
 
   final double radius;
   final bool hasStory;
+  final bool hasUnseenStory;
   final String? avatarUrl;
   final Color? backgroundColor;
   final double ringWidth;
@@ -39,11 +41,13 @@ class ActivityStoryRing extends StatelessWidget {
       );
     }
 
+    final ringColor = hasUnseenStory ? cs.primary : cs.outlineVariant;
+
     return Container(
       padding: EdgeInsets.all(ringWidth),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: cs.primary,
+        color: ringColor,
       ),
       child: Container(
         padding: EdgeInsets.all(ringWidth * 0.6),

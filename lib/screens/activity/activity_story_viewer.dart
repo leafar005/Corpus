@@ -3,8 +3,10 @@ import 'dart:ui';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../globals.dart';
 import '../../models/models.dart';
 import '../../repositories/activity_repository.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -12,18 +14,25 @@ import '../../widgets/corpus_network_image.dart';
 import '../library/game_details_screen.dart';
 import 'activity_formatters.dart';
 
+/// Un amigo + sus historias, para navegación encadenada tipo Instagram.
+class StoryGroup {
+  const StoryGroup({required this.userData, required this.activities});
+  final Map<String, dynamic> userData;
+  final List<Map<String, dynamic>> activities;
+}
+
 /// Visor de "historias" generadas automáticamente a partir del feed de actividad.
 class ActivityStoryViewer extends StatefulWidget {
   const ActivityStoryViewer({
     super.key,
-    required this.userData,
-    required this.activities,
-    this.initialIndex = 0,
+    required this.groups,
+    required this.initialGroupIndex,
+    this.initialActivityIndex = 0,
   });
 
-  final Map<String, dynamic> userData;
-  final List<Map<String, dynamic>> activities;
-  final int initialIndex;
+  final List<StoryGroup> groups;
+  final int initialGroupIndex;
+  final int initialActivityIndex;
 
   @override
   State<ActivityStoryViewer> createState() => _ActivityStoryViewerState();
@@ -38,7 +47,11 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   final _commentFocusNode = FocusNode();
   final _scrollController = ScrollController();
 
-  late int _currentIndex;
+  late int _groupIndex;
+  late int _activityIndex;
+  final Set<String> _viewedThisSession = {};
+  int _slideDirection = 1;
+  
   late AnimationController _progressController;
   bool _isPaused = false;
 
@@ -50,12 +63,14 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex.clamp(0, widget.activities.length - 1);
+    _groupIndex = widget.initialGroupIndex.clamp(0, widget.groups.length - 1);
+    _activityIndex = widget.initialActivityIndex.clamp(0, widget.groups[_groupIndex].activities.length - 1);
     _progressController = AnimationController(vsync: this, duration: _slideDuration)
       ..addStatusListener(_onProgressComplete);
 
     _commentFocusNode.addListener(_onCommentFocusChanged);
     _loadReviewInteractions();
+    _markCurrentActivityAsViewed();
     _startSlide();
   }
 
@@ -69,7 +84,8 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     super.dispose();
   }
 
-  Map<String, dynamic> get _currentActivity => widget.activities[_currentIndex];
+  Map<String, dynamic> get _currentActivity => widget.groups[_groupIndex].activities[_activityIndex];
+  Map<String, dynamic> get _currentUserData => widget.groups[_groupIndex].userData;
 
   Map<String, dynamic>? get _currentReview =>
       _currentActivity['_review'] as Map<String, dynamic>?;
@@ -130,38 +146,99 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     }
   }
 
+  void _markCurrentActivityAsViewed() {
+    final id = _currentActivity['id'] as String?;
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    if (id == null || myId == null || _viewedThisSession.contains(id)) return;
+    _viewedThisSession.add(id);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      viewedStoryIdsNotifier.value = {...viewedStoryIdsNotifier.value, id}; // optimista
+    });
+    _repo.markStoryViewed(userId: myId, activityId: id).catchError((_) {}); // persistir, fire-and-forget
+  }
+
+  void _afterSlideChange() {
+    _commentController.clear();
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    _loadReviewInteractions();
+    _markCurrentActivityAsViewed();
+    _startSlide();
+  }
+
   void _goNext() {
-    if (_currentIndex < widget.activities.length - 1) {
-      setState(() {
-        _currentIndex++;
-        _commentController.clear();
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(0);
-        }
-      });
-      _loadReviewInteractions();
-      _startSlide();
-    } else {
-      Navigator.of(context).pop();
+    final activities = widget.groups[_groupIndex].activities;
+    if (_activityIndex < activities.length - 1) {
+      setState(() => _activityIndex++);
+      _afterSlideChange();
+      return;
     }
+
+    final nextGroupIndex = _groupIndex + 1;
+    if (nextGroupIndex >= widget.groups.length) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() {
+      _slideDirection = 1;
+      _groupIndex = nextGroupIndex;
+      // Si ya la vio entera, firstUnseenIndex devuelve 0 → la re-reproduce
+      // desde el principio, igual que si la tocara manualmente en la franja.
+      _activityIndex = ActivityRepository.firstUnseenIndex(
+        widget.groups[nextGroupIndex].activities,
+        viewedStoryIdsNotifier.value,
+      );
+    });
+    _afterSlideChange();
   }
 
   void _goPrevious() {
-    if (_currentIndex > 0) {
-      setState(() {
-        _currentIndex--;
-        _commentController.clear();
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(0);
-        }
-      });
-      _loadReviewInteractions();
-      _startSlide();
-    } else {
-      _progressController
-        ..reset()
-        ..forward();
+    if (_activityIndex > 0) {
+      setState(() => _activityIndex--);
+      _afterSlideChange();
+      return;
     }
+    if (_groupIndex > 0) {
+      setState(() {
+        _slideDirection = -1;
+        _groupIndex--;
+        _activityIndex = widget.groups[_groupIndex].activities.length - 1;
+      });
+      _afterSlideChange();
+      return;
+    }
+    _progressController..reset()..forward(); // ya en el primer slide del primer amigo
+  }
+
+  void _goNextGroup() {
+    final nextGroupIndex = _groupIndex + 1;
+    if (nextGroupIndex >= widget.groups.length) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _slideDirection = 1;
+      _groupIndex = nextGroupIndex;
+      _activityIndex = ActivityRepository.firstUnseenIndex(
+        widget.groups[nextGroupIndex].activities,
+        viewedStoryIdsNotifier.value,
+      );
+    });
+    _afterSlideChange();
+  }
+
+  void _goPreviousGroup() {
+    if (_groupIndex > 0) {
+      setState(() {
+        _slideDirection = -1;
+        _groupIndex--;
+        _activityIndex = 0;
+      });
+      _afterSlideChange();
+      return;
+    }
+    _progressController..reset()..forward();
   }
 
   void _togglePause(bool paused) {
@@ -268,7 +345,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     navigator.pop();
     navigator.context.pushReviewDetails(
       gameData,
-      widget.userData,
+      _currentUserData,
       review,
     );
   }
@@ -290,10 +367,10 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     );
 
     final myId = Supabase.instance.client.auth.currentUser?.id;
-    final userId = widget.userData['id'] as String?;
+    final userId = _currentUserData['id'] as String?;
     final isOwn = myId != null && myId == userId;
-    final displayName = ActivityFormatters.displayName(widget.userData);
-    final avatarUrl = widget.userData['avatar_url'] as String?;
+    final displayName = ActivityFormatters.displayName(_currentUserData);
+    final avatarUrl = _currentUserData['avatar_url'] as String?;
 
     final actionText = ActivityFormatters.actionText(
       actionType,
@@ -318,13 +395,59 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     final cs = Theme.of(context).colorScheme;
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
 
+    final isMobile = Theme.of(context).platform == TargetPlatform.iOS ||
+                     Theme.of(context).platform == TargetPlatform.android;
+
     return Scaffold(
       backgroundColor: cs.scrim,
       resizeToAvoidBottomInset: true,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (coverUrl != null)
+      body: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+              _goPrevious();
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+              _goNext();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Dismissible(
+          key: const Key('story_dismiss'),
+          direction: isMobile ? DismissDirection.down : DismissDirection.none,
+          resizeDuration: null,
+          onUpdate: (details) {
+            if (details.progress > 0) {
+              if (!_isPaused) _togglePause(true);
+            } else {
+              if (_isPaused) _togglePause(false);
+            }
+          },
+          onDismissed: (_) => Navigator.of(context).pop(),
+          child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (child, animation) {
+            final isEntering = child.key == ValueKey(_groupIndex);
+            final slideOffset = isEntering ? _slideDirection.toDouble() : -_slideDirection.toDouble();
+            
+            final offsetAnimation = Tween<Offset>(
+              begin: Offset(slideOffset, 0.0),
+              end: Offset.zero,
+            ).animate(animation);
+            
+            return SlideTransition(
+              position: offsetAnimation,
+              child: child,
+            );
+          },
+          child: Stack(
+            key: ValueKey(_groupIndex),
+            fit: StackFit.expand,
+            children: [
+            if (coverUrl != null)
             Positioned.fill(
               child: ImageFiltered(
                 imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
@@ -407,24 +530,52 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
                                 comment: comment,
                               ),
                       ),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: GestureDetector(
+                      GestureDetector(
+                        onHorizontalDragUpdate: (details) {
+                          if (!_isPaused) _togglePause(true);
+                        },
+                        onHorizontalDragEnd: (details) {
+                          _togglePause(false);
+                          final velocity = details.primaryVelocity ?? 0;
+                          if (velocity < -300) {
+                            _goNextGroup();
+                          } else if (velocity > 300) {
+                            _goPreviousGroup();
+                          }
+                        },
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: GestureDetector(
                               behavior: HitTestBehavior.translucent,
+                              onTapDown: (_) => _togglePause(true),
+                              onTapUp: (_) => _togglePause(false),
+                              onTapCancel: () => _togglePause(false),
                               onTap: _goPrevious,
                             ),
                           ),
-                          const Expanded(flex: 2, child: SizedBox()),
+                          Expanded(
+                            flex: 2,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onTapDown: (_) => _togglePause(true),
+                              onTapUp: (_) => _togglePause(false),
+                              onTapCancel: () => _togglePause(false),
+                            ),
+                          ),
                           Expanded(
                             flex: 1,
                             child: GestureDetector(
                               behavior: HitTestBehavior.translucent,
+                              onTapDown: (_) => _togglePause(true),
+                              onTapUp: (_) => _togglePause(false),
+                              onTapCancel: () => _togglePause(false),
                               onTap: _goNext,
                             ),
                           ),
                         ],
+                      ),
                       ),
                     ],
                   ),
@@ -434,48 +585,60 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
               ],
             ),
           ),
-        ],
+          ],
+        ),
+        ),
+        ),
       ),
     );
   }
 
   Widget _buildProgressBars(ColorScheme cs) {
+    final activities = widget.groups[_groupIndex].activities;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: Row(
-        children: List.generate(widget.activities.length, (i) {
+        children: List.generate(activities.length, (i) {
           return Expanded(
             child: Padding(
               padding: EdgeInsets.only(
-                right: i < widget.activities.length - 1 ? 4 : 0,
+                right: i < activities.length - 1 ? 4 : 0,
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: SizedBox(
-                  height: 3,
-                  child: i < _currentIndex
-                      ? ColoredBox(color: cs.onSurface)
-                      : i == _currentIndex
-                      ? AnimatedBuilder(
-                          animation: _progressController,
-                          builder: (context, _) {
-                            return LinearProgressIndicator(
-                              value: _progressController.value,
-                              backgroundColor: cs.onSurface.withValues(
-                                alpha: 0.3,
-                              ),
-                              color: cs.onSurface,
-                            );
-                          },
-                        )
-                      : ColoredBox(
-                          color: cs.onSurface.withValues(alpha: 0.3),
-                        ),
-                ),
+              child: _buildProgressBar(
+                cs,
+                index: i,
+                currentIndex: _activityIndex,
               ),
             ),
           );
         }),
+      ),
+    );
+  }
+
+  Widget _buildProgressBar(
+    ColorScheme cs, {
+    required int index,
+    required int currentIndex,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2),
+      child: SizedBox(
+        height: 3,
+        child: index < currentIndex
+            ? ColoredBox(color: cs.onSurface)
+            : index == currentIndex
+                ? AnimatedBuilder(
+                    animation: _progressController,
+                    builder: (context, _) {
+                      return LinearProgressIndicator(
+                        value: _progressController.value,
+                        backgroundColor: cs.onSurface.withValues(alpha: 0.3),
+                        color: cs.onSurface,
+                      );
+                    },
+                  )
+                : ColoredBox(color: cs.onSurface.withValues(alpha: 0.3)),
       ),
     );
   }
@@ -634,49 +797,6 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
             ),
           ),
         ],
-        if (_isReviewSlide) ...[
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              InkWell(
-                onTap: _toggleLike,
-                borderRadius: ext.radiusSmall,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-                        size: 22,
-                        color: _hasLiked ? cs.primary : cs.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _likesCount.toString(),
-                        style: TextStyle(
-                          color: _hasLiked ? cs.primary : cs.onSurfaceVariant,
-                          fontWeight:
-                              _hasLiked ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (_isLoadingInteractions)
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-        ],
       ],
     );
   }
@@ -785,52 +905,11 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
           ),
         ],
         const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            InkWell(
-              onTap: _toggleLike,
-              borderRadius: ext.radiusSmall,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-                      size: 22,
-                      color: _hasLiked ? cs.primary : cs.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _likesCount.toString(),
-                      style: TextStyle(
-                        color: _hasLiked ? cs.primary : cs.onSurfaceVariant,
-                        fontWeight:
-                            _hasLiked ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
         FilledButton.icon(
           onPressed: () => _openFullReview(gameData, review),
           icon: const Icon(Icons.article_outlined, size: 18),
           label: const Text('Ver reseña completa'),
         ),
-        if (_isLoadingInteractions)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
       ],
     );
   }
@@ -878,6 +957,31 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         ),
         child: Row(
           children: [
+            InkWell(
+              onTap: _toggleLike,
+              borderRadius: ext.radiusSmall,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4, right: 12, top: 8, bottom: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                      size: 22,
+                      color: _hasLiked ? cs.primary : cs.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _likesCount > 0 ? _likesCount.toString() : '0',
+                      style: TextStyle(
+                        color: _hasLiked ? cs.primary : cs.onSurfaceVariant,
+                        fontWeight: _hasLiked ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             Expanded(
               child: TextField(
                 controller: _commentController,
