@@ -90,13 +90,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _subscribeActivityFeed();
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _friendshipsChannel?.unsubscribe();
-    _activityFeedChannel?.unsubscribe();
-    super.dispose();
-  }
+
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -273,6 +267,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     DeepLinkService.pendingTab.removeListener(_onPendingTab);
     _friendshipsChannel?.unsubscribe();
     _activityFeedChannel?.unsubscribe();
