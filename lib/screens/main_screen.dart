@@ -27,7 +27,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   StreamSubscription<void>? _webPopStateSub;
   RealtimeChannel? _friendshipsChannel;
@@ -71,6 +71,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Pre-instanciamos la primera pantalla
     _getScreen(0);
     _loadSavedTab();
@@ -89,16 +90,75 @@ class _MainScreenState extends State<MainScreen> {
     _subscribeActivityFeed();
   }
 
-  void _subscribeActivityFeed() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _friendshipsChannel?.unsubscribe();
+    _activityFeedChannel?.unsubscribe();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Al volver de segundo plano (clave en iOS PWA), recargamos contadores
+      // ya que el WebSocket puede haberse cerrado o pudimos perder eventos.
+      _fetchInitialBadges();
+    }
+  }
+
+  void _fetchInitialBadges() async {
     final myId = Supabase.instance.client.auth.currentUser?.id;
     if (myId == null) return;
 
-    // Obtener la fecha de la última visita
+    // Recargar solicitudes de amistad
+    try {
+      final res = await Supabase.instance.client
+          .from('friendships')
+          .select('id')
+          .eq('addressee_id', myId)
+          .eq('status', 'pending');
+      if (mounted) unreadFriendRequestsCount.value = res.length;
+    } catch (_) {}
+
+    // Recargar feed de actividad
     final prefs = await SharedPreferences.getInstance();
     final lastVisitStr = prefs.getString('last_activity_visit');
     final lastVisit = lastVisitStr != null 
         ? DateTime.parse(lastVisitStr) 
         : DateTime.now().subtract(const Duration(days: 3));
+
+    try {
+      final res = await Supabase.instance.client
+          .from('activity_feed')
+          .select('user_id, game_id, created_at')
+          .neq('user_id', myId)
+          .gt('created_at', lastVisit.toUtc().toIso8601String())
+          .limit(20);
+          
+      if (mounted && res.isNotEmpty) {
+        final uniqueGames = <String>{};
+        int otherActivities = 0;
+        for (var row in (res as List)) {
+          if (row['game_id'] != null) {
+            uniqueGames.add('${row['user_id']}_${row['game_id']}');
+          } else {
+            otherActivities++;
+          }
+        }
+        unreadActivityCount.value = uniqueGames.length + otherActivities;
+      }
+    } catch (e) {
+      debugPrint('[MainScreen] Error fetch activity resume: $e');
+    }
+  }
+
+  void _subscribeActivityFeed() async {
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    // Carga inicial al arrancar (incluye lectura de last_activity_visit)
+    _fetchInitialBadges();
 
     // --- FIX TEMPORAL PARA FECHAS EN EL FUTURO ---
     try {
@@ -134,33 +194,6 @@ class _MainScreenState extends State<MainScreen> {
       debugPrint('[MainScreen] Error fixing future dates: $e');
     }
     // ---------------------------------------------
-
-    if (mounted) {
-      // Cargar conteo inicial (solo si la fecha es más reciente que lastVisit)
-      try {
-        final res = await Supabase.instance.client
-            .from('activity_feed')
-            .select('user_id, game_id, created_at')
-            .neq('user_id', myId)
-            .gt('created_at', lastVisit.toUtc().toIso8601String())
-            .limit(20);
-            
-        if (mounted && res.isNotEmpty) {
-          final uniqueGames = <String>{};
-          int otherActivities = 0;
-          for (var row in (res as List)) {
-            if (row['game_id'] != null) {
-              uniqueGames.add('${row['user_id']}_${row['game_id']}');
-            } else {
-              otherActivities++;
-            }
-          }
-          unreadActivityCount.value = uniqueGames.length + otherActivities;
-        }
-      } catch (e) {
-        debugPrint('[MainScreen] Error fetch activity init: $e');
-      }
-    }
 
     if (!mounted) return;
 

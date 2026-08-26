@@ -22,9 +22,11 @@ const messaging = firebase.messaging();
 // Chrome/Firefox donde el SDK sí las gestiona automáticamente.
 // Fuente: https://firebase.google.com/docs/cloud-messaging/js/receive
 function isWebKitSW() {
-  // self.navigator.userAgent está disponible en SW desde Safari 16+
+  // En PWAs de iOS (añadidas a inicio), el User-Agent NO incluye la palabra "Safari",
+  // pero sí incluye "AppleWebKit".
   try {
-    return /safari/i.test(self.navigator.userAgent) && !/chrome/i.test(self.navigator.userAgent);
+    const ua = self.navigator.userAgent;
+    return /AppleWebKit/i.test(ua) && !/Chrome/i.test(ua) && !/Edg/i.test(ua);
   } catch (_) {
     return false;
   }
