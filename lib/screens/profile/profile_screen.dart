@@ -22,6 +22,7 @@ import '../../widgets/profile_stat_icon.dart';
 
 import 'profile_controller.dart';
 import '../../widgets/genre_radar_section.dart';
+import '../social/user_friends_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -1250,7 +1251,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          context.pushFriends().then((_) => _controller.fetchProfileData());
+          if (_isOwnProfile) {
+            context.pushFriends().then((_) => _controller.fetchProfileData());
+          } else {
+            final profileId = _controller.userProfile?['id'] as String?;
+            final username = _controller.userProfile?['username'] as String? ?? '';
+            if (profileId != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserFriendsScreen(
+                    userId: profileId,
+                    username: username,
+                  ),
+                ),
+              );
+            }
+          }
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
@@ -1662,10 +1679,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildGameCard(Map<String, dynamic> game) {
     final userRating = (game['user_rating'] ?? 0).toDouble();
+    final completionType = game['completion_type'] as String?;
     return GameCard(
       game: Game.fromMap(game),
       isInLibrary: true,
       userRating: userRating,
+      completionType: completionType,
       onReturn: _controller.fetchProfileData,
     );
   }

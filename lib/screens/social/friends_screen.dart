@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
+import '../../globals.dart';
 
 /// Pantalla de gestión de amigos: buscar por username, ver solicitudes,
 /// ver amigos aceptados y eliminar amistades.
@@ -45,6 +46,8 @@ class _FriendsScreenState extends State<FriendsScreen>
       vsync: this,
       initialIndex: widget.initialIndex,
     );
+    // Resetear badge de solicitudes al abrir la pantalla
+    unreadFriendRequestsCount.value = 0;
     _loadRequests();
     _loadFriends();
   }
