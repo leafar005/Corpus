@@ -255,9 +255,7 @@ class _ActivityScreenState extends State<ActivityScreen>
           table: 'activity_feed',
           callback: (payload) {
             if (!mounted) return;
-            // Incrementar badge de notificaciones no leídas en la nav bar.
-            // El reset lo hace MainScreen cuando el usuario abre la pestaña.
-            unreadActivityCount.value++;
+            // El badge lo gestiona MainScreen desde el inicio (sin lazy-load).
             _fetchActivity(isRefresh: true, silent: true);
             _fetchFriendsStrip();
           },

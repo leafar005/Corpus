@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home/home_screen.dart';
 import 'library/search_screen.dart';
 import 'activity/activity_screen.dart';
@@ -29,6 +30,8 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   StreamSubscription<void>? _webPopStateSub;
+  RealtimeChannel? _friendshipsChannel;
+  RealtimeChannel? _activityFeedChannel;
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = [
     GlobalKey<NavigatorState>(),
@@ -82,6 +85,149 @@ class _MainScreenState extends State<MainScreen> {
       dispatchCorpusReady();
     });
     DeepLinkService.pendingTab.addListener(_onPendingTab);
+    _subscribeFriendRequests();
+    _subscribeActivityFeed();
+  }
+
+  void _subscribeActivityFeed() async {
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    // Obtener la fecha de la última visita
+    final prefs = await SharedPreferences.getInstance();
+    final lastVisitStr = prefs.getString('last_activity_visit');
+    final lastVisit = lastVisitStr != null 
+        ? DateTime.parse(lastVisitStr) 
+        : DateTime.now().subtract(const Duration(days: 3));
+
+    // --- FIX TEMPORAL PARA FECHAS EN EL FUTURO ---
+    try {
+      final futureDate = DateTime.now().add(const Duration(minutes: 1)).toUtc().toIso8601String();
+      final nowStr = DateTime.now().toUtc().toIso8601String();
+      
+      // Corregir activity_feed
+      final afRes = await Supabase.instance.client
+          .from('activity_feed')
+          .select('id')
+          .eq('user_id', myId)
+          .gt('created_at', futureDate);
+      for (var row in (afRes as List)) {
+        await Supabase.instance.client
+            .from('activity_feed')
+            .update({'created_at': nowStr})
+            .eq('id', row['id']);
+      }
+      
+      // Corregir reviews
+      final rRes = await Supabase.instance.client
+          .from('reviews')
+          .select('id')
+          .eq('user_id', myId)
+          .gt('created_at', futureDate);
+      for (var row in (rRes as List)) {
+        await Supabase.instance.client
+            .from('reviews')
+            .update({'created_at': nowStr})
+            .eq('id', row['id']);
+      }
+    } catch (e) {
+      debugPrint('[MainScreen] Error fixing future dates: $e');
+    }
+    // ---------------------------------------------
+
+    if (mounted) {
+      // Cargar conteo inicial (solo si la fecha es más reciente que lastVisit)
+      try {
+        final res = await Supabase.instance.client
+            .from('activity_feed')
+            .select('user_id, game_id, created_at')
+            .neq('user_id', myId)
+            .gt('created_at', lastVisit.toUtc().toIso8601String())
+            .limit(20);
+            
+        if (mounted && res.isNotEmpty) {
+          final uniqueGames = <String>{};
+          int otherActivities = 0;
+          for (var row in (res as List)) {
+            if (row['game_id'] != null) {
+              uniqueGames.add('${row['user_id']}_${row['game_id']}');
+            } else {
+              otherActivities++;
+            }
+          }
+          unreadActivityCount.value = uniqueGames.length + otherActivities;
+        }
+      } catch (e) {
+        debugPrint('[MainScreen] Error fetch activity init: $e');
+      }
+    }
+
+    if (!mounted) return;
+
+    final recentGames = <String>{};
+
+    _activityFeedChannel = Supabase.instance.client
+        .channel('main_activity_feed_badge')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'activity_feed',
+          callback: (payload) {
+            final userId = payload.newRecord['user_id'];
+            if (userId == myId) return; // Ignorar posts propios
+
+            final gameId = payload.newRecord['game_id'];
+            if (gameId != null) {
+              final key = '${userId}_$gameId';
+              if (recentGames.contains(key)) return; // Ya sumado recientemente
+              recentGames.add(key);
+              // Limpiar para no inflar memoria eternamente
+              if (recentGames.length > 50) recentGames.clear();
+            }
+
+            // Solo incrementar si el usuario NO está ya en la pestaña Actividad.
+            if (_currentIndex != 2) {
+              unreadActivityCount.value++;
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  void _subscribeFriendRequests() {
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    // Cargar el conteo inicial de solicitudes pendientes
+    Supabase.instance.client
+        .from('friendships')
+        .select('id')
+        .eq('addressee_id', myId)
+        .eq('status', 'pending')
+        .then((rows) {
+      if (mounted) unreadFriendRequestsCount.value = rows.length;
+    });
+
+    // Suscribirse a nuevas solicitudes en tiempo real
+    _friendshipsChannel = Supabase.instance.client
+        .channel('pending_friend_requests')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'friendships',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'addressee_id',
+            value: myId,
+          ),
+          callback: (payload) {
+            final status = payload.newRecord['status'];
+            if (status == 'pending') {
+              unreadFriendRequestsCount.value++;
+            }
+          },
+        )
+        .subscribe();
   }
 
   void _onPendingTab() {
@@ -95,6 +241,8 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void dispose() {
     DeepLinkService.pendingTab.removeListener(_onPendingTab);
+    _friendshipsChannel?.unsubscribe();
+    _activityFeedChannel?.unsubscribe();
     _webPopStateSub?.cancel();
     super.dispose();
   }
@@ -163,25 +311,36 @@ class _MainScreenState extends State<MainScreen> {
     setWebPath(AppRoutes.publicPathForTab(index), replace: replace);
   }
 
-  void _onTabTapped(int index) async {
-    if (_currentIndex == index) {
-      // Si toca la misma pestaña, hace "pop" hasta el principio de esa pestaña
+  void _onTabTapped(int index) {
+    if (index == _currentIndex) {
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
-      _syncWebUrlForTab(index, replace: true);
-    } else {
-      setState(() {
-        _currentIndex = index;
-        _initializedTabs.add(index); // Marca la pestaña como inicializada
-      });
-      _syncWebUrlForTab(index);
-      if (_shouldPersistTab) {
-        SharedPreferences.getInstance().then(
-          (prefs) => prefs.setInt('main_tab_index', index),
-        );
-      }
+      return;
     }
-    // Al abrir la pestaña Actividad, marcamos todas las notificaciones como vistas.
-    if (index == 2) unreadActivityCount.value = 0;
+
+    if (index == 2) {
+      // Al entrar a Actividad, reseteamos badge y guardamos la fecha
+      unreadActivityCount.value = 0;
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('last_activity_visit', DateTime.now().toUtc().toIso8601String());
+      });
+    }
+
+    if (index == 4) {
+      // Al abrir la pestaña Perfil, reseteamos el badge de solicitudes.
+      unreadFriendRequestsCount.value = 0;
+    }
+
+    setState(() {
+      _currentIndex = index;
+      _initializedTabs.add(index); // Marca la pestaña como inicializada
+    });
+    
+    _syncWebUrlForTab(index);
+    if (_shouldPersistTab) {
+      SharedPreferences.getInstance().then(
+        (prefs) => prefs.setInt('main_tab_index', index),
+      );
+    }
   }
 
   Widget _buildNavigator(int index) {
@@ -329,7 +488,7 @@ class _MainScreenState extends State<MainScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          _withActivityBadge(index, Icon(icon, color: color, size: 20)),
+          _withNavBadge(index, Icon(icon, color: color, size: 20)),
           const SizedBox(width: 8),
           Text(
             label,
@@ -380,7 +539,7 @@ class _MainScreenState extends State<MainScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            _withActivityBadge(index, Icon(icon, color: color, size: 20)),
+            _withNavBadge(index, Icon(icon, color: color, size: 20)),
             const SizedBox(width: 8),
             Text(
               label,
@@ -471,30 +630,32 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  /// Badge para el LiquidGlass nav bar, centrado en el slot del ítem Actividad (2/5).
+  /// Badges flotantes para el LiquidGlass nav bar.
+  /// Muestra badge de Actividad (ítem 2) y badge de solicitudes (ítem 4).
   Widget _buildLiquidGlassBadge({required double barWidth}) {
-    return ValueListenableBuilder<int>(
-      valueListenable: unreadActivityCount,
-      builder: (context, count, _) {
-        if (count == 0) return const SizedBox.shrink();
-        // Cada uno de los 5 ítems ocupa 1/5 del ancho de la barra.
-        // La barra está centrada, así que hay un offset de 20px a cada lado.
-        const sideOffset = 20.0;
-        final itemWidth = barWidth / 5;
-        // El ítem de Actividad es el índice 2 → su centro está en 2.5/5 de barWidth.
-        final centerX = sideOffset + itemWidth * 2.5;
-        // El badge va en la esquina sup-der del icono (~24 px).
-        final badgeLeft = centerX + 8;
-        return Stack(
-          children: [
-            Positioned(
-              left: badgeLeft,
-              top: 6,
-              child: _buildBadgeDot(count),
-            ),
-          ],
-        );
-      },
+    const sideOffset = 20.0;
+    final itemWidth = barWidth / 5;
+
+    Widget? badge(int tabIndex, ValueNotifier<int> notifier) {
+      return ValueListenableBuilder<int>(
+        valueListenable: notifier,
+        builder: (context, count, _) {
+          if (count == 0) return const SizedBox.shrink();
+          final centerX = sideOffset + itemWidth * (tabIndex + 0.5);
+          return Positioned(
+            left: centerX + 8,
+            top: 6,
+            child: _buildBadgeDot(count),
+          );
+        },
+      );
+    }
+
+    return Stack(
+      children: [
+        badge(2, unreadActivityCount)!,
+        badge(4, unreadFriendRequestsCount)!,
+      ],
     );
   }
 
@@ -534,7 +695,7 @@ class _MainScreenState extends State<MainScreen> {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _withActivityBadge(
+                        _withNavBadge(
                           index,
                           Icon(icon, color: color, size: isSelected ? 28 : 24),
                         ),
@@ -605,14 +766,17 @@ class _MainScreenState extends State<MainScreen> {
         const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
         const BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
         BottomNavigationBarItem(
-          icon: _withActivityBadge(2, const Icon(Icons.group)),
+          icon: _withNavBadge(2, const Icon(Icons.group)),
           label: 'Actividad',
         ),
         const BottomNavigationBarItem(
           icon: Icon(Icons.local_offer),
           label: 'Bundles',
         ),
-        const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        BottomNavigationBarItem(
+          icon: _withNavBadge(4, const Icon(Icons.person)),
+          label: 'Perfil',
+        ),
       ],
     );
   }
@@ -639,16 +803,14 @@ class _MainScreenState extends State<MainScreen> {
     final isSelected = _currentIndex == index;
     return IconButton(
       onPressed: () => _onTabTapped(index),
-      icon: _withActivityBadge(
-        index,
-        Icon(
-          icon,
-          color: isSelected
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.onSurfaceVariant,
-          size: isSelected ? 28 : 24,
+      icon: _withNavBadge(index,
+          Icon(icon,
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+            size: isSelected ? 28 : 24,
+          ),
         ),
-      ),
     );
   }
 
@@ -665,27 +827,49 @@ class _MainScreenState extends State<MainScreen> {
 
   // ─── Helpers de badge ────────────────────────────────────────────────────
 
-  /// Envuelve [child] con un badge de notificaciones si [tabIndex] == 2 (Actividad)
-  /// y hay elementos no leídos. Devuelve [child] sin cambios para otros índices.
-  Widget _withActivityBadge(int tabIndex, Widget child) {
-    if (tabIndex != 2) return child;
-    return ValueListenableBuilder<int>(
-      valueListenable: unreadActivityCount,
-      builder: (context, count, _) {
-        if (count == 0) return child;
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            child,
-            Positioned(
-              right: -6,
-              top: -4,
-              child: _buildBadgeDot(count),
-            ),
-          ],
-        );
-      },
-    );
+  /// Envuelve [child] con un badge según [tabIndex]:
+  /// - índice 2 (Actividad): badge con unreadActivityCount
+  /// - índice 4 (Perfil): badge con unreadFriendRequestsCount
+  Widget _withNavBadge(int tabIndex, Widget child) {
+    if (tabIndex == 2) {
+      return ValueListenableBuilder<int>(
+        valueListenable: unreadActivityCount,
+        builder: (context, count, _) {
+          if (count == 0) return child;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              child,
+              Positioned(
+                right: -6,
+                top: -4,
+                child: _buildBadgeDot(count),
+              ),
+            ],
+          );
+        },
+      );
+    }
+    if (tabIndex == 4) {
+      return ValueListenableBuilder<int>(
+        valueListenable: unreadFriendRequestsCount,
+        builder: (context, count, _) {
+          if (count == 0) return child;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              child,
+              Positioned(
+                right: -6,
+                top: -4,
+                child: _buildBadgeDot(count),
+              ),
+            ],
+          );
+        },
+      );
+    }
+    return child;
   }
 
   /// Punto/número rojo del badge.

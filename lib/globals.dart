@@ -21,6 +21,10 @@ final ValueNotifier<Set<String>> viewedStoryIdsNotifier =
 // mientras el usuario no está en la pestaña Actividad.
 final ValueNotifier<int> unreadActivityCount = ValueNotifier<int>(0);
 
+// Badge de solicitudes de amistad pendientes: se incrementa al llegar una solicitud nueva
+// y se resetea al abrir la pantalla de Amigos.
+final ValueNotifier<int> unreadFriendRequestsCount = ValueNotifier<int>(0);
+
 // Flag para desactivar temporizadores infinitos de carrusel/fondo en tests E2E y evitar que pumpAndSettle se cuelgue
 bool kDisableCarouselForTests = false;
 
