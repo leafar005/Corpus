@@ -195,6 +195,11 @@ class ProfileRepository {
           .select('requester_id')
           .eq('status', 'accepted')
           .or('requester_id.eq.$userId,addressee_id.eq.$userId'),
+      // Obtener completion_type para todos los juegos del usuario
+      _client
+          .from('reviews')
+          .select('game_id, completion_type')
+          .eq('user_id', userId),
     ]);
 
     final wishlistRes = results[0] as List<dynamic>;
@@ -208,16 +213,27 @@ class ProfileRepository {
     final rawHallOfFame = results[8] as List<dynamic>;
     final ratingsRes = results[9] as List<dynamic>;
     final friendshipsRes = results[10] as List<dynamic>;
+    final completionTypesRes = results[11] as List<dynamic>;
+
+    // Mapa de game_id → completion_type para enriquecer las listas
+    final completionTypeMap = <int, String>{};
+    for (final row in completionTypesRes) {
+      final gameId = row['game_id'];
+      final ct = row['completion_type'];
+      if (gameId != null && ct != null && ct.toString().isNotEmpty) {
+        completionTypeMap[gameId as int] = ct as String;
+      }
+    }
 
     return ProfileData(
       userProfile: userProfile,
-      wishlistGames: _enrichList(wishlistRes),
+      wishlistGames: _enrichList(wishlistRes, completionTypeMap: completionTypeMap),
       wishlistCount: wishlistCountRes.length,
-      playingGames: _enrichList(playingRes),
+      playingGames: _enrichList(playingRes, completionTypeMap: completionTypeMap),
       playingCount: playingCountRes.length,
-      beatenGames: _enrichList(beatenRes, useLastPlayed: true),
+      beatenGames: _enrichList(beatenRes, useLastPlayed: true, completionTypeMap: completionTypeMap),
       beatenCount: beatenCountRes.length,
-      platinumGames: _enrichList(platinumRes, useLastPlayed: true),
+      platinumGames: _enrichList(platinumRes, useLastPlayed: true, completionTypeMap: completionTypeMap),
       platinumCount: platinumCountRes.length,
       ratings: ratingsRes
           .map((e) => (e['rating'] as num?)?.toDouble() ?? 0.0)
@@ -236,10 +252,11 @@ class ProfileRepository {
   static List<Map<String, dynamic>> _enrichList(
     List<dynamic> rawGames, {
     bool useLastPlayed = false,
+    Map<int, String> completionTypeMap = const {},
   }) {
     final result = <Map<String, dynamic>>[];
     for (final row in rawGames) {
-      final gameData = _enrichGameData(row, useLastPlayed: useLastPlayed);
+      final gameData = _enrichGameData(row, useLastPlayed: useLastPlayed, completionTypeMap: completionTypeMap);
       if (gameData != null) {
         result.add(gameData);
       }
@@ -252,6 +269,7 @@ class ProfileRepository {
   static Map<String, dynamic>? _enrichGameData(
     dynamic row, {
     bool useLastPlayed = false,
+    Map<int, String> completionTypeMap = const {},
   }) {
     final gameData = row['games'];
     if (gameData == null) return null;
@@ -259,6 +277,13 @@ class ProfileRepository {
     final enriched = Map<String, dynamic>.from(gameData as Map);
     final rating = (row['rating'] ?? 0).toDouble();
     enriched['user_rating'] = rating;
+
+    // Propagar completion_type desde el mapa global de reviews
+    final gameId = row['game_id'];
+    if (gameId != null) {
+      final ct = completionTypeMap[gameId as int];
+      if (ct != null) enriched['completion_type'] = ct;
+    }
 
     final updatedAt = row['updated_at']?.toString() ?? '';
     final lastPlayedAt = row['last_played_at']?.toString() ?? updatedAt;

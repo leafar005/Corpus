@@ -14,6 +14,7 @@ class GameCard extends StatefulWidget {
   final bool isGrayscale;
   final bool showMetacriticBadge;
   final void Function(Game)? onTap;
+  final String? completionType;
 
   const GameCard({
     super.key,
@@ -24,6 +25,7 @@ class GameCard extends StatefulWidget {
     this.isGrayscale = false,
     this.showMetacriticBadge = false,
     this.onTap,
+    this.completionType,
   });
 
   @override
@@ -320,6 +322,17 @@ class _GameCardState extends State<GameCard> {
                                 ),
                               ),
                             ),
+                          // ── Badge de subestado (esquina inferior derecha) ──
+                          if (widget.completionType != null &&
+                              widget.completionType != 'none')
+                            Positioned(
+                              bottom: 6,
+                              right: 6,
+                              child: _buildSubstatusBadge(
+                                context,
+                                widget.completionType!,
+                              ),
+                            ),
                         ],
                       );
                     },
@@ -362,5 +375,33 @@ class _GameCardState extends State<GameCard> {
     if (score >= 75) return Colors.green;
     if (score >= 50) return Colors.orange;
     return Colors.red;
+  }
+
+  Widget _buildSubstatusBadge(BuildContext context, String type) {
+    final (IconData icon, Color color) = switch (type) {
+      'on_hold' => (Icons.pause_rounded, Colors.orange),
+      'endless' => (Icons.all_inclusive_rounded, Colors.teal),
+      'story' => (Icons.auto_stories_rounded, Theme.of(context).colorScheme.primary),
+      'story_extras' => (Icons.extension_rounded, Colors.purple),
+      '100_percent' => (Icons.emoji_events_rounded, const Color(0xFFFFD700)),
+      _ => (Icons.flag_rounded, Theme.of(context).colorScheme.primary),
+    };
+
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Icon(icon, size: 13, color: color),
+    );
   }
 }

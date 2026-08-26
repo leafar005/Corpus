@@ -44,6 +44,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   String? _error;
   String _searchQuery = '';
   String? _currentStatus;
+  Map<int, String> _completionTypeMap = {};
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
   GameFilters _filters = GameFilters(
@@ -83,6 +84,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
       hasMore = true;
       _isInitialLoading = true;
       _error = null;
+      _completionTypeMap = {};
     });
     await loadMore();
   }
@@ -225,6 +227,23 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
       final newItems = List<Map<String, dynamic>>.from(
         res,
       ).where((r) => r['games'] != null).toList();
+
+      // Si es la primera página, cargar el mapa de completion_type
+      if (_page == 0) {
+        final reviewsRes = await Supabase.instance.client
+            .from('reviews')
+            .select('game_id, completion_type')
+            .eq('user_id', widget.userId);
+        final map = <int, String>{};
+        for (final row in reviewsRes) {
+          final gameId = row['game_id'];
+          final ct = row['completion_type'];
+          if (gameId != null && ct != null && ct.toString().isNotEmpty) {
+            map[gameId as int] = ct as String;
+          }
+        }
+        if (mounted) setState(() => _completionTypeMap = map);
+      }
 
       if (mounted) {
         setState(() {
@@ -484,11 +503,16 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           gameData['user_rating'] = rating;
           gameData['is_steam_only'] = item['is_steam_only'];
 
+          // Extraer completion_type del mapa cargado en loadMore
+          final gameId = item['game_id'] as int?;
+          final completionType = gameId != null ? _completionTypeMap[gameId] : null;
+
           return GameCard(
             game: Game.fromMap(gameData),
             isInLibrary: true,
             userRating: rating,
             showMetacriticBadge: _filters.sortBy == 'metacritic_score',
+            completionType: completionType,
             onReturn: () {
               widget.onReturn();
               _refresh();
