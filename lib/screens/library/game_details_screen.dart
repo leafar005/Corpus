@@ -38,7 +38,6 @@ class GameDetailsScreen extends StatefulWidget {
 }
 
 class _GameDetailsScreenState extends State<GameDetailsScreen> {
-
   late final GameDetailsController _controller;
   bool _isSaving = false;
   String? _selectedScreenshotUrl;
