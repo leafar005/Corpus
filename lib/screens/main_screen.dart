@@ -32,6 +32,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   StreamSubscription<void>? _webPopStateSub;
   RealtimeChannel? _friendshipsChannel;
   RealtimeChannel? _activityFeedChannel;
+  RealtimeChannel? _notificationsChannel;
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = [
     GlobalKey<NavigatorState>(),
@@ -88,6 +89,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     DeepLinkService.pendingTab.addListener(_onPendingTab);
     _subscribeFriendRequests();
     _subscribeActivityFeed();
+    _subscribeNotifications();
   }
 
   @override
@@ -97,11 +99,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         // Seguimos "dentro" de Actividad: cualquier cosa nueva llegada
         // mientras estábamos en segundo plano también se marca como leída.
         _markActivityRead();
+        _fetchNotificationsCount();
       } else {
         // En cualquier otra pestaña: recalculamos los contadores por si el
         // WebSocket se cerró mientras estábamos en segundo plano y perdimos
         // eventos de Realtime.
         _fetchInitialBadges();
+        _fetchNotificationsCount();
       }
     }
   }
@@ -246,6 +250,57 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         });
   }
 
+  Future<void> _fetchNotificationsCount() async {
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    if (myId == null) return;
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'get_unread_notifications_count',
+      );
+      if (mounted) {
+        unreadNotificationsCount.value = (res as num?)?.toInt() ?? 0;
+      }
+    } catch (e) {
+      debugPrint('[MainScreen] Error fetch notifications count: $e');
+    }
+  }
+
+  void _subscribeNotifications() {
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    _fetchNotificationsCount();
+
+    // Escuchamos TODOS los eventos (insert/update/delete), no solo insert:
+    // un like retirado, una solicitud cancelada o un "marcar como leído"
+    // hecho desde otro dispositivo también deben mover este contador, y
+    // recalcularlo por completo en servidor evita que un incremento/
+    // decremento local a ciegas se desincronice.
+    _notificationsChannel = Supabase.instance.client
+        .channel('unread_notifications_badge')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'notifications',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'recipient_id',
+            value: myId,
+          ),
+          callback: (payload) => _fetchNotificationsCount(),
+        )
+        .subscribe((status, error) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            // Se ejecuta también en cada reconexión, no solo en la
+            // suscripción inicial (mismo motivo que en
+            // _subscribeActivityFeed: un corte de red o una suspensión del
+            // equipo con la app en primer plano no debe perder eventos
+            // para siempre).
+            _fetchNotificationsCount();
+          }
+        });
+  }
+
   void _subscribeFriendRequests() {
     final myId = Supabase.instance.client.auth.currentUser?.id;
     if (myId == null) return;
@@ -296,6 +351,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     DeepLinkService.pendingTab.removeListener(_onPendingTab);
     _friendshipsChannel?.unsubscribe();
     _activityFeedChannel?.unsubscribe();
+    _notificationsChannel?.unsubscribe();
     _webPopStateSub?.cancel();
     super.dispose();
   }

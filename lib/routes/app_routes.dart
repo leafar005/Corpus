@@ -53,6 +53,7 @@ abstract final class AppRoutes {
   static const editProfile = '/edit-profile';
   static const appearance = '/appearance';
   static const notifications = '/notifications';
+  static const notificationsFeed = '/notifications-feed';
   static const integrations = '/integrations';
   static const info = '/info';
   static const homeAppearance = '/home-appearance';

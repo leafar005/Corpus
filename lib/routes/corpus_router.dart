@@ -19,6 +19,7 @@ import '../screens/settings/import_preview_screen.dart';
 import '../screens/settings/info_tab_appearance_screen.dart';
 import '../screens/settings/integrations_screen.dart';
 import '../screens/settings/notifications_screen.dart';
+import '../screens/social/notifications_feed_screen.dart';
 import '../screens/settings/steam_import_progress_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/social/friends_screen.dart';
@@ -226,6 +227,11 @@ abstract final class CorpusRouter {
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => const NotificationsScreen(),
+        );
+      case AppRoutes.notificationsFeed:
+        return MaterialPageRoute<T>(
+          settings: settings,
+          builder: (_) => const NotificationsFeedScreen(),
         );
 
       case AppRoutes.integrations:
@@ -436,6 +442,8 @@ extension CorpusNavigation on BuildContext {
   Future<T?> pushAppearance<T>() => pushRoute<T>(AppRoutes.appearance);
 
   Future<T?> pushNotifications<T>() => pushRoute<T>(AppRoutes.notifications);
+  Future<T?> pushNotificationsFeed<T>() =>
+      pushRoute<T>(AppRoutes.notificationsFeed);
 
   Future<T?> pushIntegrations<T>() => pushRoute<T>(AppRoutes.integrations);
 

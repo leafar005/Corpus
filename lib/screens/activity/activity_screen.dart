@@ -1071,6 +1071,18 @@ class _ActivityScreenState extends State<ActivityScreen>
         title: const CorpusScreenTitle('Actividad'),
         actions: [
           IconButton(
+            icon: ValueListenableBuilder<int>(
+              valueListenable: unreadNotificationsCount,
+              builder: (context, count, _) => Badge(
+                isLabelVisible: count > 0,
+                label: Text(count.toString()),
+                child: const Icon(Icons.notifications_rounded),
+              ),
+            ),
+            tooltip: 'Notificaciones',
+            onPressed: () => context.pushNotificationsFeed(),
+          ),
+          IconButton(
             icon: Badge(
               isLabelVisible: _pendingRequestsCount > 0,
               label: Text(_pendingRequestsCount.toString()),

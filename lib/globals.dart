@@ -25,6 +25,11 @@ final ValueNotifier<int> unreadActivityCount = ValueNotifier<int>(0);
 // y se resetea al abrir la pantalla de Amigos.
 final ValueNotifier<int> unreadFriendRequestsCount = ValueNotifier<int>(0);
 
+/// Badge de notificaciones sociales no leídas (likes, solicitudes de
+/// amistad, comentarios y respuestas). Se sincroniza siempre desde el
+/// servidor (tabla notifications + RPCs), nunca desde almacenamiento local.
+final ValueNotifier<int> unreadNotificationsCount = ValueNotifier<int>(0);
+
 // Flag para desactivar temporizadores infinitos de carrusel/fondo en tests E2E y evitar que pumpAndSettle se cuelgue
 bool kDisableCarouselForTests = false;
 
