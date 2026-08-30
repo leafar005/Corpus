@@ -147,6 +147,7 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
               title.contains('dead by daylight') ||
               title.contains('teppen') ||
               title.contains('poker night') ||
+              title.contains('nintendo land') ||
               title.contains('cross tag');
           bool matches = false;
 

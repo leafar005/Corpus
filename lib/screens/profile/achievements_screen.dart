@@ -339,6 +339,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
           title.contains('dead by daylight') ||
           title.contains('teppen') ||
           title.contains('poker night') ||
+          title.contains('nintendo land') ||
           title.contains('cross tag');
       if (dev.contains('kojima') ||
           saga.contains('metal gear') ||

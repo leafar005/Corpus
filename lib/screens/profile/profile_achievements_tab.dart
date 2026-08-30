@@ -245,7 +245,7 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
             }
           }
           ach['_unlockedDate'] = unlockedDate;
-          ach['_displayDescription'] = _getNextMilestoneDescription(
+          ach['_displayDescription'] = _getCurrentMilestoneDescription(
             groupId,
             currentProgress,
             ach['description'] as String,
@@ -358,6 +358,7 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
           title.contains('dead by daylight') ||
           title.contains('teppen') ||
           title.contains('poker night') ||
+          title.contains('nintendo land') ||
           title.contains('cross tag');
 
       if (dev.contains('kojima') ||
@@ -673,7 +674,7 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
         inc('bethesda');
       }
 
-      if (saga.isNotEmpty || title.isNotEmpty) {
+      if (!isCrossover && (saga.isNotEmpty || title.isNotEmpty)) {
         if (saga.contains('mario') || title.contains('mario')) {
           inc('mario');
         }
@@ -893,6 +894,23 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
       default:
         return Colors.grey;
     }
+  }
+
+  String _getCurrentMilestoneDescription(
+    String groupId,
+    int currentProgress,
+    String fallback, [
+    Map<String, List<Map<String, dynamic>>>? milestonesMap,
+  ]) {
+    final milestonesData = (milestonesMap ?? _sagaMilestones)[groupId];
+    if (milestonesData == null || milestonesData.isEmpty) return fallback;
+    for (int i = milestonesData.length - 1; i >= 0; i--) {
+      final target = milestonesData[i]['target'] as int;
+      if (currentProgress >= target) {
+        return (milestonesData[i]['description'] as String?) ?? fallback;
+      }
+    }
+    return (milestonesData.first['description'] as String?) ?? fallback;
   }
 
   String _getNextMilestoneDescription(
