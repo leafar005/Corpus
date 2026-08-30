@@ -57,7 +57,7 @@ messaging.onBackgroundMessage(function(payload) {
     vibrate: [200, 100, 200],
   };
 
-  self.registration.showNotification(title, options);
+  return self.registration.showNotification(title, options);
 });
 
 // Al hacer clic en la notificación, enfocar la ventana de la PWA
