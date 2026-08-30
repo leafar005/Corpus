@@ -911,63 +911,12 @@ class _ActivityScreenState extends State<ActivityScreen>
               builder: (context, child) {
                 final onlineUsers = onlineUsersNotifier.value;
                 final viewedIds = viewedStoryIdsNotifier.value;
-                final sortedFriends = List<Map<String, dynamic>>.from(
-                  _friendsStrip,
+                final sortedFriends = ActivityRepository.sortFriendsStrip(
+                  friends: _friendsStrip,
+                  userStories: _userStories,
+                  onlineUserIds: onlineUsers,
+                  viewedStoryIds: viewedIds,
                 );
-                sortedFriends.sort((a, b) {
-                  final aId = a['id'] as String?;
-                  final bId = b['id'] as String?;
-
-                  final aHasStory =
-                      aId != null && (_userStories[aId]?.isNotEmpty ?? false);
-                  final bHasStory =
-                      bId != null && (_userStories[bId]?.isNotEmpty ?? false);
-
-                  final aPlaying =
-                      a['currently_playing_appid'] != null &&
-                      a['currently_playing_name'] != null;
-                  final bPlaying =
-                      b['currently_playing_appid'] != null &&
-                      b['currently_playing_name'] != null;
-
-                  final aOnline = aId != null && onlineUsers.contains(aId);
-                  final bOnline = bId != null && onlineUsers.contains(bId);
-
-                  // Prioridad: historia reciente > jugando > online > alfabético
-                  final aScore =
-                      (aHasStory ? 4 : 0) +
-                      (aPlaying ? 2 : 0) +
-                      (aOnline ? 1 : 0);
-                  final bScore =
-                      (bHasStory ? 4 : 0) +
-                      (bPlaying ? 2 : 0) +
-                      (bOnline ? 1 : 0);
-
-                  if (aScore != bScore) {
-                    return bScore.compareTo(aScore);
-                  }
-
-                  // En caso de empate (ambos jugando o ambos offline), ordenamos por actividad (XP).
-                  // Así los usuarios más inactivos (pocos juegos) se van al final.
-                  final aXp = (a['xp'] as num?)?.toInt() ?? 0;
-                  final bXp = (b['xp'] as num?)?.toInt() ?? 0;
-                  if (aXp != bXp) {
-                    return bXp.compareTo(aXp); // Mayor XP primero
-                  }
-
-                  // En caso de empate de XP, ordenamos alfabéticamente por nombre
-                  final aName =
-                      (a['display_name'] as String? ??
-                              a['username'] as String? ??
-                              '')
-                          .toLowerCase();
-                  final bName =
-                      (b['display_name'] as String? ??
-                              b['username'] as String? ??
-                              '')
-                          .toLowerCase();
-                  return aName.compareTo(bName);
-                });
 
                 return ListView.builder(
                   scrollDirection: Axis.horizontal,

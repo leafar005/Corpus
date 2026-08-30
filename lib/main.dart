@@ -209,6 +209,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     _presenceChannel?.unsubscribe();
     _presenceChannel = null;
     onlineUsersNotifier.value = {};
+    viewedStoryIdsNotifier.value = {}; // evita fuga de "vistas" entre cuentas
   }
 
   @override

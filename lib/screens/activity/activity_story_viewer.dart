@@ -242,7 +242,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       setState(() {
         _slideDirection = -1;
         _groupIndex--;
-        _activityIndex = 0;
+        _activityIndex = widget.groups[_groupIndex].activities.length - 1;
       });
       _afterSlideChange();
       return;
@@ -723,6 +723,11 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     required double? rating,
     required String comment,
   }) {
+    const textShadows = [
+      Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1.5, 1.5)),
+      Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
+    ];
+
     return Column(
       children: [
         if (coverUrl != null) ...[
@@ -755,7 +760,12 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(actionIcon, color: actionColor, size: 22),
+            Icon(
+              actionIcon,
+              color: actionColor,
+              size: 22,
+              shadows: textShadows,
+            ),
             const SizedBox(width: 8),
             Flexible(
               child: RichText(
@@ -765,6 +775,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
                     fontSize: 18,
                     height: 1.35,
                     color: cs.onSurface,
+                    shadows: textShadows,
                   ),
                   children: [
                     TextSpan(
@@ -824,6 +835,11 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     required bool isOwn,
     required String displayName,
   }) {
+    const textShadows = [
+      Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1.5, 1.5)),
+      Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
+    ];
+
     return Column(
       children: [
         if (coverUrl != null) ...[
@@ -856,7 +872,11 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         Text(
           gameTitle,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            shadows: textShadows,
+          ),
         ),
         const SizedBox(height: 6),
         Text(
@@ -865,6 +885,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
           style: TextStyle(
             fontSize: 14,
             color: cs.onSurface.withValues(alpha: 0.75),
+            shadows: textShadows,
           ),
         ),
         const SizedBox(height: 14),

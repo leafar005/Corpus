@@ -320,29 +320,12 @@ class ActivityRepository {
       } catch (_) {}
     }
 
-    // Fusionar eventos duplicados (status_change + reviewed del mismo juego)
-    final mergedItems = mergeActivityItems(
+    return groupAndMergeByUser(
       feedItems: feedItems,
       reviewsById: reviewsById,
       partnersByUserGame: partnersByUserGame,
+      maxPerUser: maxPerUser,
     );
-
-    final grouped = <String, List<Map<String, dynamic>>>{};
-    for (final item in mergedItems) {
-      final userId = item['user_id'] as String?;
-      if (userId == null) continue;
-
-      final list = grouped.putIfAbsent(userId, () => []);
-      if (list.length >= maxPerUser) continue;
-      list.add(item);
-    }
-
-    // Invertir las listas para que el visor de historias las reproduzca de más antigua a más reciente
-    for (final userId in grouped.keys) {
-      grouped[userId] = grouped[userId]!.reversed.toList();
-    }
-
-    return grouped;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -705,4 +688,89 @@ class ActivityRepository {
     List<Map<String, dynamic>> activities,
     Set<String> viewedIds,
   ) => activities.any((a) => !viewedIds.contains(a['id']));
+
+  /// Ordena la franja de amigos para el "story bar" (estilo Instagram).
+  ///
+  /// Orden de prioridad (de mayor a menor):
+  ///   1. Amigos con historia SIN ver
+  ///   2. Amigos con historia YA vista
+  ///   3. Amigos jugando ahora mismo (sin historia)
+  ///   4. Amigos online (sin historia)
+  ///   5. Resto
+  ///
+  /// Los empates dentro de un mismo nivel se resuelven por XP descendente y,
+  /// si persiste el empate, alfabéticamente por display_name/username.
+  static List<Map<String, dynamic>> sortFriendsStrip({
+    required List<Map<String, dynamic>> friends,
+    required Map<String, List<Map<String, dynamic>>> userStories,
+    required Set<String> onlineUserIds,
+    required Set<String> viewedStoryIds,
+  }) {
+    int scoreFor(Map<String, dynamic> f) {
+      final id = f['id'] as String?;
+      final stories = id != null ? userStories[id] : null;
+      final hasStory = stories != null && stories.isNotEmpty;
+      final hasUnseenStory =
+          hasStory && groupHasUnseenStory(stories, viewedStoryIds);
+      final isPlaying =
+          f['currently_playing_appid'] != null &&
+          f['currently_playing_name'] != null;
+      final isOnline = id != null && onlineUserIds.contains(id);
+
+      final storyScore = hasUnseenStory ? 8 : (hasStory ? 4 : 0);
+      return storyScore + (isPlaying ? 2 : 0) + (isOnline ? 1 : 0);
+    }
+
+    final sorted = List<Map<String, dynamic>>.from(friends);
+    sorted.sort((a, b) {
+      final aScore = scoreFor(a);
+      final bScore = scoreFor(b);
+      if (aScore != bScore) return bScore.compareTo(aScore);
+
+      final aXp = (a['xp'] as num?)?.toInt() ?? 0;
+      final bXp = (b['xp'] as num?)?.toInt() ?? 0;
+      if (aXp != bXp) return bXp.compareTo(aXp);
+
+      final aName =
+          (a['display_name'] as String? ?? a['username'] as String? ?? '')
+              .toLowerCase();
+      final bName =
+          (b['display_name'] as String? ?? b['username'] as String? ?? '')
+              .toLowerCase();
+      return aName.compareTo(bName);
+    });
+
+    return sorted;
+  }
+
+  /// Agrupa por usuario y fusiona duplicados dentro de cada grupo — lógica
+  /// pura usada por `fetchRecentStoriesForUsers` (testeable sin Supabase).
+  static Map<String, List<Map<String, dynamic>>> groupAndMergeByUser({
+    required List<Map<String, dynamic>> feedItems,
+    required Map<String, Map<String, dynamic>> reviewsById,
+    required Map<String, List<dynamic>> partnersByUserGame,
+    required int maxPerUser,
+  }) {
+    final Map<String, List<Map<String, dynamic>>> byUser = {};
+    for (final item in feedItems) {
+      final userId = item['user_id'] as String?;
+      if (userId == null) continue;
+      byUser.putIfAbsent(userId, () => []).add(item);
+    }
+
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final entry in byUser.entries) {
+      final mergedForUser = mergeActivityItems(
+        feedItems: entry.value,
+        reviewsById: reviewsById,
+        partnersByUserGame: partnersByUserGame,
+      );
+      grouped[entry.key] = mergedForUser
+          .take(maxPerUser)
+          .toList()
+          .reversed
+          .toList();
+    }
+    return grouped;
+  }
 }

@@ -309,4 +309,161 @@ void main() {
       },
     );
   });
+  group('ActivityRepository.sortFriendsStrip', () {
+    Map<String, dynamic> friend(String id, {int xp = 0}) => {
+      'id': id,
+      'display_name': id,
+      'xp': xp,
+    };
+
+    test(
+      'reproduce el bug reportado: no-vista entre dos vistas → no-vista debe ir primero',
+      () {
+        final friends = [friend('seen1'), friend('unseen'), friend('seen2')];
+        final stories = {
+          'seen1': [
+            {'id': 'a1'},
+          ],
+          'unseen': [
+            {'id': 'a2'},
+          ],
+          'seen2': [
+            {'id': 'a3'},
+          ],
+        };
+        final viewed = {'a1', 'a3'}; // a2 (de 'unseen') no está vista
+
+        final result = ActivityRepository.sortFriendsStrip(
+          friends: friends,
+          userStories: stories,
+          onlineUserIds: {},
+          viewedStoryIds: viewed,
+        );
+
+        expect(result.first['id'], 'unseen');
+        expect(
+          result.skip(1).map((f) => f['id']),
+          containsAll(['seen1', 'seen2']),
+        );
+      },
+    );
+
+    test(
+      'historia sin ver > historia vista > jugando sin historia > online sin historia',
+      () {
+        final friends = [
+          {
+            'id': 'playing',
+            'currently_playing_appid': 1,
+            'currently_playing_name': 'X',
+          },
+          {'id': 'unseen'},
+          {'id': 'seen'},
+          {'id': 'online'},
+        ];
+        final stories = {
+          'unseen': [
+            {'id': 's1'},
+          ],
+          'seen': [
+            {'id': 's2'},
+          ],
+        };
+        final result = ActivityRepository.sortFriendsStrip(
+          friends: friends,
+          userStories: stories,
+          onlineUserIds: {'online'},
+          viewedStoryIds: {'s2'},
+        );
+        expect(result.map((f) => f['id']).toList(), [
+          'unseen',
+          'seen',
+          'playing',
+          'online',
+        ]);
+      },
+    );
+
+    test('empate de score se rompe por XP descendente', () {
+      final friends = [friend('low', xp: 10), friend('high', xp: 500)];
+      final result = ActivityRepository.sortFriendsStrip(
+        friends: friends,
+        userStories: {},
+        onlineUserIds: {},
+        viewedStoryIds: {},
+      );
+      expect(result.map((f) => f['id']).toList(), ['high', 'low']);
+    });
+
+    test('empate total se rompe alfabéticamente', () {
+      final friends = [friend('Zoe'), friend('Ana')];
+      final result = ActivityRepository.sortFriendsStrip(
+        friends: friends,
+        userStories: {},
+        onlineUserIds: {},
+        viewedStoryIds: {},
+      );
+      expect(result.map((f) => f['id']).toList(), ['Ana', 'Zoe']);
+    });
+  });
+
+  group('ActivityRepository.groupAndMergeByUser', () {
+    test(
+      'fusiona reviewed+status_change del mismo amigo aunque haya 5 amigos entre medias',
+      () {
+        final items = <Map<String, dynamic>>[
+          makeItem(
+            actionType: 'reviewed',
+            userId: 'target',
+            gameId: 1,
+            createdAt: '2024-06-01T18:00:00',
+            reviewId: 'r1',
+          ),
+          makeItem(
+            actionType: 'status_change',
+            userId: 'f1',
+            createdAt: '2024-06-01T17:00:00',
+          ),
+          makeItem(
+            actionType: 'status_change',
+            userId: 'f2',
+            createdAt: '2024-06-01T16:00:00',
+          ),
+          makeItem(
+            actionType: 'status_change',
+            userId: 'f3',
+            createdAt: '2024-06-01T15:00:00',
+          ),
+          makeItem(
+            actionType: 'status_change',
+            userId: 'f4',
+            createdAt: '2024-06-01T14:00:00',
+          ),
+          makeItem(
+            actionType: 'status_change',
+            userId: 'f5',
+            createdAt: '2024-06-01T13:00:00',
+          ),
+          makeItem(
+            actionType: 'status_change',
+            userId: 'target',
+            gameId: 1,
+            createdAt: '2024-06-01T12:00:00',
+          )..['metadata'] = {'status': 'beaten'},
+        ];
+
+        final result = ActivityRepository.groupAndMergeByUser(
+          feedItems: items,
+          reviewsById: {
+            'r1': {'id': 'r1'},
+          },
+          partnersByUserGame: {},
+          maxPerUser: 15,
+        );
+
+        // 'target' debe tener 1 sola historia (fusionada), no 2
+        expect(result['target']!.length, 1);
+      },
+    );
+  });
 }
