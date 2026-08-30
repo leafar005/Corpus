@@ -303,7 +303,15 @@ class GameLinksTab extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: CorpusNetworkImage(
-                        url: 'https://icons.duckduckgo.com/ip3/$domain.ico',
+                        // Usamos el proxy de images.weserv.nl para añadir las
+                        // cabeceras CORS necesarias (Access-Control-Allow-Origin: *)
+                        // a la API de Google Favicons.
+                        // Google siempre devuelve un PNG válido (resolviendo el
+                        // problema de los .ico de Steam/PS) y procesa bien los
+                        // subdominios (como www.igdb.com), pero originalmente
+                        // fallaba en Flutter Web por falta de CORS.
+                        url:
+                            'https://images.weserv.nl/?url=${Uri.encodeComponent('https://www.google.com/s2/favicons?domain=$domain&sz=64')}',
                         fit: BoxFit.contain,
                         placeholder: Icon(itemIcon, size: 18),
                       ),
