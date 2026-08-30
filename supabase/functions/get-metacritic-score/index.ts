@@ -300,7 +300,9 @@ async function scrapeMetacriticGame(slug: string, url: string): Promise<Metacrit
       metascoreStrategy = r.parse_strategy!;
     }
     if (merged.user_score === null && r.user_score != null) {
-      merged.user_score = r.user_score;
+      let score = r.user_score;
+      if (score > 10) score = score / 10;
+      merged.user_score = score;
       merged.user_rating_count = r.user_rating_count ?? merged.user_rating_count;
       userScoreStrategy = r.parse_strategy!;
     }

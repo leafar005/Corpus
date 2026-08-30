@@ -206,9 +206,13 @@ class GameDetailsController extends ChangeNotifier {
         final data = response.data as Map<String, dynamic>;
         metacriticScore = data['metascore'] as int?;
         metacriticUrl = data['url'] as String?;
-        metacriticUserScore = data['user_score'] != null
+        double? uScore = data['user_score'] != null
             ? (data['user_score'] as num).toDouble()
             : null;
+        if (uScore != null && uScore > 10) {
+          uScore = uScore / 10;
+        }
+        metacriticUserScore = uScore;
         metacriticCriticCount = data['critic_review_count'] as int?;
         metacriticUserRatingCount = data['user_rating_count'] as int?;
       } else {

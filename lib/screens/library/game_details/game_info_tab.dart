@@ -181,7 +181,7 @@ class GameInfoTab extends StatelessWidget {
                     ),
                     const SizedBox(width: 16),
                     scoreBadge(
-                      value: formatRating(metacriticUserScore!),
+                      value: metacriticUserScore!.toStringAsFixed(1),
                       color: userColor(metacriticUserScore!),
                       context: context,
                       isCircle: true,
