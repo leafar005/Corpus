@@ -102,8 +102,11 @@ class ReviewModal {
         ? (r!.completionType ?? 'story')
         : 'story';
     bool reviewIsReplay = hasReview && r!.isReplay;
-    // TODO: replayNumber is not in Review model currently? Let's assume it's omitted or 1
-    int reviewReplayNumber = 1;
+    // r.replayNumber SÍ existe en el modelo (columna replay_number). Antes
+    // se ignoraba y se hardcodeaba a 1, así que reabrir una reseña de
+    // rejugada para editar cualquier otro campo pisaba silenciosamente el
+    // número de rejugada real de vuelta a 1 al guardar.
+    int reviewReplayNumber = (hasReview ? r!.replayNumber : null) ?? 1;
     String? reviewPlatform = hasReview ? r!.platform : null;
     String playTimeText = hasReview && r!.playTimeHours != null
         ? r.playTimeHours.toString()
