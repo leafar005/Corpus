@@ -181,7 +181,7 @@ class CorpusHeroTitle extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final isPortrait = size.height > size.width;
     final baseSize = isPortrait ? ext.heroFontSize * 0.85 : ext.heroFontSize;
-    final primary = Theme.of(context).colorScheme.primary;
+    final primary = Theme.of(context).primaryColor;
 
     if (ext.useDynamicFrames) {
       if (animated) {

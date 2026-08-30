@@ -1605,9 +1605,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(7),
                                     ),
-                                    child:
-                                        game != null &&
-                                            game['cover_url'] != null
+                                    child: game != null && game['cover_url'] != null
                                         ? ClipRRect(
                                             borderRadius: BorderRadius.circular(
                                               7,
@@ -1622,18 +1620,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               height: double.infinity,
                                             ),
                                           )
-                                        : Center(
-                                            child: Icon(
-                                              Icons.add,
-                                              color: isNumberOne
-                                                  ? Colors.amber.withValues(
-                                                      alpha: 0.8,
-                                                    )
-                                                  : Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurfaceVariant,
-                                            ),
-                                          ),
+                                        : const SizedBox.shrink(),
                                   ),
                                 ),
                               ),

@@ -1041,6 +1041,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 ),
                               ),
                             ),
+                            if (game != null)
+                              Positioned(
+                                top: -6,
+                                right: -6,
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      final supabase = Supabase.instance.client;
+                                      final userId =
+                                          supabase.auth.currentUser?.id;
+                                      if (userId == null) return;
+                                      await supabase
+                                          .from('hall_of_fame')
+                                          .delete()
+                                          .eq('user_id', userId)
+                                          .eq('pin_order', index + 1);
+                                      _refreshHallOfFame();
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.error,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      padding: const EdgeInsets.all(4),
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 14,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onError,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
