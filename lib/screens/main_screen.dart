@@ -95,9 +95,37 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Al volver de segundo plano (clave en iOS PWA), recargamos contadores
-      // ya que el WebSocket puede haberse cerrado o pudimos perder eventos.
-      _fetchInitialBadges();
+      if (_currentIndex == 2) {
+        // Seguimos "dentro" de Actividad: cualquier cosa nueva llegada
+        // mientras estábamos en segundo plano también se marca como leída.
+        _markActivityRead();
+      } else {
+        // En cualquier otra pestaña: recalculamos los contadores por si el
+        // WebSocket se cerró mientras estábamos en segundo plano y perdimos
+        // eventos de Realtime.
+        _fetchInitialBadges();
+      }
+    }
+  }
+
+  /// Marca la actividad como leída: resetea el badge de forma optimista en la
+  /// UI al instante, y persiste el "leído hasta ahora" en el servidor (vía
+  /// mark_activity_read(), que usa la hora del servidor) para que el resto de
+  /// dispositivos de la misma cuenta también vean el badge a 0.
+  Future<void> _markActivityRead() async {
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    unreadActivityCount.value = 0; // Reset optimista inmediato en la UI.
+
+    try {
+      await Supabase.instance.client.rpc('mark_activity_read');
+    } catch (e) {
+      debugPrint('[MainScreen] Error marcando actividad como leída: $e');
+      // No revertimos el 0 optimista: es preferible que el badge desaparezca
+      // un instante de más a que se quede "pegado". El próximo resync
+      // (resume de la app, reconexión del canal, o el siguiente arranque)
+      // recalculará el valor correcto desde el servidor de todas formas.
     }
   }
 
@@ -105,42 +133,26 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final myId = Supabase.instance.client.auth.currentUser?.id;
     if (myId == null) return;
 
-    // Recargar solicitudes de amistad
+    // Recargar solicitudes de amistad (sin cambios respecto a antes).
     try {
       final res = await Supabase.instance.client
           .from('friendships')
-          .select('id')
+          .select('requester_id')
           .eq('addressee_id', myId)
           .eq('status', 'pending');
       if (mounted) unreadFriendRequestsCount.value = res.length;
     } catch (_) {}
 
-    // Recargar feed de actividad
-    final prefs = await SharedPreferences.getInstance();
-    final lastVisitStr = prefs.getString('last_activity_visit');
-    final lastVisit = lastVisitStr != null 
-        ? DateTime.parse(lastVisitStr) 
-        : DateTime.now().subtract(const Duration(days: 3));
-
+    // Recargar el contador de actividad no leída, calculado en el servidor
+    // (get_unread_activity_summary) a partir de users.last_activity_read_at.
+    // Sustituye a la antigua lectura de SharedPreferences('last_activity_visit')
+    // + query manual, que era local al dispositivo.
     try {
       final res = await Supabase.instance.client
-          .from('activity_feed')
-          .select('user_id, game_id, created_at')
-          .neq('user_id', myId)
-          .gt('created_at', lastVisit.toUtc().toIso8601String())
-          .limit(20);
-          
-      if (mounted && res.isNotEmpty) {
-        final uniqueGames = <String>{};
-        int otherActivities = 0;
-        for (var row in (res as List)) {
-          if (row['game_id'] != null) {
-            uniqueGames.add('${row['user_id']}_${row['game_id']}');
-          } else {
-            otherActivities++;
-          }
-        }
-        unreadActivityCount.value = uniqueGames.length + otherActivities;
+          .rpc('get_unread_activity_summary')
+          .single();
+      if (mounted) {
+        unreadActivityCount.value = (res['unread_count'] as num?)?.toInt() ?? 0;
       }
     } catch (e) {
       debugPrint('[MainScreen] Error fetch activity resume: $e');
@@ -151,15 +163,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final myId = Supabase.instance.client.auth.currentUser?.id;
     if (myId == null) return;
 
-    // Carga inicial al arrancar (incluye lectura de last_activity_visit)
+    // Carga inicial al arrancar.
     _fetchInitialBadges();
 
     // --- FIX TEMPORAL PARA FECHAS EN EL FUTURO ---
+    // (sin cambios: se mantiene tal cual estaba; ver sección 7 de este spec)
     try {
       final futureDate = DateTime.now().add(const Duration(minutes: 1)).toUtc().toIso8601String();
       final nowStr = DateTime.now().toUtc().toIso8601String();
-      
-      // Corregir activity_feed
+
       final afRes = await Supabase.instance.client
           .from('activity_feed')
           .select('id')
@@ -171,8 +183,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             .update({'created_at': nowStr})
             .eq('id', row['id']);
       }
-      
-      // Corregir reviews
+
       final rRes = await Supabase.instance.client
           .from('reviews')
           .select('id')
@@ -208,7 +219,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               final key = '${userId}_$gameId';
               if (recentGames.contains(key)) return; // Ya sumado recientemente
               recentGames.add(key);
-              // Limpiar para no inflar memoria eternamente
               if (recentGames.length > 50) recentGames.clear();
             }
 
@@ -218,7 +228,19 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             }
           },
         )
-        .subscribe();
+        .subscribe((status, error) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            // Se ejecuta también en cada reconexión (no solo en la suscripción
+            // inicial), que es precisamente el caso que antes se perdía: un
+            // corte de red o una suspensión del equipo mientras la app seguía
+            // en primer plano, sin pasar por didChangeAppLifecycleState.
+            _fetchInitialBadges();
+          }
+          if (status == RealtimeSubscribeStatus.channelError ||
+              status == RealtimeSubscribeStatus.timedOut) {
+            debugPrint('[MainScreen] Canal de actividad con problemas: $status / $error');
+          }
+        });
   }
 
   void _subscribeFriendRequests() {
@@ -228,7 +250,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // Cargar el conteo inicial de solicitudes pendientes
     Supabase.instance.client
         .from('friendships')
-        .select('id')
+        .select('requester_id')
         .eq('addressee_id', myId)
         .eq('status', 'pending')
         .then((rows) {
@@ -295,6 +317,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               _currentIndex = fromUrl;
               _initializedTabs.add(fromUrl);
             });
+            if (fromUrl == 2) _markActivityRead();
           }
           return;
         }
@@ -309,6 +332,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         _currentIndex = savedIndex;
         _initializedTabs.add(savedIndex);
       });
+      if (savedIndex == 2) _markActivityRead();
       if (kIsWeb) {
         setWebPath(AppRoutes.publicPathForTab(savedIndex), replace: true);
       }
@@ -327,6 +351,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _currentIndex = index;
       _initializedTabs.add(index);
     });
+    if (index == 2) _markActivityRead();
     if (_shouldPersistTab) {
       SharedPreferences.getInstance().then(
         (prefs) => prefs.setInt('main_tab_index', index),
@@ -342,15 +367,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void _onTabTapped(int index) {
     if (index == _currentIndex) {
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+      // Si ya estamos en Actividad y el badge quedó "pegado" por cualquier
+      // motivo (p. ej. llegó actividad nueva mientras estábamos aquí y no se
+      // marcó como leída), volver a tocar el icono también lo limpia.
+      if (index == 2 && unreadActivityCount.value != 0) {
+        _markActivityRead();
+      }
       return;
     }
 
     if (index == 2) {
-      // Al entrar a Actividad, reseteamos badge y guardamos la fecha
-      unreadActivityCount.value = 0;
-      SharedPreferences.getInstance().then((prefs) {
-        prefs.setString('last_activity_visit', DateTime.now().toUtc().toIso8601String());
-      });
+      // Al entrar a Actividad, reseteamos badge y lo persistimos en servidor.
+      _markActivityRead();
     }
 
     if (index == 4) {
@@ -362,7 +390,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _currentIndex = index;
       _initializedTabs.add(index); // Marca la pestaña como inicializada
     });
-    
+
     _syncWebUrlForTab(index);
     if (_shouldPersistTab) {
       SharedPreferences.getInstance().then(
