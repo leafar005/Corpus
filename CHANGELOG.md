@@ -4,11 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [1.2.1] - 2026-08-30
 
+### Añadido
+- **Notificaciones Globales y Badges:** Implementado un sistema de globos de notificación (badges) en tiempo real con persistencia en base de datos para la pestaña de Actividad.
+- **Enlaces a IGDB:** Se añadió el enlace permanente hacia la página original de IGDB en la pestaña de enlaces de cada juego.
+- **Hito Actual en Perfil:** Ahora se muestra tu Hito actual (Milestone) en progreso de forma claramente visible en la pantalla del perfil.
+
+### Cambiado
+- **Juegos en Pausa:** Los juegos marcados explícitamente como "En pausa" ya no aparecerán rellenando el carrusel de Jugando de la pantalla de Inicio.
+
 ### Arreglado
-- **Iconos de Enlaces (CORS y `.ico`):** Solucionado el problema con los iconos de plataformas (Steam, PlayStation, Facebook, etc.) que fallaban en web usando Google Favicons proxy.
-- **Enlaces a IGDB:** Se añadió el enlace permanente hacia la página original de IGDB en los detalles de cada juego.
-- **Nota Media de Metacritic:** Corrección de la puntuación en función per-title.
-- **Limpieza de Código y CI:** Actualizado el archivo `dart.yml` para arreglar el workflow de GitHub Actions que sobrescribía archivos de entorno, junto con formateo general y limpieza de warnings/código muerto.
+- **Navegación de "Quién lo tiene":** Corregido el fallo crítico al navegar por las listas de amigos, permitiendo ver correctamente el perfil y los amigos de otro usuario.
+- **Iconos de Enlaces (CORS y `.ico`):** Solucionado el problema con los iconos de plataformas (Steam, PlayStation, Facebook, etc.) en la versión web integrando el proxy `images.weserv.nl`.
+- **Puntuaciones de Metacritic:** Normalizadas las notas de los usuarios (User Score) y garantizado el formateo correcto en la interfaz para prevenir discrepancias numéricas.
+- **Timestamps del Feed (Viajes en el tiempo):** Solucionado el bug de zona horaria (timezone) que causaba que los eventos recientes del Feed de Actividad aparecieran con fechas en el futuro.
+- **Errores de Base de Datos:** Arreglado el error `PGRST200` al cargar juegos del perfil y solucionada la `PostgrestException` al recuperar la actividad social de los amigos.
+- **Estabilidad Web:** Solventado un `duplicate dispose` en la pantalla principal que provocaba cuelgues silenciosos al compilar el proyecto para la web.
+- **Estética de Comentarios:** Corregida la indentación visual de las respuestas a comentarios y el formateo de las fechas.
 
 ## [1.2.0] - 2026-08-26
 
