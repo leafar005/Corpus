@@ -464,6 +464,7 @@ class GameDetailsController extends ChangeNotifier {
           'publisher': publisher,
           'publisher_id': publisherId,
           if (game['name'] != null) 'title': game['name'],
+          if (game['url'] != null) 'url': game['url'],
           if (game['cover'] != null)
             'cover_url': IGDBService.getCoverUrl(game['cover']['image_id']),
           if (game['first_release_date'] != null)

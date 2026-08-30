@@ -261,7 +261,7 @@ class IGDBService {
   static Future<Map<String, dynamic>?> getGameById(int igdbId) async {
     final response = await _postQuery(
       'games',
-      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, version_parent, remakes, remasters, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, collection.id, franchise.id, franchise.name, franchises.id, franchises.name, game_engines.name, websites.url, websites.category, websites.type, aggregated_rating; where id = $igdbId;',
+      'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, version_parent, remakes, remasters, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.publisher, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.name, collection.id, franchise.id, franchise.name, franchises.id, franchises.name, game_engines.name, url, websites.url, websites.category, websites.type, aggregated_rating; where id = $igdbId;',
     );
 
     if (response.statusCode == 200) {
@@ -585,7 +585,7 @@ class IGDBService {
     // Ordenamos por total_rating_count desc pero sin filtrarlo.
     final response = await _postQuery(
       'games',
-      'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name; where $wordConditions; sort total_rating_count desc; limit 5;',
+      'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name, url; where $wordConditions; sort total_rating_count desc; limit 5;',
     );
 
     if (response.statusCode == 200) {
@@ -694,7 +694,7 @@ class IGDBService {
       final chunk = igdbIds.skip(i).take(chunkSize).toList();
       final idsString = chunk.join(',');
       final body =
-          'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name; where id = ($idsString); limit ${chunk.length};';
+          'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name, url; where id = ($idsString); limit ${chunk.length};';
 
       final response = await _postQuery('games', body);
 

@@ -246,6 +246,9 @@ class GameLinksTab extends StatelessWidget {
                 } else if (urlString.contains('nintendo.com')) {
                   name = 'Nintendo eShop';
                   itemIcon = Icons.videogame_asset;
+                } else if (urlString.contains('igdb.com')) {
+                  name = 'IGDB';
+                  itemIcon = Icons.storage;
                 } else {
                   try {
                     final uri = Uri.parse(link['url'].toString());

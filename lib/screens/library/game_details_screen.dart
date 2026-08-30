@@ -1145,10 +1145,18 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         (widget.gameData['videos'] as List?)?.isNotEmpty == true
         ? widget.gameData['videos']
         : (_enrichedData['videos'] as List? ?? []);
-    final List websitesList =
+    final List baseWebsitesList =
         (widget.gameData['websites'] as List?)?.isNotEmpty == true
         ? widget.gameData['websites']
         : (_enrichedData['websites'] as List? ?? []);
+    final String? igdbUrl = _enrichedData['url'] ?? widget.gameData['url'];
+    final List websitesList = List.from(baseWebsitesList);
+    if (igdbUrl != null && !websitesList.any((w) => w['url'] == igdbUrl)) {
+      websitesList.add({
+        'url': igdbUrl,
+        'category': 1000,
+      });
+    }
     final bool hasMedia =
         screenshotsList.isNotEmpty ||
         artworksList.isNotEmpty ||

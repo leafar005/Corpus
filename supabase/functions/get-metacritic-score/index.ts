@@ -140,11 +140,17 @@ async function searchMetacriticSlug(gameTitle: string): Promise<SearchResult | n
     throw new Error(`Metacritic bloqueó la búsqueda: ${blocked}`);
   }
 
+  let searchArea = html;
+  const resultsStart = html.indexOf('c-search-results');
+  if (resultsStart > -1) {
+    searchArea = html.slice(resultsStart);
+  }
+
   // Buscamos enlaces a fichas de juego: /game/{slug}/
   const linkPattern = /href="\/game\/([a-z0-9-]+)\/?"/gi;
   const candidates: string[] = [];
   let match;
-  while ((match = linkPattern.exec(html)) !== null) {
+  while ((match = linkPattern.exec(searchArea)) !== null) {
     if (!candidates.includes(match[1])) candidates.push(match[1]);
   }
 
