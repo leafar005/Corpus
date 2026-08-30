@@ -2,14 +2,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../repositories/profile_repository.dart';
+import '../../../repositories/activity_repository.dart';
+
+import '../../../globals.dart';
 
 class ProfileController extends ChangeNotifier {
-  ProfileController({this.userId}) : _repo = ProfileRepository() {
+  ProfileController({this.userId})
+    : _repo = ProfileRepository(),
+      _activityRepo = ActivityRepository() {
     _init();
   }
 
   final String? userId;
   final ProfileRepository _repo;
+  final ActivityRepository _activityRepo;
 
   bool _disposed = false;
   StreamSubscription<AuthState>? _authSub;
@@ -29,6 +35,8 @@ class ProfileController extends ChangeNotifier {
   List<double> ratings = [];
   List<Map<String, dynamic>?> hallOfFame = List.filled(5, null);
   int friendsCount = 0;
+
+  List<Map<String, dynamic>> stories = [];
 
   bool get isOwnProfile {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
@@ -58,6 +66,7 @@ class ProfileController extends ChangeNotifier {
         _notify();
         fetchProfileData();
       } else {
+        userProfile = null;
         _notify();
       }
     });
@@ -98,6 +107,24 @@ class ProfileController extends ChangeNotifier {
       friendsCount = data.friendsCount;
       hasError = false;
       errorMessage = null;
+
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      if (currentUserId != null) {
+        final recentStoriesMap = await _activityRepo.fetchRecentStoriesForUsers(
+          [targetUserId],
+        );
+        stories = recentStoriesMap[targetUserId] ?? [];
+        if (stories.isNotEmpty) {
+          final viewedIds = await _activityRepo.fetchViewedStoryIds(
+            userId: currentUserId,
+            activityIds: stories.map((e) => e['id'] as String).toList(),
+          );
+          viewedStoryIdsNotifier.value = {
+            ...viewedStoryIdsNotifier.value,
+            ...viewedIds,
+          };
+        }
+      }
     } catch (e, st) {
       debugPrint(
         '[ProfileController] Error cargando perfil EXACTO: ${e.runtimeType} - $e\n$st',

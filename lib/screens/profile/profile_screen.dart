@@ -10,6 +10,9 @@ import 'package:corpus/routes/corpus_router.dart';
 import '../../utils/level_calculator.dart';
 import '../../widgets/game_card.dart';
 import '../../models/models.dart';
+import '../../widgets/activity_story_ring.dart';
+import '../activity/activity_story_viewer.dart';
+import '../../repositories/activity_repository.dart';
 
 import 'profile_achievements_tab.dart';
 import 'profile_journal_tab.dart';
@@ -103,6 +106,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) {
       _controller.fetchProfileData();
     }
+  }
+
+  void _openOwnStory() {
+    if (_controller.stories.isEmpty || _controller.userProfile == null) return;
+
+    final group = StoryGroup(
+      userData: _controller.userProfile!,
+      activities: _controller.stories,
+    );
+
+    final viewedIds = viewedStoryIdsNotifier.value;
+    final initialActivityIndex = ActivityRepository.firstUnseenIndex(
+      group.activities,
+      viewedIds,
+    );
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, _, _) => ActivityStoryViewer(
+          groups: [group],
+          initialGroupIndex: 0,
+          initialActivityIndex: initialActivityIndex,
+        ),
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   @override
@@ -382,25 +414,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                width: 2.5 - (0.5 * t),
-              ),
-            ),
-            child: CircleAvatar(
-              radius: avatarRadius,
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
-              backgroundImage: avatarUrl != null
-                  ? NetworkImage(avatarUrl)
-                  : null,
-              child: avatarUrl == null
-                  ? Icon(Icons.person, size: avatarRadius)
-                  : null,
+          GestureDetector(
+            onTap: _openOwnStory,
+            child: ValueListenableBuilder<Set<String>>(
+              valueListenable: viewedStoryIdsNotifier,
+              builder: (context, viewedIds, _) {
+                final hasStory = _controller.stories.isNotEmpty;
+                final hasUnseenStory =
+                    hasStory &&
+                    ActivityRepository.groupHasUnseenStory(
+                      _controller.stories,
+                      viewedIds,
+                    );
+                return Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      width: hasStory ? 1.0 : (2.5 - (0.5 * t)),
+                    ),
+                  ),
+                  child: ActivityStoryRing(
+                    radius: avatarRadius,
+                    hasStory: hasStory,
+                    hasUnseenStory: hasUnseenStory,
+                    avatarUrl: avatarUrl,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    ringWidth: 3.0,
+                  ),
+                );
+              },
             ),
           ),
           SizedBox(width: 12.0 - (2.0 * t)),
@@ -710,33 +755,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      width: 4,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(
-                          context,
-                        ).shadowColor.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: isDesktop ? 60 : 45,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                    backgroundImage: avatarUrl != null
-                        ? NetworkImage(avatarUrl)
-                        : null,
-                    child: avatarUrl == null
-                        ? Icon(Icons.person, size: isDesktop ? 60 : 40)
-                        : null,
+                GestureDetector(
+                  onTap: _openOwnStory,
+                  child: ValueListenableBuilder<Set<String>>(
+                    valueListenable: viewedStoryIdsNotifier,
+                    builder: (context, viewedIds, _) {
+                      final hasStory = _controller.stories.isNotEmpty;
+                      final hasUnseenStory =
+                          hasStory &&
+                          ActivityRepository.groupHasUnseenStory(
+                            _controller.stories,
+                            viewedIds,
+                          );
+                      return Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            width: hasStory ? 1.5 : 4,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(
+                                context,
+                              ).shadowColor.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: ActivityStoryRing(
+                          radius: isDesktop ? 60 : 45,
+                          hasStory: hasStory,
+                          hasUnseenStory: hasUnseenStory,
+                          avatarUrl: avatarUrl,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          ringWidth: 4.0,
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 16),
