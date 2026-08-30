@@ -777,18 +777,31 @@ class ReviewRepository {
 
     Map<String, dynamic>? review;
     if (bestActivity != null) {
+      // IMPORTANTE: desde la migración
+      // 20260814000000_fix_activity_feed_review_sync.sql, `review_id` es una
+      // COLUMNA real de `activity_feed` (no solo un campo dentro de
+      // `metadata`). El trigger `on_user_game_status_change` rellena esa
+      // columna con la última reseña del usuario para ese juego, pero NO
+      // añade `review_id` dentro de `metadata` (el metadata de un
+      // 'status_change' solo contiene `{'status': ...}`). Por eso, leer
+      // únicamente `metadata['review_id']` da siempre `null` para las
+      // entradas 'status_change', que son justo las que se muestran en
+      // "¿Quién lo tiene?". Hay que leer primero la columna directa; se deja
+      // metadata como fallback solo por si hay filas antiguas donde solo
+      // exista ahí (p. ej. entradas 'reviewed' muy viejas).
       final metadata = bestActivity['metadata'] as Map<String, dynamic>? ?? {};
-      final reviewId = metadata['review_id'];
-      if (reviewId != null) {
-        try {
-          final reviewResponse = await _client
-              .from('reviews')
-              .select('*, review_likes(user_id), review_comments(id)')
-              .eq('id', reviewId)
-              .maybeSingle();
-          review = reviewResponse;
-        } catch (_) {}
-      }
+      final reviewId = bestActivity['review_id'] ?? metadata['review_id'];
+      try {
+        final query = _client
+            .from('reviews')
+            .select('*, review_likes(user_id), review_comments(id)');
+            
+        final reviewResponse = await (reviewId != null 
+            ? query.eq('id', reviewId).maybeSingle()
+            : query.eq('user_id', userId).eq('game_id', parsedGameId).maybeSingle());
+            
+        review = reviewResponse;
+      } catch (_) {}
     }
 
     return (activities: activities, review: review);
