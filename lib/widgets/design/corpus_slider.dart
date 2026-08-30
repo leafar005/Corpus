@@ -28,7 +28,8 @@ class CorpusSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final cs = Theme.of(context).colorScheme;
-    final displayLabel = labelBuilder?.call(value) ?? label ?? value.toStringAsFixed(1);
+    final displayLabel =
+        labelBuilder?.call(value) ?? label ?? value.toStringAsFixed(1);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

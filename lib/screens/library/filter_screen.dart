@@ -161,7 +161,7 @@ class _FilterScreenState extends State<FilterScreen> {
         padding: EdgeInsets.fromLTRB(16, 8, 16, getBottomSpacer(context)),
         children: [
           if (widget.showSort) ...[
-            _SectionLabel('Ordenar por'),
+            const _SectionLabel('Ordenar por'),
             const SizedBox(height: 8),
             _SortChipsRow(
               options: sortOptions,
@@ -198,7 +198,7 @@ class _FilterScreenState extends State<FilterScreen> {
             Divider(color: scheme.outlineVariant),
             const SizedBox(height: 4),
           ],
-          _SectionLabel('Filtrado por'),
+          const _SectionLabel('Filtrado por'),
           ..._categories.map(
             (config) => _FilterCategoryRow(
               title: config.title,
@@ -344,11 +344,18 @@ class _FilterCategoryRow extends StatelessWidget {
                   valueLabel,
                   textAlign: TextAlign.right,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(Icons.chevron_right, size: 20, color: scheme.onSurfaceVariant),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: scheme.onSurfaceVariant,
+              ),
             ],
           ),
           onTap: onTap,

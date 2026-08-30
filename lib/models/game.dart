@@ -101,10 +101,10 @@ class Game {
       isSteamOnly: map['is_steam_only'] == true,
       metacriticScore: (map['metacritic_score'] as num?)?.toInt(),
       metacriticUrl: map['metacritic_url'] as String?,
-      metacriticUserScore: (map['metacritic_user_score'] as num?) != null 
-          ? ((map['metacritic_user_score'] as num).toDouble() > 10 
-              ? (map['metacritic_user_score'] as num).toDouble() / 10 
-              : (map['metacritic_user_score'] as num).toDouble())
+      metacriticUserScore: (map['metacritic_user_score'] as num?) != null
+          ? ((map['metacritic_user_score'] as num).toDouble() > 10
+                ? (map['metacritic_user_score'] as num).toDouble() / 10
+                : (map['metacritic_user_score'] as num).toDouble())
           : null,
       metacriticSlug: map['metacritic_slug'] as String?,
       metacriticUpdatedAt: map['metacritic_updated_at'] != null

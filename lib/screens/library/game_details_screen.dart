@@ -17,13 +17,8 @@ import 'package:corpus/routes/corpus_router.dart';
 import '../library/review_modal.dart';
 
 import '../../widgets/achievement_toast.dart';
-import '../../theme/corpus_theme_extension.dart';
-import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
-import '../../widgets/guest_login_prompt.dart';
 import '../../utils/format_utils.dart';
-import '../../widgets/corpus_primary_button.dart';
-import '../../widgets/corpus_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameDetailsScreen extends StatefulWidget {
@@ -43,7 +38,7 @@ class GameDetailsScreen extends StatefulWidget {
 }
 
 class _GameDetailsScreenState extends State<GameDetailsScreen> {
-  final _repo = ReviewRepository();
+
   late final GameDetailsController _controller;
   bool _isSaving = false;
   String? _selectedScreenshotUrl;
@@ -65,7 +60,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   double get _ratingNarrative => _controller.ratingNarrative;
   double get _ratingSoundtrack => _controller.ratingSoundtrack;
   double get _ratingVisuals => _controller.ratingVisuals;
-  bool get _isLoadingUserData => _controller.isLoadingUserData;
+
   UserProfile? get _userData => _controller.userData;
   List<UserProfile> get _partnersData => _controller.partnersData;
   List<Review> get _reviews => _controller.reviews;
@@ -143,174 +138,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     super.dispose();
   }
 
-  Color _friendStatusColor(String status) {
-    switch (status) {
-      case 'playing':
-        return Colors.blue;
-      case 'beaten':
-        return Colors.green;
-      case 'abandoned':
-        return Colors.red;
-      case 'on_hold':
-        return Colors.orange;
-      case 'wishlist':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _friendStatusIcon(String status) {
-    switch (status) {
-      case 'playing':
-        return Icons.sports_esports;
-      case 'beaten':
-        return Icons.check_circle;
-      case 'abandoned':
-        return Icons.close;
-      case 'on_hold':
-        return Icons.pause;
-      case 'wishlist':
-        return Icons.bookmark;
-      default:
-        return Icons.flag;
-    }
-  }
-
-  String _friendStatusLabel(String status) {
-    switch (status) {
-      case 'playing':
-        return 'Jugando';
-      case 'beaten':
-        return 'Completado';
-      case 'abandoned':
-        return 'Abandonado';
-      case 'on_hold':
-        return 'En pausa';
-      case 'wishlist':
-        return 'En wishlist';
-      default:
-        return 'Desconocido';
-    }
-  }
-
-  Future<void> _showFriendGameActivity(
-    Map<String, dynamic> user,
-    String currentStatus,
-  ) async {
-    final gameId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-    if (gameId == null) return;
-    final userId = user['id'];
-    if (userId == null) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      final result = await _repo.fetchFriendActivityForGame(
-        userId: userId,
-        gameId: gameId,
-      );
-
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-
-      if (result.review != null) {
-        context.pushReviewDetails(
-          widget.gameData,
-          user,
-          result.review!,
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Este estado no tiene una reseña asociada.'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar la actividad: $e')),
-      );
-    }
-  }
-
   // Widget "¿Quién lo tiene?" — avatares de amigos que tienen este juego
-  Widget _buildFriendsWithGame(BuildContext context) {
-    if (_friendsWithGame.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '¿Quién lo tiene?',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _friendsWithGame.map((f) {
-              final user = f['users'] as Map<String, dynamic>? ?? {};
-              final avatarUrl = user['avatar_url'] as String?;
-              final displayName =
-                  user['display_name'] as String? ??
-                  user['username'] as String? ??
-                  '?';
-              final status = f['status'] as String? ?? 'wishlist';
-              final statusColor = _friendStatusColor(status);
-              final statusIcon = _friendStatusIcon(status);
-              return GestureDetector(
-                onTap: () => _showFriendGameActivity(user, status),
-                child: Tooltip(
-                  message: '$displayName · ${_friendStatusLabel(status)}',
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      CircleAvatar(
-                        radius: 34,
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                        backgroundImage: avatarUrl != null
-                            ? NetworkImage(avatarUrl)
-                            : null,
-                        child: avatarUrl == null
-                            ? const Icon(Icons.person, size: 34)
-                            : null,
-                      ),
-                      Positioned(
-                        bottom: -2,
-                        right: -2,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            statusIcon,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// Muestra una screenshot aleatoria cada vez que se entra a la ventana del juego
   void _selectRandomScreenshot(dynamic screenshotsData) {
@@ -701,235 +529,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
-  Color _getStatusColor(String status) =>
-      GameStatus.colorForString(context, status);
-
-  String _getStatusText(String status) => GameStatus.labelForString(status);
-
-  IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
-
-  Future<void> _deleteFromLibrary() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: const Text('Eliminar de biblioteca'),
-        content: const Text(
-          '¿Seguro que quieres eliminar este juego de tu biblioteca? Se borrará tu reseña y nota.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-
-    try {
-      await _controller.deleteFromLibrary();
-
-      if (mounted) {
-        _commentController.clear();
-        _ratingController.clear();
-        libraryUpdateNotifier.value++;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Juego eliminado de tu biblioteca')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
-      }
-    }
-  }
-
-  Future<void> _deleteReview(Review review) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar reseña'),
-        content: const Text('¿Seguro que quieres eliminar esta reseña?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-
-    try {
-      await _controller.deleteReview(review);
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Reseña eliminada')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al eliminar reseña: $e')));
-      }
-    }
-  }
-
-  Widget _buildStatusButton() {
-    if (_isGuest) {
-      return const SizedBox(
-        width: double.infinity,
-        child: GuestLoginButton(label: 'Iniciar sesión para registrar'),
-      );
-    }
-
-    final color = _inLibrary
-        ? _getStatusColor(_status)
-        : Theme.of(context).colorScheme.primary;
-    final text = _inLibrary ? _getStatusText(_status) : 'Añadir a Biblioteca';
-    final icon = _inLibrary ? _getStatusIcon(_status) : Icons.add;
-    final textColor = color == Theme.of(context).colorScheme.secondary
-        ? Theme.of(context).scaffoldBackgroundColor
-        : Colors.white;
-
-    return Row(
-      children: [
-        Expanded(
-          child: CorpusPrimaryButton(
-            onPressed: () {
-              if (_inLibrary) {
-                _showReviewModal(
-                  existingReview: _reviews.isNotEmpty ? _reviews.first : null,
-                );
-              } else {
-                _showReviewModal();
-              }
-            },
-            icon: icon,
-            label: text,
-            backgroundColor: color,
-            foregroundColor: textColor,
-            expand: true,
-            height: 50,
-            elevation: _inLibrary ? 0 : 2,
-          ),
-        ),
-        if (_inLibrary) ...[
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 50,
-            height: 50,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusSmall,
-              ),
-              child: PopupMenuButton<String>(
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.more_vert),
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                shape: RoundedRectangleBorder(
-                  borderRadius: Theme.of(
-                    context,
-                  ).extension<CorpusThemeExtension>()!.radiusMedium,
-                ),
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    _showReviewModal(
-                      existingReview: _reviews.isNotEmpty
-                          ? _reviews.first
-                          : null,
-                    );
-                  } else if (value == 'review') {
-                    _showReviewModal();
-                  } else if (value == 'delete') {
-                    _deleteFromLibrary();
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, size: 20),
-                        SizedBox(width: 12),
-                        Text('Editar'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'review',
-                    child: Row(
-                      children: [
-                        Icon(Icons.rate_review, size: 20),
-                        SizedBox(width: 12),
-                        Text('Añadir Reseña'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.delete_outline,
-                          size: 20,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Eliminar de biblioteca',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
   // ─────────────────────────────────────────────────────────────────────────
   // Helpers de UI extraídos del build() para mantenerlo legible
   // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildFadeInImage(String url, {Key? key}) {
-    return SizedBox.expand(
-      key: key,
-      child: CorpusNetworkImage(
-        url: url,
-        fit: BoxFit.cover,
-        alignment: Alignment.center,
-      ),
-    );
-  }
 
   Widget _buildTabButton(int index, String title) {
     final isSelected = _selectedMainTabIndex == index;
@@ -1152,10 +754,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     final String? igdbUrl = _enrichedData['url'] ?? widget.gameData['url'];
     final List websitesList = List.from(baseWebsitesList);
     if (igdbUrl != null && !websitesList.any((w) => w['url'] == igdbUrl)) {
-      websitesList.add({
-        'url': igdbUrl,
-        'category': 1000,
-      });
+      websitesList.add({'url': igdbUrl, 'category': 1000});
     }
     final bool hasMedia =
         screenshotsList.isNotEmpty ||
@@ -1257,10 +856,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 resolvedCategory: resolvedCategory,
                 categoryLabel: categoryLabel,
                 originalGame: originalGame,
-                onNavigateToGame: (game) => _navigateToOriginalGame(game.id, game.name),
+                onNavigateToGame: (game) =>
+                    _navigateToOriginalGame(game.id, game.name),
                 onShowReviewModal: () => _showReviewModal(),
-                onEditReview: (review) => _showReviewModal(existingReview: review),
-                onDeleteReview: _deleteReview,
+                onEditReview: (review) =>
+                    _showReviewModal(existingReview: review),
+                onDeleteReview: _controller.deleteReview,
                 tabsSliver: SliverPersistentHeader(
                   pinned: true,
                   delegate: _GameDetailsTabBarDelegate(
@@ -1296,91 +897,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         );
       },
     );
-  }
-}
-
-class _GameDetailsHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double topPadding;
-  final Widget background;
-  final Widget leading;
-  final String title;
-  final Color backgroundColor;
-
-  _GameDetailsHeaderDelegate({
-    required this.topPadding,
-    required this.background,
-    required this.leading,
-    required this.title,
-    required this.backgroundColor,
-  });
-
-  @override
-  double get minExtent => 56.0 + topPadding;
-
-  @override
-  double get maxExtent => 250.0 + topPadding;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final double maxShrink = maxExtent - minExtent;
-    final double progress = maxShrink > 0
-        ? (shrinkOffset / maxShrink).clamp(0.0, 1.0)
-        : 0.0;
-    final double titleOpacity = ((progress - 0.6) / 0.4).clamp(0.0, 1.0);
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // 1. Imagen de fondo
-        Opacity(opacity: (1.0 - progress).clamp(0.0, 1.0), child: background),
-        // 2. Fondo sólido al colapsar
-        Opacity(
-          opacity: progress,
-          child: Container(color: backgroundColor),
-        ),
-        // 3. Barra fija exactamente debajo de topPadding (notch)
-        Positioned(
-          top: topPadding,
-          left: 0,
-          right: 0,
-          height: 56.0,
-          child: Row(
-            children: [
-              leading,
-              const SizedBox(width: 8),
-              Expanded(
-                child: Opacity(
-                  opacity: titleOpacity,
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _GameDetailsHeaderDelegate oldDelegate) {
-    return oldDelegate.topPadding != topPadding ||
-        oldDelegate.background != background ||
-        oldDelegate.title != title ||
-        oldDelegate.backgroundColor != backgroundColor;
   }
 }
 

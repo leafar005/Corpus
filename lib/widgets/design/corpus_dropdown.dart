@@ -29,7 +29,10 @@ class CorpusDropdown<T> extends StatelessWidget {
     this.onChanged,
     this.hint,
     this.expand = true,
-    this.contentPadding = const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    this.contentPadding = const EdgeInsets.symmetric(
+      horizontal: 16,
+      vertical: 14,
+    ),
   });
 
   @override
@@ -64,7 +67,10 @@ class CorpusDropdown<T> extends StatelessWidget {
         contentPadding: contentPadding,
         filled: true,
         fillColor: cs.surfaceContainerHighest,
-        border: OutlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide.none,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: radius,
           borderSide: BorderSide.none,
@@ -80,19 +86,14 @@ class CorpusDropdown<T> extends StatelessWidget {
       ),
       items: items
           .map(
-            (item) => DropdownMenuItem<T>(
-              value: item.value,
-              child: Text(item.label),
-            ),
+            (item) =>
+                DropdownMenuItem<T>(value: item.value, child: Text(item.label)),
           )
           .toList(),
       onChanged: onChanged,
     );
 
-    return CorpusPointer(
-      enabled: enabled,
-      child: field,
-    );
+    return CorpusPointer(enabled: enabled, child: field);
   }
 
   /// Evita error si [value] no está en [items].

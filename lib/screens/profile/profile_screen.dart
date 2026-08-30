@@ -426,7 +426,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     if (_userProfile != null)
-                      _buildFriendsCountLink(isDesktop: false, compact: true, onImage: false),
+                      _buildFriendsCountLink(
+                        isDesktop: false,
+                        compact: true,
+                        onImage: false,
+                      ),
                   ],
                 ),
                 const SizedBox(height: nameHandleGap),
@@ -685,14 +689,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           if (!isMe)
             Positioned(
-              top: MediaQuery.of(context).padding.top + (isDesktop ? 10.0 : 4.0),
+              top:
+                  MediaQuery.of(context).padding.top + (isDesktop ? 10.0 : 4.0),
               right: 16,
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: FriendshipButton(targetUserId: _userProfile!['id'] as String),
+                child: FriendshipButton(
+                  targetUserId: _userProfile!['id'] as String,
+                ),
               ),
             ),
 
@@ -760,7 +767,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       offset: Offset(1, -1),
                                       color: Colors.black,
                                     ),
-                                    Shadow(offset: Offset(1, 1), color: Colors.black),
+                                    Shadow(
+                                      offset: Offset(1, 1),
+                                      color: Colors.black,
+                                    ),
                                     Shadow(
                                       offset: Offset(-1, 1),
                                       color: Colors.black,
@@ -770,7 +780,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                             if (_userProfile != null)
-                              _buildFriendsCountLink(isDesktop: true, onImage: true),
+                              _buildFriendsCountLink(
+                                isDesktop: true,
+                                onImage: true,
+                              ),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -849,7 +862,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       offset: Offset(1, -1),
                                       color: Colors.black,
                                     ),
-                                    Shadow(offset: Offset(1, 1), color: Colors.black),
+                                    Shadow(
+                                      offset: Offset(1, 1),
+                                      color: Colors.black,
+                                    ),
                                     Shadow(
                                       offset: Offset(-1, 1),
                                       color: Colors.black,
@@ -859,7 +875,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                             if (_userProfile != null)
-                              _buildFriendsCountLink(isDesktop: false, onImage: true),
+                              _buildFriendsCountLink(
+                                isDesktop: false,
+                                onImage: true,
+                              ),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -1234,17 +1253,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     final count = _controller.friendsCount;
     final fontSize = compact ? 13.0 : (isDesktop ? 18.0 : 16.0);
-    
-    final color = onImage 
-        ? Colors.white 
+
+    final color = onImage
+        ? Colors.white
         : Theme.of(context).colorScheme.onSurfaceVariant;
-        
-    final shadows = onImage ? const [
-        Shadow(offset: Offset(-1, -1), color: Colors.black),
-        Shadow(offset: Offset(1, -1), color: Colors.black),
-        Shadow(offset: Offset(1, 1), color: Colors.black),
-        Shadow(offset: Offset(-1, 1), color: Colors.black),
-      ] : <Shadow>[];
+
+    final shadows = onImage
+        ? const [
+            Shadow(offset: Offset(-1, -1), color: Colors.black),
+            Shadow(offset: Offset(1, -1), color: Colors.black),
+            Shadow(offset: Offset(1, 1), color: Colors.black),
+            Shadow(offset: Offset(-1, 1), color: Colors.black),
+          ]
+        : <Shadow>[];
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -1255,15 +1276,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             context.pushFriends().then((_) => _controller.fetchProfileData());
           } else {
             final profileId = _controller.userProfile?['id'] as String?;
-            final username = _controller.userProfile?['username'] as String? ?? '';
+            final username =
+                _controller.userProfile?['username'] as String? ?? '';
             if (profileId != null) {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => UserFriendsScreen(
-                    userId: profileId,
-                    username: username,
-                  ),
+                  builder: (_) =>
+                      UserFriendsScreen(userId: profileId, username: username),
                 ),
               );
             }
@@ -1275,7 +1295,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(Icons.group_rounded, size: fontSize + 2, color: color, shadows: shadows),
+              Icon(
+                Icons.group_rounded,
+                size: fontSize + 2,
+                color: color,
+                shadows: shadows,
+              ),
               const SizedBox(width: 4),
               Text(
                 '$count ${count == 1 ? 'amigo' : 'amigos'}',
@@ -1392,9 +1417,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SizedBox(
               width: 32,
               height: 32,
-              child: Center(
-                child: ProfileStatIcon(type: iconType, size: 32),
-              ),
+              child: Center(child: ProfileStatIcon(type: iconType, size: 32)),
             ),
             const SizedBox(width: 12),
             Column(
@@ -1483,8 +1506,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         context
                                             .pushGameDetails(game)
                                             .then(
-                                              (_) =>
-                                                  _controller.fetchProfileData(),
+                                              (_) => _controller
+                                                  .fetchProfileData(),
                                             );
                                       } else {
                                         showModalBottomSheet(
@@ -1591,7 +1614,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title, int count, String? status, {ProfileStatIconType? iconType}) {
+  Widget _buildSectionTitle(
+    String title,
+    int count,
+    String? status, {
+    ProfileStatIconType? iconType,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
@@ -1778,26 +1806,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_wishlistGames.isNotEmpty) ...[
-          _buildSectionTitle('Quiero', _controller.wishlistCount, 'wishlist', iconType: ProfileStatIconType.wishlist),
+          _buildSectionTitle(
+            'Quiero',
+            _controller.wishlistCount,
+            'wishlist',
+            iconType: ProfileStatIconType.wishlist,
+          ),
           _buildCarousel(_wishlistGames),
           const SizedBox(height: 24),
         ],
         if (_playingGames.isNotEmpty) ...[
-          _buildSectionTitle('Jugando', _controller.playingCount, 'playing', iconType: ProfileStatIconType.playing),
+          _buildSectionTitle(
+            'Jugando',
+            _controller.playingCount,
+            'playing',
+            iconType: ProfileStatIconType.playing,
+          ),
           _buildCarousel(_playingGames),
           const SizedBox(height: 24),
         ],
         if (_beatenGames.isNotEmpty) ...[
-          _buildSectionTitle('Completados', _controller.beatenCount, 'beaten', iconType: ProfileStatIconType.beaten),
+          _buildSectionTitle(
+            'Completados',
+            _controller.beatenCount,
+            'beaten',
+            iconType: ProfileStatIconType.beaten,
+          ),
           _buildCarousel(_beatenGames),
           const SizedBox(height: 24),
         ],
         if (_platinumGames.isNotEmpty) ...[
-          _buildSectionTitle('Platinos', _controller.platinumCount, 'completed', iconType: ProfileStatIconType.platinum),
+          _buildSectionTitle(
+            'Platinos',
+            _controller.platinumCount,
+            'completed',
+            iconType: ProfileStatIconType.platinum,
+          ),
           _buildCarousel(_platinumGames),
           const SizedBox(height: 24),
         ],
-        if (_beatenGames.isEmpty && _platinumGames.isEmpty && _playingGames.isEmpty && _wishlistGames.isEmpty) ...[
+        if (_beatenGames.isEmpty &&
+            _platinumGames.isEmpty &&
+            _playingGames.isEmpty &&
+            _wishlistGames.isEmpty) ...[
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32.0),

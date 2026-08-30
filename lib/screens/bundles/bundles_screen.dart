@@ -598,7 +598,7 @@ class _BundleCardState extends State<_BundleCard> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
-                          SliverGridDelegateWithMaxCrossAxisExtent(
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
                             maxCrossAxisExtent: 140,
                             childAspectRatio: IgdbConstants.coverAspectRatio,
                             crossAxisSpacing: 10,

@@ -70,20 +70,14 @@ class SettingsArgs {
   final Map<String, dynamic> userProfile;
   final List<Map<String, dynamic>?> hallOfFame;
 
-  const SettingsArgs({
-    required this.userProfile,
-    required this.hallOfFame,
-  });
+  const SettingsArgs({required this.userProfile, required this.hallOfFame});
 }
 
 class EditProfileArgs {
   final Map<String, dynamic> userProfile;
   final List<Map<String, dynamic>?> hallOfFame;
 
-  const EditProfileArgs({
-    required this.userProfile,
-    required this.hallOfFame,
-  });
+  const EditProfileArgs({required this.userProfile, required this.hallOfFame});
 }
 
 class AchievementsArgs {
@@ -422,10 +416,7 @@ extension CorpusNavigation on BuildContext {
   ) {
     return pushRoute<T>(
       AppRoutes.settings,
-      arguments: SettingsArgs(
-        userProfile: userProfile,
-        hallOfFame: hallOfFame,
-      ),
+      arguments: SettingsArgs(userProfile: userProfile, hallOfFame: hallOfFame),
     );
   }
 
@@ -497,16 +488,18 @@ extension CorpusNavigation on BuildContext {
   Future<T?> pushSteamImportProgress<T>(int minPlaytimeMinutes) {
     return pushRoute<T>(
       AppRoutes.steamImportProgress,
-      arguments: SteamImportProgressArgs(minPlaytimeMinutes: minPlaytimeMinutes),
+      arguments: SteamImportProgressArgs(
+        minPlaytimeMinutes: minPlaytimeMinutes,
+      ),
     );
   }
 
-  Future<T?> pushReplacementSteamImportProgress<T, TO>(
-    int minPlaytimeMinutes,
-  ) {
+  Future<T?> pushReplacementSteamImportProgress<T, TO>(int minPlaytimeMinutes) {
     return pushReplacementRoute<T, TO>(
       AppRoutes.steamImportProgress,
-      arguments: SteamImportProgressArgs(minPlaytimeMinutes: minPlaytimeMinutes),
+      arguments: SteamImportProgressArgs(
+        minPlaytimeMinutes: minPlaytimeMinutes,
+      ),
     );
   }
 

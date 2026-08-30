@@ -87,7 +87,8 @@ class _CorpusAppState extends State<CorpusApp> {
 
       // Deep link en frío: la app estaba completamente cerrada y se abrió
       // tocando una notificación push.
-      final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      final initialMessage = await FirebaseMessaging.instance
+          .getInitialMessage();
       if (initialMessage != null) {
         DeepLinkService.handle(initialMessage.data);
       }

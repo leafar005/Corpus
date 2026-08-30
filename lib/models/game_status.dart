@@ -97,7 +97,8 @@ enum GameStatus {
   /// Indica si el estado representa un cierre de la partida (terminado o
   /// abandonado). Se usa en review_modal.dart para saber cuándo
   /// autorellenar/restaurar la fecha de una reseña al cambiar de estado.
-  bool get isFinished => this == GameStatus.beaten || this == GameStatus.abandoned;
+  bool get isFinished =>
+      this == GameStatus.beaten || this == GameStatus.abandoned;
 
   /// Etiqueta legible para mostrar en UI.
   String get label => switch (this) {

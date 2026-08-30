@@ -162,18 +162,18 @@ class _CorpusButtonState extends State<CorpusButton> {
     final children = <Widget>[];
     if (widget.icon != null && !widget.iconTrailing) {
       children
-        ..add(Icon(widget.icon, size: metrics.iconSize, color: colors.foreground))
+        ..add(
+          Icon(widget.icon, size: metrics.iconSize, color: colors.foreground),
+        )
         ..add(SizedBox(width: metrics.iconGap));
     }
-    children.add(
-      widget.expand
-          ? Expanded(child: Center(child: label))
-          : label,
-    );
+    children.add(widget.expand ? Expanded(child: Center(child: label)) : label);
     if (widget.icon != null && widget.iconTrailing) {
       children
         ..add(SizedBox(width: metrics.iconGap))
-        ..add(Icon(widget.icon, size: metrics.iconSize, color: colors.foreground));
+        ..add(
+          Icon(widget.icon, size: metrics.iconSize, color: colors.foreground),
+        );
     }
 
     return Row(

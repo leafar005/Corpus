@@ -42,7 +42,7 @@ class InfoScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Versión 1.2.0',
+              'Versión 1.2.1',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 14,
@@ -82,7 +82,9 @@ class InfoScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: const CircleAvatar(
-                      backgroundImage: NetworkImage('https://avatars.githubusercontent.com/leafar005'),
+                      backgroundImage: NetworkImage(
+                        'https://avatars.githubusercontent.com/leafar005',
+                      ),
                     ),
                     title: const Text(
                       'leafar005',
@@ -107,7 +109,9 @@ class InfoScreen extends StatelessWidget {
                   ),
                   ListTile(
                     leading: const CircleAvatar(
-                      backgroundImage: NetworkImage('https://avatars.githubusercontent.com/coldrzz'),
+                      backgroundImage: NetworkImage(
+                        'https://avatars.githubusercontent.com/coldrzz',
+                      ),
                     ),
                     title: const Text(
                       'coldrzz',

@@ -105,7 +105,8 @@ class NotificationService {
       FirebaseMessaging.onMessageOpenedApp.listen(_onNotificationOpenedApp);
     }
 
-    final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
+    final launchDetails = await _localNotifications
+        .getNotificationAppLaunchDetails();
     if (launchDetails?.didNotificationLaunchApp == true) {
       final payload = launchDetails!.notificationResponse?.payload;
       if (payload != null && payload.isNotEmpty) {
@@ -283,15 +284,25 @@ class NotificationService {
       windows: Platform.isWindows ? windowsDetails : null,
     );
 
-    await _localNotifications.show(id, title, body, details, payload: data != null ? jsonEncode(data) : null);
+    await _localNotifications.show(
+      id,
+      title,
+      body,
+      details,
+      payload: data != null ? jsonEncode(data) : null,
+    );
   }
 
   // ─── Notificación de prueba ────────────────────────────────────────────────
 
   Future<void> sendTestNotification() async {
     final token = kIsWeb
-        ? await FirebaseMessaging.instance.getToken(vapidKey: Env.firebaseVapidKey)
-        : (Platform.isAndroid ? await FirebaseMessaging.instance.getToken() : null);
+        ? await FirebaseMessaging.instance.getToken(
+            vapidKey: Env.firebaseVapidKey,
+          )
+        : (Platform.isAndroid
+              ? await FirebaseMessaging.instance.getToken()
+              : null);
 
     if (token != null) {
       try {
@@ -304,7 +315,9 @@ class NotificationService {
             'data': {'type': 'test'},
           },
         );
-        debugPrint('[NotificationService] Test notification enviada al token: $token');
+        debugPrint(
+          '[NotificationService] Test notification enviada al token: $token',
+        );
         return; // FCM se encargará de mostrarla
       } catch (e) {
         debugPrint('[NotificationService] Error enviando push de prueba: $e');

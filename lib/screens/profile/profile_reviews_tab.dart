@@ -65,9 +65,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
   PostgrestFilterBuilder<List<Map<String, dynamic>>> _buildQuery() {
     var query = Supabase.instance.client
         .from('reviews')
-        .select(
-          '*, games!inner(*), review_likes(user_id), review_comments(id)',
-        )
+        .select('*, games!inner(*), review_likes(user_id), review_comments(id)')
         .eq('user_id', widget.userId)
         .not('comment', 'is', null)
         .neq('comment', '');
@@ -140,9 +138,9 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       final res = await _buildQuery()
           .order('created_at', ascending: false)
           .range(0, _reviews.length - 1);
-      final newItems = List<Map<String, dynamic>>.from(res)
-          .where((r) => r['games'] != null)
-          .toList();
+      final newItems = List<Map<String, dynamic>>.from(
+        res,
+      ).where((r) => r['games'] != null).toList();
       if (mounted && newItems.isNotEmpty) {
         setState(() {
           _reviews
@@ -181,11 +179,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
 
   void _openReview(Map<String, dynamic> review) {
     context
-        .pushReviewDetails(
-          review['games'],
-          widget.userData,
-          review,
-        )
+        .pushReviewDetails(review['games'], widget.userData, review)
         .then((_) => _refreshInPlace());
   }
 

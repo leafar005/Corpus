@@ -68,10 +68,7 @@ class CorpusTabs extends StatelessWidget {
           padding: contentPadding,
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
-            child: KeyedSubtree(
-              key: ValueKey(selectedIndex),
-              child: child!,
-            ),
+            child: KeyedSubtree(key: ValueKey(selectedIndex), child: child!),
           ),
         ),
       ],

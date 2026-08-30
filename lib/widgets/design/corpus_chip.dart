@@ -35,7 +35,8 @@ class CorpusChip extends StatelessWidget {
     final bg = switch (variant) {
       CorpusChipVariant.action => cs.surfaceContainerHighest,
       CorpusChipVariant.filter => selected ? cs.primary : cs.surface,
-      CorpusChipVariant.choice => selected ? cs.primary : cs.surfaceContainerHighest,
+      CorpusChipVariant.choice =>
+        selected ? cs.primary : cs.surfaceContainerHighest,
     };
 
     final fg = switch (variant) {
@@ -55,7 +56,9 @@ class CorpusChip extends StatelessWidget {
           Icon(icon, size: 16, color: fg),
           const SizedBox(width: 6),
         ],
-        if (selected && showCheckmark && variant == CorpusChipVariant.filter) ...[
+        if (selected &&
+            showCheckmark &&
+            variant == CorpusChipVariant.filter) ...[
           Icon(Icons.check, size: 14, color: fg),
           const SizedBox(width: 4),
         ],
@@ -72,7 +75,7 @@ class CorpusChip extends StatelessWidget {
       ],
     );
 
-    final padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 8);
+    const padding = EdgeInsets.symmetric(horizontal: 14, vertical: 8);
     final borderRadius = ext.useDynamicFrames
         ? ext.radiusSmall
         : BorderRadius.circular(999);

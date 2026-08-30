@@ -164,12 +164,13 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                   Expanded(
                     child: GridView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 140,
-                        childAspectRatio: IgdbConstants.coverAspectRatio,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 140,
+                            childAspectRatio: IgdbConstants.coverAspectRatio,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
                       itemCount: filteredGames.length,
                       itemBuilder: (context, index) {
                         final game = filteredGames[index];

@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/igdb_constants.dart';
-import 'package:corpus/widgets/corpus_primary_button.dart';
 import '../../utils/image_compressor.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
@@ -669,9 +668,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       controller: _platformsScrollController,
                                       thumbVisibility: true,
                                       child: Padding(
-                                        padding: const EdgeInsets.only(bottom: 15.0),
+                                        padding: const EdgeInsets.only(
+                                          bottom: 15.0,
+                                        ),
                                         child: ReorderableListView(
-                                          scrollController: _platformsScrollController,
+                                          scrollController:
+                                              _platformsScrollController,
                                           scrollDirection: Axis.horizontal,
                                           buildDefaultDragHandles: false,
                                           onReorderItem: (oldIndex, newIndex) {
@@ -681,7 +683,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               }
                                               final String item = _allPlatforms
                                                   .removeAt(oldIndex);
-                                              _allPlatforms.insert(newIndex, item);
+                                              _allPlatforms.insert(
+                                                newIndex,
+                                                item,
+                                              );
 
                                               // Reordenar también la lista de seleccionados basándose en este nuevo orden general
                                               _selectedPlatforms.sort(
@@ -693,7 +698,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               );
                                             });
                                           },
-                                          children: _allPlatforms.asMap().entries.map((entry) {
+                                          children: _allPlatforms.asMap().entries.map((
+                                            entry,
+                                          ) {
                                             final int index = entry.key;
                                             final String p = entry.value;
                                             Widget child;
@@ -701,9 +708,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               case 'pc':
                                                 child = _buildPlatformBadge(
                                                   'pc',
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onSurfaceVariant,
+                                                  Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
                                                   icon: Icons.computer,
                                                 );
                                                 break;
@@ -742,9 +749,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               case 'wii':
                                                 child = _buildPlatformBadge(
                                                   'wii',
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onSurfaceVariant,
+                                                  Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
                                                   imagePath:
                                                       'assets/images/wii.png',
                                                 );
@@ -768,9 +775,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               case 'ds':
                                                 child = _buildPlatformBadge(
                                                   'ds',
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onSurfaceVariant,
+                                                  Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
                                                   imagePath:
                                                       'assets/images/ds.png',
                                                 );
@@ -778,9 +785,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               case 'mac':
                                                 child = _buildPlatformBadge(
                                                   'mac',
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onSurfaceVariant,
+                                                  Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
                                                   imagePath:
                                                       'assets/images/mac.png',
                                                 );
@@ -796,12 +803,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               default:
                                                 child = Container();
                                             }
-                                            
-                                            final isDesktop = kIsWeb || 
-                                                defaultTargetPlatform == TargetPlatform.macOS || 
-                                                defaultTargetPlatform == TargetPlatform.windows || 
-                                                defaultTargetPlatform == TargetPlatform.linux;
-                                            
+
+                                            final isDesktop =
+                                                kIsWeb ||
+                                                defaultTargetPlatform ==
+                                                    TargetPlatform.macOS ||
+                                                defaultTargetPlatform ==
+                                                    TargetPlatform.windows ||
+                                                defaultTargetPlatform ==
+                                                    TargetPlatform.linux;
+
                                             if (isDesktop) {
                                               return ReorderableDragStartListener(
                                                 key: ValueKey(p),
@@ -985,8 +996,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     context
                                         .pushHallOfFameSelector(index + 1)
                                         .then((updated) {
-                                      if (updated == true) _refreshHallOfFame();
-                                    });
+                                          if (updated == true) {
+                                            _refreshHallOfFame();
+                                          }
+                                        });
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(

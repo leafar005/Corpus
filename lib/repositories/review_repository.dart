@@ -196,7 +196,8 @@ class ReviewRepository {
       'partner_ids': isWishlist ? [] : partnerIds,
       // Fecha de finalización: solo se incluye cuando el usuario la elige o al
       // marcar como terminado (el trigger sincroniza last_played_at desde aquí).
-      if (reviewDate != null) 'created_at': reviewDate.toUtc().toIso8601String(),
+      if (reviewDate != null)
+        'created_at': reviewDate.toUtc().toIso8601String(),
     };
   }
 
@@ -428,18 +429,18 @@ class ReviewRepository {
           }
 
           if (oldReview['image_urls'] != null) {
-          final List<String> oldUrls = (oldReview['image_urls'] as List)
-              .map((e) => e.toString())
-              .toList();
-          final List<String> removedUrls = oldUrls
-              .where((url) => !finalImageUrls.contains(url))
-              .toList();
-          if (removedUrls.isNotEmpty) {
-            await StorageUtils.deleteImagesFromUrls(removedUrls);
-            debugPrint(
-              '[ReviewRepository] Eliminadas ${removedUrls.length} imágenes quitadas en la edición de la reseña.',
-            );
-          }
+            final List<String> oldUrls = (oldReview['image_urls'] as List)
+                .map((e) => e.toString())
+                .toList();
+            final List<String> removedUrls = oldUrls
+                .where((url) => !finalImageUrls.contains(url))
+                .toList();
+            if (removedUrls.isNotEmpty) {
+              await StorageUtils.deleteImagesFromUrls(removedUrls);
+              debugPrint(
+                '[ReviewRepository] Eliminadas ${removedUrls.length} imágenes quitadas en la edición de la reseña.',
+              );
+            }
           }
         }
       } catch (e) {
@@ -448,59 +449,64 @@ class ReviewRepository {
         );
       }
 
-      await _client.from('reviews').update(
-        sanitizeReviewData(
-          userId: userId,
-          igdbId: igdbId,
-          status: status,
-          rating: rating,
-          ratingGameplay: ratingGameplay,
-          ratingNarrative: ratingNarrative,
-          ratingSoundtrack: ratingSoundtrack,
-          ratingVisuals: ratingVisuals,
-          comment: comment,
-          completionType: completionType,
-          isReplay: isReplay,
-          replayNumber: replayNumber,
-          platform: platform,
-          playTimeHours: playTimeHours,
-          playedFrom: playedFrom,
-          playedUntil: playedUntil,
-          progressPercent: progressPercent,
-          imageUrls: finalImageUrls,
-          partnerIds: partnerIds,
-          reviewDate: effectiveReviewDate,
-        ),
-      ).eq('id', reviewId);
+      await _client
+          .from('reviews')
+          .update(
+            sanitizeReviewData(
+              userId: userId,
+              igdbId: igdbId,
+              status: status,
+              rating: rating,
+              ratingGameplay: ratingGameplay,
+              ratingNarrative: ratingNarrative,
+              ratingSoundtrack: ratingSoundtrack,
+              ratingVisuals: ratingVisuals,
+              comment: comment,
+              completionType: completionType,
+              isReplay: isReplay,
+              replayNumber: replayNumber,
+              platform: platform,
+              playTimeHours: playTimeHours,
+              playedFrom: playedFrom,
+              playedUntil: playedUntil,
+              progressPercent: progressPercent,
+              imageUrls: finalImageUrls,
+              partnerIds: partnerIds,
+              reviewDate: effectiveReviewDate,
+            ),
+          )
+          .eq('id', reviewId);
     } else {
       if ((status == 'beaten' || status == 'completed') &&
           effectiveReviewDate == null) {
         effectiveReviewDate = DateTime.now();
       }
-      await _client.from('reviews').insert(
-        sanitizeReviewData(
-          userId: userId,
-          igdbId: igdbId,
-          status: status,
-          rating: rating,
-          ratingGameplay: ratingGameplay,
-          ratingNarrative: ratingNarrative,
-          ratingSoundtrack: ratingSoundtrack,
-          ratingVisuals: ratingVisuals,
-          comment: comment,
-          completionType: completionType,
-          isReplay: isReplay,
-          replayNumber: replayNumber,
-          platform: platform,
-          playTimeHours: playTimeHours,
-          playedFrom: playedFrom,
-          playedUntil: playedUntil,
-          progressPercent: progressPercent,
-          imageUrls: finalImageUrls,
-          partnerIds: partnerIds,
-          reviewDate: effectiveReviewDate,
-        ),
-      );
+      await _client
+          .from('reviews')
+          .insert(
+            sanitizeReviewData(
+              userId: userId,
+              igdbId: igdbId,
+              status: status,
+              rating: rating,
+              ratingGameplay: ratingGameplay,
+              ratingNarrative: ratingNarrative,
+              ratingSoundtrack: ratingSoundtrack,
+              ratingVisuals: ratingVisuals,
+              comment: comment,
+              completionType: completionType,
+              isReplay: isReplay,
+              replayNumber: replayNumber,
+              platform: platform,
+              playTimeHours: playTimeHours,
+              playedFrom: playedFrom,
+              playedUntil: playedUntil,
+              progressPercent: progressPercent,
+              imageUrls: finalImageUrls,
+              partnerIds: partnerIds,
+              reviewDate: effectiveReviewDate,
+            ),
+          );
     }
 
     // El trigger sync_user_games_rating_from_review se encarga automáticamente
@@ -795,11 +801,14 @@ class ReviewRepository {
         final query = _client
             .from('reviews')
             .select('*, review_likes(user_id), review_comments(id)');
-            
-        final reviewResponse = await (reviewId != null 
+
+        final reviewResponse = await (reviewId != null
             ? query.eq('id', reviewId).maybeSingle()
-            : query.eq('user_id', userId).eq('game_id', parsedGameId).maybeSingle());
-            
+            : query
+                  .eq('user_id', userId)
+                  .eq('game_id', parsedGameId)
+                  .maybeSingle());
+
         review = reviewResponse;
       } catch (_) {}
     }

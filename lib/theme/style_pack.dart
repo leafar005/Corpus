@@ -87,8 +87,7 @@ class StylePack {
   static StylePack persona5RoyalPack() => const StylePack(
     id: 'persona_5_royal',
     name: 'Persona 5 Royal',
-    description:
-        'Estilo inspirado en la identidad visual de Persona 5 Royal.',
+    description: 'Estilo inspirado en la identidad visual de Persona 5 Royal.',
     seedColor: Color(0xFFD3112D),
     scaffoldLight: Color(0xFFFFFFFF),
     scaffoldDark: Color(0xFF000000),

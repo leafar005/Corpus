@@ -46,10 +46,7 @@ class CorpusBadge extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: ext.radiusSmall,
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: ext.radiusSmall),
       child: Text(
         label,
         style: CorpusTypography.display(

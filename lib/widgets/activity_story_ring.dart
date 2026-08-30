@@ -31,7 +31,9 @@ class ActivityStoryRing extends StatelessWidget {
       radius: radius,
       backgroundColor: backgroundColor ?? cs.surfaceContainerHighest,
       backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
-      child: child ?? (avatarUrl == null ? Icon(Icons.person, size: radius) : null),
+      child:
+          child ??
+          (avatarUrl == null ? Icon(Icons.person, size: radius) : null),
     );
 
     if (!hasStory) {
@@ -45,16 +47,10 @@ class ActivityStoryRing extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.all(ringWidth),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: ringColor,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: ringColor),
       child: Container(
         padding: EdgeInsets.all(ringWidth * 0.6),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: cs.surface,
-        ),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: cs.surface),
         child: avatar,
       ),
     );

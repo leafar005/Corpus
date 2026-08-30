@@ -660,7 +660,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
             title: CorpusScreenTitle(
               title,
               abbreviateIfLong: true,
-              trailingBalanceWidth: CorpusVisuallyBalancedTitle.defaultLeadingWidth,
+              trailingBalanceWidth:
+                  CorpusVisuallyBalancedTitle.defaultLeadingWidth,
             ),
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -811,7 +812,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             MediaQuery.of(context).size.width >
                                             800;
                                         if (isDesktop) {
-                                          context.pushGameDetails(widget.gameData);
+                                          context.pushGameDetails(
+                                            widget.gameData,
+                                          );
                                         } else {
                                           showModalBottomSheet(
                                             context: context,
@@ -1296,7 +1299,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             onTap: () {
                                               final uid = comment['user_id'];
                                               if (uid != null) {
-                                                context.pushProfile(userId: uid);
+                                                context.pushProfile(
+                                                  userId: uid,
+                                                );
                                               }
                                             },
                                             child: CircleAvatar(
@@ -1423,9 +1428,10 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                             ).size.width >
                                                             800;
                                                         if (isDesktop) {
-                                                          context.pushGameDetails(
-                                                            gameData,
-                                                          );
+                                                          context
+                                                              .pushGameDetails(
+                                                                gameData,
+                                                              );
                                                         } else {
                                                           showModalBottomSheet(
                                                             context: context,
@@ -1594,9 +1600,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         'Respondiendo a @$_replyToUsername',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ),

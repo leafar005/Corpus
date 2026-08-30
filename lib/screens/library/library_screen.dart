@@ -115,7 +115,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               top: 8.0,
               bottom: getBottomSpacer(context),
             ),
-            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 150, // Anchura máxima ideal de cada carátula
               childAspectRatio: IgdbConstants.coverAspectRatio,
               crossAxisSpacing: 8,

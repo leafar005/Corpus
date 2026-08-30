@@ -95,7 +95,7 @@ class ThemeNotifier extends ChangeNotifier {
 /// Definición de los distintos temas de la aplicación (Modo Oscuro, Claro, etc.)
 class AppTheme {
   /// Vista previa temporal del cuerpo de texto. Pon `null` para usar el pack.
-  static const String? fontPreviewOverride = 'Syne';
+  static const String? fontPreviewOverride = null;
 
   static String? _bodyFontFamily(StylePack pack) =>
       fontPreviewOverride ?? pack.fontFamily;
@@ -124,9 +124,9 @@ class AppTheme {
           onSurfaceVariant: Colors.grey,
         );
 
-    final ext = CorpusThemeExtension.fromPack(pack).copyWith(
-      heroFontFamily: _heroFontFamily(pack),
-    );
+    final ext = CorpusThemeExtension.fromPack(
+      pack,
+    ).copyWith(heroFontFamily: _heroFontFamily(pack));
     final fontFamily = _bodyFontFamily(pack);
     final textTheme = _textThemeFor(fontFamily, Brightness.dark);
 
@@ -229,9 +229,9 @@ class AppTheme {
           onSurfaceVariant: Colors.grey.shade700,
         );
 
-    final ext = CorpusThemeExtension.fromPack(pack).copyWith(
-      heroFontFamily: _heroFontFamily(pack),
-    );
+    final ext = CorpusThemeExtension.fromPack(
+      pack,
+    ).copyWith(heroFontFamily: _heroFontFamily(pack));
     final fontFamily = _bodyFontFamily(pack);
     final textTheme = _textThemeFor(fontFamily, Brightness.light);
 

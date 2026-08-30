@@ -47,7 +47,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   Map<int, String> _completionTypeMap = {};
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
-  GameFilters _filters = GameFilters(
+  GameFilters _filters = const GameFilters(
     sortBy: 'last_played_at',
     sortAscending: false,
   );
@@ -89,7 +89,8 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     await loadMore();
   }
 
-  Future<PostgrestTransformBuilder<List<Map<String, dynamic>>>> _buildQuery() async {
+  Future<PostgrestTransformBuilder<List<Map<String, dynamic>>>>
+  _buildQuery() async {
     var query = Supabase.instance.client
         .from('user_games')
         .select('*, games!inner(*)')
@@ -162,7 +163,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           .map((r) => r['game_id'] as int)
           .toList();
       if (platinoGameIds.isEmpty) {
-        query = query.inFilter('game_id', [-1]); 
+        query = query.inFilter('game_id', [-1]);
       } else {
         query = query.inFilter('game_id', platinoGameIds);
       }
@@ -269,28 +270,6 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           hasMore = false;
         });
       }
-    }
-  }
-  Future<void> _refreshInPlace() async {
-    if (_games.isEmpty) {
-      await _refresh();
-      return;
-    }
-    try {
-      final orderQuery = await _buildQuery();
-      final res = await orderQuery.range(0, _games.length - 1);
-      final newItems = List<Map<String, dynamic>>.from(res)
-          .where((r) => r['games'] != null)
-          .toList();
-      if (mounted && newItems.isNotEmpty) {
-        setState(() {
-          _games
-            ..clear()
-            ..addAll(newItems);
-        });
-      }
-    } catch (e) {
-      debugPrint('[CORPUS] Error en refreshInPlace: $e');
     }
   }
 
@@ -482,7 +461,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     final grid = SliverPadding(
       padding: EdgeInsets.fromLTRB(16, 16, 16, getBottomSpacer(context)),
       sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 120,
           childAspectRatio: IgdbConstants.coverAspectRatio,
           crossAxisSpacing: 12,
@@ -505,7 +484,9 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
 
           // Extraer completion_type del mapa cargado en loadMore
           final gameId = item['game_id'] as int?;
-          final completionType = gameId != null ? _completionTypeMap[gameId] : null;
+          final completionType = gameId != null
+              ? _completionTypeMap[gameId]
+              : null;
 
           return GameCard(
             game: Game.fromMap(gameData),

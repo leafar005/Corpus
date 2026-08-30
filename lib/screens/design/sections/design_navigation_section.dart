@@ -33,9 +33,9 @@ class _DesignNavigationSectionState extends State<DesignNavigationSection> {
           children: [
             Text(
               'Contenu ${_tab + 1}',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             Divider(color: cs.outlineVariant.withValues(alpha: 0.6)),
             const SizedBox(height: 8),

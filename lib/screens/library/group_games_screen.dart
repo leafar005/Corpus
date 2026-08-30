@@ -80,7 +80,7 @@ class _GroupGamesScreenState extends State<GroupGamesScreen> {
             )
           : GridView.builder(
               padding: const EdgeInsets.all(16),
-              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: 160,
                 childAspectRatio: IgdbConstants.coverAspectRatio,
                 crossAxisSpacing: 16,

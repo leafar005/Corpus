@@ -35,7 +35,7 @@ class _FilterOptionScreenState extends State<FilterOptionScreen> {
   // no se recalculan en cada build/tap.
   late final List<String> _labels;
   late final List<Color?> _brandColors;
-  
+
   // Lista aplanada que contiene Strings (Headers) o ints (índices de widget.items)
   late final List<dynamic> _flatItems;
 
@@ -66,16 +66,29 @@ class _FilterOptionScreenState extends State<FilterOptionScreen> {
         'Móviles': [],
         'Otros': [],
       };
-      
+
       for (var i = 0; i < _labels.length; i++) {
         final label = _labels[i];
-        if (label.contains('PlayStation')) groups['PlayStation']!.add(i);
-        else if (label.contains('Xbox')) groups['Xbox']!.add(i);
-        else if (label.contains('Nintendo') || label.contains('Wii') || label.contains('Game Boy') || label.contains('DS')) groups['Nintendo']!.add(i);
-        else if (label.contains('Sega') || label.contains('Dreamcast')) groups['Sega']!.add(i);
-        else if (label.contains('PC') || label.contains('Mac') || label.contains('Linux')) groups['PC & Mac']!.add(i);
-        else if (label.contains('Android') || label.contains('iOS')) groups['Móviles']!.add(i);
-        else groups['Otros']!.add(i);
+        if (label.contains('PlayStation')) {
+          groups['PlayStation']!.add(i);
+        } else if (label.contains('Xbox')) {
+          groups['Xbox']!.add(i);
+        } else if (label.contains('Nintendo') ||
+            label.contains('Wii') ||
+            label.contains('Game Boy') ||
+            label.contains('DS')) {
+          groups['Nintendo']!.add(i);
+        } else if (label.contains('Sega') || label.contains('Dreamcast')) {
+          groups['Sega']!.add(i);
+        } else if (label.contains('PC') ||
+            label.contains('Mac') ||
+            label.contains('Linux')) {
+          groups['PC & Mac']!.add(i);
+        } else if (label.contains('Android') || label.contains('iOS')) {
+          groups['Móviles']!.add(i);
+        } else {
+          groups['Otros']!.add(i);
+        }
       }
 
       _flatItems = [];
@@ -141,10 +154,11 @@ class _FilterOptionScreenState extends State<FilterOptionScreen> {
         itemCount: _flatItems.length,
         itemBuilder: (context, idx) {
           final dynamic flatItem = _flatItems[idx];
-          
+
           if (flatItem is String) {
-            final iconPath = IgdbConstants.getPlatformStyle(flatItem)['icon'] as String?;
-            
+            final iconPath =
+                IgdbConstants.getPlatformStyle(flatItem)['icon'] as String?;
+
             return Padding(
               padding: const EdgeInsets.only(left: 16, top: 20, bottom: 8),
               child: Row(

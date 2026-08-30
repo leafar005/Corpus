@@ -63,10 +63,7 @@ class CorpusTextField extends StatelessWidget {
         errorText: hasError ? errorText : null,
         prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
         suffixIcon: suffixIcon != null
-            ? IconButton(
-                icon: Icon(suffixIcon),
-                onPressed: onSuffixTap,
-              )
+            ? IconButton(icon: Icon(suffixIcon), onPressed: onSuffixTap)
             : null,
         filled: true,
         fillColor: enabled

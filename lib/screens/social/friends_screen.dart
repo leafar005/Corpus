@@ -79,7 +79,7 @@ class _FriendsScreenState extends State<FriendsScreen>
           )
           .eq('addressee_id', _myId)
           .eq('status', 'pending');
-          
+
       final sentData = await _supabase
           .from('friendships')
           .select(
@@ -545,9 +545,9 @@ class _FriendsScreenState extends State<FriendsScreen>
           _sentRequests.removeWhere((r) => r['addressee_id'] == addresseeId);
           _sentOrAccepted.remove(addresseeId);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Solicitud cancelada')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Solicitud cancelada')));
       }
     } catch (e) {
       if (mounted) {

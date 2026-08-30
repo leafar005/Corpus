@@ -199,12 +199,12 @@ class _GameCardState extends State<GameCard> {
                             left: 6,
                             child: Builder(
                               builder: (context) {
-                                  final int? resolved =
-                                      IgdbConstants.resolveCategory(
-                                        widget.game.resolvedCategory,
-                                        title,
-                                        hasParentGame:
-                                            widget.game.parentGameId != null,
+                                final int? resolved =
+                                    IgdbConstants.resolveCategory(
+                                      widget.game.resolvedCategory,
+                                      title,
+                                      hasParentGame:
+                                          widget.game.parentGameId != null,
                                       summary: widget.game.summary,
                                     );
 
@@ -381,7 +381,10 @@ class _GameCardState extends State<GameCard> {
     final (IconData icon, Color color) = switch (type) {
       'on_hold' => (Icons.pause_rounded, Colors.orange),
       'endless' => (Icons.all_inclusive_rounded, Colors.teal),
-      'story' => (Icons.auto_stories_rounded, Theme.of(context).colorScheme.primary),
+      'story' => (
+        Icons.auto_stories_rounded,
+        Theme.of(context).colorScheme.primary,
+      ),
       'story_extras' => (Icons.extension_rounded, Colors.purple),
       '100_percent' => (Icons.emoji_events_rounded, const Color(0xFFFFD700)),
       _ => (Icons.flag_rounded, Theme.of(context).colorScheme.primary),

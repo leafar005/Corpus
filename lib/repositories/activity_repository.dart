@@ -77,7 +77,10 @@ class ActivityRepository {
   ///
   /// La lógica de merge/agrupamiento de eventos (dentro de 24 h) se aplica
   /// sobre los resultados antes de devolverlos.
-  Future<ActivityFeedResult> fetchActivityPage(int offset, {int limit = 30}) async {
+  Future<ActivityFeedResult> fetchActivityPage(
+    int offset, {
+    int limit = 30,
+  }) async {
     final from = offset;
     final to = offset + limit - 1;
 
@@ -95,7 +98,11 @@ class ActivityRepository {
     final feedItems = List<Map<String, dynamic>>.from(response);
 
     final reviewIds = feedItems
-        .map((item) => (item['review_id'] as String?) ?? (item['metadata'] as Map?)?['review_id'] as String?)
+        .map(
+          (item) =>
+              (item['review_id'] as String?) ??
+              (item['metadata'] as Map?)?['review_id'] as String?,
+        )
         .whereType<String>()
         .toSet()
         .toList();
@@ -241,7 +248,11 @@ class ActivityRepository {
     final feedItems = List<Map<String, dynamic>>.from(response);
 
     final reviewIds = feedItems
-        .map((item) => (item['review_id'] as String?) ?? (item['metadata'] as Map?)?['review_id'] as String?)
+        .map(
+          (item) =>
+              (item['review_id'] as String?) ??
+              (item['metadata'] as Map?)?['review_id'] as String?,
+        )
         .whereType<String>()
         .toSet()
         .toList();
@@ -412,7 +423,7 @@ class ActivityRepository {
       'content': content?.isNotEmpty == true ? content : null,
       'image_url': imageUrl,
       'attached_game': attachedGame,
-      if (parentCommentId != null) 'parent_comment_id': parentCommentId,
+      'parent_comment_id': ?parentCommentId,
     });
   }
 
@@ -536,7 +547,10 @@ class ActivityRepository {
 
   /// Obtiene la reseña más reciente de un usuario para un juego concreto.
   /// Útil para la navegación desde eventos de "status_change" antiguos en el feed.
-  Future<Map<String, dynamic>?> fetchLatestReviewForUserAndGame(String userId, int gameId) async {
+  Future<Map<String, dynamic>?> fetchLatestReviewForUserAndGame(
+    String userId,
+    int gameId,
+  ) async {
     try {
       final resp = await _client
           .from('reviews')
@@ -546,14 +560,16 @@ class ActivityRepository {
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
-      
+
       if (resp != null) {
         final reviewsList = [Map<String, dynamic>.from(resp)];
         await ReviewRepository(client: _client).injectPartners(reviewsList);
         return reviewsList.first;
       }
     } catch (e) {
-      debugPrint('[ActivityRepository] fetchLatestReviewForUserAndGame error: $e');
+      debugPrint(
+        '[ActivityRepository] fetchLatestReviewForUserAndGame error: $e',
+      );
     }
     return null;
   }
@@ -592,7 +608,9 @@ class ActivityRepository {
       }
 
       // Inyectar datos de reseña si están referenciados
-      final reviewId = (item['review_id'] as String?) ?? (item['metadata'] as Map?)?['review_id'] as String?;
+      final reviewId =
+          (item['review_id'] as String?) ??
+          (item['metadata'] as Map?)?['review_id'] as String?;
       if (reviewId != null && reviewsById.containsKey(reviewId)) {
         item = Map<String, dynamic>.from(item);
         item['_review'] = reviewsById[reviewId];
@@ -654,7 +672,9 @@ class ActivityRepository {
         .eq('user_id', userId)
         .inFilter('activity_id', activityIds);
 
-    return (response as List).map((row) => row['activity_id'] as String).toSet();
+    return (response as List)
+        .map((row) => row['activity_id'] as String)
+        .toSet();
   }
 
   /// Marca un slide de historia como visto (idempotente).
@@ -662,10 +682,10 @@ class ActivityRepository {
     required String userId,
     required String activityId,
   }) async {
-    await _client.from('story_views').upsert(
-      {'user_id': userId, 'activity_id': activityId},
-      onConflict: 'user_id,activity_id',
-    );
+    await _client.from('story_views').upsert({
+      'user_id': userId,
+      'activity_id': activityId,
+    }, onConflict: 'user_id,activity_id');
   }
 
   // ── Helpers puros (testeables) ──────────────────────────────
@@ -680,11 +700,9 @@ class ActivityRepository {
     return idx == -1 ? 0 : idx;
   }
 
-
   /// true si el grupo tiene algún slide sin ver.
   static bool groupHasUnseenStory(
     List<Map<String, dynamic>> activities,
     Set<String> viewedIds,
-  ) =>
-      activities.any((a) => !viewedIds.contains(a['id']));
+  ) => activities.any((a) => !viewedIds.contains(a['id']));
 }

@@ -213,9 +213,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       final res = await _buildQuery()
           .order(_orderColumn, ascending: false)
           .range(0, _reviews.length - 1);
-      final newItems = List<Map<String, dynamic>>.from(res)
-          .where((r) => r['games'] != null)
-          .toList();
+      final newItems = List<Map<String, dynamic>>.from(
+        res,
+      ).where((r) => r['games'] != null).toList();
       if (mounted && newItems.isNotEmpty) {
         setState(() {
           _reviews
@@ -255,18 +255,12 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
   void _openReview(Map<String, dynamic> review) {
     context
-        .pushReviewDetails(
-          review['games'],
-          widget.userData,
-          review,
-        )
+        .pushReviewDetails(review['games'], widget.userData, review)
         .then((_) => _refreshInPlace());
   }
 
   void _openGame(Map<String, dynamic> review) {
-    context
-        .pushGameDetails(review['games'])
-        .then((_) => _refreshInPlace());
+    context.pushGameDetails(review['games']).then((_) => _refreshInPlace());
   }
 
   /// Aplana [_reviews] en una lista de "filas" (cabecera de mes o entrada)
@@ -568,23 +562,35 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                 child: Row(
                   children: [
                     if (platform != null)
-                      if (IgdbConstants.getPlatformStyle(platform)['icon'] != null)
+                      if (IgdbConstants.getPlatformStyle(platform)['icon'] !=
+                          null)
                         Padding(
                           padding: const EdgeInsets.only(right: 6.0),
                           child: Image.asset(
-                            IgdbConstants.getPlatformStyle(platform)['icon'] as String,
+                            IgdbConstants.getPlatformStyle(platform)['icon']
+                                as String,
                             width: 16,
                             height: 16,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         )
-                      else if (IgdbConstants.getPlatformStyle(platform)['materialIcon'] != null)
+                      else if (IgdbConstants.getPlatformStyle(
+                            platform,
+                          )['materialIcon'] !=
+                          null)
                         Padding(
                           padding: const EdgeInsets.only(right: 6.0),
                           child: Icon(
-                            IgdbConstants.getPlatformStyle(platform)['materialIcon'] as IconData,
+                            IgdbConstants.getPlatformStyle(
+                                  platform,
+                                )['materialIcon']
+                                as IconData,
                             size: 16,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                     Expanded(

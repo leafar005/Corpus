@@ -48,7 +48,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Ocurrió un error inesperado. Inténtalo de nuevo.'),
+            content: const Text(
+              'Ocurrió un error inesperado. Inténtalo de nuevo.',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );

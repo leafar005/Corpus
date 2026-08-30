@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 
 class ProfileData {
-  const  ProfileData({
+  const ProfileData({
     required this.userProfile,
     required this.wishlistGames,
     required this.wishlistCount,
@@ -27,10 +27,10 @@ class ProfileData {
   final int beatenCount;
   final List<Map<String, dynamic>> platinumGames;
   final int platinumCount;
-  
+
   /// Lista de todas las notas (ratings) del usuario para el histograma, sin los joins pesados.
   final List<double> ratings;
-  
+
   final List<Map<String, dynamic>?> hallOfFame;
 
   final int friendsCount;
@@ -167,7 +167,9 @@ class ProfileRepository {
             .select('game_id')
             .eq('user_id', userId)
             .eq('completion_type', '100_percent');
-        final platinoGameIds = platinoReviews.map((r) => r['game_id'] as int).toList();
+        final platinoGameIds = platinoReviews
+            .map((r) => r['game_id'] as int)
+            .toList();
         if (platinoGameIds.isEmpty) return [];
         return await _client
             .from('user_games')
@@ -186,10 +188,7 @@ class ProfileRepository {
         return platinoReviews;
       })(),
       fetchHallOfFame(userId),
-      _client
-          .from('reviews')
-          .select('rating')
-          .eq('user_id', userId),
+      _client.from('reviews').select('rating').eq('user_id', userId),
       _client
           .from('friendships')
           .select('requester_id')
@@ -227,13 +226,27 @@ class ProfileRepository {
 
     return ProfileData(
       userProfile: userProfile,
-      wishlistGames: _enrichList(wishlistRes, completionTypeMap: completionTypeMap),
+      wishlistGames: _enrichList(
+        wishlistRes,
+        completionTypeMap: completionTypeMap,
+      ),
       wishlistCount: wishlistCountRes.length,
-      playingGames: _enrichList(playingRes, completionTypeMap: completionTypeMap),
+      playingGames: _enrichList(
+        playingRes,
+        completionTypeMap: completionTypeMap,
+      ),
       playingCount: playingCountRes.length,
-      beatenGames: _enrichList(beatenRes, useLastPlayed: true, completionTypeMap: completionTypeMap),
+      beatenGames: _enrichList(
+        beatenRes,
+        useLastPlayed: true,
+        completionTypeMap: completionTypeMap,
+      ),
       beatenCount: beatenCountRes.length,
-      platinumGames: _enrichList(platinumRes, useLastPlayed: true, completionTypeMap: completionTypeMap),
+      platinumGames: _enrichList(
+        platinumRes,
+        useLastPlayed: true,
+        completionTypeMap: completionTypeMap,
+      ),
       platinumCount: platinumCountRes.length,
       ratings: ratingsRes
           .map((e) => (e['rating'] as num?)?.toDouble() ?? 0.0)
@@ -244,10 +257,15 @@ class ProfileRepository {
   }
 
   @visibleForTesting
-  static List<Map<String, dynamic>> enrichList(List<dynamic> rawGames, {bool useLastPlayed = false}) => _enrichList(rawGames, useLastPlayed: useLastPlayed);
+  static List<Map<String, dynamic>> enrichList(
+    List<dynamic> rawGames, {
+    bool useLastPlayed = false,
+  }) => _enrichList(rawGames, useLastPlayed: useLastPlayed);
 
   @visibleForTesting
-  static List<Map<String, dynamic>?> parseHallOfFame(List<dynamic> rawHallOfFame) => _parseHallOfFame(rawHallOfFame);
+  static List<Map<String, dynamic>?> parseHallOfFame(
+    List<dynamic> rawHallOfFame,
+  ) => _parseHallOfFame(rawHallOfFame);
 
   static List<Map<String, dynamic>> _enrichList(
     List<dynamic> rawGames, {
@@ -256,13 +274,20 @@ class ProfileRepository {
   }) {
     final result = <Map<String, dynamic>>[];
     for (final row in rawGames) {
-      final gameData = _enrichGameData(row, useLastPlayed: useLastPlayed, completionTypeMap: completionTypeMap);
+      final gameData = _enrichGameData(
+        row,
+        useLastPlayed: useLastPlayed,
+        completionTypeMap: completionTypeMap,
+      );
       if (gameData != null) {
         result.add(gameData);
       }
     }
     // We also sort them internally just to be absolutely sure they are in order.
-    result.sort((a, b) => (b['_sort_date'] as String).compareTo(a['_sort_date'] as String));
+    result.sort(
+      (a, b) =>
+          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
+    );
     return result;
   }
 
@@ -329,10 +354,9 @@ class ProfileRepository {
       final gameData = row['games'] as Map<String, dynamic>?;
       if (gameData == null) continue;
 
-      final genres = Game.fromMap(gameData)
-          .genres
-          .where((g) => g.toLowerCase() != 'indie')
-          .toList();
+      final genres = Game.fromMap(
+        gameData,
+      ).genres.where((g) => g.toLowerCase() != 'indie').toList();
       if (genres.isEmpty) continue;
 
       final lastPlayed = row['last_played_at'] != null
@@ -344,14 +368,16 @@ class ProfileRepository {
       final effectiveDate = lastPlayed ?? updated;
       if (effectiveDate == null) continue;
 
-      entries.add(GenreRadarEntry(
-        gameId: (row['game_id'] as num).toInt(),
-        gameTitle: gameData['title'] as String? ?? '',
-        coverUrl: Game.fromMap(gameData).coverUrl,
-        genres: genres,
-        hours: 0.0,
-        effectiveDate: effectiveDate,
-      ));
+      entries.add(
+        GenreRadarEntry(
+          gameId: (row['game_id'] as num).toInt(),
+          gameTitle: gameData['title'] as String? ?? '',
+          coverUrl: Game.fromMap(gameData).coverUrl,
+          genres: genres,
+          hours: 0.0,
+          effectiveDate: effectiveDate,
+        ),
+      );
     }
 
     return entries;

@@ -11,11 +11,7 @@ class GenreRadarChart extends StatelessWidget {
   final List<GenreTimeStat> stats;
   final ValueChanged<GenreTimeStat>? onGenreTapped;
 
-  const GenreRadarChart({
-    super.key,
-    required this.stats,
-    this.onGenreTapped,
-  });
+  const GenreRadarChart({super.key, required this.stats, this.onGenreTapped});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +21,10 @@ class GenreRadarChart extends StatelessWidget {
         if (onGenreTapped == null) return;
         final RenderBox box = context.findRenderObject() as RenderBox;
         final center = Offset(box.size.width / 2, box.size.height / 2);
-        final radius = math.min(box.size.width, box.size.height) / 2 * _RadarPainter._radiusFraction;
+        final radius =
+            math.min(box.size.width, box.size.height) /
+            2 *
+            _RadarPainter._radiusFraction;
         final n = stats.length;
         for (int i = 0; i < n; i++) {
           final a = -math.pi / 2 + i * (2 * math.pi / n);
@@ -48,7 +47,12 @@ class GenreRadarChart extends StatelessWidget {
           fillColor: scheme.primary.withValues(alpha: 0.28),
           strokeColor: scheme.primary,
           gridColor: scheme.onSurface.withValues(alpha: 0.15),
-          labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurface, fontSize: 12) ?? TextStyle(color: scheme.onSurface, fontSize: 12),
+          labelStyle:
+              Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurface,
+                fontSize: 12,
+              ) ??
+              TextStyle(color: scheme.onSurface, fontSize: 12),
         ),
       ),
     );
@@ -63,7 +67,8 @@ class _RadarPainter extends CustomPainter {
   final TextStyle labelStyle;
 
   static const int _ringCount = 4;
-  static const double _radiusFraction = 0.55; // equilibrado para aspectRatio 1.35
+  static const double _radiusFraction =
+      0.55; // equilibrado para aspectRatio 1.35
 
   _RadarPainter({
     required this.stats,
@@ -122,7 +127,10 @@ class _RadarPainter extends CustomPainter {
     final points = <Offset>[];
     for (int i = 0; i < n; i++) {
       final a = angleFor(i);
-      final normalized = (stats[i].gameCount.toDouble() / safeMax).clamp(0.0, 1.0);
+      final normalized = (stats[i].gameCount.toDouble() / safeMax).clamp(
+        0.0,
+        1.0,
+      );
       final r = radius * normalized;
       final p = Offset(
         center.dx + r * math.cos(a),
@@ -154,12 +162,10 @@ class _RadarPainter extends CustomPainter {
         center.dy + labelRadius * math.sin(a),
       );
 
-      final text = '${IgdbConstants.formatGenreWithEmoji(stats[i].genre)}\n(${stats[i].gameCount} juegos)';
+      final text =
+          '${IgdbConstants.formatGenreWithEmoji(stats[i].genre)}\n(${stats[i].gameCount} juegos)';
       final tp = TextPainter(
-        text: TextSpan(
-          text: text,
-          style: labelStyle,
-        ),
+        text: TextSpan(text: text, style: labelStyle),
         textAlign: TextAlign.center,
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: 100);

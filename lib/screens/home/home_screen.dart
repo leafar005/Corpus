@@ -739,7 +739,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         SizedBox(
                                           width: coverWidth,
                                           child: AspectRatio(
-                                            aspectRatio: IgdbConstants.coverAspectRatio,
+                                            aspectRatio:
+                                                IgdbConstants.coverAspectRatio,
                                             child: GameCard(
                                               key: ValueKey(
                                                 allGames[i]['steamAppId'] ??
@@ -763,11 +764,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                       physics:
                                           const NeverScrollableScrollPhysics(),
                                       gridDelegate:
-                                          SliverGridDelegateWithFixedCrossAxisCount(
+                                          const SliverGridDelegateWithFixedCrossAxisCount(
                                             crossAxisCount: 2,
                                             mainAxisSpacing: 6,
                                             crossAxisSpacing: 6,
-                                            childAspectRatio: IgdbConstants.coverAspectRatio,
+                                            childAspectRatio:
+                                                IgdbConstants.coverAspectRatio,
                                           ),
                                       itemCount: allGames.length > 4
                                           ? 4
@@ -1110,8 +1112,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               if (game?['title'] != null)
                                                 'title': game!['title'],
                                               if (game?['cover_url'] != null)
-                                                'cover_url':
-                                                    game!['cover_url'],
+                                                'cover_url': game!['cover_url'],
                                             });
                                           }
                                         },

@@ -10,6 +10,7 @@ import 'typewriter_text.dart';
 class CorpusScreenTitle extends StatelessWidget {
   final String text;
   final bool abbreviateIfLong;
+
   /// Width of trailing AppBar actions to balance visual centering (e.g. 56 per icon).
   final double trailingBalanceWidth;
 
@@ -23,7 +24,10 @@ class CorpusScreenTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
-    final title = CorpusPackAwareTitle(text, abbreviateIfLong: abbreviateIfLong);
+    final title = CorpusPackAwareTitle(
+      text,
+      abbreviateIfLong: abbreviateIfLong,
+    );
 
     if (!ext.useDynamicFrames) return title;
 
@@ -96,8 +100,9 @@ class CorpusPackAwareTitle extends StatelessWidget {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final titleStyle = Theme.of(context).appBarTheme.titleTextStyle;
     final resolvedColor = color ?? titleStyle?.color ?? Colors.white;
-    final displayText =
-        abbreviateIfLong ? abbreviateGameTitleIfNeeded(text) : text;
+    final displayText = abbreviateIfLong
+        ? abbreviateGameTitleIfNeeded(text)
+        : text;
 
     if (ext.useDynamicFrames) {
       return P5rRansomTitle(
@@ -110,7 +115,8 @@ class CorpusPackAwareTitle extends StatelessWidget {
 
     return Text(
       displayText,
-      style: titleStyle ??
+      style:
+          titleStyle ??
           TextStyle(
             fontSize: baseFontSize,
             fontWeight: FontWeight.bold,

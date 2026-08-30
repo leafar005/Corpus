@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-08-30
+
+### Arreglado
+- **Iconos de Enlaces (CORS y `.ico`):** Solucionado el problema con los iconos de plataformas (Steam, PlayStation, Facebook, etc.) que fallaban en web usando Google Favicons proxy.
+- **Enlaces a IGDB:** Se añadió el enlace permanente hacia la página original de IGDB en los detalles de cada juego.
+- **Nota Media de Metacritic:** Corrección de la puntuación en función per-title.
+- **Limpieza de Código y CI:** Actualizado el archivo `dart.yml` para arreglar el workflow de GitHub Actions que sobrescribía archivos de entorno, junto con formateo general y limpieza de warnings/código muerto.
+
 ## [1.2.0] - 2026-08-26
 
 ### Añadido

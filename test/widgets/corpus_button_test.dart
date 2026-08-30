@@ -19,9 +19,7 @@ void main() {
   testWidgets('CorpusButton renders label and responds to tap', (tester) async {
     var tapped = false;
     await tester.pumpWidget(
-      wrap(
-        CorpusButton(label: 'Probar', onPressed: () => tapped = true),
-      ),
+      wrap(CorpusButton(label: 'Probar', onPressed: () => tapped = true)),
     );
 
     expect(find.text('Probar'), findsOneWidget);
@@ -44,7 +42,10 @@ void main() {
     );
 
     await tester.pumpWidget(
-      wrap(CorpusButton(label: 'Take Heart', onPressed: () {}), pack: p5r),
+      wrap(
+        CorpusButton(label: 'Take Heart', onPressed: () {}),
+        pack: p5r,
+      ),
     );
 
     expect(find.byType(CorpusButton), findsOneWidget);

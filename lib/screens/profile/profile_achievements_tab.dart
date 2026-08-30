@@ -913,23 +913,6 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
     return (milestonesData.first['description'] as String?) ?? fallback;
   }
 
-  String _getNextMilestoneDescription(
-    String groupId,
-    int currentProgress,
-    String fallback, [
-    Map<String, List<Map<String, dynamic>>>? milestonesMap,
-  ]) {
-    final milestonesData = (milestonesMap ?? _sagaMilestones)[groupId];
-    if (milestonesData == null || milestonesData.isEmpty) return fallback;
-    for (final m in milestonesData) {
-      final target = m['target'] as int;
-      if (currentProgress < target) {
-        return (m['description'] as String?) ?? fallback;
-      }
-    }
-    return (milestonesData.last['description'] as String?) ?? fallback;
-  }
-
   int _getAchievedMilestoneXp(
     String groupId,
     int currentProgress,

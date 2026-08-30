@@ -28,11 +28,7 @@ class DesignFoundationsSection extends StatelessWidget {
               _ColorSwatch('Secondary', cs.secondary, cs.onSecondary),
               _ColorSwatch('Surface', cs.surface, cs.onSurface),
               _ColorSwatch('Error', cs.error, cs.onError),
-              _ColorSwatch(
-                'Accent (pack)',
-                cs.secondary,
-                cs.onSecondary,
-              ),
+              _ColorSwatch('Accent (pack)', cs.secondary, cs.onSecondary),
             ],
           ),
         ),
@@ -45,7 +41,10 @@ class DesignFoundationsSection extends StatelessWidget {
             children: [
               const CorpusSectionTitle('Section Title'),
               const SizedBox(height: 12),
-              CorpusHeroTitle(prefix: 'Bienvenido, ', highlight: 'jugador'),
+              const CorpusHeroTitle(
+                prefix: 'Bienvenido, ',
+                highlight: 'jugador',
+              ),
               const SizedBox(height: 16),
               Text('Body large', style: textTheme.bodyLarge),
               Text('Body medium', style: textTheme.bodyMedium),

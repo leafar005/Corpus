@@ -82,9 +82,12 @@ class _GenreRadarSectionState extends State<GenreRadarSection> {
         child: Center(
           child: Column(
             children: [
-              Text(_error!,
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              Text(
+                _error!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: _fetch,
@@ -144,13 +147,15 @@ class _GenreRadarSectionState extends State<GenreRadarSection> {
                 maxCrossAxisExtent: 120,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
-                childAspectRatio: 0.75, // Proporción típica de portadas de juegos
+                childAspectRatio:
+                    0.75, // Proporción típica de portadas de juegos
               ),
               itemCount: stat.games.length,
               itemBuilder: (context, index) {
                 final game = stat.games[index];
-                
-                final tileContent = (game.coverUrl != null && game.coverUrl!.isNotEmpty)
+
+                final tileContent =
+                    (game.coverUrl != null && game.coverUrl!.isNotEmpty)
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: CorpusNetworkImage(
@@ -189,7 +194,8 @@ class _GenreRadarSectionState extends State<GenreRadarSection> {
                           gameData: {
                             'igdb_id': game.gameId,
                             'title': game.gameTitle,
-                            if (game.coverUrl != null) 'cover_url': game.coverUrl,
+                            if (game.coverUrl != null)
+                              'cover_url': game.coverUrl,
                           },
                         ),
                       ),

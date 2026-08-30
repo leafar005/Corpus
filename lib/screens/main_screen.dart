@@ -90,8 +90,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _subscribeActivityFeed();
   }
 
-
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -169,7 +167,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     // --- FIX TEMPORAL PARA FECHAS EN EL FUTURO ---
     // (sin cambios: se mantiene tal cual estaba; ver sección 7 de este spec)
     try {
-      final futureDate = DateTime.now().add(const Duration(minutes: 1)).toUtc().toIso8601String();
+      final futureDate = DateTime.now()
+          .add(const Duration(minutes: 1))
+          .toUtc()
+          .toIso8601String();
       final nowStr = DateTime.now().toUtc().toIso8601String();
 
       final afRes = await Supabase.instance.client
@@ -238,7 +239,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           }
           if (status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.timedOut) {
-            debugPrint('[MainScreen] Canal de actividad con problemas: $status / $error');
+            debugPrint(
+              '[MainScreen] Canal de actividad con problemas: $status / $error',
+            );
           }
         });
   }
@@ -254,8 +257,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         .eq('addressee_id', myId)
         .eq('status', 'pending')
         .then((rows) {
-      if (mounted) unreadFriendRequestsCount.value = rows.length;
-    });
+          if (mounted) unreadFriendRequestsCount.value = rows.length;
+        });
 
     // Suscribirse a nuevas solicitudes en tiempo real
     _friendshipsChannel = Supabase.instance.client
@@ -616,7 +619,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     return SafeArea(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final barWidth = constraints.maxWidth - 40; // 20px padding a cada lado
+          final barWidth =
+              constraints.maxWidth - 40; // 20px padding a cada lado
           const barHeight = 64.0;
           const bottomMargin = 12.0;
           const totalHeight = barHeight + bottomMargin;
@@ -645,13 +649,22 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     ),
                     items: const [
                       LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
-                      LiquidGlassTabBarItem(icon: Icons.search, label: 'Buscar'),
-                      LiquidGlassTabBarItem(icon: Icons.group, label: 'Actividad'),
+                      LiquidGlassTabBarItem(
+                        icon: Icons.search,
+                        label: 'Buscar',
+                      ),
+                      LiquidGlassTabBarItem(
+                        icon: Icons.group,
+                        label: 'Actividad',
+                      ),
                       LiquidGlassTabBarItem(
                         icon: Icons.local_offer,
                         label: 'Bundles',
                       ),
-                      LiquidGlassTabBarItem(icon: Icons.person, label: 'Perfil'),
+                      LiquidGlassTabBarItem(
+                        icon: Icons.person,
+                        label: 'Perfil',
+                      ),
                     ],
                     selectedIndex: _currentIndex,
                     onChanged: (index) => _onTabTapped(index),
@@ -820,7 +833,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
       items: [
         const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-        const BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.search),
+          label: 'Buscar',
+        ),
         BottomNavigationBarItem(
           icon: _withNavBadge(2, const Icon(Icons.group)),
           label: 'Actividad',
@@ -859,14 +875,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final isSelected = _currentIndex == index;
     return IconButton(
       onPressed: () => _onTabTapped(index),
-      icon: _withNavBadge(index,
-          Icon(icon,
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-            size: isSelected ? 28 : 24,
-          ),
+      icon: _withNavBadge(
+        index,
+        Icon(
+          icon,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          size: isSelected ? 28 : 24,
         ),
+      ),
     );
   }
 
@@ -896,11 +914,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             clipBehavior: Clip.none,
             children: [
               child,
-              Positioned(
-                right: -6,
-                top: -4,
-                child: _buildBadgeDot(count),
-              ),
+              Positioned(right: -6, top: -4, child: _buildBadgeDot(count)),
             ],
           );
         },
@@ -915,11 +929,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             clipBehavior: Clip.none,
             children: [
               child,
-              Positioned(
-                right: -6,
-                top: -4,
-                child: _buildBadgeDot(count),
-              ),
+              Positioned(right: -6, top: -4, child: _buildBadgeDot(count)),
             ],
           );
         },

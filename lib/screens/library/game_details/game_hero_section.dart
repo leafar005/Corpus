@@ -175,11 +175,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       Navigator.of(context, rootNavigator: true).pop();
 
       if (data.review != null) {
-        context.pushReviewDetails(
-          widget.gameData,
-          user,
-          data.review!,
-        );
+        context.pushReviewDetails(widget.gameData, user, data.review!);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -528,9 +524,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 fontSize: 16,
                 color: Colors.white.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w500,
-                shadows: const [
-                  Shadow(color: Colors.black54, blurRadius: 4),
-                ],
+                shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -540,7 +534,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       ),
     );
 
-    final publisherWidget = (publisher != null && publisher.toString().isNotEmpty)
+    final publisherWidget =
+        (publisher != null && publisher.toString().isNotEmpty)
         ? InkWell(
             borderRadius: BorderRadius.circular(4),
             onTap: publisherId != null
@@ -625,7 +620,9 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                         widget.onNavigateToGame!(widget.originalGame!);
                       }
                     },
-                    backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.8),
+                    backgroundColor: theme.colorScheme.surface.withValues(
+                      alpha: 0.8,
+                    ),
                     labelStyle: TextStyle(
                       color: theme.colorScheme.onSurface,
                       fontSize: 12,
@@ -932,30 +929,25 @@ class _GameDetailsHeaderDelegate extends SliverPersistentHeaderDelegate {
             height: 56.0,
             child: Container(
               color: backgroundColor.withValues(alpha: titleOpacity * 0.9),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: Opacity(
-                    opacity: titleOpacity,
-                    child: Center(
-                      child: CorpusPackAwareTitle(
-                        title,
-                        abbreviateIfLong: true,
-                        baseFontSize: 20,
-                        color: Colors.white,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: titleOpacity,
+                      child: Center(
+                        child: CorpusPackAwareTitle(
+                          title,
+                          abbreviateIfLong: true,
+                          baseFontSize: 20,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Row(
-                  children: [
-                    leading,
-                    const Spacer(),
-                  ],
-                ),
-              ],
-            ),
+                  Row(children: [leading, const Spacer()]),
+                ],
+              ),
             ),
           ),
         ],

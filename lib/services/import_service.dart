@@ -413,7 +413,6 @@ class ImportService {
                       .toUtc()
                       .toIso8601String());
 
-
         gamesPayload.add({
           'igdb_id': igdbId,
           'title': gameData['name'] ?? gameData['title'] ?? row.title,
@@ -487,7 +486,11 @@ class ImportService {
           // actualizamos solo ese campo con el valor que acabamos de obtener de IGDB.
           // Así no sobreescribimos datos buenos, pero sí rellenamos huecos.
           final coversToFix = gamesPayload
-              .where((g) => g['cover_url'] != null && (g['cover_url'] as String).isNotEmpty)
+              .where(
+                (g) =>
+                    g['cover_url'] != null &&
+                    (g['cover_url'] as String).isNotEmpty,
+              )
               .toList();
           for (final game in coversToFix) {
             await supabase

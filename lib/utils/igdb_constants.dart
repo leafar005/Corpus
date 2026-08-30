@@ -127,14 +127,15 @@ class IgdbConstants {
       return 9;
     }
     if (_expandedKeywords.any((k) => lowerTitle.contains(k))) return 10;
-    if (hasParentGame || _dlcKeywords.any((k) => lowerTitle.contains(k))) return 1;
+    if (hasParentGame || _dlcKeywords.any((k) => lowerTitle.contains(k))) {
+      return 1;
+    }
 
     // Si IGDB lo catalogó mal pero el título o resumen menciona que es un mod como palabra suelta
     if (RegExp(r'\bmod\b').hasMatch(lowerTitle) ||
         RegExp(r'\bmod\b').hasMatch(lowerSummary)) {
       return 5;
     }
-
 
     // Es un juego base normal → devolver null (no mostrar badge).
     return null;
@@ -431,7 +432,9 @@ class IgdbConstants {
         'textColor': Colors.white,
       };
     }
-    if (lower.contains('vr') || lower.contains('oculus') || lower.contains('cardboard')) {
+    if (lower.contains('vr') ||
+        lower.contains('oculus') ||
+        lower.contains('cardboard')) {
       return {
         'color': Colors.grey.shade300,
         'icon': 'assets/images/vr.png',

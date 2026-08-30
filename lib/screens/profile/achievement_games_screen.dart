@@ -597,7 +597,7 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
                     padding: const EdgeInsets.all(16),
                     sliver: SliverGrid(
                       gridDelegate:
-                          SliverGridDelegateWithMaxCrossAxisExtent(
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
                             maxCrossAxisExtent: 180,
                             mainAxisSpacing: 16,
                             crossAxisSpacing: 16,

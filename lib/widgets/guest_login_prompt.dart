@@ -59,9 +59,10 @@ class GuestLoginPrompt extends StatelessWidget {
 /// Abre la pantalla de login por encima de todo (rootNavigator), para que
 /// funcione igual sin importar desde qué pestaña/tab-navigator se llame.
 void openLoginScreen(BuildContext context) {
-  Navigator.of(context, rootNavigator: true).push(
-    CorpusRouter.route(const RouteSettings(name: AppRoutes.login)),
-  );
+  Navigator.of(
+    context,
+    rootNavigator: true,
+  ).push(CorpusRouter.route(const RouteSettings(name: AppRoutes.login)));
 }
 
 /// Botón compacto en línea (para sustituir "Añadir a biblioteca" en la

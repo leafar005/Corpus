@@ -1184,8 +1184,8 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                     ),
                                   )
                                   .then((_) {
-                                _fetchAchievementsData();
-                              });
+                                    _fetchAchievementsData();
+                                  });
                             }
                           },
                           child: Padding(

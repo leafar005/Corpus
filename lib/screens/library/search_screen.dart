@@ -38,7 +38,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   bool _hasMorePopularGamesCache = true;
   int _popularOffset = 0;
 
-  GameFilters _filters = GameFilters();
+  GameFilters _filters = const GameFilters();
 
   // Caché de los juegos del usuario (game_id -> nota)
   Map<int, double> _userGamesCache = {};
@@ -416,7 +416,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
             bottom: getBottomSpacer(context),
           ),
           sliver: SliverGrid.builder(
-            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 150,
               childAspectRatio: IgdbConstants.coverAspectRatio,
               crossAxisSpacing: 8,

@@ -14,18 +14,14 @@ void main() {
       expect(
         CorpusVisuallyBalancedTitle.computeOffset(
           hasLeading: true,
-          trailingBalanceWidth:
-              CorpusVisuallyBalancedTitle.defaultLeadingWidth,
+          trailingBalanceWidth: CorpusVisuallyBalancedTitle.defaultLeadingWidth,
         ),
         0,
       );
     });
 
     test('no offset without leading', () {
-      expect(
-        CorpusVisuallyBalancedTitle.computeOffset(hasLeading: false),
-        0,
-      );
+      expect(CorpusVisuallyBalancedTitle.computeOffset(hasLeading: false), 0);
     });
   });
 }

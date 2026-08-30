@@ -63,16 +63,18 @@ class DeepLinkService {
     final state = navigatorKey.currentState;
     if (state == null) return;
 
-    state.push(MaterialPageRoute(
-      builder: (_) => ReviewDetailsScreen(
-        gameData: Map<String, dynamic>.from(res['games']),
-        userData: res['users'] != null
-            ? Map<String, dynamic>.from(res['users'])
-            : null,
-        reviewData: res,
-        focusComment: focusComment,
+    state.push(
+      MaterialPageRoute(
+        builder: (_) => ReviewDetailsScreen(
+          gameData: Map<String, dynamic>.from(res['games']),
+          userData: res['users'] != null
+              ? Map<String, dynamic>.from(res['users'])
+              : null,
+          reviewData: res,
+          focusComment: focusComment,
+        ),
       ),
-    ));
+    );
   }
 
   static Future<void> _openReviewByUserAndGame(
@@ -98,9 +100,9 @@ class DeepLinkService {
 
     final state = navigatorKey.currentState;
     if (state == null) return;
-    state.push(MaterialPageRoute(
-      builder: (_) => GameDetailsScreen(gameData: game),
-    ));
+    state.push(
+      MaterialPageRoute(builder: (_) => GameDetailsScreen(gameData: game)),
+    );
   }
 
   static void _openBundles(String? bundleTitle) {

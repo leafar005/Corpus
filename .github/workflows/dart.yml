@@ -21,14 +21,6 @@ jobs:
       - name: Instalar dependencias
         run: flutter pub get
 
-      - name: Crear env.dart de prueba
-        run: |
-          echo "class Env {" > lib/env.dart
-          echo "  static const String supabaseUrl = 'dummy';" >> lib/env.dart
-          echo "  static const String supabaseAnonKey = 'dummy';" >> lib/env.dart
-          echo "  static const String igdbClientId = 'dummy';" >> lib/env.dart
-          echo "  static const String igdbClientSecret = 'dummy';" >> lib/env.dart
-          echo "}" >> lib/env.dart
 
       - name: Analizar código
         run: flutter analyze

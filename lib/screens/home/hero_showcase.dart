@@ -200,10 +200,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
     if (isDesktop) {
-      context.pushGameDetails(
-        cleanData,
-        autoOpenReview: autoOpenReview,
-      );
+      context.pushGameDetails(cleanData, autoOpenReview: autoOpenReview);
     } else {
       showModalBottomSheet(
         context: context,
@@ -238,18 +235,18 @@ class _HeroShowcaseState extends State<HeroShowcase>
         fit: StackFit.expand,
         children: [
           if (screenshotUrl != null)
-          _buildPanningImageLayer(
-            NetworkImage(screenshotUrl),
-            panValue,
-            MediaQuery.sizeOf(context).width,
-          )
-        else
-          Container(color: Colors.black),
-        Container(color: Colors.black.withValues(alpha: 0.7)),
-      ],
-    ),
-  );
-}
+            _buildPanningImageLayer(
+              NetworkImage(screenshotUrl),
+              panValue,
+              MediaQuery.sizeOf(context).width,
+            )
+          else
+            Container(color: Colors.black),
+          Container(color: Colors.black.withValues(alpha: 0.7)),
+        ],
+      ),
+    );
+  }
 
   Widget _buildProgressBars() {
     final count = widget.playingGames.length;
@@ -395,89 +392,91 @@ class _HeroShowcaseState extends State<HeroShowcase>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                          CorpusHeroTitle(
-                            prefix: 'Bienvenido,',
-                            highlight: widget.userName,
-                            animated: true,
-                            instant: _titleTyped,
-                            onAnimationComplete: () {
-                              if (!_titleTyped && mounted) {
-                                setState(() => _titleTyped = true);
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            height: isPortrait ? 56 : null,
-                            child: Align(
-                              alignment: Alignment.topLeft,
-                              child: MouseRegion(
-                                cursor: SystemMouseCursors.click,
-                                child: GestureDetector(
-                                  onTap: () => _navigateToGameDetails(
-                                    gameData,
-                                    coverUrl,
-                                    false,
-                                  ),
-                                  child: TypewriterText(
-                                    baseCharDuration: const Duration(
-                                      milliseconds: 15,
+                            CorpusHeroTitle(
+                              prefix: 'Bienvenido,',
+                              highlight: widget.userName,
+                              animated: true,
+                              instant: _titleTyped,
+                              onAnimationComplete: () {
+                                if (!_titleTyped && mounted) {
+                                  setState(() => _titleTyped = true);
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              height: isPortrait ? 56 : null,
+                              child: Align(
+                                alignment: Alignment.topLeft,
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: GestureDetector(
+                                    onTap: () => _navigateToGameDetails(
+                                      gameData,
+                                      coverUrl,
+                                      false,
                                     ),
-                                    instant: false,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: CorpusTypography.fromTheme(
-                                      context,
-                                      fontSize: isPortrait ? 22 : 24,
-                                      fontWeight: FontWeight.w500,
+                                    child: TypewriterText(
+                                      baseCharDuration: const Duration(
+                                        milliseconds: 15,
+                                      ),
+                                      instant: false,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: CorpusTypography.fromTheme(
+                                        context,
+                                        fontSize: isPortrait ? 22 : 24,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      spans: [
+                                        TextSpan(
+                                          text: _randomPrefix,
+                                          style: CorpusTypography.fromTheme(
+                                            context,
+                                            fontSize: isPortrait ? 22 : 24,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: title,
+                                          style: CorpusTypography.fromTheme(
+                                            context,
+                                            fontSize: isPortrait ? 22 : 24,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(
+                                              context,
+                                            ).primaryColor,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: '?',
+                                          style: CorpusTypography.fromTheme(
+                                            context,
+                                            fontSize: isPortrait ? 22 : 24,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    spans: [
-                                      TextSpan(
-                                        text: _randomPrefix,
-                                        style: CorpusTypography.fromTheme(
-                                          context,
-                                          fontSize: isPortrait ? 22 : 24,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text: title,
-                                        style: CorpusTypography.fromTheme(
-                                          context,
-                                          fontSize: isPortrait ? 22 : 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(context).primaryColor,
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text: '?',
-                                        style: CorpusTypography.fromTheme(
-                                          context,
-                                          fontSize: isPortrait ? 22 : 24,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 24),
-                          CorpusPrimaryButton(
-                            onPressed: () => _navigateToGameDetails(
-                              gameData,
-                              coverUrl,
-                              true,
+                            const SizedBox(height: 24),
+                            CorpusPrimaryButton(
+                              onPressed: () => _navigateToGameDetails(
+                                gameData,
+                                coverUrl,
+                                true,
+                              ),
+                              icon: Icons.edit,
+                              label: 'Editar reseña',
                             ),
-                            icon: Icons.edit,
-                            label: 'Editar reseña',
-                          ),
-                        ],
-                      ),
-                    );
+                          ],
+                        ),
+                      );
 
                       final coverSection = AnimatedSwitcher(
                         duration: const Duration(milliseconds: 600),
@@ -777,67 +776,72 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                      TypewriterText(
-                        style: CorpusTypography.display(
-                          context,
-                          Theme.of(context).extension<CorpusThemeExtension>()!,
-                          fontSize: isPortrait ? 42 : 48,
-                          fontWeight: FontWeight.w500,
-                          height: 1.2,
-                          color: Colors.white,
+                        TypewriterText(
+                          style: CorpusTypography.display(
+                            context,
+                            Theme.of(
+                              context,
+                            ).extension<CorpusThemeExtension>()!,
+                            fontSize: isPortrait ? 42 : 48,
+                            fontWeight: FontWeight.w500,
+                            height: 1.2,
+                            color: Colors.white,
+                          ),
+                          spans: [
+                            TextSpan(
+                              text: 'Comienza a registrar\ntus juegos ',
+                              style: CorpusTypography.display(
+                                context,
+                                Theme.of(
+                                  context,
+                                ).extension<CorpusThemeExtension>()!,
+                                fontSize: isPortrait ? 42 : 48,
+                                fontWeight: FontWeight.w500,
+                                height: 1.2,
+                                color: Colors.white,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'ahora',
+                              style: CorpusTypography.display(
+                                context,
+                                Theme.of(
+                                  context,
+                                ).extension<CorpusThemeExtension>()!,
+                                fontSize: isPortrait ? 42 : 48,
+                                fontWeight: FontWeight.w600,
+                                height: 1.2,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            TextSpan(
+                              text: '.',
+                              style: CorpusTypography.display(
+                                context,
+                                Theme.of(
+                                  context,
+                                ).extension<CorpusThemeExtension>()!,
+                                fontSize: isPortrait ? 42 : 48,
+                                fontWeight: FontWeight.w500,
+                                height: 1.2,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
-                        spans: [
-                          TextSpan(
-                            text: 'Comienza a registrar\ntus juegos ',
-                            style: CorpusTypography.display(
-                              context,
-                              Theme.of(context)
-                                  .extension<CorpusThemeExtension>()!,
-                              fontSize: isPortrait ? 42 : 48,
-                              fontWeight: FontWeight.w500,
-                              height: 1.2,
-                              color: Colors.white,
-                            ),
+                        const SizedBox(height: 24),
+                        CorpusPrimaryButton(
+                          onPressed: () => openLoginScreen(context),
+                          icon: Icons.login,
+                          label: 'Iniciar sesión',
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
                           ),
-                          TextSpan(
-                            text: 'ahora',
-                            style: CorpusTypography.display(
-                              context,
-                              Theme.of(context)
-                                  .extension<CorpusThemeExtension>()!,
-                              fontSize: isPortrait ? 42 : 48,
-                              fontWeight: FontWeight.w600,
-                              height: 1.2,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                          ),
-                          TextSpan(
-                            text: '.',
-                            style: CorpusTypography.display(
-                              context,
-                              Theme.of(context)
-                                  .extension<CorpusThemeExtension>()!,
-                              fontSize: isPortrait ? 42 : 48,
-                              fontWeight: FontWeight.w500,
-                              height: 1.2,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      CorpusPrimaryButton(
-                        onPressed: () => openLoginScreen(context),
-                        icon: Icons.login,
-                        label: 'Iniciar sesión',
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
                         ),
-                      ),
-                    ],
-                  ),
-                );
+                      ],
+                    ),
+                  );
 
                   if (isPortrait) {
                     return Stack(
@@ -1092,30 +1096,30 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                  CorpusHeroTitle(
-                    prefix: 'Bienvenido,',
-                    highlight: widget.userName,
-                  ),
-                  const SizedBox(height: 16),
-                  TypewriterText(
-                    baseCharDuration: const Duration(milliseconds: 15),
-                    style: CorpusTypography.fromTheme(
-                      context,
-                      fontSize: isPortrait ? 20 : 22,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white70,
+                    CorpusHeroTitle(
+                      prefix: 'Bienvenido,',
+                      highlight: widget.userName,
                     ),
-                    spans: const [TextSpan(text: '¿Qué vas a jugar hoy?')],
-                  ),
-                  const SizedBox(height: 24),
-                  CorpusPrimaryButton(
-                    onPressed: widget.onSearchPressed,
-                    icon: Icons.search,
-                    label: 'Buscar un juego',
-                  ),
-                ],
-              ),
-            );
+                    const SizedBox(height: 16),
+                    TypewriterText(
+                      baseCharDuration: const Duration(milliseconds: 15),
+                      style: CorpusTypography.fromTheme(
+                        context,
+                        fontSize: isPortrait ? 20 : 22,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white70,
+                      ),
+                      spans: const [TextSpan(text: '¿Qué vas a jugar hoy?')],
+                    ),
+                    const SizedBox(height: 24),
+                    CorpusPrimaryButton(
+                      onPressed: widget.onSearchPressed,
+                      icon: Icons.search,
+                      label: 'Buscar un juego',
+                    ),
+                  ],
+                ),
+              );
 
               if (isPortrait) {
                 return Stack(

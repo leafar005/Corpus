@@ -100,7 +100,10 @@ class _DesignSelectionSectionState extends State<DesignSelectionSection> {
                 child: CorpusDropdown<String>(
                   value: 'rating',
                   items: const [
-                    CorpusDropdownItem(value: 'rating', label: 'Por valoración'),
+                    CorpusDropdownItem(
+                      value: 'rating',
+                      label: 'Por valoración',
+                    ),
                     CorpusDropdownItem(value: 'date', label: 'Por fecha'),
                     CorpusDropdownItem(value: 'title', label: 'Por título'),
                   ],

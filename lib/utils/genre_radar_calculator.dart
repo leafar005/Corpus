@@ -40,15 +40,18 @@ class GenreRadarCalculator {
       }
     }
 
-    final stats = gamesByGenre.entries
-        .map((e) => GenreTimeStat(
-              genre: e.key,
-              totalHours: 0.0,
-              gameCount: e.value.length,
-              games: e.value,
-            ))
-        .toList()
-      ..sort((a, b) => b.gameCount.compareTo(a.gameCount));
+    final stats =
+        gamesByGenre.entries
+            .map(
+              (e) => GenreTimeStat(
+                genre: e.key,
+                totalHours: 0.0,
+                gameCount: e.value.length,
+                games: e.value,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.gameCount.compareTo(a.gameCount));
 
     return stats.take(topN).toList();
   }

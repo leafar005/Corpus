@@ -99,7 +99,9 @@ class ProfileController extends ChangeNotifier {
       hasError = false;
       errorMessage = null;
     } catch (e, st) {
-      debugPrint('[ProfileController] Error cargando perfil EXACTO: ${e.runtimeType} - $e\n$st');
+      debugPrint(
+        '[ProfileController] Error cargando perfil EXACTO: ${e.runtimeType} - $e\n$st',
+      );
       hasError = true;
       errorMessage = e.toString();
     } finally {

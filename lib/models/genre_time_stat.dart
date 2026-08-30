@@ -17,5 +17,5 @@ class GenreTimeStat {
   final String genre; // nombre IGDB en inglés, p. ej. "Adventure"
   final double totalHours;
   final int gameCount; // nº de juegos distintos que aportan a este género
-  final List<GenreRadarEntry> games; 
+  final List<GenreRadarEntry> games;
 }

@@ -44,7 +44,9 @@ class _FriendshipButtonState extends State<FriendshipButton> {
       final res = await _supabase
           .from('friendships')
           .select('requester_id, addressee_id, status')
-          .or('and(requester_id.eq.$_myId,addressee_id.eq.${widget.targetUserId}),and(requester_id.eq.${widget.targetUserId},addressee_id.eq.$_myId)')
+          .or(
+            'and(requester_id.eq.$_myId,addressee_id.eq.${widget.targetUserId}),and(requester_id.eq.${widget.targetUserId},addressee_id.eq.$_myId)',
+          )
           .maybeSingle();
 
       if (!mounted) return;
@@ -110,8 +112,12 @@ class _FriendshipButtonState extends State<FriendshipButton> {
   Future<void> _removeFriend() async {
     setState(() => _isProcessing = true);
     try {
-      await _supabase.from('friendships').delete().or(
-          'and(requester_id.eq.$_myId,addressee_id.eq.${widget.targetUserId}),and(requester_id.eq.${widget.targetUserId},addressee_id.eq.$_myId)');
+      await _supabase
+          .from('friendships')
+          .delete()
+          .or(
+            'and(requester_id.eq.$_myId,addressee_id.eq.${widget.targetUserId}),and(requester_id.eq.${widget.targetUserId},addressee_id.eq.$_myId)',
+          );
       if (mounted) setState(() => _status = FriendshipStatus.none);
     } catch (_) {}
     if (mounted) setState(() => _isProcessing = false);
@@ -119,12 +125,18 @@ class _FriendshipButtonState extends State<FriendshipButton> {
 
   @override
   Widget build(BuildContext context) {
-    if (_status == FriendshipStatus.loading || _myId.isEmpty || _status == FriendshipStatus.me) {
+    if (_status == FriendshipStatus.loading ||
+        _myId.isEmpty ||
+        _status == FriendshipStatus.me) {
       return const SizedBox.shrink();
     }
 
     if (_isProcessing) {
-      return const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2));
+      return const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
     }
 
     switch (_status) {
@@ -145,7 +157,10 @@ class _FriendshipButtonState extends State<FriendshipButton> {
       case FriendshipStatus.sent:
         if (widget.isIconOnly) {
           return IconButton(
-            icon: Icon(Icons.cancel_schedule_send_rounded, color: Theme.of(context).colorScheme.error),
+            icon: Icon(
+              Icons.cancel_schedule_send_rounded,
+              color: Theme.of(context).colorScheme.error,
+            ),
             onPressed: _cancelRequest,
             tooltip: 'Cancelar solicitud',
           );

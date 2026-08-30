@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -22,7 +21,10 @@ class CorpusTypography {
   }
 
   static TextTheme _applyFeatures(TextTheme theme) {
-    const features = [FontFeature.liningFigures(), FontFeature.tabularFigures()];
+    const features = [
+      FontFeature.liningFigures(),
+      FontFeature.tabularFigures(),
+    ];
     return theme.copyWith(
       displayLarge: theme.displayLarge?.copyWith(fontFeatures: features),
       displayMedium: theme.displayMedium?.copyWith(fontFeatures: features),
@@ -93,7 +95,8 @@ class CorpusTypography {
     final family =
         theme.textTheme.bodyMedium?.fontFamily ??
         theme.textTheme.labelLarge?.fontFamily;
-    final resolvedBase = base ?? theme.textTheme.bodyMedium ?? const TextStyle();
+    final resolvedBase =
+        base ?? theme.textTheme.bodyMedium ?? const TextStyle();
 
     return style(
       fontFamily: family,
@@ -144,9 +147,7 @@ class CorpusTypography {
         case 'Syne':
           pending.add(GoogleFonts.pendingFonts([GoogleFonts.syne()]));
         case 'Archivo Black':
-          pending.add(
-            GoogleFonts.pendingFonts([GoogleFonts.archivoBlack()]),
-          );
+          pending.add(GoogleFonts.pendingFonts([GoogleFonts.archivoBlack()]));
         default:
           break;
       }

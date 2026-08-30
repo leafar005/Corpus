@@ -112,7 +112,10 @@ class _ActivityScreenState extends State<ActivityScreen>
           .toList();
 
       final viewed = allActivityIds.isNotEmpty
-          ? await _repo.fetchViewedStoryIds(userId: myId, activityIds: allActivityIds)
+          ? await _repo.fetchViewedStoryIds(
+              userId: myId,
+              activityIds: allActivityIds,
+            )
           : <String>{};
 
       if (mounted) {
@@ -122,14 +125,20 @@ class _ActivityScreenState extends State<ActivityScreen>
           _pendingRequestsCount = result.pendingCount;
           _isLoadingFriendsStrip = false;
         });
-        viewedStoryIdsNotifier.value = {...viewedStoryIdsNotifier.value, ...viewed};
+        viewedStoryIdsNotifier.value = {
+          ...viewedStoryIdsNotifier.value,
+          ...viewed,
+        };
       }
     } catch (e) {
       if (mounted) setState(() => _isLoadingFriendsStrip = false);
     }
   }
 
-  void _openUserStory(List<Map<String, dynamic>> orderedFriends, int tappedIndex) {
+  void _openUserStory(
+    List<Map<String, dynamic>> orderedFriends,
+    int tappedIndex,
+  ) {
     final storyFriends = orderedFriends.where((f) {
       final id = f['id'] as String?;
       return id != null && (_userStories[id]?.isNotEmpty ?? false);
@@ -140,7 +149,9 @@ class _ActivityScreenState extends State<ActivityScreen>
 
     final groupIndex = storyFriends.indexWhere((f) => f['id'] == tappedId);
     if (groupIndex == -1) {
-      context.pushProfile(userId: tappedId); // amigo sin historias → perfil normal
+      context.pushProfile(
+        userId: tappedId,
+      ); // amigo sin historias → perfil normal
       return;
     }
 
@@ -158,12 +169,12 @@ class _ActivityScreenState extends State<ActivityScreen>
       context,
       PageRouteBuilder(
         opaque: false,
-        pageBuilder: (_, __, ___) => ActivityStoryViewer(
+        pageBuilder: (_, _, _) => ActivityStoryViewer(
           groups: groups,
           initialGroupIndex: groupIndex,
           initialActivityIndex: initialActivityIndex,
         ),
-        transitionsBuilder: (_, animation, __, child) =>
+        transitionsBuilder: (_, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
       ),
     );
@@ -324,12 +335,15 @@ class _ActivityScreenState extends State<ActivityScreen>
 
   IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
 
-  String _getActionText(String actionType, String? status, bool isOwnActivity) =>
-      ActivityFormatters.actionText(
-        actionType,
-        status,
-        isOwnActivity: isOwnActivity,
-      );
+  String _getActionText(
+    String actionType,
+    String? status,
+    bool isOwnActivity,
+  ) => ActivityFormatters.actionText(
+    actionType,
+    status,
+    isOwnActivity: isOwnActivity,
+  );
 
   IconData _getActionIcon(String actionType, String? status) =>
       ActivityFormatters.actionIcon(actionType, status);
@@ -371,7 +385,11 @@ class _ActivityScreenState extends State<ActivityScreen>
     final activityUserId = userData['id'] as String?;
     final isOwnActivity = myId == activityUserId;
 
-    final actionText = _getActionText(actionType, effectiveStatus, isOwnActivity);
+    final actionText = _getActionText(
+      actionType,
+      effectiveStatus,
+      isOwnActivity,
+    );
     final actionIcon = _getActionIcon(actionType, effectiveStatus);
     final actionColor = _getActionColor(actionType, effectiveStatus, context);
 
@@ -400,21 +418,14 @@ class _ActivityScreenState extends State<ActivityScreen>
     void openReviewComments() {
       if (review == null) return;
       context
-          .pushReviewDetails(
-            gameData,
-            userData,
-            review,
-            focusComment: true,
-          )
+          .pushReviewDetails(gameData, userData, review, focusComment: true)
           .then((_) => _refreshInPlace());
     }
 
     void openGameDetails() {
       final isDesktop = MediaQuery.of(context).size.width > 800;
       if (isDesktop) {
-        context
-            .pushGameDetails(gameData)
-            .then((_) => _refreshInPlace());
+        context.pushGameDetails(gameData).then((_) => _refreshInPlace());
       } else {
         showModalBottomSheet(
           context: context,
@@ -441,17 +452,18 @@ class _ActivityScreenState extends State<ActivityScreen>
       final internalGameId = activity['game_id'] as int?;
 
       if (uId != null && internalGameId != null) {
-        final review = await _repo.fetchLatestReviewForUserAndGame(uId, internalGameId);
+        final review = await _repo.fetchLatestReviewForUserAndGame(
+          uId,
+          internalGameId,
+        );
         if (review != null && mounted) {
-           context.pushReviewDetails(
-             gameData,
-             userData,
-             review,
-           ).then((_) => _refreshInPlace());
-           return;
+          context
+              .pushReviewDetails(gameData, userData, review)
+              .then((_) => _refreshInPlace());
+          return;
         }
       }
-      
+
       openGameDetails();
     }
 
@@ -585,7 +597,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                       ),
                       const SizedBox(height: 8),
                       // Estado del juego
-                      if (effectiveStatus != null && effectiveStatus != 'achievement')
+                      if (effectiveStatus != null &&
+                          effectiveStatus != 'achievement')
                         Row(
                           children: [
                             Icon(
@@ -891,7 +904,10 @@ class _ActivityScreenState extends State<ActivityScreen>
               ),
             )
           : AnimatedBuilder(
-              animation: Listenable.merge([onlineUsersNotifier, viewedStoryIdsNotifier]),
+              animation: Listenable.merge([
+                onlineUsersNotifier,
+                viewedStoryIdsNotifier,
+              ]),
               builder: (context, child) {
                 final onlineUsers = onlineUsersNotifier.value;
                 final viewedIds = viewedStoryIdsNotifier.value;
@@ -982,8 +998,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                         (_userStories[friendId]?.isNotEmpty ?? false);
 
                     final playingColor = Colors.greenAccent[400]!;
-                    const onlineColor =
-                        Colors.blueAccent;
+                    const onlineColor = Colors.blueAccent;
 
                     return GestureDetector(
                       onTap: () {
@@ -1006,7 +1021,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                                 ActivityStoryRing(
                                   radius: 30,
                                   hasStory: hasStory,
-                                  hasUnseenStory: hasStory &&
+                                  hasUnseenStory:
+                                      hasStory &&
                                       ActivityRepository.groupHasUnseenStory(
                                         _userStories[friendId]!,
                                         viewedIds,
@@ -1049,7 +1065,9 @@ class _ActivityScreenState extends State<ActivityScreen>
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 11,
-                                fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal,
+                                fontWeight: isPlaying
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                                 color: isPlaying ? playingColor : null,
                               ),
                             ),

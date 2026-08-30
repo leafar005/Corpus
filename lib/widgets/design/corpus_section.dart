@@ -38,9 +38,9 @@ class CorpusSection extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle!,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
         ],
         const SizedBox(height: 16),

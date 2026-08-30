@@ -42,7 +42,7 @@ void main() {
       final result = ProfileRepository.enrichList(rows);
 
       expect(result[0]['title'], 'Celeste'); // 2024-03-15
-      expect(result[1]['title'], 'Hades');   // 2024-01-01
+      expect(result[1]['title'], 'Hades'); // 2024-01-01
     });
 
     test('inyecta user_rating y _sort_date en el gameData', () {
@@ -61,7 +61,7 @@ void main() {
         makeRow(
           game: gameA,
           updatedAt: '2024-06-01T00:00:00',
-          lastPlayedAt: '2024-01-01T00:00:00', 
+          lastPlayedAt: '2024-01-01T00:00:00',
         ),
       ];
 
@@ -71,9 +71,7 @@ void main() {
 
     test('no muta el gameData original', () {
       final originalGame = {'id': 1, 'title': 'Hades'};
-      final rows = [
-        makeRow(game: originalGame, rating: 9.0),
-      ];
+      final rows = [makeRow(game: originalGame, rating: 9.0)];
 
       ProfileRepository.enrichList(rows);
 
@@ -93,9 +91,9 @@ void main() {
 
       expect(result.length, 5);
       expect(result[0]?['title'], 'Hades');
-      expect(result[1], isNull); 
+      expect(result[1], isNull);
       expect(result[2]?['title'], 'Celeste');
-      expect(result[3], isNull); 
+      expect(result[3], isNull);
       expect(result[4], isNull);
     });
 
@@ -107,9 +105,9 @@ void main() {
 
     test('ignora filas con pin_order fuera de rango', () {
       final raw = [
-        {'pin_order': 0, 'games': gameA}, 
-        {'pin_order': 6, 'games': gameA}, 
-        {'pin_order': 2, 'games': gameB}, 
+        {'pin_order': 0, 'games': gameA},
+        {'pin_order': 6, 'games': gameA},
+        {'pin_order': 2, 'games': gameB},
       ];
 
       final result = ProfileRepository.parseHallOfFame(raw);

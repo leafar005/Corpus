@@ -35,7 +35,8 @@ class _CorpusIconButtonState extends State<CorpusIconButton> {
     final cs = Theme.of(context).colorScheme;
     final enabled = widget.onPressed != null;
 
-    final bg = widget.backgroundColor ??
+    final bg =
+        widget.backgroundColor ??
         (enabled && _hovered
             ? cs.primary.withValues(alpha: 0.12)
             : Colors.transparent);
@@ -45,10 +46,7 @@ class _CorpusIconButtonState extends State<CorpusIconButton> {
       duration: const Duration(milliseconds: 120),
       width: widget.size,
       height: widget.size,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: ext.radiusMedium,
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: ext.radiusMedium),
       child: Icon(
         widget.icon,
         size: widget.size * 0.5,

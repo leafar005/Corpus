@@ -95,10 +95,9 @@ String? _inferParentId(
     final candidateTime = DateTime.parse(candidate['created_at'] as String);
     if (!candidateTime.isBefore(createdAt)) continue;
 
-    final username =
-        (candidate['users'] as Map<String, dynamic>?)?['username']
-            ?.toString()
-            .toLowerCase();
+    final username = (candidate['users'] as Map<String, dynamic>?)?['username']
+        ?.toString()
+        .toLowerCase();
     if (username != mentionedUsername) continue;
 
     if (bestMatch == null || candidateTime.isAfter(bestMatchTime!)) {
@@ -111,14 +110,11 @@ String? _inferParentId(
     return bestMatch['id'] as String;
   }
 
-  final firstRoot = sortedComments.firstWhere(
-    (candidate) {
-      if (identical(candidate, comment)) return false;
-      final parentId = candidate['parent_comment_id'] as String?;
-      return parentId == null || !byId.containsKey(parentId);
-    },
-    orElse: () => <String, dynamic>{},
-  );
+  final firstRoot = sortedComments.firstWhere((candidate) {
+    if (identical(candidate, comment)) return false;
+    final parentId = candidate['parent_comment_id'] as String?;
+    return parentId == null || !byId.containsKey(parentId);
+  }, orElse: () => <String, dynamic>{});
 
   return firstRoot['id'] as String?;
 }

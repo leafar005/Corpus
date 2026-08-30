@@ -67,7 +67,7 @@ Map<String, dynamic> _comment({
     'id': id,
     'created_at': createdAt,
     'content': content,
-    if (parentCommentId != null) 'parent_comment_id': parentCommentId,
+    'parent_comment_id': ?parentCommentId,
     'users': {'username': username},
   };
 }

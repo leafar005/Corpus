@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-enum ProfileStatIconType {
-  beaten,
-  platinum,
-  playing,
-  wishlist,
-}
+enum ProfileStatIconType { beaten, platinum, playing, wishlist }
 
 class ProfileStatIcon extends StatelessWidget {
   const ProfileStatIcon({
@@ -34,7 +29,8 @@ class ProfileStatIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconColor =
-        color ?? Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
+        color ??
+        Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
 
     return SvgPicture.string(
       '''
