@@ -456,6 +456,31 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     }
   }
 
+  /// Formato corto para la fecha de los comentarios (p. ej. "26 Ago. 2026"),
+  /// pensado para ocupar menos espacio horizontal que _formatDate.
+  String _formatCommentDate(String isoString) {
+    try {
+      final date = DateTime.parse(isoString).toLocal();
+      const months = [
+        'Ene',
+        'Feb',
+        'Mar',
+        'Abr',
+        'May',
+        'Jun',
+        'Jul',
+        'Ago',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dic',
+      ];
+      return '${date.day} ${months[date.month - 1]}. ${date.year}';
+    } catch (e) {
+      return '';
+    }
+  }
+
   String _getMonthAbbr(int month) {
     const months = [
       'ene',
@@ -1247,10 +1272,21 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         comment['user_id'] == currentUserId;
                                     final threadDepth =
                                         comment['_thread_depth'] as int? ?? 0;
+                                    // Solo aplicamos sangría visual para el
+                                    // primer nivel de respuesta. A partir de
+                                    // ahí (respuesta a una respuesta, y así
+                                    // sucesivamente) se mantiene la misma
+                                    // sangría que el primer nivel, en lugar
+                                    // de seguir sumando 40px por nivel, que
+                                    // en hilos largos terminaba empujando el
+                                    // comentario fuera de la pantalla.
+                                    final visualThreadDepth = threadDepth > 1
+                                        ? 1
+                                        : threadDepth;
 
                                     return Padding(
                                       padding: EdgeInsets.only(
-                                        left: threadDepth * 40.0,
+                                        left: visualThreadDepth * 40.0,
                                       ),
                                       child: Row(
                                         crossAxisAlignment:
@@ -1311,7 +1347,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                       ),
                                                       const SizedBox(width: 8),
                                                       Text(
-                                                        _formatDate(
+                                                        _formatCommentDate(
                                                           comment['created_at'],
                                                         ),
                                                         style: TextStyle(
