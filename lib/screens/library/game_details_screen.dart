@@ -17,9 +17,7 @@ import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/deep_route_resolver.dart';
 import 'package:corpus/routes/tab_deep_route.dart';
 import '../library/review_modal.dart';
-
 import '../../widgets/achievement_toast.dart';
-import 'package:corpus/routes/app_navigation_controller.dart';
 import '../../models/models.dart';
 import '../../utils/format_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
