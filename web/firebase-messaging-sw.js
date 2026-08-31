@@ -1,5 +1,5 @@
 // firebase-messaging-sw.js
-// Service Worker para notificaciones push en background (PWA / iOS Safari)
+// Service Worker para notificaciones push en background (PWA / iOS Safari / Firefox).
 // Se ejecuta cuando la app web NO está en primer plano.
 
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
@@ -14,62 +14,54 @@ firebase.initializeApp({
   appId: "1:1081828301308:web:bb9580b5efd664baacba79"
 });
 
-const messaging = firebase.messaging();
+// IMPORTANTE — por qué esto ya NO usa messaging.onBackgroundMessage():
+// ese hook del SDK de Firebase no se dispara de forma fiable en iOS Safari
+// (documentado en https://github.com/firebase/firebase-js-sdk/issues/8444
+// y https://github.com/firebase/firebase-js-sdk/issues/8002). Cuando no se
+// dispara, el push llega al dispositivo pero no genera notificación visible
+// — eso cuenta para Safari como "silent push", y tras varios seguidos
+// revoca el permiso de push del sitio sin avisar
+// (https://github.com/firebase/firebase-js-sdk/issues/8010). Usando el
+// evento nativo 'push' del Service Worker en su lugar, nos saltamos por
+// completo esa capa del SDK y el comportamiento es consistente en Chrome,
+// Firefox y Safari 16.4+.
 
-// Detecta si el Service Worker corre en Safari/WebKit (iOS PWA).
-// En Safari, el SDK compat de Firebase NO auto-muestra notificaciones
-// aunque el payload traiga un objeto 'notification' — a diferencia de
-// Chrome/Firefox donde el SDK sí las gestiona automáticamente.
-// Fuente: https://firebase.google.com/docs/cloud-messaging/js/receive
-function isWebKitSW() {
-  // En PWAs de iOS (añadidas a inicio), el User-Agent NO incluye la palabra "Safari",
-  // pero sí incluye "AppleWebKit".
+self.addEventListener('push', function (event) {
+  let payload = {};
   try {
-    const ua = self.navigator.userAgent;
-    return /AppleWebKit/i.test(ua) && !/Chrome/i.test(ua) && !/Edg/i.test(ua);
-  } catch (_) {
-    return false;
-  }
-}
-
-// Recibe mensajes en background.
-// - Chrome/Firefox: si el payload tiene 'notification', el SDK lo muestra automáticamente.
-//   Si llamamos también a showNotification la notificación aparece duplicada → salimos.
-// - Safari/iOS PWA: el SDK NO auto-muestra nada, así que siempre llamamos showNotification.
-messaging.onBackgroundMessage(function(payload) {
-  console.log('[Corpus SW] Notificación en background:', payload);
-
-  const safariMode = isWebKitSW();
-
-  if (payload.notification && !safariMode) {
-    // Chrome/Firefox: el SDK ya gestiona el notification payload — evitamos duplicado.
-    console.log('[Corpus SW] Payload con notification autogestionado por Firebase SDK (no-Safari). Omitiendo duplicado.');
-    return;
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    console.error('[Corpus SW] Payload de push no es JSON válido:', e);
   }
 
-  // Safari (o payload data-only): mostramos la notificación manualmente.
-  const title = payload.notification?.title ?? payload.data?.title ?? 'Corpus';
+  const notification = payload.notification || {};
+  const data = payload.data || {};
+  
+  const title = notification.title || data.title || 'Corpus';
   const options = {
-    body: payload.notification?.body ?? payload.data?.body ?? '',
-    icon: '/icons/Icon-192.png',
+    body: notification.body || data.body || '',
+    icon: notification.icon || '/icons/Icon-192.png',
     badge: '/icons/Icon-192.png',
-    data: payload.data ?? {},
+    data,
     vibrate: [200, 100, 200],
   };
 
-  return self.registration.showNotification(title, options);
+  // event.waitUntil es imprescindible: si el navegador cierra el Service
+  // Worker antes de que showNotification termine, es exactamente el
+  // escenario de "silent push" que hace que Safari acabe revocando el
+  // permiso. Con waitUntil, el SW se mantiene vivo hasta que la promesa
+  // resuelve.
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Al hacer clic en la notificación, enfocar la ventana de la PWA
-self.addEventListener('notificationclick', function(event) {
+// Al hacer clic en la notificación, enfocar la ventana de la PWA (o abrirla).
+self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-      // Si la PWA ya está abierta, la enfocamos
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
       for (const client of clientList) {
         if ('focus' in client) return client.focus();
       }
-      // Si no está abierta, la abrimos
       if (clients.openWindow) return clients.openWindow('/');
     })
   );
