@@ -585,25 +585,30 @@ class _BundleCardState extends State<_BundleCard> {
               ),
             const Divider(height: 24),
 
-            ...tiers.asMap().entries.map((entry) {
-              final tierMap = entry.value;
-              final tier = tierMap as Map<String, dynamic>;
-              final List validGames = tier['games'] ?? [];
+            Builder(
+              builder: (context) {
+                final isFanatical =
+                    widget.storeName.toLowerCase() == 'fanatical';
+                final isHumbleChoice = title.toLowerCase().contains(
+                  'humble choice',
+                );
+                final flattenTiers = isFanatical || isHumbleChoice;
 
-              if (validGames.isEmpty) {
-                return const SizedBox.shrink();
-              }
+                if (flattenTiers) {
+                  final allGames = <dynamic>[];
+                  for (final tierMap in tiers) {
+                    final gamesList =
+                        (tierMap as Map<String, dynamic>)['games']
+                            as List<dynamic>? ??
+                        [];
+                    allGames.addAll(gamesList);
+                  }
 
-              final displayedGames = validGames;
+                  if (allGames.isEmpty) return const SizedBox.shrink();
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTierHeader(context, tier, title, widget.badgeColor),
-                    const SizedBox(height: 10),
-                    GridView.builder(
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
@@ -613,10 +618,10 @@ class _BundleCardState extends State<_BundleCard> {
                             crossAxisSpacing: 10,
                             mainAxisSpacing: 10,
                           ),
-                      itemCount: displayedGames.length,
+                      itemCount: allGames.length,
                       itemBuilder: (context, gIndex) {
                         final gameData =
-                            displayedGames[gIndex] as Map<String, dynamic>;
+                            allGames[gIndex] as Map<String, dynamic>;
                         return GameCard(
                           key: ValueKey(
                             gameData['steamAppId'] ??
@@ -628,10 +633,65 @@ class _BundleCardState extends State<_BundleCard> {
                         );
                       },
                     ),
-                  ],
-                ),
-              );
-            }),
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: tiers.asMap().entries.map((entry) {
+                    final tierMap = entry.value;
+                    final tier = tierMap as Map<String, dynamic>;
+                    final List validGames = tier['games'] ?? [];
+
+                    if (validGames.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTierHeader(
+                            context,
+                            tier,
+                            title,
+                            widget.badgeColor,
+                          ),
+                          const SizedBox(height: 10),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 140,
+                                  childAspectRatio:
+                                      IgdbConstants.coverAspectRatio,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                ),
+                            itemCount: validGames.length,
+                            itemBuilder: (context, gIndex) {
+                              final gameData =
+                                  validGames[gIndex] as Map<String, dynamic>;
+                              return GameCard(
+                                key: ValueKey(
+                                  gameData['steamAppId'] ??
+                                      gameData['title'] ??
+                                      gIndex,
+                                ),
+                                game: Game.fromMap(gameData),
+                                onReturn: () {},
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
           ],
         ),
       ),

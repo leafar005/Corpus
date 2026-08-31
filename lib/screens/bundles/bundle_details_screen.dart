@@ -129,26 +129,35 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
             const Divider(),
             const SizedBox(height: 24),
 
-            // Iterar sobre los Tiers
-            ...tiers.asMap().entries.map((entry) {
-              final index = entry.key;
-              final tier = entry.value as Map<String, dynamic>;
-              final gamesList = tier['games'] as List<dynamic>? ?? [];
+            // Lógica para decidir si aplanamos los tiers o no
+            Builder(
+              builder: (context) {
+                final isFanatical =
+                    (widget.bundleData['store_name'] as String?)
+                        ?.toLowerCase() ==
+                    'fanatical';
+                final isHumbleChoice = title.toLowerCase().contains(
+                  'humble choice',
+                );
+                final flattenTiers = isFanatical || isHumbleChoice;
 
-              if (gamesList.isEmpty) return const SizedBox.shrink();
+                if (flattenTiers) {
+                  // Aplanar todos los juegos
+                  final allGames = <dynamic>[];
+                  for (final tier in tiers) {
+                    final gamesList =
+                        (tier as Map<String, dynamic>)['games']
+                            as List<dynamic>? ??
+                        [];
+                    allGames.addAll(gamesList);
+                  }
 
-              // Si tiene nombre o precio, se puede poner, si no TIER N
-              final tierName = tier['name'] ?? 'TIER ${index + 1}';
+                  if (allGames.isEmpty) return const SizedBox.shrink();
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CorpusSectionTitle(tierName.toString().toUpperCase()),
-                  const SizedBox(height: 16),
-                  Wrap(
+                  return Wrap(
                     spacing: 16,
                     runSpacing: 16,
-                    children: gamesList.map((gameData) {
+                    children: allGames.map((gameData) {
                       if (gameData is! Map<String, dynamic>) {
                         return const SizedBox.shrink();
                       }
@@ -161,11 +170,51 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
                         ),
                       );
                     }).toList(),
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              );
-            }),
+                  );
+                }
+
+                // Render normal por Tiers
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: tiers.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final tier = entry.value as Map<String, dynamic>;
+                    final gamesList = tier['games'] as List<dynamic>? ?? [];
+
+                    if (gamesList.isEmpty) return const SizedBox.shrink();
+
+                    // Si tiene nombre o precio, se puede poner, si no TIER N
+                    final tierName = tier['name'] ?? 'TIER ${index + 1}';
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CorpusSectionTitle(tierName.toString().toUpperCase()),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 16,
+                          children: gamesList.map((gameData) {
+                            if (gameData is! Map<String, dynamic>) {
+                              return const SizedBox.shrink();
+                            }
+                            return SizedBox(
+                              width: 140,
+                              height: 140 / IgdbConstants.coverAspectRatio,
+                              child: GameCard(
+                                game: Game.fromMap(gameData),
+                                onReturn: () {},
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    );
+                  }).toList(),
+                );
+              },
+            ),
           ],
         ),
       ),
