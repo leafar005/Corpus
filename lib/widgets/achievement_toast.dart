@@ -11,6 +11,7 @@ class AchievementToast {
     int? xpReward,
     IconData icon = Icons.emoji_events,
     Color color = const Color(0xFFFFD700), // Dorado por defecto
+    VoidCallback? onTap,
   }) {
     final overlayState = Overlay.of(context);
     late OverlayEntry overlayEntry;
@@ -22,6 +23,7 @@ class AchievementToast {
         xpReward: xpReward,
         icon: icon,
         color: color,
+        onTap: onTap,
         onDismissed: () {
           overlayEntry.remove();
         },
@@ -38,6 +40,7 @@ class _AnimatedAchievementToast extends StatefulWidget {
   final int? xpReward;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
   final VoidCallback onDismissed;
 
   const _AnimatedAchievementToast({
@@ -46,6 +49,7 @@ class _AnimatedAchievementToast extends StatefulWidget {
     this.xpReward,
     required this.icon,
     required this.color,
+    this.onTap,
     required this.onDismissed,
   });
 
@@ -111,105 +115,123 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
               opacity: _fadeAnimation,
               child: Material(
                 color: Colors.transparent,
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 450),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E24), // Fondo gris oscuro consola
-                    borderRadius: BorderRadius.circular(50),
-                    border: Border.all(
-                      color: widget.color.withValues(alpha: 0.8),
-                      width: 1.5,
+                child: GestureDetector(
+                  onTap: () {
+                    widget.onTap?.call();
+                    if (mounted) {
+                      _timer?.cancel();
+                      _controller.reverse().then((_) {
+                        widget.onDismissed();
+                      });
+                    }
+                  },
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 450),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
-                    boxShadow: [
-                      // Brillo exterior estilo neón/Xbox
-                      BoxShadow(
-                        color: widget.color.withValues(alpha: 0.25),
-                        blurRadius: 16,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 4),
+                    decoration: BoxDecoration(
+                      color: const Color(
+                        0xFF1E1E24,
+                      ), // Fondo gris oscuro consola
+                      borderRadius: BorderRadius.circular(50),
+                      border: Border.all(
+                        color: widget.color.withValues(alpha: 0.8),
+                        width: 1.5,
                       ),
-                      const BoxShadow(
-                        color: Colors.black54,
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Icono con fondo circular iluminado
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: widget.color.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: widget.color.withValues(alpha: 0.5),
+                      boxShadow: [
+                        // Brillo exterior estilo neón/Xbox
+                        BoxShadow(
+                          color: widget.color.withValues(alpha: 0.25),
+                          blurRadius: 16,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 4),
+                        ),
+                        const BoxShadow(
+                          color: Colors.black54,
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Icono con fondo circular iluminado
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: widget.color.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: widget.color.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Icon(
+                            widget.icon,
+                            color: widget.color,
+                            size: 24,
                           ),
                         ),
-                        child: Icon(widget.icon, color: widget.color, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      // Textos del logro
-                      Flexible(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.subtitle.toUpperCase(),
+                        const SizedBox(width: 14),
+                        // Textos del logro
+                        Flexible(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.subtitle.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.2,
+                                  color: widget.color,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                widget.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Etiqueta de XP opcional
+                        if (widget.xpReward != null &&
+                            widget.xpReward! > 0) ...[
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: widget.color.withValues(alpha: 0.2),
+                              borderRadius: Theme.of(
+                                context,
+                              ).extension<CorpusThemeExtension>()!.radiusLarge,
+                            ),
+                            child: Text(
+                              '+${widget.xpReward} XP',
                               style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
                                 color: widget.color,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Etiqueta de XP opcional
-                      if (widget.xpReward != null && widget.xpReward! > 0) ...[
-                        const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
                           ),
-                          decoration: BoxDecoration(
-                            color: widget.color.withValues(alpha: 0.2),
-                            borderRadius: Theme.of(
-                              context,
-                            ).extension<CorpusThemeExtension>()!.radiusLarge,
-                          ),
-                          child: Text(
-                            '+${widget.xpReward} XP',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              color: widget.color,
-                            ),
-                          ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),

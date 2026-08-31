@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/screens/activity/review_details_screen.dart';
 import 'package:corpus/screens/library/game_details_screen.dart';
 import 'package:corpus/screens/profile/achievements_screen.dart';
+import 'package:corpus/screens/profile/achievement_games_screen.dart';
 import 'package:corpus/screens/profile/profile_screen.dart';
 import 'package:corpus/screens/social/friends_screen.dart';
 import 'package:corpus/screens/social/notifications_feed_screen.dart';
@@ -20,6 +21,7 @@ import 'package:corpus/screens/bundles/bundle_details_screen.dart';
 import 'package:corpus/routes/app_routes.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/tab_deep_route.dart';
+import 'package:corpus/utils/achievement_utils.dart';
 
 abstract final class DeepRouteResolver {
   /// Construye la ruta completa (pantalla + `RouteSettings`) correspondiente
@@ -107,6 +109,28 @@ abstract final class DeepRouteResolver {
           ),
           builder: (_) => AchievementsScreen(userId: resolvedId, initialXp: 0),
         );
+
+      case AchievementGamesDeepRoute(:final achievementId):
+        final args = await fetchAchievementGamesArgs(achievementId);
+        if (args == null) return null;
+        return MaterialPageRoute(
+          settings: RouteSettings(
+            name: AppRoutes.achievementGames,
+            arguments: args,
+          ),
+          builder: (_) => AchievementGamesScreen(
+            achievementId: args.achievementId,
+            achievementName: args.achievementName,
+            companyId: args.companyId,
+            collectionId: args.collectionId,
+            franchiseId: args.franchiseId,
+            collectionId2: args.collectionId2,
+            franchiseId2: args.franchiseId2,
+            milestones: args.milestones,
+            achievementIcon: args.achievementIcon,
+            achievementColor: args.achievementColor,
+          ),
+        );
     }
   }
 
@@ -161,6 +185,84 @@ abstract final class DeepRouteResolver {
       );
     } catch (e) {
       debugPrint('[DeepRouteResolver] Error cargando reseña $reviewId: $e');
+      return null;
+    }
+  }
+
+  static Future<AchievementGamesArgs?> fetchAchievementGamesArgs(
+    String achievementId,
+  ) async {
+    try {
+      final groupId = achievementId.split('_').first;
+
+      final res = await Supabase.instance.client
+          .from('achievements')
+          .select()
+          .like('id', '$groupId%')
+          .order('id', ascending: true);
+
+      if (res.isEmpty) return null;
+
+      int? companyId;
+      int? collectionId;
+      int? franchiseId;
+      int? collectionId2;
+      int? franchiseId2;
+
+      for (final entry in AchievementUtils.achievementIgdbIds.entries) {
+        if (groupId.startsWith(entry.key)) {
+          companyId = entry.value['companyId'];
+          collectionId = entry.value['collectionId'];
+          franchiseId = entry.value['franchiseId'];
+          collectionId2 = entry.value['collectionId2'];
+          franchiseId2 = entry.value['franchiseId2'];
+          break;
+        }
+      }
+
+      final firstAchievement = res.first;
+      final titleStr = (firstAchievement['name'] as String?) ?? '';
+      final sagaStr = titleStr.split(' (').first;
+
+      final milestones = res.map((row) {
+        final Map<String, dynamic> m = Map<String, dynamic>.from(row);
+        final aId = m['id'] as String;
+        int target = 1;
+        final matchSuffix = RegExp(r'_(\d+)$').firstMatch(aId);
+        if (matchSuffix != null) {
+          target = int.parse(matchSuffix.group(1)!);
+        } else if (aId.endsWith('_all')) {
+          if (aId.startsWith('fromsoftware') || aId.startsWith('zelda')) {
+            target = 7;
+          } else if (aId.startsWith('mario')) {
+            target = 15;
+          } else if (aId.startsWith('dark_souls')) {
+            target = 3;
+          }
+        }
+        m['target'] = target;
+        m['xp'] = m['xp_reward'] ?? 10;
+        return m;
+      }).toList();
+
+      milestones.sort(
+        (a, b) => (a['target'] as int).compareTo(b['target'] as int),
+      );
+
+      return AchievementGamesArgs(
+        achievementId: groupId,
+        achievementName: sagaStr,
+        companyId: companyId,
+        collectionId: collectionId,
+        franchiseId: franchiseId,
+        collectionId2: collectionId2,
+        franchiseId2: franchiseId2,
+        milestones: milestones,
+      );
+    } catch (e) {
+      debugPrint(
+        '[DeepRouteResolver] Error cargando saga de logro $achievementId: $e',
+      );
       return null;
     }
   }

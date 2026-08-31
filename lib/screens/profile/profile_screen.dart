@@ -1719,9 +1719,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildCarousel(List<Map<String, dynamic>> games) {
     return SizedBox(
-      height: 160,
+      height: 190,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 15.0),
+        clipBehavior: Clip.none,
         scrollDirection: Axis.horizontal,
         itemCount: games.length,
         itemBuilder: (context, index) {

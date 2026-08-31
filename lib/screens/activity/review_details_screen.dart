@@ -4,6 +4,8 @@ import 'package:corpus/utils/comment_thread_utils.dart';
 import 'package:corpus/utils/format_utils.dart';
 import '../../widgets/corpus_network_image.dart';
 import 'package:corpus/routes/corpus_router.dart';
+import 'package:corpus/routes/deep_route_resolver.dart';
+import 'package:corpus/routes/tab_deep_route.dart';
 import '../library/game_details_screen.dart';
 import '../library/review_modal.dart';
 import '../../widgets/full_screen_gallery.dart';
@@ -408,6 +410,15 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                 xpReward: xpReward,
                 icon: Icons.workspace_premium,
                 color: color,
+                onTap: () async {
+                  final groupId = aId.split('_').first;
+                  final route = await DeepRouteResolver.buildRoute(
+                    AchievementGamesDeepRoute(achievementId: groupId),
+                  );
+                  if (route != null && mounted) {
+                    Navigator.push(context, route);
+                  }
+                },
               );
             }
           });

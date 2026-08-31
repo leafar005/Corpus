@@ -121,250 +121,233 @@ class _GameCardState extends State<GameCard> {
       child: MouseRegion(
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
-        child: InkWell(
-          onTap: () {
-            if (widget.onTap != null) {
-              widget.onTap!(widget.game);
-              return;
-            }
+        child: AnimatedScale(
+          scale: _isHovered ? 1.05 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: InkWell(
+            onTap: () {
+              if (widget.onTap != null) {
+                widget.onTap!(widget.game);
+                return;
+              }
 
-            context
-                .pushGameDetails(widget.game.toMap())
-                .then((_) => widget.onReturn());
-          },
-          borderRadius:
-              Theme.of(
-                context,
-              ).extension<CorpusThemeExtension>()?.radiusSmall ??
-              BorderRadius.circular(8),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        Theme.of(
-                          context,
-                        ).extension<CorpusThemeExtension>()?.radiusSmall ??
-                        BorderRadius.circular(8),
-                  ),
-                  elevation: 4,
-                  margin: EdgeInsets.zero,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final dpr = MediaQuery.of(context).devicePixelRatio;
-                      final int? cacheWidth = constraints.maxWidth.isFinite
-                          ? (constraints.maxWidth * dpr).round()
-                          : null;
-                      return Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          coverUrl.isNotEmpty
-                              ? _buildCoverImage(
-                                  context,
-                                  coverUrl,
-                                  cacheWidth,
-                                  title,
-                                )
-                              : _buildPlaceholder(context, title),
+              context
+                  .pushGameDetails(widget.game.toMap())
+                  .then((_) => widget.onReturn());
+            },
+            borderRadius:
+                Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()?.radiusSmall ??
+                BorderRadius.circular(8),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Card(
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          Theme.of(
+                            context,
+                          ).extension<CorpusThemeExtension>()?.radiusSmall ??
+                          BorderRadius.circular(8),
+                    ),
+                    elevation: 4,
+                    margin: EdgeInsets.zero,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final dpr = MediaQuery.of(context).devicePixelRatio;
+                        final int? cacheWidth = constraints.maxWidth.isFinite
+                            ? (constraints.maxWidth * dpr).round()
+                            : null;
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            coverUrl.isNotEmpty
+                                ? _buildCoverImage(
+                                    context,
+                                    coverUrl,
+                                    cacheWidth,
+                                    title,
+                                  )
+                                : _buildPlaceholder(context, title),
 
-                          if (_isHovered)
-                            Positioned.fill(
-                              child: Container(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.surface.withValues(alpha: 0.7),
-                                padding: const EdgeInsets.all(8.0),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  title,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 4,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                            Positioned(
+                              bottom: 6,
+                              left: 6,
+                              child: Builder(
+                                builder: (context) {
+                                  final int? resolved =
+                                      IgdbConstants.resolveCategory(
+                                        widget.game.resolvedCategory,
+                                        title,
+                                        hasParentGame:
+                                            widget.game.parentGameId != null,
+                                        summary: widget.game.summary,
+                                      );
+
+                                  if (IgdbConstants.isMainGame(resolved)) {
+                                    return const SizedBox.shrink();
+                                  }
+
+                                  final String text =
+                                      IgdbConstants.getCategoryName(resolved!);
+                                  final Color color =
+                                      IgdbConstants.getCategoryColor(
+                                        resolved,
+                                        themeSecondary: Theme.of(
+                                          context,
+                                        ).colorScheme.secondary,
+                                      );
+
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surface,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: color.withValues(alpha: 0.5),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Theme.of(
+                                            context,
+                                          ).shadowColor.withValues(alpha: 0.54),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      text,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: color,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
 
-                          Positioned(
-                            bottom: 6,
-                            left: 6,
-                            child: Builder(
-                              builder: (context) {
-                                final int? resolved =
-                                    IgdbConstants.resolveCategory(
-                                      widget.game.resolvedCategory,
-                                      title,
-                                      hasParentGame:
-                                          widget.game.parentGameId != null,
-                                      summary: widget.game.summary,
-                                    );
-
-                                if (IgdbConstants.isMainGame(resolved)) {
-                                  return const SizedBox.shrink();
-                                }
-
-                                final String text =
-                                    IgdbConstants.getCategoryName(resolved!);
-                                final Color color =
-                                    IgdbConstants.getCategoryColor(
-                                      resolved,
-                                      themeSecondary: Theme.of(
-                                        context,
-                                      ).colorScheme.secondary,
-                                    );
-
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 4,
-                                  ),
+                            if (widget.isInLibrary && widget.userRating > 0)
+                              Positioned(
+                                top: 6,
+                                right: 6,
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: Theme.of(
                                       context,
-                                    ).colorScheme.surface,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: color.withValues(alpha: 0.5),
-                                    ),
+                                    ).colorScheme.onSurface,
+                                    shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Theme.of(
-                                          context,
-                                        ).shadowColor.withValues(alpha: 0.54),
+                                        color: Theme.of(context)
+                                            .scaffoldBackgroundColor
+                                            .withValues(alpha: 0.54),
                                         blurRadius: 4,
                                         offset: const Offset(0, 2),
                                       ),
                                     ],
                                   ),
                                   child: Text(
-                                    text,
+                                    formatRating(widget.userRating),
                                     style: TextStyle(
-                                      fontSize: 10,
-                                      color: color,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surface,
                                       fontWeight: FontWeight.bold,
+                                      fontSize: 13,
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-
-                          if (widget.isInLibrary && widget.userRating > 0)
-                            Positioned(
-                              top: 6,
-                              right: 6,
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Theme.of(context)
-                                          .scaffoldBackgroundColor
-                                          .withValues(alpha: 0.54),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  formatRating(widget.userRating),
-                                  style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surface,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
                                   ),
                                 ),
                               ),
-                            ),
-                          if (widget.game.isSteamOnly)
-                            Positioned(
-                              top: 6,
-                              left: 6,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF171a21,
-                                  ).withValues(alpha: 0.9), // Steam dark color
-                                  borderRadius: BorderRadius.circular(4),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.5,
+                            if (widget.game.isSteamOnly)
+                              Positioned(
+                                top: 6,
+                                left: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF171a21).withValues(
+                                      alpha: 0.9,
+                                    ), // Steam dark color
+                                    borderRadius: BorderRadius.circular(4),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        blurRadius: 2,
+                                        offset: const Offset(0, 1),
                                       ),
-                                      blurRadius: 2,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: Image.asset(
-                                  'assets/images/steam.png',
-                                  width: 14,
-                                  height: 14,
-                                  color: Colors.white,
+                                    ],
+                                  ),
+                                  child: Image.asset(
+                                    'assets/images/steam.png',
+                                    width: 14,
+                                    height: 14,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                            ),
-                          // ── Badge de subestado (esquina inferior derecha) ──
-                          if (widget.completionType != null &&
-                              widget.completionType != 'none')
-                            Positioned(
-                              bottom: 6,
-                              right: 6,
-                              child: _buildSubstatusBadge(
-                                context,
-                                widget.completionType!,
+                            // ── Badge de subestado (esquina inferior derecha) ──
+                            if (widget.completionType != null &&
+                                widget.completionType != 'none')
+                              Positioned(
+                                bottom: 6,
+                                right: 6,
+                                child: _buildSubstatusBadge(
+                                  context,
+                                  widget.completionType!,
+                                ),
                               ),
-                            ),
-                        ],
-                      );
-                    },
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
 
-              if (widget.showMetacriticBadge &&
-                  widget.game.metacriticScore != null)
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getMetacriticColor(widget.game.metacriticScore!),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${widget.game.metacriticScore}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                if (widget.showMetacriticBadge &&
+                    widget.game.metacriticScore != null)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getMetacriticColor(
+                          widget.game.metacriticScore!,
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${widget.game.metacriticScore}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

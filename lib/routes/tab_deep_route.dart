@@ -100,6 +100,29 @@ final class AchievementsDeepRoute extends TabDeepRoute {
   String toString() => 'AchievementsDeepRoute($userId)';
 }
 
+/// Juegos de un logro concreto. `userId == null` → logros del propio usuario.
+final class AchievementGamesDeepRoute extends TabDeepRoute {
+  final String? userId;
+  final String achievementId;
+  const AchievementGamesDeepRoute({this.userId, required this.achievementId});
+
+  @override
+  List<String> toSegments() => userId == null
+      ? ['logros', achievementId]
+      : [userId!, 'logros', achievementId];
+
+  @override
+  bool operator ==(Object other) =>
+      other is AchievementGamesDeepRoute &&
+      other.userId == userId &&
+      other.achievementId == achievementId;
+  @override
+  int get hashCode => Object.hash(userId, achievementId);
+  @override
+  String toString() =>
+      'AchievementGamesDeepRoute(userId: $userId, achievementId: $achievementId)';
+}
+
 /// Amigos del propio usuario.
 final class FriendsDeepRoute extends TabDeepRoute {
   const FriendsDeepRoute();
@@ -167,6 +190,9 @@ TabDeepRoute? parseTabDeepRoute(List<String> segments) {
   }
 
   if (segments[0] == 'logros') {
+    if (segments.length >= 2) {
+      return AchievementGamesDeepRoute(achievementId: segments[1]);
+    }
     return const AchievementsDeepRoute();
   }
 
@@ -180,6 +206,12 @@ TabDeepRoute? parseTabDeepRoute(List<String> segments) {
 
   final userId = segments[0];
   if (segments.length >= 2 && segments[1] == 'logros') {
+    if (segments.length >= 3) {
+      return AchievementGamesDeepRoute(
+        userId: userId,
+        achievementId: segments[2],
+      );
+    }
     return AchievementsDeepRoute(userId: userId);
   }
   return ProfileDeepRoute(userId);

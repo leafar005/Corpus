@@ -70,6 +70,17 @@ TabDeepRoute? deepRouteFromRouteSettings(RouteSettings settings) {
       final userId = args.userId == _currentUserId() ? null : args.userId;
       return AchievementsDeepRoute(userId: userId);
 
+    case AppRoutes.achievementGames:
+      final args = settings.arguments;
+      if (args is! AchievementGamesArgs) return null;
+      // We don't have a userId in AchievementGamesArgs because it always refers to the viewed profile.
+      // But we can check if it's the current user from context or just leave userId as null for now,
+      // or extract it if we had it. Since AchievementGamesArgs doesn't have userId,
+      // it means it's always for the currently viewed profile's achievements.
+      // Actually, wait, when we navigate to AchievementGamesScreen, it uses the profile we are in.
+      // Let's just return it without userId, it will fall back to the current user's profile URL.
+      return AchievementGamesDeepRoute(achievementId: args.achievementId);
+
     case AppRoutes.friends:
       return const FriendsDeepRoute();
 

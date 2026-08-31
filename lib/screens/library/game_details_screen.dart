@@ -14,6 +14,8 @@ import 'package:corpus/globals.dart';
 import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
 import 'package:corpus/routes/corpus_router.dart';
+import 'package:corpus/routes/deep_route_resolver.dart';
+import 'package:corpus/routes/tab_deep_route.dart';
 import '../library/review_modal.dart';
 
 import '../../widgets/achievement_toast.dart';
@@ -504,6 +506,15 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 xpReward: xpReward,
                 icon: Icons.workspace_premium,
                 color: color,
+                onTap: () async {
+                  final groupId = aId.split('_').first;
+                  final route = await DeepRouteResolver.buildRoute(
+                    AchievementGamesDeepRoute(achievementId: groupId),
+                  );
+                  if (route != null && mounted) {
+                    Navigator.push(context, route);
+                  }
+                },
               );
             }
           });
