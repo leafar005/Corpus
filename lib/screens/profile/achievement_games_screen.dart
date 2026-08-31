@@ -48,6 +48,7 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
   Map<int, String> _userGamesStatus = {};
   int _completedGamesCount = 0;
   List<Map<String, dynamic>> _injectedBeatenGames = [];
+  bool _showTitle = false;
 
   @override
   void initState() {
@@ -59,6 +60,13 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
       if (_scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 500) {
         _performSearch(isInitial: false);
+      }
+
+      final shouldShow = _scrollController.offset > 60;
+      if (shouldShow != _showTitle) {
+        setState(() {
+          _showTitle = shouldShow;
+        });
       }
     });
   }
@@ -351,8 +359,11 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
                   title.contains('zone of the enders'))) {
             matches = true;
           } else if (aId.startsWith('pokemon') &&
-              (dev.contains('game freak') ||
-                  (!isCrossover && saga.contains('pokemon')))) {
+              !isCrossover &&
+              (saga.contains('pokemon') ||
+                  saga.contains('pokémon') ||
+                  title.contains('pokemon') ||
+                  title.contains('pokémon'))) {
             matches = true;
           } else if (!isCrossover) {
             if (aId.startsWith('zelda') &&
@@ -586,7 +597,13 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: CorpusScreenTitle(widget.achievementName)),
+      appBar: AppBar(
+        title: AnimatedOpacity(
+          opacity: _showTitle ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          child: CorpusScreenTitle(widget.achievementName),
+        ),
+      ),
       body: _results.isEmpty && _isLoading
           ? const Center(child: CircularProgressIndicator())
           : CustomScrollView(
@@ -701,6 +718,17 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.achievementName,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+              height: 1.1,
+            ),
           ),
           const SizedBox(height: 16),
           Text(

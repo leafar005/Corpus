@@ -4,6 +4,7 @@ import 'package:corpus/utils/level_calculator.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
+import '../../utils/achievement_utils.dart';
 
 class AchievementsScreen extends StatefulWidget {
   final String userId;
@@ -27,51 +28,6 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
   Map<String, List<Map<String, dynamic>>> _sagaMilestones = {};
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-
-  static const Map<String, Map<String, int?>> _achievementIgdbIds = {
-    'kojima': {'companyId': 170},
-    'fromsoftware': {'companyId': 1012},
-    'nintendo': {'companyId': 70},
-    'capcom': {'companyId': 37},
-    'naughty_dog': {'companyId': 401},
-    'rockstar': {'companyId': 29},
-    'cd_projekt': {'companyId': 908},
-    'valve': {'companyId': 56},
-    'square_enix': {'companyId': 26},
-    'bethesda': {'companyId': 16565},
-    'konami': {'companyId': 129},
-    'remedy': {'companyId': 305},
-    'team_ninja': {'companyId': 769},
-    'pokemon': {'companyId': 1617},
-    'zelda': {'collectionId': 106},
-    'mario': {'collectionId': 240},
-    'halo': {'franchiseId': 137},
-    'sonic': {'collectionId': 2156},
-    'persona': {'franchiseId': 552, 'franchiseId2': 538},
-    'dark_souls': {'collectionId': 543, 'franchiseId': 1124},
-    'assassins_creed': {'franchiseId': 571},
-    'yakuza': {'franchiseId': 1467},
-    'resident_evil': {'franchiseId': 29},
-    'final_fantasy': {'franchiseId': 4},
-    'call_of_duty': {'franchiseId': 726},
-    'elder_scrolls': {'franchiseId': 456},
-    'god_of_war': {'franchiseId': 2098},
-    'tomb_raider': {'franchiseId': 279},
-    'monster_hunter': {'franchiseId': 824},
-    'kingdom_hearts': {'franchiseId': 720},
-    'silent_hill': {'franchiseId': 554},
-    'metroid': {'franchiseId': 756},
-    'kirby': {'franchiseId': 789},
-    'devil_may_cry': {'franchiseId': 834},
-    'castlevania': {'franchiseId': 895},
-    'mass_effect': {'franchiseId': 1048},
-    'doom': {'franchiseId': 798},
-    'bioshock': {'collectionId': 1},
-    'borderlands': {'franchiseId': 808},
-    'metro': {'franchiseId': 1344},
-    'dead_space': {'franchiseId': 1386},
-    'xenoblade': {'franchiseId': 4564},
-  };
 
   @override
   void initState() {
@@ -140,7 +96,9 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       Map<String, List<Map<String, dynamic>>> sagaMilestones = {};
       for (var ach in achievementsResp) {
         String name = ach['name'] as String;
-        String baseName = name.replaceAll(RegExp(r'\s*\(.*\)'), '');
+        String baseName = name
+            .replaceAll(RegExp(r'\s*\(.*\)'), '')
+            .replaceAll(RegExp(r'\s+\d+$'), '');
         String aId = ach['id'] as String;
         String groupId = aId;
         final matchSuffix = RegExp(r'_(\d+|all)$').firstMatch(aId);
@@ -540,8 +498,11 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
           title.contains('zone of the enders')) {
         inc('konami');
       }
-      if (dev.contains('game freak') ||
-          (!isCrossover && saga.contains('pokemon'))) {
+      if (!isCrossover &&
+          (saga.contains('pokemon') ||
+              saga.contains('pokémon') ||
+              title.contains('pokemon') ||
+              title.contains('pokémon'))) {
         inc('pokemon');
       }
       if (!isCrossover) {
@@ -1150,7 +1111,10 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                             int? collectionId2;
                             int? franchiseId2;
                             final String aId = achievement['id'] as String;
-                            for (final entry in _achievementIgdbIds.entries) {
+                            for (final entry
+                                in AchievementUtils
+                                    .achievementIgdbIds
+                                    .entries) {
                               if (aId.startsWith(entry.key)) {
                                 companyId = entry.value['companyId'];
                                 collectionId = entry.value['collectionId'];
@@ -1166,7 +1130,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                               context
                                   .pushAchievementGames(
                                     AchievementGamesArgs(
-                                      achievementId: aId,
+                                      achievementId: groupId,
                                       achievementName:
                                           achievement['name'] as String,
                                       companyId: companyId,

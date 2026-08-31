@@ -1029,7 +1029,7 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
       context
           .pushAchievementGames(
             AchievementGamesArgs(
-              achievementId: aId,
+              achievementId: groupId,
               achievementName: achievement['name'] as String,
               companyId: companyId,
               collectionId: collectionId,
