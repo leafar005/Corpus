@@ -1,55 +1,13 @@
 // supabase/functions/fetch-stash-game-stats/index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-const USER_AGENTS = [
-  'Stash/2.6.8 (io.stash.team.games.tracker.StashApp; build:1; iOS 26.5.2) Alamofire/5.4.4',
-  'Stash/2.6.8 (Android; 33; Scale/2.75)',
-  'Stash/2.6.8 (Android; 34; Scale/3.00)',
-  'Stash/2.6.8 (io.stash.team.games.tracker.StashApp; build:2; iOS 27.0) Alamofire/5.4.4',
-];
-
-function randomUserAgent(): string {
-  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((res) => setTimeout(res, ms));
-}
-
-function jitter(): Promise<void> {
-  const ms = Math.floor(Math.random() * 1500) + 500;
-  return delay(ms);
-}
-
-function buildStashHeaders(token: string, userAgent: string): HeadersInit {
-  return {
-    'Host': 'api.stash.games',
-    'Accept': '*/*',
-    'Accept-Locale': 'es_ES',
-    'Time-Zone': 'Europe/Madrid',
-    'X-Requested-With': 'XMLHttpRequest',
-    'Accept-Language': 'es',
-    'Content-Type': 'application/json',
-    'User-Agent': userAgent,
-    'X-Game-Status-Version': 'v2',
-    'Authorization': `Bearer ${token}`,
-  };
-}
-
-function makeLogger(service: string) {
-  return (level: 'INFO' | 'WARN' | 'ERROR', message: string, meta: Record<string, any> = {}) => {
-    console.log(
-      JSON.stringify({ timestamp: new Date().toISOString(), level, service, message, ...meta })
-    );
-  };
-}
+import { corsHeaders, randomUserAgent, jitter, buildStashHeaders, makeLogger } from '../_shared/stash-client.ts';
+import { checkRateLimit } from '../_shared/rate-limit.ts';
 
 const log = makeLogger('fetch-stash-game-stats');
+
+const STASH_RATE_LIMIT_BUCKET = 'stash-shared-account';
+const STASH_RATE_LIMIT_MAX = 20;
+const STASH_RATE_LIMIT_WINDOW_SECONDS = 60;
 
 // Rutas confirmadas contra la API real de Stash
 const STASH_GAME_DETAIL_URL = (id: number) => `https://api.stash.games/api/v1/games/${id}`;
@@ -58,6 +16,19 @@ const STASH_STATUS_STATISTIC_URL = (id: number) => `https://api.stash.games/api/
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  const rateLimit = await checkRateLimit({
+    bucketKey: STASH_RATE_LIMIT_BUCKET,
+    maxRequests: STASH_RATE_LIMIT_MAX,
+    windowSeconds: STASH_RATE_LIMIT_WINDOW_SECONDS,
+  });
+  if (!rateLimit.allowed) {
+    log('WARN', 'Rate limit de Stash excedido, petición rechazada');
+    return new Response(JSON.stringify({ error: 'Too many requests, please slow down' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(STASH_RATE_LIMIT_WINDOW_SECONDS) },
+      status: 429,
+    });
   }
 
   try {

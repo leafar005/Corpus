@@ -542,7 +542,9 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
                   gTitle.contains('fortnite') ||
                   gTitle.contains('dead by daylight') ||
                   gTitle.contains('teppen') ||
-                  gTitle.contains('poker night');
+                  gTitle.contains('poker night') ||
+                  gTitle.contains('nintendo land') ||
+                  gTitle.contains('cross tag');
               if (widget.franchiseId != null || widget.collectionId != null) {
                 if (isCollab) return false;
               }

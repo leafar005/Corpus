@@ -199,6 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .from('reviews')
             .select('game_id')
             .eq('user_id', userId)
+            .eq('status', 'playing')
             .eq('completion_type', 'on_hold'),
       ]);
 
@@ -213,8 +214,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final onHoldReviews = results[2] as List<dynamic>;
       if (onHoldReviews.isNotEmpty) {
-        final onHoldGameIds = onHoldReviews.map((r) => r['game_id']).toSet();
-        games.removeWhere((g) => onHoldGameIds.contains(g['game_id']));
+        final onHoldGameIds = onHoldReviews
+            .map((r) => (r['game_id'] as num).toInt())
+            .toSet();
+        games.removeWhere(
+          (g) => onHoldGameIds.contains((g['game_id'] as num).toInt()),
+        );
       }
 
       // Screenshots (batch único de IGDB — depende de la lista de juegos)

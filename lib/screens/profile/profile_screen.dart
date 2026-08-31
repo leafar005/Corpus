@@ -1605,7 +1605,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(7),
                                     ),
-                                    child: game != null && game['cover_url'] != null
+                                    child:
+                                        game != null &&
+                                            game['cover_url'] != null
                                         ? ClipRRect(
                                             borderRadius: BorderRadius.circular(
                                               7,

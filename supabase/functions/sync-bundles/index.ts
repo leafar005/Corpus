@@ -4,7 +4,7 @@ import { igdbGamesRequest, IGDB_FIELDS, getIgdbAccessToken } from '../_shared/ig
 const IGDB_CLIENT_ID = Deno.env.get('IGDB_CLIENT_ID') ?? '';
 const IGDB_CLIENT_SECRET = Deno.env.get('IGDB_CLIENT_SECRET') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SERVICE_ROLE_KEY') ?? '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,6 +54,17 @@ Deno.serve(async (req) => {
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  // Antes esta función no comprobaba nada: cualquiera con la URL del
+  // proyecto podía invocarla directamente y disparar hasta 120s de scraping
+  // contra barter.vg + IGDB + Steam Store, usando tus credenciales
+  // compartidas. Reutilizamos el mismo secreto y patrón que ya protege a
+  // steam-presence-poll (ver supabase/functions/steam-presence-poll/index.ts).
+  const cronSecret = req.headers.get('x-cron-secret');
+  if (cronSecret !== Deno.env.get('CRON_SECRET')) {
+    console.warn('sync-bundles invocado sin cron secret válido');
+    return new Response('Unauthorized', { status: 401 });
   }
 
   try {
@@ -233,10 +244,10 @@ Deno.serve(async (req) => {
     const CONCURRENCY = 8;
     let idx = 0;
 
-    async function resolveOne(appId: number) {
+    async function resolveOne(appId: number): Promise<number | undefined> {
       try {
         const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}&l=spanish`);
-        if (res.status === 429) return; // sin reintento: si nos limitan, seguimos con el resto
+        if (res.status === 429) return 429; // el backoff se aplica a nivel de tanda, más abajo
         if (res.ok) {
           const jsonResp = await res.json();
           const appData = jsonResp[appId.toString()];
@@ -269,10 +280,26 @@ Deno.serve(async (req) => {
 
     console.log(`Empezando Layer 3 con presupuesto de ${timeLeft()}ms restantes para ${failedSteamIds.length} IDs`);
 
+    let consecutive429s = 0;
     while (idx < failedSteamIds.length && timeLeft() > 5000) {
       const batch = failedSteamIds.slice(idx, idx + CONCURRENCY);
-      await Promise.all(batch.map(resolveOne));
+      const statuses = await Promise.all(batch.map(resolveOne));
       idx += CONCURRENCY;
+
+      // Antes no había NINGUNA pausa entre tandas de 8 peticiones en
+      // paralelo, y si Steam devolvía 429 seguíamos disparando la siguiente
+      // tanda igual de rápido, lo cual solo empeora un bloqueo ya empezado.
+      // Ahora: pausa fija entre tandas, y backoff creciente si vemos 429s.
+      const got429 = statuses.some((s) => s === 429);
+      if (got429) {
+        consecutive429s++;
+        const backoffMs = Math.min(2000 * consecutive429s, 10000);
+        console.warn(`Layer 3: 429 recibido, backoff de ${backoffMs}ms antes de continuar`);
+        await sleep(backoffMs);
+      } else {
+        consecutive429s = 0;
+        await sleep(300);
+      }
     }
 
     if (idx < failedSteamIds.length) {

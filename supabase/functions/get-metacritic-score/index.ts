@@ -402,7 +402,14 @@ Deno.serve(async (req) => {
 
     // Guardar en BD si tenemos datos válidos (lazy backfill)
     if (gameId && data.parse_strategy !== 'none' && !(data as any)._metascoreLowConfidence) {
-      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SERVICE_ROLE_KEY') ?? '';
+      // Antes usaba 'SERVICE_ROLE_KEY' (sin el prefijo SUPABASE_), que casi
+      // seguro no existe como secreto — Supabase inyecta automáticamente
+      // 'SUPABASE_SERVICE_ROLE_KEY' en toda Edge Function, sin configuración
+      // manual. Con la key vacía, este guardado fallaba en silencio (el
+      // catch de abajo solo lo registra en logs) y el caché de 30 días
+      // nunca llegaba a persistirse: cada apertura de ficha de juego
+      // volvía a scrapear Metacritic desde cero.
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
       const supabase = createClient(supabaseUrl, SUPABASE_SERVICE_ROLE_KEY);
 
       const { error: updateError } = await supabase

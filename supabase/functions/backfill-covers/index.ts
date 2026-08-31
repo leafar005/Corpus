@@ -22,10 +22,20 @@ function buildCoverUrl(imageId: string): string {
 }
 
 Deno.serve(async (req: Request) => {
-  // Solo acepta peticiones autorizadas (service_role o ANON + secret header)
+  // El comentario original decía "solo acepta peticiones autorizadas", pero
+  // el código nunca llegaba a comprobar authHeader contra nada: cualquiera
+  // podía disparar este backfill masivo contra IGDB. Ahora sí se valida.
   const authHeader = req.headers.get('Authorization') ?? '';
   const supabaseUrl  = Deno.env.get('SUPABASE_URL')!;
   const serviceKey   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  if (authHeader !== `Bearer ${serviceKey}`) {
+    console.warn('backfill-covers invocado sin Authorization de service_role válido');
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { headers: { 'Content-Type': 'application/json' }, status: 401 },
+    );
+  }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },

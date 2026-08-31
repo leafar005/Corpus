@@ -4,7 +4,7 @@ import { igdbGamesRequest, IGDB_FIELDS, getIgdbAccessToken } from '../_shared/ig
 const IGDB_CLIENT_ID = Deno.env.get('IGDB_CLIENT_ID') ?? '';
 const IGDB_CLIENT_SECRET = Deno.env.get('IGDB_CLIENT_SECRET') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SERVICE_ROLE_KEY') ?? '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const STEAM_WEB_API_KEY = Deno.env.get('STEAM_WEB_API_KEY') ?? '';
 
 const corsHeaders = {
@@ -262,6 +262,11 @@ Deno.serve(async (req) => {
           } catch (e) {
             console.error(`Steam fallback error for ${appId}:`, e);
           }
+          // Pausa entre llamadas a la Store API de Steam: sin esto, una
+          // biblioteca grande dispara cientos de peticiones seguidas sin
+          // ninguna pausa, y es fácil chocar con el rate limit de Steam
+          // (afecta a STEAM_WEB_API_KEY, que es compartida por toda la app).
+          await sleep(150);
         }
 
         if (gameObj) {
