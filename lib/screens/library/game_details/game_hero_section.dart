@@ -16,6 +16,7 @@ import '../../../widgets/corpus_network_image.dart';
 import '../../../utils/igdb_constants.dart';
 import '../../../widgets/p5r_dynamic_frame.dart';
 import '../../../globals.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 
 class GameHeroSection extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -889,7 +890,11 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             topPadding: MediaQuery.of(context).padding.top,
             backgroundColor: theme.scaffoldBackgroundColor,
             title: name,
-            leading: const BackButton(color: Colors.white),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () =>
+                  AppNavigationController.instance.requestBack(context),
+            ),
             background: Stack(
               children: [
                 Positioned.fill(

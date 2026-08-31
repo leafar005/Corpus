@@ -847,72 +847,63 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
-        final canPopSystem = !Navigator.of(context).canPop();
-        return PopScope(
-          canPop: canPopSystem,
-          onPopInvokedWithResult: (didPop, result) {
-            if (!didPop) {
-              AppNavigationController.instance.requestBack(context);
-            }
-          },
-          child: Scaffold(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: CustomScrollView(
-              controller: _scrollController,
-              slivers: [
-                GameHeroSection(
-                  gameData: widget.gameData,
-                  controller: _controller,
-                  isDesktop: isDesktop,
-                  inLibrary: _inLibrary,
-                  status: _status,
-                  reviews: _reviews,
-                  userData: _userData,
-                  partnersData: _partnersData,
-                  friendsWithGame: _friendsWithGame,
-                  isGuest: _isGuest,
-                  enrichedData: _enrichedData,
-                  resolvedCategory: resolvedCategory,
-                  categoryLabel: categoryLabel,
-                  originalGame: originalGame,
-                  onNavigateToGame: (game) =>
-                      _navigateToOriginalGame(game.id, game.name),
-                  onShowReviewModal: () => _showReviewModal(),
-                  onEditReview: (review) =>
-                      _showReviewModal(existingReview: review),
-                  onDeleteReview: _controller.deleteReview,
-                  tabsSliver: SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _GameDetailsTabBarDelegate(
-                      height: 56.0,
-                      child: _buildNavBar(
-                        isDesktop: isDesktop,
-                        infoTabIdx: infoTabIdx,
-                        communityTabIdx: communityTabIdx,
-                        mediaTabIdx: mediaTabIdx,
-                        relatedTabIdx: relatedTabIdx,
-                        linksTabIdx: linksTabIdx,
-                        hasMedia: hasMedia,
-                        hasRelated: hasRelated,
-                        hasLinks: hasLinks,
-                      ),
-                    ),
-                  ),
-                  tabContentSliver: SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        isDesktop ? 0 : 24.0,
-                        24.0,
-                        isDesktop ? 0 : 24.0,
-                        0,
-                      ),
-                      child: buildCurrentTabContent(),
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              GameHeroSection(
+                gameData: widget.gameData,
+                controller: _controller,
+                isDesktop: isDesktop,
+                inLibrary: _inLibrary,
+                status: _status,
+                reviews: _reviews,
+                userData: _userData,
+                partnersData: _partnersData,
+                friendsWithGame: _friendsWithGame,
+                isGuest: _isGuest,
+                enrichedData: _enrichedData,
+                resolvedCategory: resolvedCategory,
+                categoryLabel: categoryLabel,
+                originalGame: originalGame,
+                onNavigateToGame: (game) =>
+                    _navigateToOriginalGame(game.id, game.name),
+                onShowReviewModal: () => _showReviewModal(),
+                onEditReview: (review) =>
+                    _showReviewModal(existingReview: review),
+                onDeleteReview: _controller.deleteReview,
+                tabsSliver: SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _GameDetailsTabBarDelegate(
+                    height: 56.0,
+                    child: _buildNavBar(
+                      isDesktop: isDesktop,
+                      infoTabIdx: infoTabIdx,
+                      communityTabIdx: communityTabIdx,
+                      mediaTabIdx: mediaTabIdx,
+                      relatedTabIdx: relatedTabIdx,
+                      linksTabIdx: linksTabIdx,
+                      hasMedia: hasMedia,
+                      hasRelated: hasRelated,
+                      hasLinks: hasLinks,
                     ),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 60)),
-              ],
-            ),
+                tabContentSliver: SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      isDesktop ? 0 : 24.0,
+                      24.0,
+                      isDesktop ? 0 : 24.0,
+                      0,
+                    ),
+                    child: buildCurrentTabContent(),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 60)),
+            ],
           ),
         );
       },
