@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/globals.dart';
@@ -408,48 +407,55 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(child: _buildFiltersHeader()),
-        SliverPadding(
-          padding: EdgeInsets.only(
-            left: 8.0,
-            right: 8.0,
-            top: 8.0,
-            bottom: getBottomSpacer(context),
-          ),
-          sliver: SliverGrid.builder(
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 150,
-              childAspectRatio: IgdbConstants.coverAspectRatio,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            itemCount: gamesList.length + (hasMore ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index >= gamesList.length) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                );
-              }
+        ValueListenableBuilder<int>(
+          valueListenable: mobileGridColumnsNotifier,
+          builder: (context, columns, child) {
+            return SliverPadding(
+              padding: EdgeInsets.only(
+                left: 8.0,
+                right: 8.0,
+                top: 8.0,
+                bottom: getBottomSpacer(context),
+              ),
+              sliver: SliverGrid.builder(
+                gridDelegate: getCorpusGridDelegate(
+                  context,
+                  columns,
+                  desktopMaxExtent: 150.0,
+                  spacing: 8.0,
+                ),
+                itemCount: gamesList.length + (hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index >= gamesList.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  }
 
-              final game = Game.fromMap(gamesList[index]);
-              final bool isInLibrary = _userGamesCache.containsKey(game.igdbId);
-              final double userRating = isInLibrary
-                  ? _userGamesCache[game.igdbId]!
-                  : 0.0;
+                  final game = Game.fromMap(gamesList[index]);
+                  final bool isInLibrary = _userGamesCache.containsKey(
+                    game.igdbId,
+                  );
+                  final double userRating = isInLibrary
+                      ? _userGamesCache[game.igdbId]!
+                      : 0.0;
 
-              return GameCard(
-                game: game,
-                isInLibrary: isInLibrary,
-                userRating: userRating,
-                onReturn: _fetchUserGamesCache,
-                onTap: widget.isSelectionMode
-                    ? (cleanData) => Navigator.pop(context, cleanData)
-                    : null,
-              );
-            },
-          ),
+                  return GameCard(
+                    game: game,
+                    isInLibrary: isInLibrary,
+                    userRating: userRating,
+                    onReturn: _fetchUserGamesCache,
+                    onTap: widget.isSelectionMode
+                        ? (cleanData) => Navigator.pop(context, cleanData)
+                        : null,
+                  );
+                },
+              ),
+            );
+          },
         ),
       ],
     );

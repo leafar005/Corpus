@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
+import 'utils/igdb_constants.dart';
 
 // Notificador global. Lo incrementaremos cada vez que el usuario añada/edite un juego en su biblioteca.
 // Cualquier pantalla que necesite refrescarse (como ProfileScreen o HomeScreen) puede escuchar este notificador.
@@ -50,4 +51,32 @@ bool isSyncingRouteFromBrowser = false;
 double getBottomSpacer(BuildContext context) {
   final isDesktop = MediaQuery.of(context).size.width > 800;
   return isDesktop ? 32.0 : 120.0;
+}
+
+/// Define la cantidad de columnas (2, 3 o 4) para las cuadrículas de juegos en móviles.
+final ValueNotifier<int> mobileGridColumnsNotifier = ValueNotifier<int>(3);
+
+/// Genera el SliverGridDelegate adaptado a la configuración actual (Móvil vs Escritorio)
+SliverGridDelegate getCorpusGridDelegate(
+  BuildContext context,
+  int mobileColumns, {
+  double spacing = 10.0,
+  double desktopMaxExtent = 140.0,
+}) {
+  final isDesktop = MediaQuery.sizeOf(context).width > 800;
+  if (isDesktop) {
+    return SliverGridDelegateWithMaxCrossAxisExtent(
+      maxCrossAxisExtent: desktopMaxExtent,
+      childAspectRatio: IgdbConstants.coverAspectRatio,
+      crossAxisSpacing: spacing,
+      mainAxisSpacing: spacing,
+    );
+  } else {
+    return SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: mobileColumns,
+      childAspectRatio: IgdbConstants.coverAspectRatio,
+      crossAxisSpacing: spacing,
+      mainAxisSpacing: spacing,
+    );
+  }
 }

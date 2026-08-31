@@ -458,49 +458,54 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
       );
     }
 
-    final grid = SliverPadding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, getBottomSpacer(context)),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 120,
-          childAspectRatio: IgdbConstants.coverAspectRatio,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        delegate: SliverChildBuilderDelegate((context, index) {
-          if (index >= _games.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            );
-          }
-          final item = _games[index];
-          final gameData = item['games'] as Map<String, dynamic>;
-          final rating = (item['rating'] ?? 0).toDouble();
-          gameData['user_rating'] = rating;
-          gameData['is_steam_only'] = item['is_steam_only'];
+    final grid = ValueListenableBuilder<int>(
+      valueListenable: mobileGridColumnsNotifier,
+      builder: (context, columns, child) {
+        return SliverPadding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, getBottomSpacer(context)),
+          sliver: SliverGrid(
+            gridDelegate: getCorpusGridDelegate(
+              context,
+              columns,
+              desktopMaxExtent: 120.0,
+              spacing: 12.0,
+            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              if (index >= _games.length) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+              final item = _games[index];
+              final gameData = item['games'] as Map<String, dynamic>;
+              final rating = (item['rating'] ?? 0).toDouble();
+              gameData['user_rating'] = rating;
+              gameData['is_steam_only'] = item['is_steam_only'];
 
-          // Extraer completion_type del mapa cargado en loadMore
-          final gameId = item['game_id'] as int?;
-          final completionType = gameId != null
-              ? _completionTypeMap[gameId]
-              : null;
+              // Extraer completion_type del mapa cargado en loadMore
+              final gameId = item['game_id'] as int?;
+              final completionType = gameId != null
+                  ? _completionTypeMap[gameId]
+                  : null;
 
-          return GameCard(
-            game: Game.fromMap(gameData),
-            isInLibrary: true,
-            userRating: rating,
-            showMetacriticBadge: _filters.sortBy == 'metacritic_score',
-            completionType: completionType,
-            onReturn: () {
-              widget.onReturn();
-              _refresh();
-            },
-          );
-        }, childCount: _games.length + (hasMore ? 1 : 0)),
-      ),
+              return GameCard(
+                game: Game.fromMap(gameData),
+                isInLibrary: true,
+                userRating: rating,
+                showMetacriticBadge: _filters.sortBy == 'metacritic_score',
+                completionType: completionType,
+                onReturn: () {
+                  widget.onReturn();
+                  _refresh();
+                },
+              );
+            }, childCount: _games.length + (hasMore ? 1 : 0)),
+          ),
+        );
+      },
     );
 
     if (_games.length < 20) {

@@ -6,6 +6,7 @@ import 'style_pack.dart';
 import 'style_pack_registry.dart';
 import 'corpus_theme_extension.dart';
 import 'corpus_typography.dart';
+import '../globals.dart';
 
 /// Notificador global para cambiar el tema en tiempo real.
 ///
@@ -52,6 +53,8 @@ class ThemeNotifier extends ChangeNotifier {
     if (urlPackId != null) {
       _applyStylePack(urlPackId, persist: false);
     }
+
+    mobileGridColumnsNotifier.value = prefs.getInt('mobile_grid_columns') ?? 3;
 
     notifyListeners();
   }

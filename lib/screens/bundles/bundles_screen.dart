@@ -1,5 +1,4 @@
 import 'dart:async';
-import '../../utils/igdb_constants.dart';
 import '../../models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -9,6 +8,7 @@ import '../../services/bundle_service.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import 'package:corpus/routes/corpus_router.dart';
+import 'package:corpus/globals.dart';
 
 class _ListRow {
   final bool isHeader;
@@ -585,8 +585,9 @@ class _BundleCardState extends State<_BundleCard> {
               ),
             const Divider(height: 24),
 
-            Builder(
-              builder: (context) {
+            ValueListenableBuilder<int>(
+              valueListenable: mobileGridColumnsNotifier,
+              builder: (context, columns, child) {
                 final isFanatical =
                     widget.storeName.toLowerCase() == 'fanatical';
                 final isHumbleChoice = title.toLowerCase().contains(
@@ -611,13 +612,12 @@ class _BundleCardState extends State<_BundleCard> {
                     child: GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 140,
-                            childAspectRatio: IgdbConstants.coverAspectRatio,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                          ),
+                      gridDelegate: getCorpusGridDelegate(
+                        context,
+                        columns,
+                        desktopMaxExtent: 140,
+                        spacing: 10,
+                      ),
                       itemCount: allGames.length,
                       itemBuilder: (context, gIndex) {
                         final gameData =
@@ -662,14 +662,12 @@ class _BundleCardState extends State<_BundleCard> {
                           GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithMaxCrossAxisExtent(
-                                  maxCrossAxisExtent: 140,
-                                  childAspectRatio:
-                                      IgdbConstants.coverAspectRatio,
-                                  crossAxisSpacing: 10,
-                                  mainAxisSpacing: 10,
-                                ),
+                            gridDelegate: getCorpusGridDelegate(
+                              context,
+                              columns,
+                              desktopMaxExtent: 140,
+                              spacing: 10,
+                            ),
                             itemCount: validGames.length,
                             itemBuilder: (context, gIndex) {
                               final gameData =

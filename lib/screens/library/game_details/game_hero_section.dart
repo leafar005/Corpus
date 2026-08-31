@@ -723,10 +723,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             topPadding: MediaQuery.of(context).padding.top,
             backgroundColor: theme.scaffoldBackgroundColor,
             title: name,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
-            ),
+            leading: const BackButton(color: Colors.white),
             background: Stack(
               children: [
                 Positioned.fill(
@@ -929,24 +926,20 @@ class _GameDetailsHeaderDelegate extends SliverPersistentHeaderDelegate {
             height: 56.0,
             child: Container(
               color: backgroundColor.withValues(alpha: titleOpacity * 0.9),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: titleOpacity,
-                      child: Center(
-                        child: CorpusPackAwareTitle(
-                          title,
-                          abbreviateIfLong: true,
-                          baseFontSize: 20,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: leading,
+                title: Opacity(
+                  opacity: titleOpacity,
+                  child: CorpusPackAwareTitle(
+                    title,
+                    abbreviateIfLong: true,
+                    baseFontSize: 20,
+                    color: Colors.white,
                   ),
-                  Row(children: [leading, const Spacer()]),
-                ],
+                ),
+                centerTitle: false,
               ),
             ),
           ),

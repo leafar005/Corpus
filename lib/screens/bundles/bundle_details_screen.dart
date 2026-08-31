@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/models/models.dart';
-import 'package:corpus/utils/igdb_constants.dart';
 import 'package:corpus/utils/url_utils.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
+import 'package:corpus/globals.dart';
 
 class BundleDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bundleData;
@@ -154,64 +154,84 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
 
                   if (allGames.isEmpty) return const SizedBox.shrink();
 
-                  return Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    children: allGames.map((gameData) {
-                      if (gameData is! Map<String, dynamic>) {
-                        return const SizedBox.shrink();
-                      }
-                      return SizedBox(
-                        width: 140,
-                        height: 140 / IgdbConstants.coverAspectRatio,
-                        child: GameCard(
-                          game: Game.fromMap(gameData),
-                          onReturn: () {},
+                  return ValueListenableBuilder<int>(
+                    valueListenable: mobileGridColumnsNotifier,
+                    builder: (context, columns, child) {
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: getCorpusGridDelegate(
+                          context,
+                          columns,
+                          desktopMaxExtent: 140,
+                          spacing: 16,
                         ),
+                        itemCount: allGames.length,
+                        itemBuilder: (context, index) {
+                          final gameData = allGames[index];
+                          if (gameData is! Map<String, dynamic>) {
+                            return const SizedBox.shrink();
+                          }
+                          return GameCard(
+                            game: Game.fromMap(gameData),
+                            onReturn: () {},
+                          );
+                        },
                       );
-                    }).toList(),
+                    },
                   );
                 }
 
                 // Render normal por Tiers
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: tiers.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final tier = entry.value as Map<String, dynamic>;
-                    final gamesList = tier['games'] as List<dynamic>? ?? [];
-
-                    if (gamesList.isEmpty) return const SizedBox.shrink();
-
-                    // Si tiene nombre o precio, se puede poner, si no TIER N
-                    final tierName = tier['name'] ?? 'TIER ${index + 1}';
-
+                return ValueListenableBuilder<int>(
+                  valueListenable: mobileGridColumnsNotifier,
+                  builder: (context, columns, child) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CorpusSectionTitle(tierName.toString().toUpperCase()),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 16,
-                          children: gamesList.map((gameData) {
-                            if (gameData is! Map<String, dynamic>) {
-                              return const SizedBox.shrink();
-                            }
-                            return SizedBox(
-                              width: 140,
-                              height: 140 / IgdbConstants.coverAspectRatio,
-                              child: GameCard(
-                                game: Game.fromMap(gameData),
-                                onReturn: () {},
+                      children: tiers.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final tier = entry.value as Map<String, dynamic>;
+                        final gamesList = tier['games'] as List<dynamic>? ?? [];
+
+                        if (gamesList.isEmpty) return const SizedBox.shrink();
+
+                        // Si tiene nombre o precio, se puede poner, si no TIER N
+                        final tierName = tier['name'] ?? 'TIER ${index + 1}';
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CorpusSectionTitle(
+                              tierName.toString().toUpperCase(),
+                            ),
+                            const SizedBox(height: 16),
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate: getCorpusGridDelegate(
+                                context,
+                                columns,
+                                desktopMaxExtent: 140,
+                                spacing: 16,
                               ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 32),
-                      ],
+                              itemCount: gamesList.length,
+                              itemBuilder: (context, gIndex) {
+                                final gameData = gamesList[gIndex];
+                                if (gameData is! Map<String, dynamic>) {
+                                  return const SizedBox.shrink();
+                                }
+                                return GameCard(
+                                  game: Game.fromMap(gameData),
+                                  onReturn: () {},
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 32),
+                          ],
+                        );
+                      }).toList(),
                     );
-                  }).toList(),
+                  },
                 );
               },
             ),

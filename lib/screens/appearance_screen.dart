@@ -8,6 +8,8 @@ import '../theme/style_pack_registry.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../theme/style_pack.dart';
 import '../widgets/corpus_section_title.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:corpus/utils/igdb_constants.dart';
 
 class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
@@ -101,6 +103,24 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           _buildHomeTabTile(),
           const SizedBox(height: 12),
           _buildInfoTabTile(),
+
+          if (MediaQuery.sizeOf(context).width <= 800) ...[
+            const SizedBox(height: 32),
+            const Text(
+              'Cuadrícula en móviles',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Selecciona cuántas columnas quieres ver en las listas de juegos (perfil, búsqueda, etc).',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildGridColumnSelector(),
+          ],
+
           const SizedBox(height: 24),
         ],
       ),
@@ -193,13 +213,13 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     required bool isActive,
     required bool isImported,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: Theme.of(
           context,
         ).extension<CorpusThemeExtension>()!.radiusLarge,
-        border: Border.all(
+        side: BorderSide(
           color: isActive
               ? Theme.of(context).colorScheme.primary
               : Colors.transparent,
@@ -207,6 +227,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         ),
       ),
       child: ListTile(
+        shape: RoundedRectangleBorder(
+          borderRadius: Theme.of(
+            context,
+          ).extension<CorpusThemeExtension>()!.radiusLarge,
+        ),
         leading: Container(
           width: 40,
           height: 40,
@@ -330,13 +355,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   // ── Existing builders (unchanged logic) ────────────────────────────────
 
   Widget _buildHomeTabTile() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusLarge,
-      ),
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: Theme.of(
+        context,
+      ).extension<CorpusThemeExtension>()!.radiusLarge,
       child: ListTile(
         leading: Icon(
           Icons.dashboard_customize_outlined,
@@ -361,13 +384,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   }
 
   Widget _buildInfoTabTile() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusLarge,
-      ),
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: Theme.of(
+        context,
+      ).extension<CorpusThemeExtension>()!.radiusLarge,
       child: ListTile(
         leading: Icon(
           Icons.view_list_outlined,
@@ -392,13 +413,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   }
 
   Widget _buildThemeOptions() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusLarge,
-      ),
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: Theme.of(
+        context,
+      ).extension<CorpusThemeExtension>()!.radiusLarge,
       child: Column(
         children: [
           _buildThemeTile(
@@ -461,45 +480,146 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   }
 
   Widget _buildColorPicker() {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      alignment: WrapAlignment.center,
-      children: _availableColors.map((color) {
-        final isSelected = themeNotifier.seedColor == color;
-        return GestureDetector(
-          onTap: () {
-            themeNotifier.setColor(color);
-            setState(() {});
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.onSurface
-                    : Colors.transparent,
-                width: 3,
-              ),
-              boxShadow: [
-                if (isSelected)
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.5),
-                    blurRadius: 12,
-                    spreadRadius: 2,
+    final isMobile = MediaQuery.sizeOf(context).width <= 800;
+    // An item is 60px wide. Spacing is 16px.
+    // Width for N items = (N * 60) + ((N - 1) * 16)
+    // 4 items: 4 * 60 + 3 * 16 = 240 + 48 = 288
+    // 8 items: 8 * 60 + 7 * 16 = 480 + 112 = 592
+    final double maxWidth = isMobile ? 288.0 : 592.0;
+
+    return Center(
+      child: SizedBox(
+        width: maxWidth,
+        child: Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          alignment: WrapAlignment.center,
+          children: _availableColors.map((color) {
+            final isSelected = themeNotifier.seedColor == color;
+            return GestureDetector(
+              onTap: () {
+                themeNotifier.setColor(color);
+                setState(() {});
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Colors.transparent,
+                    width: 3,
                   ),
-              ],
-            ),
-            child: isSelected
-                ? const Icon(Icons.check, color: Colors.white, size: 30)
-                : null,
-          ),
+                  boxShadow: [
+                    if (isSelected)
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.5),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                  ],
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check, color: Colors.white, size: 30)
+                    : null,
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGridColumnSelector() {
+    return ValueListenableBuilder<int>(
+      valueListenable: mobileGridColumnsNotifier,
+      builder: (context, currentColumns, child) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [2, 3, 4].map((columns) {
+            final isSelected = currentColumns == columns;
+            final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+
+            return GestureDetector(
+              onTap: () async {
+                mobileGridColumnsNotifier.value = columns;
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setInt('mobile_grid_columns', columns);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.15)
+                      : Theme.of(context).colorScheme.surface,
+                  borderRadius: ext.radiusMedium,
+                  border: Border.all(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(
+                            context,
+                          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(columns, (index) {
+                        const spacing = 4.0;
+                        final totalSpacing = spacing * (columns - 1);
+                        final mockCoverWidth = (56.0 - totalSpacing) / columns;
+                        final mockCoverHeight =
+                            mockCoverWidth / IgdbConstants.coverAspectRatio;
+
+                        return Container(
+                          width: mockCoverWidth,
+                          height: mockCoverHeight,
+                          margin: EdgeInsets.only(
+                            right: index < columns - 1 ? spacing : 0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(
+                              3,
+                            ), // Slight radius
+                          ),
+                        );
+                      }),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$columns',
+                      style: TextStyle(
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 }
