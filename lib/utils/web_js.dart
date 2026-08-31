@@ -38,17 +38,19 @@ String? getWebPathname() {
 /// Conserva los query params actuales (p.ej. `?style=persona5`).
 void setWebPath(String path, {bool replace = false}) {
   if (!kIsWeb) return;
-  try {
-    final search = html.window.location.search;
-    final url = '$path$search';
-    if (replace) {
-      html.window.history.replaceState(null, '', url);
-    } else {
-      html.window.history.pushState(null, '', url);
+  Future.microtask(() {
+    try {
+      final search = html.window.location.search;
+      final url = '$path$search';
+      if (replace) {
+        html.window.history.replaceState(null, '', url);
+      } else {
+        html.window.history.pushState(null, '', url);
+      }
+    } catch (e) {
+      debugPrint('[WebJs] Error actualizando path: $e');
     }
-  } catch (e) {
-    debugPrint('[WebJs] Error actualizando path: $e');
-  }
+  });
 }
 
 /// Escucha el botón atrás/adelante del navegador.

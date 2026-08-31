@@ -24,7 +24,7 @@ import '../screens/settings/steam_import_progress_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/social/friends_screen.dart';
 import '../services/import_service.dart';
-import 'app_routes.dart';
+import 'package:corpus/routes/app_routes.dart';
 
 // ── Argumentos de rutas ──────────────────────────────────────────────────────
 
@@ -346,6 +346,13 @@ abstract final class CorpusRouter {
 }
 
 // ── Extensión de navegación ────────────────────────────────────────────────────
+//
+// En web, cada `push` de aquí que caiga dentro del Navigator anidado de una
+// pestaña (juego, perfil, reseña, logros) se refleja solo en la URL del
+// navegador — no hace falta tocar nada aquí para eso. Lo hace
+// TabUrlSyncObserver (routes/tab_url_sync.dart) a partir del `name` y los
+// `arguments` de la ruta; para añadir una pantalla nueva a esa lista, se
+// añade un caso en deepRouteFromRouteSettings.
 
 extension CorpusNavigation on BuildContext {
   Future<T?> pushRoute<T>(String name, {Object? arguments}) {

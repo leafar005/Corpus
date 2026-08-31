@@ -11,9 +11,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../globals.dart';
+import 'package:corpus/globals.dart';
 import '../../repositories/notifications_repository.dart';
-import '../../routes/corpus_router.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_network_image.dart';
 import '../../widgets/corpus_section_title.dart';

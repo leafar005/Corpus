@@ -16,9 +16,12 @@ import '../theme/corpus_typography.dart';
 import '../theme/style_pack.dart';
 import '../widgets/p5r_dynamic_frame.dart';
 import '../utils/web_js.dart';
-import '../routes/app_routes.dart';
+import 'package:corpus/routes/app_routes.dart';
+import '../routes/tab_deep_route.dart';
+import '../routes/deep_route_resolver.dart';
+import '../routes/tab_url_sync.dart';
 import '../services/deep_link_service.dart';
-import '../globals.dart';
+import 'package:corpus/globals.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -41,6 +44,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
   ];
+
+  // Un observer por pestaña: mantiene la URL del navegador (web) alineada
+  // con lo que haya arriba de la pila de esa pestaña (juego, perfil,
+  // reseña, logros...). Ver routes/tab_url_sync.dart.
+  late final List<TabUrlSyncObserver> _tabUrlObservers = List.generate(
+    5,
+    (i) => TabUrlSyncObserver(i),
+  );
 
   // Lazy loading: las pantallas solo se instancian la primera vez que se visitan.
   // Un Set rastrea qué pestañas ya han sido inicializadas.
@@ -371,12 +382,26 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       if (pathname != null) {
         final fromUrl = AppRoutes.tabIndexFromPublicPath(pathname);
         if (fromUrl != null) {
+          final subRoute = parseTabDeepRoute(
+            AppRoutes.subSegmentsFromPublicPath(pathname),
+          );
           if (mounted) {
             setState(() {
               _currentIndex = fromUrl;
               _initializedTabs.add(fromUrl);
             });
+            currentTabIndexNotifier.value = fromUrl;
             if (fromUrl == 2) _markActivityRead();
+            if (subRoute != null) {
+              // No es navegación nueva del usuario, es la URL con la que ya
+              // ha cargado la página: no debe generar otra entrada de
+              // historial (ver TabUrlSyncObserver).
+              isSyncingRouteFromBrowser = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                await _resolveAndPushSubRoute(fromUrl, subRoute);
+                isSyncingRouteFromBrowser = false;
+              });
+            }
           }
           return;
         }
@@ -391,11 +416,33 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         _currentIndex = savedIndex;
         _initializedTabs.add(savedIndex);
       });
+      currentTabIndexNotifier.value = savedIndex;
       if (savedIndex == 2) _markActivityRead();
       if (kIsWeb) {
         setWebPath(AppRoutes.publicPathForTab(savedIndex), replace: true);
       }
     }
+  }
+
+  /// Resuelve [subRoute] (con su fetch de datos) y la empuja en la pestaña
+  /// [tabIndex]. Si el recurso ya no existe (id inventado en la URL, o el
+  /// juego/reseña se borró), deja la pestaña en su raíz y corrige la URL
+  /// para no dejar un enlace roto en la barra de direcciones.
+  Future<void> _resolveAndPushSubRoute(
+    int tabIndex,
+    TabDeepRoute subRoute,
+  ) async {
+    final route = await DeepRouteResolver.buildRoute(subRoute);
+    if (!mounted) return;
+    final nav = _navigatorKeys[tabIndex].currentState;
+    if (nav == null) return;
+    if (route == null) {
+      if (kIsWeb && currentTabIndexNotifier.value == tabIndex) {
+        setWebPath(AppRoutes.publicPathForTab(tabIndex), replace: true);
+      }
+      return;
+    }
+    nav.push(route);
   }
 
   void _applyTabFromUrl() {
@@ -404,23 +451,65 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (pathname == null) return;
 
     final index = AppRoutes.tabIndexFromPublicPath(pathname);
-    if (index == null || index == _currentIndex) return;
+    if (index == null) return;
 
-    setState(() {
-      _currentIndex = index;
-      _initializedTabs.add(index);
-    });
-    if (index == 2) _markActivityRead();
-    if (_shouldPersistTab) {
-      SharedPreferences.getInstance().then(
-        (prefs) => prefs.setInt('main_tab_index', index),
-      );
+    final subRoute = parseTabDeepRoute(
+      AppRoutes.subSegmentsFromPublicPath(pathname),
+    );
+
+    final isNewTab = index != _currentIndex;
+    if (isNewTab) {
+      setState(() {
+        _currentIndex = index;
+        _initializedTabs.add(index);
+      });
+      if (index == 2) _markActivityRead();
+      if (_shouldPersistTab) {
+        SharedPreferences.getInstance().then(
+          (prefs) => prefs.setInt('main_tab_index', index),
+        );
+      }
+    }
+    currentTabIndexNotifier.value = index;
+
+    // Alineamos la pila de navegación de la pestaña con lo que diga la URL:
+    // primero la vaciamos hasta la raíz y, si la URL pide una sub-ruta, la
+    // resolvemos y la empujamos encima. isSyncingRouteFromBrowser evita que
+    // TabUrlSyncObserver interprete estos push/pop como navegación nueva y
+    // cree una entrada de historial duplicada (el navegador ya nos trajo
+    // aquí él solo).
+    Future<void> applySubRoute() async {
+      isSyncingRouteFromBrowser = true;
+      final nav = _navigatorKeys[index].currentState;
+      nav?.popUntil((route) => route.isFirst);
+      if (subRoute != null) {
+        await _resolveAndPushSubRoute(index, subRoute);
+      }
+      isSyncingRouteFromBrowser = false;
+    }
+
+    if (isNewTab) {
+      // Puede que el Navigator de esta pestaña se esté construyendo recién
+      // ahora (primera visita en la sesión): esperamos al siguiente frame
+      // para que su GlobalKey ya tenga estado.
+      WidgetsBinding.instance.addPostFrameCallback((_) => applySubRoute());
+    } else {
+      // Misma pestaña (p. ej. atrás/adelante entre dos juegos distintos):
+      // su Navigator ya está montado, no hace falta esperar a nada.
+      applySubRoute();
     }
   }
 
   void _syncWebUrlForTab(int index, {bool replace = false}) {
     if (!kIsWeb) return;
-    setWebPath(AppRoutes.publicPathForTab(index), replace: replace);
+    // Si esta pestaña ya tenía una pantalla abierta (juego, perfil...) antes
+    // de cambiar a otra, la conservamos: Offstage no resetea su pila al
+    // ocultarla, así que la URL tampoco debería "olvidarla" al volver.
+    final topSettings = _tabUrlObservers[index].topRouteSettings;
+    final subRoute = topSettings == null
+        ? null
+        : deepRouteFromRouteSettings(topSettings);
+    setWebPath(publicPathForTabRoute(index, subRoute), replace: replace);
   }
 
   void _onTabTapped(int index) {
@@ -449,6 +538,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _currentIndex = index;
       _initializedTabs.add(index); // Marca la pestaña como inicializada
     });
+    currentTabIndexNotifier.value = index;
 
     _syncWebUrlForTab(index);
     if (_shouldPersistTab) {
@@ -467,6 +557,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       offstage: _currentIndex != index,
       child: Navigator(
         key: _navigatorKeys[index],
+        observers: [_tabUrlObservers[index]],
         onGenerateRoute: (routeSettings) {
           final tabRoute = switch (index) {
             0 => AppRoutes.tabHome,
@@ -1040,8 +1131,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           navigator.pop();
         } else {
           if (_currentIndex != 0) {
-            // Si estamos en la raíz de otra pestaña, volvemos a Inicio
-            setState(() => _currentIndex = 0);
+            // Si estamos en la raíz de otra pestaña, volvemos a Inicio. Vía
+            // _onTabTapped (no un setState directo) para que la URL y la
+            // pestaña persistida en disco también queden al día.
+            _onTabTapped(0);
           } else {
             // Si estamos en la raíz de Inicio, cerramos la app
             SystemNavigator.pop();

@@ -10,7 +10,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:image_picker/image_picker.dart';
-import '../../globals.dart';
+import 'package:corpus/globals.dart';
 import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
 import 'package:corpus/routes/corpus_router.dart';

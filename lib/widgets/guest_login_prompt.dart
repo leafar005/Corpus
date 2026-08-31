@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../routes/app_routes.dart';
-import '../routes/corpus_router.dart';
+import 'package:corpus/routes/app_routes.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import 'corpus_primary_button.dart';
 
 /// Aviso reutilizable para zonas de la app en "modo invitado":

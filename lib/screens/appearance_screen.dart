@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../globals.dart';
+import 'package:corpus/globals.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../services/style_pack_import_service.dart';
 import '../services/style_pack_music_service.dart';

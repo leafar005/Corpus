@@ -15,7 +15,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/deep_link_service.dart';
 import 'screens/auth/reset_password_screen.dart';
 
-import 'globals.dart';
+import 'package:corpus/globals.dart';
 import 'routes/app_root.dart';
 
 void main() async {

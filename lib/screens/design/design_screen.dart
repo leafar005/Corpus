@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../globals.dart';
+import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../theme/corpus_typography.dart';
 import '../../widgets/design/corpus_tabs.dart';

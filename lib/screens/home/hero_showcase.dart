@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../globals.dart';
+import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../theme/corpus_typography.dart';
 import '../../widgets/guest_login_prompt.dart';

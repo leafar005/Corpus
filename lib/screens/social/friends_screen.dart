@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
-import '../../globals.dart';
+import 'package:corpus/globals.dart';
 
 /// Pantalla de gestión de amigos: buscar por username, ver solicitudes,
 /// ver amigos aceptados y eliminar amistades.

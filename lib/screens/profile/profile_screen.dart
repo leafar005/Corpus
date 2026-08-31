@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../globals.dart';
+import 'package:corpus/globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/corpus_network_image.dart';
 import '../../widgets/friendship_button.dart';

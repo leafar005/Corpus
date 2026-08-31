@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../repositories/profile_repository.dart';
 import '../../../repositories/activity_repository.dart';
 
-import '../../../globals.dart';
+import 'package:corpus/globals.dart';
 
 class ProfileController extends ChangeNotifier {
   ProfileController({this.userId})

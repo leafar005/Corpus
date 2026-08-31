@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../routes/corpus_router.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import '../theme/corpus_theme_extension.dart';
 
 class CoopBadge extends StatelessWidget {

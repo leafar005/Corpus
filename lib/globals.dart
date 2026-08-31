@@ -33,6 +33,19 @@ final ValueNotifier<int> unreadNotificationsCount = ValueNotifier<int>(0);
 // Flag para desactivar temporizadores infinitos de carrusel/fondo en tests E2E y evitar que pumpAndSettle se cuelgue
 bool kDisableCarouselForTests = false;
 
+/// Índice de la pestaña actualmente visible en MainScreen. La usa
+/// TabUrlSyncObserver (routes/tab_url_sync.dart) para saber si un push/pop
+/// ocurre en la pestaña visible o en una de fondo, y así no pisar la URL
+/// por algo que pasa en una pestaña que el usuario no está viendo.
+final ValueNotifier<int> currentTabIndexNotifier = ValueNotifier<int>(0);
+
+/// Se activa mientras MainScreen está re-sincronizando el estado de una
+/// pestaña a partir de un cambio de URL (botón atrás/adelante del
+/// navegador), para que TabUrlSyncObserver no cree una entrada de historial
+/// nueva por algo que el propio navegador ya nos disparó. Ver
+/// MainScreen._applyTabFromUrl.
+bool isSyncingRouteFromBrowser = false;
+
 // Utilidad global para obtener el espaciado inferior en listas (móvil vs escritorio)
 double getBottomSpacer(BuildContext context) {
   final isDesktop = MediaQuery.of(context).size.width > 800;

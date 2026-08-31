@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../routes/deep_route_resolver.dart';
 import '../screens/activity/review_details_screen.dart';
 import '../screens/bundles/bundles_screen.dart';
 import '../screens/library/game_details_screen.dart';
@@ -53,12 +53,13 @@ class DeepLinkService {
   }) async {
     if (reviewId == null || reviewId.isEmpty) return;
 
-    final res = await Supabase.instance.client
-        .from('reviews')
-        .select('*, games!inner(*), users!reviews_user_id_users_fkey(*)')
-        .eq('id', reviewId)
-        .maybeSingle();
-    if (res == null) return;
+    // Misma query que usa la resolución de URLs profundas
+    // (/actividad/resena/{id}); ver routes/deep_route_resolver.dart.
+    final args = await DeepRouteResolver.fetchReviewById(
+      reviewId,
+      focusComment: focusComment,
+    );
+    if (args == null) return;
 
     final state = navigatorKey.currentState;
     if (state == null) return;
@@ -66,12 +67,10 @@ class DeepLinkService {
     state.push(
       MaterialPageRoute(
         builder: (_) => ReviewDetailsScreen(
-          gameData: Map<String, dynamic>.from(res['games']),
-          userData: res['users'] != null
-              ? Map<String, dynamic>.from(res['users'])
-              : null,
-          reviewData: res,
-          focusComment: focusComment,
+          gameData: args.gameData,
+          userData: args.userData,
+          reviewData: args.reviewData,
+          focusComment: args.focusComment,
         ),
       ),
     );
@@ -88,14 +87,11 @@ class DeepLinkService {
     }
 
     // Fallback (notificaciones antiguas o sin reseña asociada):
-    // abrimos la ficha del juego en vez de un post concreto.
+    // abrimos la ficha del juego en vez de un post concreto. Misma query
+    // que usa /buscar/{igdb_id}; ver routes/deep_route_resolver.dart.
     final gameId = int.tryParse(data['game_id'] ?? '');
     if (gameId == null) return;
-    final game = await Supabase.instance.client
-        .from('games')
-        .select()
-        .eq('igdb_id', gameId)
-        .maybeSingle();
+    final game = await DeepRouteResolver.fetchGameByIgdbId(gameId);
     if (game == null) return;
 
     final state = navigatorKey.currentState;

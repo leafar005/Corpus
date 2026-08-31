@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/routes/corpus_router.dart';
-import '../../globals.dart';
+import 'package:corpus/globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/full_screen_gallery.dart';
 import '../../widgets/coop_badge.dart';

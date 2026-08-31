@@ -55,17 +55,36 @@ class Env {
   /// Llamar en `main()` antes de inicializar servicios.
   static void assertConfigured() {
     final missing = <String>[];
-    if (supabaseUrl.isEmpty) missing.add('SUPABASE_URL');
-    if (supabaseAnonKey.isEmpty) missing.add('SUPABASE_ANON_KEY');
-    if (igdbClientId.isEmpty) missing.add('IGDB_CLIENT_ID');
-    if (firebaseProjectId.isEmpty) missing.add('FIREBASE_PROJECT_ID');
-    if (firebaseApiKey.isEmpty) missing.add('FIREBASE_API_KEY');
-    if (firebaseAuthDomain.isEmpty) missing.add('FIREBASE_AUTH_DOMAIN');
-    if (firebaseStorageBucket.isEmpty) missing.add('FIREBASE_STORAGE_BUCKET');
-    if (firebaseMessagingSenderId.isEmpty)
+    if (supabaseUrl.isEmpty) {
+      missing.add('SUPABASE_URL');
+    }
+    if (supabaseAnonKey.isEmpty) {
+      missing.add('SUPABASE_ANON_KEY');
+    }
+    if (igdbClientId.isEmpty) {
+      missing.add('IGDB_CLIENT_ID');
+    }
+    if (firebaseProjectId.isEmpty) {
+      missing.add('FIREBASE_PROJECT_ID');
+    }
+    if (firebaseApiKey.isEmpty) {
+      missing.add('FIREBASE_API_KEY');
+    }
+    if (firebaseAuthDomain.isEmpty) {
+      missing.add('FIREBASE_AUTH_DOMAIN');
+    }
+    if (firebaseStorageBucket.isEmpty) {
+      missing.add('FIREBASE_STORAGE_BUCKET');
+    }
+    if (firebaseMessagingSenderId.isEmpty) {
       missing.add('FIREBASE_MESSAGING_SENDER_ID');
-    if (firebaseAppId.isEmpty) missing.add('FIREBASE_APP_ID');
-    if (firebaseVapidKey.isEmpty) missing.add('FIREBASE_VAPID_KEY');
+    }
+    if (firebaseAppId.isEmpty) {
+      missing.add('FIREBASE_APP_ID');
+    }
+    if (firebaseVapidKey.isEmpty) {
+      missing.add('FIREBASE_VAPID_KEY');
+    }
 
     if (missing.isNotEmpty) {
       throw StateError(

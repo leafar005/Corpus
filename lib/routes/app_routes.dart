@@ -28,10 +28,8 @@ abstract final class AppRoutes {
 
   /// Path público → índice de pestaña. Devuelve null si no es una pestaña.
   static int? tabIndexFromPublicPath(String pathname) {
-    final segment = pathname
-        .replaceAll(RegExp(r'^/+|/+$'), '')
-        .split('/')
-        .firstWhere((s) => s.isNotEmpty, orElse: () => '');
+    final segments = _pathSegments(pathname);
+    final segment = segments.isEmpty ? '' : segments.first;
 
     return switch (segment) {
       '' || 'inicio' => 0,
@@ -41,6 +39,23 @@ abstract final class AppRoutes {
       'perfil' => 4,
       _ => null,
     };
+  }
+
+  /// Segmentos del path posteriores a la raíz de la pestaña, es decir, la
+  /// sub-ruta dentro de esa pestaña (ficha de juego, perfil, reseña...).
+  /// Para `/buscar/1942` devuelve `['1942']`; para `/buscar` o `/` devuelve
+  /// `[]`. Ver lib/routes/tab_deep_route.dart para cómo se interpretan.
+  static List<String> subSegmentsFromPublicPath(String pathname) {
+    final segments = _pathSegments(pathname);
+    return segments.length > 1 ? segments.sublist(1) : const [];
+  }
+
+  static List<String> _pathSegments(String pathname) {
+    return pathname
+        .replaceAll(RegExp(r'^/+|/+$'), '')
+        .split('/')
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   // Pantallas de la app
