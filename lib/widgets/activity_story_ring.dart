@@ -46,13 +46,12 @@ class ActivityStoryRing extends StatelessWidget {
     final ringColor = hasUnseenStory ? cs.primary : cs.outlineVariant;
 
     return Container(
-      padding: EdgeInsets.all(ringWidth),
-      decoration: BoxDecoration(shape: BoxShape.circle, color: ringColor),
-      child: Container(
-        padding: EdgeInsets.all(ringWidth * 0.6),
-        decoration: BoxDecoration(shape: BoxShape.circle, color: cs.surface),
-        child: avatar,
+      padding: EdgeInsets.all(ringWidth * 0.6),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: ringColor, width: ringWidth),
       ),
+      child: avatar,
     );
   }
 }

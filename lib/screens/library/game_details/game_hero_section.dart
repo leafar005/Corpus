@@ -14,6 +14,8 @@ import '../../../theme/corpus_theme_extension.dart';
 import '../../../widgets/corpus_primary_button.dart';
 import '../../../widgets/corpus_network_image.dart';
 import '../../../utils/igdb_constants.dart';
+import '../../../widgets/p5r_dynamic_frame.dart';
+import '../../../globals.dart';
 
 class GameHeroSection extends StatefulWidget {
   final Map<String, dynamic> gameData;
@@ -403,6 +405,170 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             elevation: widget.inLibrary ? 0 : 2,
           ),
         ),
+        if (widget.inLibrary) ...[
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+            tooltip: 'Opciones',
+            offset: const Offset(0, 50),
+            shape: RoundedRectangleBorder(
+              borderRadius: Theme.of(
+                context,
+              ).extension<CorpusThemeExtension>()!.radiusMedium,
+            ),
+            child: Builder(
+              builder: (context) {
+                final ext = Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!;
+                final menuBgColor = Colors.grey.shade900;
+                const menuIconColor = Colors.white;
+
+                if (ext.useDynamicFrames) {
+                  return P5rDynamicFrame(
+                    backgroundColor: menuBgColor,
+                    padding: EdgeInsets.zero,
+                    borderColor: Colors.black,
+                    borderWidth: 2,
+                    child: const SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Center(
+                        child: Icon(
+                          Icons.more_vert,
+                          color: menuIconColor,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  );
+                } else {
+                  return Material(
+                    color: menuBgColor,
+                    borderRadius: ext.radiusMedium,
+                    elevation: widget.inLibrary ? 0 : 2,
+                    child: const SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Center(
+                        child: Icon(
+                          Icons.more_vert,
+                          color: menuIconColor,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+            onSelected: (value) {
+              if (value == 'add') {
+                widget.onShowReviewModal();
+              } else {
+                late final Review review;
+                if (widget.reviews.isNotEmpty) {
+                  review = widget.reviews.first;
+                } else {
+                  review = Review(
+                    id: '',
+                    userId: widget.userData?.id ?? '',
+                    gameId:
+                        int.tryParse(
+                          widget.gameData['id']?.toString() ?? '0',
+                        ) ??
+                        0,
+                    rating: 0,
+                    ratingGameplay: 0,
+                    ratingNarrative: 0,
+                    ratingSoundtrack: 0,
+                    ratingVisuals: 0,
+                    status: GameStatus.values.firstWhere(
+                      (e) => e.name == widget.status,
+                      orElse: () => GameStatus.wishlist,
+                    ),
+                    completionType: '',
+                    isReplay: false,
+                    createdAt: DateTime.now(),
+                    updatedAt: DateTime.now(),
+                  );
+                }
+
+                if (value == 'edit') {
+                  widget.onEditReview(review);
+                } else if (value == 'delete') {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Borrar juego'),
+                      content: const Text(
+                        '¿Estás seguro de que quieres eliminar este juego de tu biblioteca? Se borrarán todas las reseñas y rejugadas asociadas.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancelar'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            widget.controller.deleteFromLibrary();
+                            libraryUpdateNotifier.value++;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Juego eliminado de la biblioteca',
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Borrar',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              }
+            },
+            itemBuilder: (context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'add',
+                child: Row(
+                  children: [
+                    Icon(Icons.add, size: 20),
+                    SizedBox(width: 8),
+                    Text('Añadir reseña'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 20),
+                    SizedBox(width: 8),
+                    Text('Editar'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 20, color: Colors.redAccent),
+                    SizedBox(width: 8),
+                    Text(
+                      'Borrar juego',
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

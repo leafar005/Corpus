@@ -297,7 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       height: bannerHeight,
       child: Stack(
         fit: StackFit.expand,
-        clipBehavior: Clip.hardEdge,
+        clipBehavior: Clip.none,
         children: [
           if (bannerUrl == null)
             DecoratedBox(
@@ -324,25 +324,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-          IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.55, 0.78, 1.0],
-                  colors: [
-                    Theme.of(
-                      context,
-                    ).scaffoldBackgroundColor.withValues(alpha: 0.0),
-                    Theme.of(
-                      context,
-                    ).scaffoldBackgroundColor.withValues(alpha: 0.15),
-                    Theme.of(
-                      context,
-                    ).scaffoldBackgroundColor.withValues(alpha: 0.55),
-                    Theme.of(context).scaffoldBackgroundColor,
-                  ],
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: -2,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.0, 0.55, 0.78, 1.0],
+                    colors: [
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.0),
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.15),
+                      Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor.withValues(alpha: 0.55),
+                      Theme.of(context).scaffoldBackgroundColor,
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -427,13 +433,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       viewedIds,
                     );
                 return Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      width: hasStory ? 1.0 : (2.5 - (0.5 * t)),
-                    ),
-                  ),
+                  decoration: const BoxDecoration(shape: BoxShape.circle),
                   child: ActivityStoryRing(
                     radius: avatarRadius,
                     hasStory: hasStory,
@@ -768,21 +768,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             viewedIds,
                           );
                       return Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                            width: hasStory ? 1.5 : 4,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(
-                                context,
-                              ).shadowColor.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
+                        decoration: const BoxDecoration(shape: BoxShape.circle),
                         child: ActivityStoryRing(
                           radius: isDesktop ? 60 : 45,
                           hasStory: hasStory,
