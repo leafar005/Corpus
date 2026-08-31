@@ -9,15 +9,13 @@
 // sola. Si en el futuro se añade una pantalla nueva con su propia sub-ruta,
 // solo hace falta añadir un caso en deepRouteFromRouteSettings.
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:corpus/globals.dart';
-import 'package:corpus/utils/web_js.dart';
 import 'package:corpus/routes/app_routes.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/tab_deep_route.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 String? _currentUserId() => Supabase.instance.client.auth.currentUser?.id;
 
@@ -73,13 +71,11 @@ TabDeepRoute? deepRouteFromRouteSettings(RouteSettings settings) {
     case AppRoutes.achievementGames:
       final args = settings.arguments;
       if (args is! AchievementGamesArgs) return null;
-      // We don't have a userId in AchievementGamesArgs because it always refers to the viewed profile.
-      // But we can check if it's the current user from context or just leave userId as null for now,
-      // or extract it if we had it. Since AchievementGamesArgs doesn't have userId,
-      // it means it's always for the currently viewed profile's achievements.
-      // Actually, wait, when we navigate to AchievementGamesScreen, it uses the profile we are in.
-      // Let's just return it without userId, it will fall back to the current user's profile URL.
-      return AchievementGamesDeepRoute(achievementId: args.achievementId);
+      final userId = args.userId == _currentUserId() ? null : args.userId;
+      return AchievementGamesDeepRoute(
+        userId: userId,
+        achievementId: args.achievementId,
+      );
 
     case AppRoutes.friends:
       return const FriendsDeepRoute();
@@ -92,62 +88,30 @@ TabDeepRoute? deepRouteFromRouteSettings(RouteSettings settings) {
   }
 }
 
-/// Sincroniza la URL del navegador (web) con la pila de navegación de UNA
-/// pestaña. Se cuelga como `observer` del `Navigator` anidado de esa
-/// pestaña en MainScreen.
-///
-/// - Al empujar una pantalla con sub-URL propia (juego, perfil, reseña,
-///   logros) añade una entrada nueva al historial (`pushState`): así el
-///   botón atrás/adelante del navegador funciona.
-/// - Al hacer pop (botón atrás nativo, un AppBar, etc.) corrige la URL
-///   visible con `replaceState`, sin consumir una entrada del historial:
-///   quien controla de verdad el historial es siempre el propio navegador.
-///
-/// [isSyncingRouteFromBrowser] (globals.dart) desactiva esto mientras
-/// MainScreen está re-sincronizando el estado de una pestaña a partir de un
-/// cambio de URL (atrás/adelante), para no crear una entrada de historial
-/// nueva por algo que el propio navegador ya nos disparó.
 class TabUrlSyncObserver extends NavigatorObserver {
-  TabUrlSyncObserver(this.tabIndex);
+  TabUrlSyncObserver(this.stackIndex);
 
-  final int tabIndex;
-
-  /// Ajustes de la ruta que está actualmente arriba del todo en la pila de
-  /// esta pestaña. Lo usa MainScreen para saber qué URL mostrar al volver a
-  /// esta pestaña tras haber estado en otra, sin depender de una API
-  /// pública de Navigator para "asomarse" a su pila.
-  RouteSettings? topRouteSettings;
-
-  bool get _isActiveTab => currentTabIndexNotifier.value == tabIndex;
-
-  void _sync(Route<dynamic>? route, {required bool push}) {
-    if (!kIsWeb || !_isActiveTab || isSyncingRouteFromBrowser) return;
-    final subRoute = route == null
-        ? null
-        : deepRouteFromRouteSettings(route.settings);
-    setWebPath(publicPathForTabRoute(tabIndex, subRoute), replace: !push);
-  }
+  final int stackIndex;
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    topRouteSettings = route.settings;
-    // La primerísima ruta que construye el Navigator es la raíz de la
-    // pestaña: ya la gestiona MainScreen (_syncWebUrlForTab), no hace falta
-    // que la reafirmemos aquí también.
-    if (deepRouteFromRouteSettings(route.settings) == null) return;
-    _sync(route, push: true);
+    AppNavigationController.instance.onNavigatorPush(
+      stackIndex,
+      route.settings,
+    );
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    topRouteSettings = previousRoute?.settings;
-    _sync(previousRoute, push: false);
+    AppNavigationController.instance.onNavigatorPop(stackIndex);
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    topRouteSettings = newRoute?.settings;
     if (newRoute == null) return;
-    _sync(newRoute, push: false);
+    AppNavigationController.instance.onNavigatorReplace(
+      stackIndex,
+      newSettings: newRoute.settings,
+    );
   }
 }

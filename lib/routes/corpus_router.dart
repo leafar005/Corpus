@@ -96,6 +96,7 @@ class AchievementsArgs {
 }
 
 class AchievementGamesArgs {
+  final String? userId;
   final String achievementId;
   final String achievementName;
   final int? companyId;
@@ -108,6 +109,7 @@ class AchievementGamesArgs {
   final Color? achievementColor;
 
   const AchievementGamesArgs({
+    this.userId,
     required this.achievementId,
     required this.achievementName,
     this.companyId,

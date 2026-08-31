@@ -22,6 +22,8 @@ import '../routes/deep_route_resolver.dart';
 import '../routes/tab_url_sync.dart';
 import '../services/deep_link_service.dart';
 import 'package:corpus/globals.dart';
+import '../widgets/edge_swipe_back_detector.dart';
+import '../routes/app_navigation_controller.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -84,12 +86,32 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AppNavigationController.instance.registerTabNavigatorKeys(_navigatorKeys);
+    AppNavigationController.instance.registerRootNavigatorKey(
+      DeepLinkService.navigatorKey,
+    );
+    AppNavigationController.instance.onTabSwitchedByBrowser = (newTab) {
+      if (!mounted) return;
+      setState(() {
+        _currentIndex = newTab;
+        _initializedTabs.add(newTab);
+      });
+      currentTabIndexNotifier.value = newTab;
+      if (newTab == 2) _markActivityRead();
+      if (_shouldPersistTab) {
+        SharedPreferences.getInstance().then(
+          (p) => p.setInt('main_tab_index', newTab),
+        );
+      }
+    };
     // Pre-instanciamos la primera pantalla
     _getScreen(0);
     _loadSavedTab();
     if (kIsWeb) {
-      _webPopStateSub = webPopStateStream().listen((_) {
-        _applyTabFromUrl();
+      _webPopStateSub = webPopStateStream().listen((state) {
+        final pathname = getWebPathname();
+        if (pathname == null) return;
+        AppNavigationController.instance.handleBrowserPopState(state, pathname);
       });
     }
     // Señalar al splash HTML que ya tenemos la UI lista para mostrar.
@@ -393,13 +415,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             currentTabIndexNotifier.value = fromUrl;
             if (fromUrl == 2) _markActivityRead();
             if (subRoute != null) {
-              // No es navegación nueva del usuario, es la URL con la que ya
-              // ha cargado la página: no debe generar otra entrada de
-              // historial (ver TabUrlSyncObserver).
-              isSyncingRouteFromBrowser = true;
               WidgetsBinding.instance.addPostFrameCallback((_) async {
                 await _resolveAndPushSubRoute(fromUrl, subRoute);
-                isSyncingRouteFromBrowser = false;
               });
             }
           }
@@ -445,76 +462,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     nav.push(route);
   }
 
-  void _applyTabFromUrl() {
-    if (!kIsWeb) return;
-    final pathname = getWebPathname();
-    if (pathname == null) return;
-
-    final index = AppRoutes.tabIndexFromPublicPath(pathname);
-    if (index == null) return;
-
-    final subRoute = parseTabDeepRoute(
-      AppRoutes.subSegmentsFromPublicPath(pathname),
-    );
-
-    final isNewTab = index != _currentIndex;
-    if (isNewTab) {
-      setState(() {
-        _currentIndex = index;
-        _initializedTabs.add(index);
-      });
-      if (index == 2) _markActivityRead();
-      if (_shouldPersistTab) {
-        SharedPreferences.getInstance().then(
-          (prefs) => prefs.setInt('main_tab_index', index),
-        );
-      }
-    }
-    currentTabIndexNotifier.value = index;
-
-    // Alineamos la pila de navegación de la pestaña con lo que diga la URL:
-    // primero la vaciamos hasta la raíz y, si la URL pide una sub-ruta, la
-    // resolvemos y la empujamos encima. isSyncingRouteFromBrowser evita que
-    // TabUrlSyncObserver interprete estos push/pop como navegación nueva y
-    // cree una entrada de historial duplicada (el navegador ya nos trajo
-    // aquí él solo).
-    Future<void> applySubRoute() async {
-      isSyncingRouteFromBrowser = true;
-      final nav = _navigatorKeys[index].currentState;
-      nav?.popUntil((route) => route.isFirst);
-      if (subRoute != null) {
-        await _resolveAndPushSubRoute(index, subRoute);
-      }
-      isSyncingRouteFromBrowser = false;
-    }
-
-    if (isNewTab) {
-      // Puede que el Navigator de esta pestaña se esté construyendo recién
-      // ahora (primera visita en la sesión): esperamos al siguiente frame
-      // para que su GlobalKey ya tenga estado.
-      WidgetsBinding.instance.addPostFrameCallback((_) => applySubRoute());
-    } else {
-      // Misma pestaña (p. ej. atrás/adelante entre dos juegos distintos):
-      // su Navigator ya está montado, no hace falta esperar a nada.
-      applySubRoute();
-    }
-  }
-
-  void _syncWebUrlForTab(int index, {bool replace = false}) {
-    if (!kIsWeb) return;
-    // Si esta pestaña ya tenía una pantalla abierta (juego, perfil...) antes
-    // de cambiar a otra, la conservamos: Offstage no resetea su pila al
-    // ocultarla, así que la URL tampoco debería "olvidarla" al volver.
-    final topSettings = _tabUrlObservers[index].topRouteSettings;
-    final subRoute = topSettings == null
-        ? null
-        : deepRouteFromRouteSettings(topSettings);
-    setWebPath(publicPathForTabRoute(index, subRoute), replace: replace);
-  }
-
   void _onTabTapped(int index) {
     if (index == _currentIndex) {
+      final truncated =
+          AppNavigationController.instance.framesFor(index).length > 1;
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+      if (truncated) {
+        AppNavigationController.instance.truncateStack(index, keepFirst: true);
+        AppNavigationController.instance.replaceCurrentUrlWithRoot(index);
+      }
+
       // Si ya estamos en Actividad y el badge quedó "pegado" por cualquier
       // motivo (p. ej. llegó actividad nueva mientras estábamos aquí y no se
       // marcó como leída), volver a tocar el icono también lo limpia.
@@ -539,13 +496,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _initializedTabs.add(index); // Marca la pestaña como inicializada
     });
     currentTabIndexNotifier.value = index;
-
-    _syncWebUrlForTab(index);
     if (_shouldPersistTab) {
       SharedPreferences.getInstance().then(
-        (prefs) => prefs.setInt('main_tab_index', index),
+        (p) => p.setInt('main_tab_index', index),
       );
     }
+
+    AppNavigationController.instance.recordTabSwitch(index);
   }
 
   Widget _buildNavigator(int index) {
@@ -1125,11 +1082,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
 
-        final NavigatorState navigator =
-            _navigatorKeys[_currentIndex].currentState!;
-        if (navigator.canPop()) {
-          navigator.pop();
-        } else {
+        final handled = AppNavigationController.instance.requestBack(
+          context,
+          forStack: _currentIndex,
+        );
+        if (!handled) {
           if (_currentIndex != 0) {
             // Si estamos en la raíz de otra pestaña, volvemos a Inicio. Vía
             // _onTabTapped (no un setState directo) para que la URL y la
@@ -1141,25 +1098,27 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           }
         }
       },
-      child: Scaffold(
-        extendBody: !isDesktop,
-        body: Column(
-          children: [
-            if (isDesktop) _buildTopNavigationBar(context),
-            Expanded(
-              child: Stack(
-                children: [
-                  _buildNavigator(0),
-                  _buildNavigator(1),
-                  _buildNavigator(2),
-                  _buildNavigator(3),
-                  _buildNavigator(4),
-                ],
+      child: EdgeSwipeBackDetector(
+        child: Scaffold(
+          extendBody: !isDesktop,
+          body: Column(
+            children: [
+              if (isDesktop) _buildTopNavigationBar(context),
+              Expanded(
+                child: Stack(
+                  children: [
+                    _buildNavigator(0),
+                    _buildNavigator(1),
+                    _buildNavigator(2),
+                    _buildNavigator(3),
+                    _buildNavigator(4),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          bottomNavigationBar: isDesktop ? null : _buildMobileNavBar(context),
         ),
-        bottomNavigationBar: isDesktop ? null : _buildMobileNavBar(context),
       ),
     );
   }

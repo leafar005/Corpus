@@ -110,8 +110,8 @@ abstract final class DeepRouteResolver {
           builder: (_) => AchievementsScreen(userId: resolvedId, initialXp: 0),
         );
 
-      case AchievementGamesDeepRoute(:final achievementId):
-        final args = await fetchAchievementGamesArgs(achievementId);
+      case AchievementGamesDeepRoute(:final achievementId, :final userId):
+        final args = await fetchAchievementGamesArgs(achievementId, userId);
         if (args == null) return null;
         return MaterialPageRoute(
           settings: RouteSettings(
@@ -191,6 +191,7 @@ abstract final class DeepRouteResolver {
 
   static Future<AchievementGamesArgs?> fetchAchievementGamesArgs(
     String achievementId,
+    String? userId,
   ) async {
     try {
       final groupId = achievementId.split('_').first;
@@ -250,6 +251,7 @@ abstract final class DeepRouteResolver {
       );
 
       return AchievementGamesArgs(
+        userId: userId,
         achievementId: groupId,
         achievementName: sagaStr,
         companyId: companyId,

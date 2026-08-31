@@ -40,13 +40,6 @@ bool kDisableCarouselForTests = false;
 /// por algo que pasa en una pestaña que el usuario no está viendo.
 final ValueNotifier<int> currentTabIndexNotifier = ValueNotifier<int>(0);
 
-/// Se activa mientras MainScreen está re-sincronizando el estado de una
-/// pestaña a partir de un cambio de URL (botón atrás/adelante del
-/// navegador), para que TabUrlSyncObserver no cree una entrada de historial
-/// nueva por algo que el propio navegador ya nos disparó. Ver
-/// MainScreen._applyTabFromUrl.
-bool isSyncingRouteFromBrowser = false;
-
 // Utilidad global para obtener el espaciado inferior en listas (móvil vs escritorio)
 double getBottomSpacer(BuildContext context) {
   final isDesktop = MediaQuery.of(context).size.width > 800;

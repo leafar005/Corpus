@@ -4,6 +4,7 @@ import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import 'package:corpus/globals.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 
 /// Pantalla de gestión de amigos: buscar por username, ver solicitudes,
 /// ver amigos aceptados y eliminar amistades.
@@ -632,35 +633,48 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const CorpusScreenTitle('Amigos'),
-        bottom: TabBar(
+    final canPopSystem = !Navigator.of(context).canPop();
+    return PopScope(
+      canPop: canPopSystem,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          AppNavigationController.instance.requestBack(context);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const CorpusScreenTitle('Amigos'),
+          bottom: TabBar(
+            controller: _tabController,
+            tabs: [
+              const Tab(icon: Icon(Icons.search), text: 'Buscar'),
+              Tab(
+                icon: Badge(
+                  isLabelVisible: _receivedRequests.isNotEmpty,
+                  label: Text(_receivedRequests.length.toString()),
+                  child: const Icon(Icons.notifications_rounded),
+                ),
+                text: 'Solicitudes',
+              ),
+              Tab(
+                icon: Badge(
+                  isLabelVisible: _friends.isNotEmpty,
+                  label: Text(_friends.length.toString()),
+                  child: const Icon(Icons.group_rounded),
+                ),
+                text: 'Mis amigos',
+              ),
+            ],
+          ),
+        ),
+        body: TabBarView(
           controller: _tabController,
-          tabs: [
-            const Tab(icon: Icon(Icons.search), text: 'Buscar'),
-            Tab(
-              icon: Badge(
-                isLabelVisible: _receivedRequests.isNotEmpty,
-                label: Text(_receivedRequests.length.toString()),
-                child: const Icon(Icons.notifications_rounded),
-              ),
-              text: 'Solicitudes',
-            ),
-            Tab(
-              icon: Badge(
-                isLabelVisible: _friends.isNotEmpty,
-                label: Text(_friends.length.toString()),
-                child: const Icon(Icons.group_rounded),
-              ),
-              text: 'Mis amigos',
-            ),
+          children: [
+            _buildSearchTab(),
+            _buildRequestsTab(),
+            _buildFriendsTab(),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildSearchTab(), _buildRequestsTab(), _buildFriendsTab()],
       ),
     );
   }

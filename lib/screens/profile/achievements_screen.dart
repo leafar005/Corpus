@@ -5,6 +5,7 @@ import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../../utils/achievement_utils.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 
 class AchievementsScreen extends StatefulWidget {
   final String userId;
@@ -957,349 +958,362 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
           originalName.contains(q) ||
           description.contains(q);
     }).toList();
-    return Scaffold(
-      appBar: AppBar(
-        title: const CorpusScreenTitle('Progresión y Logros'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            tooltip: '¿Cómo ganar XP?',
-            onPressed: _showXpInfoDialog,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _buildLevelHeader()),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Buscar logros...',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _searchQuery = '';
-                                  });
-                                },
-                              )
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()!.radiusMedium,
-                          borderSide: BorderSide.none,
+    final canPopSystem = !Navigator.of(context).canPop();
+    return PopScope(
+      canPop: canPopSystem,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          AppNavigationController.instance.requestBack(context);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const CorpusScreenTitle('Progresión y Logros'),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.help_outline),
+              tooltip: '¿Cómo ganar XP?',
+              onPressed: _showXpInfoDialog,
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _buildLevelHeader()),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Buscar logros...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _searchQuery = '';
+                                    });
+                                  },
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: Theme.of(
+                              context,
+                            ).extension<CorpusThemeExtension>()!.radiusMedium,
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.3),
                         ),
-                        filled: true,
-                        fillColor: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withValues(alpha: 0.3),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                        },
                       ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
                     ),
                   ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverGrid(
-                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 180,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: MediaQuery.of(context).size.width < 600
-                          ? 0.65
-                          : 0.78,
-                    ),
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final achievement = filteredAchievements[index];
-                      final String aId = achievement['id'] as String;
-                      String groupId = aId;
-                      final matchSuffix = RegExp(
-                        r'_(\d+|all)$',
-                      ).firstMatch(aId);
-                      if (matchSuffix != null) {
-                        groupId = aId.substring(
-                          0,
-                          aId.length - matchSuffix.group(0)!.length,
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 180,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio:
+                            MediaQuery.of(context).size.width < 600
+                            ? 0.65
+                            : 0.78,
+                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final achievement = filteredAchievements[index];
+                        final String aId = achievement['id'] as String;
+                        String groupId = aId;
+                        final matchSuffix = RegExp(
+                          r'_(\d+|all)$',
+                        ).firstMatch(aId);
+                        if (matchSuffix != null) {
+                          groupId = aId.substring(
+                            0,
+                            aId.length - matchSuffix.group(0)!.length,
+                          );
+                        }
+                        final milestonesData =
+                            _sagaMilestones[groupId] ??
+                            <Map<String, dynamic>>[
+                              {'target': 1},
+                            ];
+                        final milestones = milestonesData
+                            .map((e) => e['target'] as int)
+                            .toList();
+                        final currentProgress = _sagaProgress[groupId] ?? 0;
+                        final isUnlocked =
+                            _unlockedAchievements.containsKey(
+                              achievement['id'],
+                            ) ||
+                            _unlockedAchievements.keys.any(
+                              (key) =>
+                                  key == groupId ||
+                                  key.startsWith('${groupId}_'),
+                            ) ||
+                            (currentProgress >= milestones.first);
+                        final displayDescription = _getNextMilestoneDescription(
+                          groupId,
+                          currentProgress,
+                          achievement['description'] as String,
                         );
-                      }
-                      final milestonesData =
-                          _sagaMilestones[groupId] ??
-                          <Map<String, dynamic>>[
-                            {'target': 1},
-                          ];
-                      final milestones = milestonesData
-                          .map((e) => e['target'] as int)
-                          .toList();
-                      final currentProgress = _sagaProgress[groupId] ?? 0;
-                      final isUnlocked =
-                          _unlockedAchievements.containsKey(
-                            achievement['id'],
-                          ) ||
-                          _unlockedAchievements.keys.any(
-                            (key) =>
-                                key == groupId || key.startsWith('${groupId}_'),
-                          ) ||
-                          (currentProgress >= milestones.first);
-                      final displayDescription = _getNextMilestoneDescription(
-                        groupId,
-                        currentProgress,
-                        achievement['description'] as String,
-                      );
-                      final int displayXp = _getNextMilestoneXp(
-                        groupId,
-                        currentProgress,
-                        (achievement['xp_reward'] as int?) ?? 0,
-                      );
-                      DateTime? unlockedDate =
-                          _unlockedAchievements[achievement['id']];
-                      for (final entry in _unlockedAchievements.entries) {
-                        if (entry.key == groupId ||
-                            entry.key.startsWith('${groupId}_') ||
-                            entry.key == achievement['id']) {
-                          if (unlockedDate == null ||
-                              entry.value.isAfter(unlockedDate)) {
-                            unlockedDate = entry.value;
+                        final int displayXp = _getNextMilestoneXp(
+                          groupId,
+                          currentProgress,
+                          (achievement['xp_reward'] as int?) ?? 0,
+                        );
+                        DateTime? unlockedDate =
+                            _unlockedAchievements[achievement['id']];
+                        for (final entry in _unlockedAchievements.entries) {
+                          if (entry.key == groupId ||
+                              entry.key.startsWith('${groupId}_') ||
+                              entry.key == achievement['id']) {
+                            if (unlockedDate == null ||
+                                entry.value.isAfter(unlockedDate)) {
+                              unlockedDate = entry.value;
+                            }
                           }
                         }
-                      }
 
-                      final badgeStyle = _getAchievementBadgeStyle(
-                        achievement,
-                        currentProgress,
-                        milestones,
-                        isUnlocked,
-                      );
-                      final Color badgeColor = badgeStyle['color'] as Color;
-                      final Color borderColor =
-                          badgeStyle['borderColor'] as Color;
-                      final Color bgColor = badgeStyle['bgColor'] as Color;
-                      final IconData badgeIcon = badgeStyle['icon'] as IconData;
-                      final bool isMedal = badgeStyle['type'] == 'medal';
-                      return Card(
-                        margin: EdgeInsets.zero,
-                        elevation: isUnlocked ? 4 : 0,
-                        color: Theme.of(context).colorScheme.surface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()!.radiusLarge,
-                          side: BorderSide(color: borderColor, width: 1),
-                        ),
-                        child: InkWell(
-                          borderRadius: Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()!.radiusLarge,
-                          onTap: () {
-                            int? companyId;
-                            int? collectionId;
-                            int? franchiseId;
-                            int? collectionId2;
-                            int? franchiseId2;
-                            final String aId = achievement['id'] as String;
-                            for (final entry
-                                in AchievementUtils
-                                    .achievementIgdbIds
-                                    .entries) {
-                              if (aId.startsWith(entry.key)) {
-                                companyId = entry.value['companyId'];
-                                collectionId = entry.value['collectionId'];
-                                franchiseId = entry.value['franchiseId'];
-                                collectionId2 = entry.value['collectionId2'];
-                                franchiseId2 = entry.value['franchiseId2'];
-                                break;
+                        final badgeStyle = _getAchievementBadgeStyle(
+                          achievement,
+                          currentProgress,
+                          milestones,
+                          isUnlocked,
+                        );
+                        final Color badgeColor = badgeStyle['color'] as Color;
+                        final Color borderColor =
+                            badgeStyle['borderColor'] as Color;
+                        final Color bgColor = badgeStyle['bgColor'] as Color;
+                        final IconData badgeIcon =
+                            badgeStyle['icon'] as IconData;
+                        final bool isMedal = badgeStyle['type'] == 'medal';
+                        return Card(
+                          margin: EdgeInsets.zero,
+                          elevation: isUnlocked ? 4 : 0,
+                          color: Theme.of(context).colorScheme.surface,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: Theme.of(
+                              context,
+                            ).extension<CorpusThemeExtension>()!.radiusLarge,
+                            side: BorderSide(color: borderColor, width: 1),
+                          ),
+                          child: InkWell(
+                            borderRadius: Theme.of(
+                              context,
+                            ).extension<CorpusThemeExtension>()!.radiusLarge,
+                            onTap: () {
+                              int? companyId;
+                              int? collectionId;
+                              int? franchiseId;
+                              int? collectionId2;
+                              int? franchiseId2;
+                              final String aId = achievement['id'] as String;
+                              for (final entry
+                                  in AchievementUtils
+                                      .achievementIgdbIds
+                                      .entries) {
+                                if (aId.startsWith(entry.key)) {
+                                  companyId = entry.value['companyId'];
+                                  collectionId = entry.value['collectionId'];
+                                  franchiseId = entry.value['franchiseId'];
+                                  collectionId2 = entry.value['collectionId2'];
+                                  franchiseId2 = entry.value['franchiseId2'];
+                                  break;
+                                }
                               }
-                            }
-                            if (companyId != null ||
-                                collectionId != null ||
-                                franchiseId != null) {
-                              context
-                                  .pushAchievementGames(
-                                    AchievementGamesArgs(
-                                      achievementId: groupId,
-                                      achievementName:
-                                          achievement['name'] as String,
-                                      companyId: companyId,
-                                      collectionId: collectionId,
-                                      franchiseId: franchiseId,
-                                      collectionId2: collectionId2,
-                                      franchiseId2: franchiseId2,
-                                      milestones:
-                                          _sagaMilestones[groupId] ??
-                                          <Map<String, dynamic>>[
-                                            {'target': 1, 'xp': 10},
-                                          ],
-                                      achievementIcon: badgeIcon,
-                                      achievementColor: badgeColor,
-                                    ),
-                                  )
-                                  .then((_) {
-                                    _fetchAchievementsData();
-                                  });
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Builder(
-                                      builder: (context) {
-                                        final milestones =
+                              if (companyId != null ||
+                                  collectionId != null ||
+                                  franchiseId != null) {
+                                context
+                                    .pushAchievementGames(
+                                      AchievementGamesArgs(
+                                        achievementId: groupId,
+                                        achievementName:
+                                            achievement['name'] as String,
+                                        companyId: companyId,
+                                        collectionId: collectionId,
+                                        franchiseId: franchiseId,
+                                        collectionId2: collectionId2,
+                                        franchiseId2: franchiseId2,
+                                        milestones:
                                             _sagaMilestones[groupId] ??
                                             <Map<String, dynamic>>[
-                                              {'target': 1},
-                                            ];
-                                        final maxTarget =
-                                            milestones.last['target'] as int;
-                                        final current =
-                                            _sagaProgress[groupId] ?? 0;
-                                        final showCircle =
-                                            current > 0 && current < maxTarget;
-                                        if (!showCircle) {
-                                          return const SizedBox(
-                                            width: 56,
-                                            height: 56,
+                                              {'target': 1, 'xp': 10},
+                                            ],
+                                        achievementIcon: badgeIcon,
+                                        achievementColor: badgeColor,
+                                      ),
+                                    )
+                                    .then((_) {
+                                      _fetchAchievementsData();
+                                    });
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Builder(
+                                        builder: (context) {
+                                          final milestones =
+                                              _sagaMilestones[groupId] ??
+                                              <Map<String, dynamic>>[
+                                                {'target': 1},
+                                              ];
+                                          final maxTarget =
+                                              milestones.last['target'] as int;
+                                          final current =
+                                              _sagaProgress[groupId] ?? 0;
+                                          final showCircle =
+                                              current > 0 &&
+                                              current < maxTarget;
+                                          if (!showCircle) {
+                                            return const SizedBox(
+                                              width: 56,
+                                              height: 56,
+                                            );
+                                          }
+                                          double progress = current / maxTarget;
+                                          return SizedBox(
+                                            width: 60,
+                                            height: 60,
+                                            child: CircularProgressIndicator(
+                                              value: progress,
+                                              strokeWidth: 3,
+                                              backgroundColor: Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceContainerHighest,
+                                              color: badgeColor,
+                                            ),
                                           );
-                                        }
-                                        double progress = current / maxTarget;
-                                        return SizedBox(
-                                          width: 60,
-                                          height: 60,
-                                          child: CircularProgressIndicator(
-                                            value: progress,
-                                            strokeWidth: 3,
-                                            backgroundColor: Theme.of(context)
-                                                .colorScheme
-                                                .surfaceContainerHighest,
-                                            color: badgeColor,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    Container(
-                                      width: 56,
-                                      height: 56,
-                                      decoration: BoxDecoration(
-                                        color: bgColor,
-                                        shape: BoxShape.circle,
-                                        border: isMedal
-                                            ? Border.all(
-                                                color: badgeColor.withValues(
-                                                  alpha: 0.3,
-                                                ),
-                                                width: 2,
-                                              )
-                                            : null,
+                                        },
                                       ),
-                                      child: Icon(
-                                        badgeIcon,
-                                        color: badgeColor,
-                                        size: 28,
+                                      Container(
+                                        width: 56,
+                                        height: 56,
+                                        decoration: BoxDecoration(
+                                          color: bgColor,
+                                          shape: BoxShape.circle,
+                                          border: isMedal
+                                              ? Border.all(
+                                                  color: badgeColor.withValues(
+                                                    alpha: 0.3,
+                                                  ),
+                                                  width: 2,
+                                                )
+                                              : null,
+                                        ),
+                                        child: Icon(
+                                          badgeIcon,
+                                          color: badgeColor,
+                                          size: 28,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  achievement['name'] as String,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    height: 1.1,
-                                    color: isUnlocked
-                                        ? Theme.of(
-                                            context,
-                                          ).colorScheme.onSurface
-                                        : Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.5),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                Expanded(
-                                  child: Text(
-                                    displayDescription,
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    achievement['name'] as String,
                                     textAlign: TextAlign.center,
-                                    maxLines: 3,
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.1,
                                       color: isUnlocked
                                           ? Theme.of(
                                               context,
-                                            ).colorScheme.onSurfaceVariant
+                                            ).colorScheme.onSurface
                                           : Theme.of(context)
                                                 .colorScheme
-                                                .onSurfaceVariant
+                                                .onSurface
                                                 .withValues(alpha: 0.5),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: bgColor,
-                                    borderRadius: Theme.of(context)
-                                        .extension<CorpusThemeExtension>()!
-                                        .radiusSmall,
-                                    border: Border.all(color: badgeColor),
-                                  ),
-                                  child: Text(
-                                    '+$displayXp XP',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: badgeColor,
+                                  const SizedBox(height: 6),
+                                  Expanded(
+                                    child: Text(
+                                      displayDescription,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isUnlocked
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.onSurfaceVariant
+                                            : Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant
+                                                  .withValues(alpha: 0.5),
+                                      ),
                                     ),
                                   ),
-                                ),
-                                if (isUnlocked && unlockedDate != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${unlockedDate.day.toString().padLeft(2, '0')}/${unlockedDate.month.toString().padLeft(2, '0')}/${unlockedDate.year}',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: badgeColor,
-                                      fontWeight: FontWeight.bold,
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: bgColor,
+                                      borderRadius: Theme.of(context)
+                                          .extension<CorpusThemeExtension>()!
+                                          .radiusSmall,
+                                      border: Border.all(color: badgeColor),
+                                    ),
+                                    child: Text(
+                                      '+$displayXp XP',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: badgeColor,
+                                      ),
                                     ),
                                   ),
+                                  if (isUnlocked && unlockedDate != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${unlockedDate.day.toString().padLeft(2, '0')}/${unlockedDate.month.toString().padLeft(2, '0')}/${unlockedDate.year}',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: badgeColor,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }, childCount: filteredAchievements.length),
+                        );
+                      }, childCount: filteredAchievements.length),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }

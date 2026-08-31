@@ -15,8 +15,9 @@ import 'package:corpus/globals.dart';
 import '../../repositories/notifications_repository.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
-import '../../widgets/corpus_network_image.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 import '../../widgets/corpus_section_title.dart';
+import '../../widgets/corpus_network_image.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../activity/activity_formatters.dart';
@@ -283,8 +284,9 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
 
   @override
   Widget build(BuildContext context) {
+    Widget content;
     if (_isGuest) {
-      return Scaffold(
+      content = Scaffold(
         appBar: AppBar(title: const CorpusScreenTitle('Notificaciones')),
         body: const Center(
           child: GuestLoginPrompt(
@@ -293,28 +295,39 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
           ),
         ),
       );
+    } else {
+      content = Scaffold(
+        appBar: AppBar(title: const CorpusScreenTitle('Notificaciones')),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _notifications.isEmpty
+            ? const Center(child: Text('No tienes notificaciones todavía'))
+            : ListView.separated(
+                controller: scrollController,
+                itemCount: _notifications.length + (hasMore ? 1 : 0),
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  if (index >= _notifications.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return _buildRow(_notifications[index]);
+                },
+              ),
+      );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const CorpusScreenTitle('Notificaciones')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _notifications.isEmpty
-          ? const Center(child: Text('No tienes notificaciones todavía'))
-          : ListView.separated(
-              controller: scrollController,
-              itemCount: _notifications.length + (hasMore ? 1 : 0),
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                if (index >= _notifications.length) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                return _buildRow(_notifications[index]);
-              },
-            ),
+    final canPopSystem = !Navigator.of(context).canPop();
+    return PopScope(
+      canPop: canPopSystem,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          AppNavigationController.instance.requestBack(context);
+        }
+      },
+      child: content,
     );
   }
 }

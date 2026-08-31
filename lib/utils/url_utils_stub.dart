@@ -19,9 +19,11 @@ class Location {
 class History {
   void pushState(dynamic state, String title, String url) {}
   void replaceState(dynamic state, String title, String url) {}
+  void back() {}
 }
 
 class PopStateEvent {
+  dynamic state;
   PopStateEvent(String type);
 }
 

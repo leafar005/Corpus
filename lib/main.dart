@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:corpus/routes/tab_url_sync.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -102,6 +104,9 @@ class _CorpusAppState extends State<CorpusApp> {
       builder: (context, child) {
         return MaterialApp(
           navigatorKey: DeepLinkService.navigatorKey,
+          navigatorObservers: [
+            TabUrlSyncObserver(AppNavigationController.rootStackIndex),
+          ],
           title: 'Corpus',
           // Aplicamos nuestros temas y el modo seleccionado
           theme: AppTheme.getLightTheme(
