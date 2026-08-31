@@ -61,6 +61,7 @@ abstract final class AppRoutes {
   // Pantallas de la app
   static const gameDetails = '/game-details';
   static const reviewDetails = '/review-details';
+  static const bundleDetails = '/bundle-details';
   static const profile = '/profile';
   static const search = '/search';
   static const friends = '/friends';

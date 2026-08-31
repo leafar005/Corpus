@@ -8,6 +8,7 @@ import '../../widgets/game_card.dart';
 import '../../services/bundle_service.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
+import 'package:corpus/routes/corpus_router.dart';
 
 class _ListRow {
   final bool isHeader;
@@ -527,11 +528,19 @@ class _BundleCardState extends State<_BundleCard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () {
+                        context.pushBundleDetails(widget.bundle);
+                      },
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ),

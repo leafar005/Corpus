@@ -100,7 +100,9 @@ class CorpusPackAwareTitle extends StatelessWidget {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final titleStyle = Theme.of(context).appBarTheme.titleTextStyle;
     final resolvedColor = color ?? titleStyle?.color ?? Colors.white;
-    final displayText = abbreviateIfLong
+    final bool isDesktop = MediaQuery.sizeOf(context).width > 800;
+
+    final displayText = (abbreviateIfLong && !isDesktop)
         ? abbreviateGameTitleIfNeeded(text)
         : text;
 

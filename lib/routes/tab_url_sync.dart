@@ -57,6 +57,13 @@ TabDeepRoute? deepRouteFromRouteSettings(RouteSettings settings) {
       final id = args.reviewData['id'];
       return id == null ? null : ReviewDeepRoute(id.toString());
 
+    case AppRoutes.bundleDetails:
+      final args = settings.arguments;
+      if (args is! BundleDetailsArgs) return null;
+      final bundleId = args.bundleData['id']?.toString();
+      if (bundleId == null) return null;
+      return BundleDeepRoute(bundleId);
+
     case AppRoutes.achievements:
       final args = settings.arguments;
       if (args is! AchievementsArgs) return null;

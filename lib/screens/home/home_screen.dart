@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../utils/url_utils.dart';
 import '../../widgets/corpus_network_image.dart';
 import '../../models/models.dart';
 import '../../widgets/game_card.dart';
@@ -636,11 +635,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       cursor: SystemMouseCursors.click,
                       child: GestureDetector(
                         onTap: () {
-                          if (widget.onNavigateToBundles != null) {
-                            widget.onNavigateToBundles!(bundle['title'] ?? '');
-                          } else if (bundle['url'] != null) {
-                            openUrl(bundle['url']);
-                          }
+                          context.pushBundleDetails(bundle);
                         },
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

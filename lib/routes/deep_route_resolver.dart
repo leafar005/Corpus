@@ -16,6 +16,7 @@ import 'package:corpus/screens/profile/achievements_screen.dart';
 import 'package:corpus/screens/profile/profile_screen.dart';
 import 'package:corpus/screens/social/friends_screen.dart';
 import 'package:corpus/screens/social/notifications_feed_screen.dart';
+import 'package:corpus/screens/bundles/bundle_details_screen.dart';
 import 'package:corpus/routes/app_routes.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/tab_deep_route.dart';
@@ -41,6 +42,17 @@ abstract final class DeepRouteResolver {
             arguments: GameDetailsArgs(gameData: game),
           ),
           builder: (_) => GameDetailsScreen(gameData: game),
+        );
+
+      case BundleDeepRoute(:final bundleId):
+        final bundle = await fetchBundleById(bundleId);
+        if (bundle == null) return null;
+        return MaterialPageRoute(
+          settings: RouteSettings(
+            name: AppRoutes.bundleDetails,
+            arguments: BundleDetailsArgs(bundleData: bundle),
+          ),
+          builder: (_) => BundleDetailsScreen(bundleData: bundle),
         );
 
       case ProfileDeepRoute(:final userId):
@@ -109,6 +121,19 @@ abstract final class DeepRouteResolver {
           .maybeSingle();
     } catch (e) {
       debugPrint('[DeepRouteResolver] Error cargando juego $igdbId: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> fetchBundleById(String bundleId) async {
+    try {
+      return await Supabase.instance.client
+          .from('active_bundles')
+          .select()
+          .eq('id', bundleId)
+          .maybeSingle();
+    } catch (e) {
+      debugPrint('[DeepRouteResolver] Error cargando bundle $bundleId: $e');
       return null;
     }
   }

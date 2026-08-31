@@ -60,6 +60,11 @@ List<String> _splitWords(String text) {
       .toList();
 }
 
+final RegExp _gameTitleRomanNumeral = RegExp(
+  r'^(II{0,2}|IV|V|VI{1,3}|IX|X{1,3}|XI{1,3}|XIV|XV|XVI{1,3}|XIX|XX)$',
+  caseSensitive: false,
+);
+
 String _abbreviateSegment(String segment) {
   final parts = <String>[];
 
@@ -69,6 +74,8 @@ String _abbreviateSegment(String segment) {
 
     if (_gameTitleDigitsOnly.hasMatch(cleaned)) {
       parts.add(cleaned);
+    } else if (_gameTitleRomanNumeral.hasMatch(cleaned)) {
+      parts.add(cleaned.toUpperCase());
     } else {
       parts.add(cleaned[0].toUpperCase());
     }

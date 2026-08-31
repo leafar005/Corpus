@@ -130,6 +130,23 @@ final class NotificationsFeedDeepRoute extends TabDeepRoute {
   String toString() => 'NotificationsFeedDeepRoute()';
 }
 
+/// Detalles de un bundle.
+final class BundleDeepRoute extends TabDeepRoute {
+  final String bundleId;
+  const BundleDeepRoute(this.bundleId);
+
+  @override
+  List<String> toSegments() => ['bundle', bundleId];
+
+  @override
+  bool operator ==(Object other) =>
+      other is BundleDeepRoute && other.bundleId == bundleId;
+  @override
+  int get hashCode => bundleId.hashCode;
+  @override
+  String toString() => 'BundleDeepRoute($bundleId)';
+}
+
 /// Interpreta los segmentos posteriores a la raíz de una pestaña (ver
 /// [AppRoutes.subSegmentsFromPublicPath]). Devuelve `null` si no reconoce el
 /// patrón, en cuyo caso la pestaña simplemente se queda en su raíz.
@@ -142,6 +159,11 @@ TabDeepRoute? parseTabDeepRoute(List<String> segments) {
   if (segments[0] == 'resena') {
     if (segments.length < 2 || segments[1].isEmpty) return null;
     return ReviewDeepRoute(segments[1]);
+  }
+
+  if (segments[0] == 'bundle') {
+    if (segments.length < 2 || segments[1].isEmpty) return null;
+    return BundleDeepRoute(segments[1]);
   }
 
   if (segments[0] == 'logros') {

@@ -23,6 +23,7 @@ import '../screens/social/notifications_feed_screen.dart';
 import '../screens/settings/steam_import_progress_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/social/friends_screen.dart';
+import '../screens/bundles/bundle_details_screen.dart';
 import '../services/import_service.dart';
 import 'package:corpus/routes/app_routes.dart';
 
@@ -38,6 +39,12 @@ class GameDetailsArgs {
     this.scrollController,
     this.autoOpenReview = false,
   });
+}
+
+class BundleDetailsArgs {
+  final Map<String, dynamic> bundleData;
+
+  const BundleDetailsArgs({required this.bundleData});
 }
 
 class ReviewDetailsArgs {
@@ -172,6 +179,13 @@ abstract final class CorpusRouter {
             reviewData: args.reviewData,
             focusComment: args.focusComment,
           ),
+        );
+
+      case AppRoutes.bundleDetails:
+        final args = settings.arguments! as BundleDetailsArgs;
+        return MaterialPageRoute<T>(
+          settings: settings,
+          builder: (_) => BundleDetailsScreen(bundleData: args.bundleData),
         );
 
       case AppRoutes.profile:
@@ -398,6 +412,13 @@ extension CorpusNavigation on BuildContext {
         reviewData: reviewData,
         focusComment: focusComment,
       ),
+    );
+  }
+
+  Future<T?> pushBundleDetails<T>(Map<String, dynamic> bundleData) {
+    return pushRoute<T>(
+      AppRoutes.bundleDetails,
+      arguments: BundleDetailsArgs(bundleData: bundleData),
     );
   }
 
