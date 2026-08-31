@@ -222,6 +222,17 @@ class NotificationService {
       });
     } catch (e) {
       debugPrint('[NotificationService] Error guardando token FCM: $e');
+      try {
+        final uid = Supabase.instance.client.auth.currentUser?.id;
+        await Supabase.instance.client.from('client_error_log').insert({
+          'user_id': uid,
+          'source': 'saveFcmToken',
+          'message': e.toString(),
+          'platform': kIsWeb ? 'web' : Platform.operatingSystem,
+        });
+      } catch (_) {
+        // Ignorar si falla el guardado del log
+      }
     }
   }
 

@@ -95,6 +95,27 @@ Corpus maintains a highly robust Supabase backend. All schema changes, storage b
 
 ---
 
+## Despliegue en Vercel
+
+El build de producción (`vercel_build.sh`) genera `.env.json` a partir de variables de entorno de Vercel — **no** a partir de ningún archivo del repo. Si faltan, se inyectan como cadenas vacías sin error visible en el build (aunque `Env.assertConfigured()` hará que la app falle rápido al arrancar si eso pasa).
+
+Configura estas 10 variables en Vercel → Project Settings → Environment Variables, marcadas para Production, Preview y Development:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `IGDB_CLIENT_ID`
+- `FIREBASE_API_KEY`
+- `FIREBASE_AUTH_DOMAIN`
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_STORAGE_BUCKET`
+- `FIREBASE_MESSAGING_SENDER_ID`
+- `FIREBASE_APP_ID`
+- `FIREBASE_VAPID_KEY`
+
+Los valores son los mismos que tienes en tu `.env.json` local (ver `.env.json.example` para la plantilla).
+
+---
+
 ## Disclaimer
 
 **Educational & Personal Use Only.**  
