@@ -4,13 +4,11 @@ import 'package:corpus/utils/comment_thread_utils.dart';
 import 'package:corpus/utils/format_utils.dart';
 import '../../widgets/corpus_network_image.dart';
 import 'package:corpus/routes/corpus_router.dart';
-import 'package:corpus/routes/deep_route_resolver.dart';
-import 'package:corpus/routes/tab_deep_route.dart';
 import '../library/game_details_screen.dart';
 import '../library/review_modal.dart';
 import '../../widgets/full_screen_gallery.dart';
-
 import '../../widgets/achievement_toast.dart';
+import '../../widgets/mention_text.dart';
 import '../../models/models.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import 'dart:io';
@@ -194,45 +192,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     });
   }
 
-  Widget _buildCommentContent(String text) {
-    final RegExp regex = RegExp(r'(@\w+)');
-    final matches = regex.allMatches(text);
-    if (matches.isEmpty) {
-      return Text(text, style: const TextStyle(fontSize: 14, height: 1.4));
-    }
-
-    int currentIndex = 0;
-    List<TextSpan> spans = [];
-
-    for (final match in matches) {
-      if (match.start > currentIndex) {
-        spans.add(TextSpan(text: text.substring(currentIndex, match.start)));
-      }
-      spans.add(
-        TextSpan(
-          text: match.group(0),
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-      );
-      currentIndex = match.end;
-    }
-
-    if (currentIndex < text.length) {
-      spans.add(TextSpan(text: text.substring(currentIndex)));
-    }
-
-    return RichText(
-      text: TextSpan(
-        style: DefaultTextStyle.of(
-          context,
-        ).style.copyWith(fontSize: 14, height: 1.4),
-        children: spans,
-      ),
-    );
-  }
+  /// Delega en [MentionText] el renderizado de texto con menciones `@usuario`.
+  Widget _buildCommentContent(String text) => MentionText(text: text);
 
   Future<void> _deleteReview(String reviewId) async {
     final confirm = await showDialog<bool>(
@@ -304,12 +265,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       currentRatingSoundtrack: ratingSoundtrack,
       currentRatingVisuals: ratingVisuals,
       currentStatus: status,
-      commentController: TextEditingController(
-        text:
-            _currentReviewData['comment'] ??
-            _currentReviewData['content'] ??
-            '',
-      ),
+      initialComment:
+          _currentReviewData['comment'] ?? _currentReviewData['content'] ?? '',
       onSave: _saveReviewModal,
     );
   }
@@ -362,69 +319,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
       // Mostrar toasts de logros si se han desbloqueado al editar
       if (mounted && result.newAchievementDetails.isNotEmpty) {
-        int toastDelay = 300;
-        for (final ach in result.newAchievementDetails) {
-          final String aId = ach['id'] as String;
-          final String title = ach['name'] as String? ?? 'Logro desbloqueado';
-          final String rarity =
-              (ach['rarity'] as String?)?.toLowerCase() ?? 'comun';
-          final int xpReward = ach['xp_reward'] as int? ?? 0;
-
-          String subtitle = 'Logro desbloqueado';
-          Color color = const Color(0xFFFFD700);
-
-          if (title.contains('(Maestro)') ||
-              title.contains('(Nivel 3)') ||
-              aId.endsWith('_all')) {
-            subtitle = 'Maestro de saga';
-            color = const Color(0xFFFFD700);
-          } else if (title.contains('(Nivel 2)')) {
-            subtitle = 'Hito alcanzado';
-            color = const Color(0xFFC0C0C0);
-          } else if (title.contains('(Nivel 1)')) {
-            subtitle = 'Logro desbloqueado';
-            color = const Color(0xFFCD7F32);
-          } else {
-            if (rarity == 'legendario' ||
-                rarity == 'platino' ||
-                rarity == 'épico' ||
-                rarity == 'epico') {
-              subtitle = 'Hazaña legendaria';
-              color = Colors.cyanAccent;
-            } else if (rarity == 'difícil' ||
-                rarity == 'dificil' ||
-                rarity == 'medio') {
-              subtitle = 'Logro desbloqueado';
-              color = Colors.blueAccent;
-            } else {
-              subtitle = 'Logro desbloqueado';
-              color = Colors.green;
-            }
-          }
-
-          Future.delayed(Duration(milliseconds: toastDelay), () {
-            if (mounted) {
-              AchievementToast.show(
-                context,
-                title: title,
-                subtitle: subtitle,
-                xpReward: xpReward,
-                icon: Icons.workspace_premium,
-                color: color,
-                onTap: () async {
-                  final groupId = aId.split('_').first;
-                  final route = await DeepRouteResolver.buildRoute(
-                    AchievementGamesDeepRoute(achievementId: groupId),
-                  );
-                  if (route != null && mounted) {
-                    Navigator.push(context, route);
-                  }
-                },
-              );
-            }
-          });
-          toastDelay += 3700;
-        }
+        AchievementToast.showFromList(
+          context,
+          result.newAchievementDetails,
+          isMounted: () => mounted,
+        );
       }
 
       if (mounted) {
@@ -442,86 +341,6 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
           ),
         );
       }
-    }
-  }
-
-  String _formatDate(String isoString) {
-    try {
-      final date = DateTime.parse(isoString).toLocal();
-      const months = [
-        'Enero',
-        'Febrero',
-        'Marzo',
-        'Abril',
-        'Mayo',
-        'Junio',
-        'Julio',
-        'Agosto',
-        'Septiembre',
-        'Octubre',
-        'Noviembre',
-        'Diciembre',
-      ];
-      return "${date.day} de ${months[date.month - 1]} de ${date.year}";
-    } catch (e) {
-      return '';
-    }
-  }
-
-  /// Formato corto para la fecha de los comentarios (p. ej. "26 Ago. 2026"),
-  /// pensado para ocupar menos espacio horizontal que _formatDate.
-  String _formatCommentDate(String isoString) {
-    try {
-      final date = DateTime.parse(isoString).toLocal();
-      const months = [
-        'Ene',
-        'Feb',
-        'Mar',
-        'Abr',
-        'May',
-        'Jun',
-        'Jul',
-        'Ago',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dic',
-      ];
-      return '${date.day} ${months[date.month - 1]}. ${date.year}';
-    } catch (e) {
-      return '';
-    }
-  }
-
-  String _getMonthAbbr(int month) {
-    const months = [
-      'ene',
-      'feb',
-      'mar',
-      'abr',
-      'may',
-      'jun',
-      'jul',
-      'ago',
-      'sep',
-      'oct',
-      'nov',
-      'dic',
-    ];
-    return months[month - 1];
-  }
-
-  String _formatDateRange(String? from, String? until) {
-    if (from == null) return '';
-    try {
-      final f = DateTime.parse(from);
-      final fs = '${f.day} ${_getMonthAbbr(f.month)}';
-      if (until == null) return '$fs ${f.year}';
-      final u = DateTime.parse(until);
-      final us = '${u.day} ${_getMonthAbbr(u.month)} ${u.year}';
-      return f.year == u.year ? '$fs - $us' : '$fs ${f.year} - $us';
-    } catch (_) {
-      return '';
     }
   }
 
@@ -661,7 +480,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     final ratingVisuals = (_currentReviewData['rating_visuals'] ?? 0)
         .toDouble();
 
-    final dateStr = createdAt != null ? _formatDate(createdAt) : '';
+    final dateStr = createdAt != null ? formatDateLong(createdAt) : '';
 
     return ListenableBuilder(
       listenable: _controller,
@@ -1122,9 +941,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
-                                                _formatDateRange(
-                                                  playedFrom,
-                                                  playedUntil,
+                                                formatDateRange(
+                                                  playedFrom?.toString(),
+                                                  playedUntil?.toString(),
                                                 ),
                                                 style: TextStyle(
                                                   color: Theme.of(context)
@@ -1346,43 +1165,97 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                GestureDetector(
-                                                  onTap: () {
-                                                    final uid =
-                                                        comment['user_id'];
-                                                    if (uid != null) {
-                                                      context.pushProfile(
-                                                        userId: uid,
-                                                      );
-                                                    }
-                                                  },
-                                                  child: Row(
-                                                    children: [
-                                                      Text(
-                                                        user?['username'] ??
-                                                            'Usuario',
-                                                        style: const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 14,
+                                                // Fila superior: nombre, fecha e iconos de acción
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: GestureDetector(
+                                                        onTap: () {
+                                                          final uid =
+                                                              comment['user_id'];
+                                                          if (uid != null) {
+                                                            context.pushProfile(
+                                                              userId: uid,
+                                                            );
+                                                          }
+                                                        },
+                                                        child: Row(
+                                                          children: [
+                                                            Text(
+                                                              user?['username'] ??
+                                                                  'Usuario',
+                                                              style: const TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                fontSize: 14,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 8,
+                                                            ),
+                                                            Flexible(
+                                                              child: Text(
+                                                                _formatCommentDate(
+                                                                  comment['created_at'],
+                                                                ),
+                                                                style: TextStyle(
+                                                                  color: Theme.of(
+                                                                    context,
+                                                                  ).colorScheme.onSurfaceVariant,
+                                                                  fontSize: 12,
+                                                                ),
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                              ),
+                                                            ),
+                                                          ],
                                                         ),
                                                       ),
-                                                      const SizedBox(width: 8),
-                                                      Text(
-                                                        _formatCommentDate(
-                                                          comment['created_at'],
-                                                        ),
-                                                        style: TextStyle(
-                                                          color: Theme.of(context)
-                                                              .colorScheme
-                                                              .onSurfaceVariant,
-                                                          fontSize: 12,
-                                                        ),
+                                                    ),
+                                                    // Botones de responder / eliminar
+                                                    IconButton(
+                                                      icon: Icon(
+                                                        Icons.reply,
+                                                        size: 18,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurfaceVariant,
                                                       ),
-                                                    ],
-                                                  ),
+                                                      onPressed: () =>
+                                                          _startReply(comment),
+                                                      constraints:
+                                                          const BoxConstraints(),
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            4,
+                                                          ),
+                                                    ),
+                                                    if (isMyComment)
+                                                      IconButton(
+                                                        icon: Icon(
+                                                          Icons.delete_outline,
+                                                          size: 18,
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.error,
+                                                        ),
+                                                        onPressed: () =>
+                                                            _deleteComment(
+                                                              comment['id'],
+                                                            ),
+                                                        constraints:
+                                                            const BoxConstraints(),
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              4,
+                                                            ),
+                                                      ),
+                                                  ],
                                                 ),
                                                 const SizedBox(height: 4),
+                                                // Texto del comentario (ancho completo)
                                                 if (comment['content'] !=
                                                         null &&
                                                     comment['content']
@@ -1533,46 +1406,6 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                   ),
                                               ],
                                             ),
-                                          ),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.reply,
-                                                  size: 20,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                                onPressed: () =>
-                                                    _startReply(comment),
-                                                constraints:
-                                                    const BoxConstraints(),
-                                                padding: const EdgeInsets.all(
-                                                  4,
-                                                ),
-                                              ),
-                                              if (isMyComment)
-                                                IconButton(
-                                                  icon: Icon(
-                                                    Icons.delete_outline,
-                                                    size: 20,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.error,
-                                                  ),
-                                                  onPressed: () =>
-                                                      _deleteComment(
-                                                        comment['id'],
-                                                      ),
-                                                  constraints:
-                                                      const BoxConstraints(),
-                                                  padding: const EdgeInsets.all(
-                                                    4,
-                                                  ),
-                                                ),
-                                            ],
                                           ),
                                         ],
                                       ),
@@ -1906,4 +1739,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   }
 
   // _showImageFullScreen removed in favor of full_screen_gallery.dart
+
+  /// Formatea la fecha de un comentario en formato corto, por ejemplo "1 Sep. 2026".
+  String _formatCommentDate(String? isoString) => formatDateShort(isoString);
 }
