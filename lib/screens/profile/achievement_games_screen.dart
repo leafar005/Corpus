@@ -597,79 +597,72 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canPopSystem = !Navigator.of(context).canPop();
-    return PopScope(
-      canPop: canPopSystem,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          AppNavigationController.instance.requestBack(context);
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: AnimatedOpacity(
-            opacity: _showTitle ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: CorpusScreenTitle(widget.achievementName),
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              AppNavigationController.instance.requestBack(context),
         ),
-        body: _results.isEmpty && _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : CustomScrollView(
-                controller: _scrollController,
-                slivers: [
-                  if (!_isLoading)
-                    SliverToBoxAdapter(child: _buildAchievementProgress()),
-                  if (_results.isNotEmpty)
-                    SliverPadding(
-                      padding: const EdgeInsets.all(16),
-                      sliver: SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: 180,
-                              mainAxisSpacing: 16,
-                              crossAxisSpacing: 16,
-                              childAspectRatio: IgdbConstants.coverAspectRatio,
-                            ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            if (index == _results.length) {
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            }
-                            final game = _results[index];
-                            final int gameId =
-                                game['id'] ?? game['igdb_id'] ?? 0;
-                            final status = _userGamesStatus[gameId];
-                            final isBeaten = status == 'beaten';
-                            final isGrayscale = !isBeaten;
-                            return GameCard(
-                              game: Game.fromMap(game),
-                              isInLibrary: status != null,
-                              userRating: 0.0,
-                              isGrayscale: isGrayscale,
-                              onReturn: () {
-                                _fetchUserGamesCache();
-                              },
-                            );
-                          },
-                          childCount:
-                              _results.length + (_hasMoreSearchResults ? 1 : 0),
-                        ),
-                      ),
-                    ),
-                  if (_results.isEmpty && !_isLoading)
-                    const SliverFillRemaining(
-                      child: Center(
-                        child: Text(
-                          'No se encontraron juegos para este logro.',
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+        title: AnimatedOpacity(
+          opacity: _showTitle ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          child: CorpusScreenTitle(widget.achievementName),
+        ),
       ),
+      body: _results.isEmpty && _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                if (!_isLoading)
+                  SliverToBoxAdapter(child: _buildAchievementProgress()),
+                if (_results.isNotEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 180,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            childAspectRatio: IgdbConstants.coverAspectRatio,
+                          ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index == _results.length) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final game = _results[index];
+                          final int gameId = game['id'] ?? game['igdb_id'] ?? 0;
+                          final status = _userGamesStatus[gameId];
+                          final isBeaten = status == 'beaten';
+                          final isGrayscale = !isBeaten;
+                          return GameCard(
+                            game: Game.fromMap(game),
+                            isInLibrary: status != null,
+                            userRating: 0.0,
+                            isGrayscale: isGrayscale,
+                            onReturn: () {
+                              _fetchUserGamesCache();
+                            },
+                          );
+                        },
+                        childCount:
+                            _results.length + (_hasMoreSearchResults ? 1 : 0),
+                      ),
+                    ),
+                  ),
+                if (_results.isEmpty && !_isLoading)
+                  const SliverFillRemaining(
+                    child: Center(
+                      child: Text('No se encontraron juegos para este logro.'),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 

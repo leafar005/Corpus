@@ -140,165 +140,147 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canPopSystem = !Navigator.of(context).canPop();
-    return PopScope(
-      canPop: canPopSystem,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          AppNavigationController.instance.requestBack(context);
-        }
-      },
-      child: ListenableBuilder(
-        listenable: _controller,
-        builder: (context, _) {
-          if (_isGuestProfile) {
-            return Scaffold(
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              body: const Center(
-                child: GuestLoginPrompt(
-                  message: 'Inicia sesión para ver y personalizar tu perfil.',
-                ),
-              ),
-            );
-          }
-
-          if (_isLoading) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-
-          if (_controller.hasError) {
-            return Scaffold(
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('No se pudo cargar el perfil.'),
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: () {
-                        _controller.fetchProfileData();
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Reintentar'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          final isDesktop = MediaQuery.of(context).size.width > 800;
-
-          final topPadding = MediaQuery.of(context).padding.top;
-
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        if (_isGuestProfile) {
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            body: Scrollbar(
-              controller: _scrollController,
-              thumbVisibility: isDesktop,
-              child: CustomScrollView(
-                controller: _scrollController,
-                slivers: [
-                  if (isDesktop) ...[
-                    SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildHeader(isDesktop: true),
-                          // Espacio para el overflow del avatar (radio 60+borde 4 = 64px sobresalto)
-                          // La barra de nivel ya va DENTRO del header en el Positioned
-                          const SizedBox(height: 64),
-                        ],
-                      ),
-                    ),
-                    // Línea separadora full-width entre la zona superior y el contenido
-                    SliverToBoxAdapter(
-                      child: Divider(
-                        height: 1,
-                        thickness: 1,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    SliverMainAxisGroup(
-                      slivers: [
-                        PinnedHeaderSliver(
-                          key: _tabsKey,
-                          child: _buildNavBar(isDesktop: true),
-                        ),
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 40),
-                          sliver: SliverCrossAxisGroup(
-                            slivers: [
-                              SliverConstrainedCrossAxis(
-                                maxExtent: 300,
-                                sliver: SliverToBoxAdapter(
-                                  child: Transform.translate(
-                                    // Desplazamos la sidebar hacia arriba para que "Bio" se alinee visualmente
-                                    // con el texto de las tabs, que tienen padding y ocupan 56px de alto
-                                    offset: const Offset(0, -40),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [_buildSidebarInfo()],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SliverConstrainedCrossAxis(
-                                maxExtent: 40,
-                                sliver: SliverToBoxAdapter(
-                                  child: SizedBox.shrink(),
-                                ),
-                              ),
-                              SliverCrossAxisExpanded(
-                                flex: 1,
-                                sliver: _buildCurrentTabContent(
-                                  isMobile: false,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    SliverToBoxAdapter(child: _buildMobileBanner()),
-                    SliverMainAxisGroup(
-                      slivers: [
-                        SliverToBoxAdapter(
-                          child: SizedBox.shrink(key: _tabsKey),
-                        ),
-                        SliverPersistentHeader(
-                          pinned: true,
-                          delegate: _MobileProfileHeaderDelegate(
-                            topPadding: topPadding,
-                            hasCurrentlyPlaying:
-                                _userProfile?['currently_playing_appid'] !=
-                                null,
-                            profileBuilder: _buildMobileProfileRow,
-                            tabBarBuilder: () => _buildNavBar(isDesktop: false),
-                          ),
-                        ),
-                        _buildCurrentTabContent(isMobile: true),
-                      ],
-                    ),
-                  ],
+            body: const Center(
+              child: GuestLoginPrompt(
+                message: 'Inicia sesión para ver y personalizar tu perfil.',
+              ),
+            ),
+          );
+        }
+
+        if (_isLoading) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (_controller.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text('No se pudo cargar el perfil.'),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () {
+                      _controller.fetchProfileData();
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reintentar'),
+                  ),
                 ],
               ),
             ),
           );
-        },
-      ),
+        }
+
+        final isDesktop = MediaQuery.of(context).size.width > 800;
+
+        final topPadding = MediaQuery.of(context).padding.top;
+
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: Scrollbar(
+            controller: _scrollController,
+            thumbVisibility: isDesktop,
+            child: CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                if (isDesktop) ...[
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(isDesktop: true),
+                        // Espacio para el overflow del avatar (radio 60+borde 4 = 64px sobresalto)
+                        // La barra de nivel ya va DENTRO del header en el Positioned
+                        const SizedBox(height: 64),
+                      ],
+                    ),
+                  ),
+                  // Línea separadora full-width entre la zona superior y el contenido
+                  SliverToBoxAdapter(
+                    child: Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  SliverMainAxisGroup(
+                    slivers: [
+                      PinnedHeaderSliver(
+                        key: _tabsKey,
+                        child: _buildNavBar(isDesktop: true),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40),
+                        sliver: SliverCrossAxisGroup(
+                          slivers: [
+                            SliverConstrainedCrossAxis(
+                              maxExtent: 300,
+                              sliver: SliverToBoxAdapter(
+                                child: Transform.translate(
+                                  // Desplazamos la sidebar hacia arriba para que "Bio" se alinee visualmente
+                                  // con el texto de las tabs, que tienen padding y ocupan 56px de alto
+                                  offset: const Offset(0, -40),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [_buildSidebarInfo()],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SliverConstrainedCrossAxis(
+                              maxExtent: 40,
+                              sliver: SliverToBoxAdapter(
+                                child: SizedBox.shrink(),
+                              ),
+                            ),
+                            SliverCrossAxisExpanded(
+                              flex: 1,
+                              sliver: _buildCurrentTabContent(isMobile: false),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  SliverToBoxAdapter(child: _buildMobileBanner()),
+                  SliverMainAxisGroup(
+                    slivers: [
+                      SliverToBoxAdapter(child: SizedBox.shrink(key: _tabsKey)),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _MobileProfileHeaderDelegate(
+                          topPadding: topPadding,
+                          hasCurrentlyPlaying:
+                              _userProfile?['currently_playing_appid'] != null,
+                          profileBuilder: _buildMobileProfileRow,
+                          tabBarBuilder: () => _buildNavBar(isDesktop: false),
+                        ),
+                      ),
+                      _buildCurrentTabContent(isMobile: true),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

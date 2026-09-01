@@ -287,7 +287,14 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
     Widget content;
     if (_isGuest) {
       content = Scaffold(
-        appBar: AppBar(title: const CorpusScreenTitle('Notificaciones')),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () =>
+                AppNavigationController.instance.requestBack(context),
+          ),
+          title: const CorpusScreenTitle('Notificaciones'),
+        ),
         body: const Center(
           child: GuestLoginPrompt(
             icon: Icons.notifications_none_rounded,
@@ -297,7 +304,14 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
       );
     } else {
       content = Scaffold(
-        appBar: AppBar(title: const CorpusScreenTitle('Notificaciones')),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () =>
+                AppNavigationController.instance.requestBack(context),
+          ),
+          title: const CorpusScreenTitle('Notificaciones'),
+        ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _notifications.isEmpty
@@ -319,15 +333,6 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
       );
     }
 
-    final canPopSystem = !Navigator.of(context).canPop();
-    return PopScope(
-      canPop: canPopSystem,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          AppNavigationController.instance.requestBack(context);
-        }
-      },
-      child: content,
-    );
+    return content;
   }
 }

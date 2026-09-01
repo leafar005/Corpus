@@ -633,48 +633,40 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final canPopSystem = !Navigator.of(context).canPop();
-    return PopScope(
-      canPop: canPopSystem,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          AppNavigationController.instance.requestBack(context);
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const CorpusScreenTitle('Amigos'),
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: [
-              const Tab(icon: Icon(Icons.search), text: 'Buscar'),
-              Tab(
-                icon: Badge(
-                  isLabelVisible: _receivedRequests.isNotEmpty,
-                  label: Text(_receivedRequests.length.toString()),
-                  child: const Icon(Icons.notifications_rounded),
-                ),
-                text: 'Solicitudes',
-              ),
-              Tab(
-                icon: Badge(
-                  isLabelVisible: _friends.isNotEmpty,
-                  label: Text(_friends.length.toString()),
-                  child: const Icon(Icons.group_rounded),
-                ),
-                text: 'Mis amigos',
-              ),
-            ],
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              AppNavigationController.instance.requestBack(context),
         ),
-        body: TabBarView(
+        title: const CorpusScreenTitle('Amigos'),
+        bottom: TabBar(
           controller: _tabController,
-          children: [
-            _buildSearchTab(),
-            _buildRequestsTab(),
-            _buildFriendsTab(),
+          tabs: [
+            const Tab(icon: Icon(Icons.search), text: 'Buscar'),
+            Tab(
+              icon: Badge(
+                isLabelVisible: _receivedRequests.isNotEmpty,
+                label: Text(_receivedRequests.length.toString()),
+                child: const Icon(Icons.notifications_rounded),
+              ),
+              text: 'Solicitudes',
+            ),
+            Tab(
+              icon: Badge(
+                isLabelVisible: _friends.isNotEmpty,
+                label: Text(_friends.length.toString()),
+                child: const Icon(Icons.group_rounded),
+              ),
+              text: 'Mis amigos',
+            ),
           ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [_buildSearchTab(), _buildRequestsTab(), _buildFriendsTab()],
       ),
     );
   }
