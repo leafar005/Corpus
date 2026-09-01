@@ -436,7 +436,17 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       currentTabIndexNotifier.value = savedIndex;
       if (savedIndex == 2) _markActivityRead();
       if (kIsWeb) {
-        setWebPath(AppRoutes.publicPathForTab(savedIndex), replace: true);
+        final rootToken =
+            AppNavigationController.instance
+                .framesFor(savedIndex)
+                .firstOrNull
+                ?.token ??
+            0;
+        setWebPath(
+          AppRoutes.publicPathForTab(savedIndex),
+          replace: true,
+          state: {'tab': savedIndex, 'depth': 0, 'token': rootToken},
+        );
       }
     }
   }
@@ -455,7 +465,17 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (nav == null) return;
     if (route == null) {
       if (kIsWeb && currentTabIndexNotifier.value == tabIndex) {
-        setWebPath(AppRoutes.publicPathForTab(tabIndex), replace: true);
+        final rootToken =
+            AppNavigationController.instance
+                .framesFor(tabIndex)
+                .firstOrNull
+                ?.token ??
+            0;
+        setWebPath(
+          AppRoutes.publicPathForTab(tabIndex),
+          replace: true,
+          state: {'tab': tabIndex, 'depth': 0, 'token': rootToken},
+        );
       }
       return;
     }

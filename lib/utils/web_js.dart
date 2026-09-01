@@ -7,6 +7,7 @@ import 'dart:async';
 // ignore: avoid_web_libraries_in_flutter
 import 'js_util_stub.dart' if (dart.library.js_util) 'dart:js_util' as js_util;
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 // ignore: avoid_web_libraries_in_flutter
@@ -40,7 +41,7 @@ void setWebPath(
   try {
     final search = html.window.location.search;
     final url = '$path$search';
-    final jsState = state == null ? null : js_util.jsify(state);
+    final jsState = state == null ? null : jsonEncode(state);
     if (replace) {
       html.window.history.replaceState(jsState, '', url);
     } else {
@@ -54,8 +55,13 @@ void setWebPath(
 Map<String, Object?>? readWebHistoryState(Object? rawState) {
   if (rawState == null) return null;
   try {
-    final dynamic decoded = js_util.dartify(rawState);
-    if (decoded is Map) return Map<String, Object?>.from(decoded);
+    if (rawState is String) {
+      final decoded = jsonDecode(rawState);
+      if (decoded is Map) return Map<String, Object?>.from(decoded);
+    } else {
+      final dynamic decoded = js_util.dartify(rawState);
+      if (decoded is Map) return Map<String, Object?>.from(decoded);
+    }
   } catch (e) {
     debugPrint('[WebJs] Error leyendo history.state: $e');
   }
