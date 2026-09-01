@@ -24,6 +24,7 @@ import '../services/deep_link_service.dart';
 import 'package:corpus/globals.dart';
 import '../widgets/edge_swipe_back_detector.dart';
 import '../routes/app_navigation_controller.dart';
+import 'package:flutter/rendering.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -32,12 +33,24 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
+class _MainScreenState extends State<MainScreen>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   int _currentIndex = 0;
   StreamSubscription<void>? _webPopStateSub;
   RealtimeChannel? _friendshipsChannel;
   RealtimeChannel? _activityFeedChannel;
   RealtimeChannel? _notificationsChannel;
+
+  late final AnimationController _navCollapseController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+    reverseDuration: const Duration(milliseconds: 200),
+  );
+  late final Animation<double> _navCollapseAnim = CurvedAnimation(
+    parent: _navCollapseController,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeOutCubic,
+  );
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = [
     GlobalKey<NavigatorState>(),
@@ -92,6 +105,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
     AppNavigationController.instance.onTabSwitchedByBrowser = (newTab) {
       if (!mounted) return;
+      _setNavCollapsed(false);
       setState(() {
         _currentIndex = newTab;
         _initializedTabs.add(newTab);
@@ -386,6 +400,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     _activityFeedChannel?.unsubscribe();
     _notificationsChannel?.unsubscribe();
     _webPopStateSub?.cancel();
+    _navCollapseController.dispose();
     super.dispose();
   }
 
@@ -523,6 +538,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
 
     AppNavigationController.instance.recordTabSwitch(index);
+  }
+
+  void _onNavBarItemTapped(int index) {
+    _setNavCollapsed(false);
+    _onTabTapped(index);
   }
 
   Widget _buildNavigator(int index) {
@@ -984,62 +1004,84 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           );
         }
 
-        return SafeArea(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            padding: const EdgeInsets.symmetric(
-              vertical: 2,
-            ), // Slightly thicker
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+        return AnimatedBuilder(
+          animation: _navCollapseAnim,
+          builder: (context, _) {
+            final t = _navCollapseAnim.value;
+            const expandedMargin = 20.0;
+            final maxWidth = MediaQuery.sizeOf(context).width;
+            var collapsedMargin = (maxWidth - 240.0) / 2;
+            if (collapsedMargin < 20.0) collapsedMargin = 20.0;
+            final currentMargin =
+                expandedMargin + (collapsedMargin - expandedMargin) * t;
+            final currentHeight = 66.0 - (18.0 * t); // De 66 a 48
+            final showLabels = t < 0.5;
+
+            return SafeArea(
+              child: Container(
+                height: currentHeight,
+                margin: EdgeInsets.symmetric(
+                  horizontal: currentMargin,
+                  vertical: 12,
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BottomNavigationBar(
-                elevation: 0,
-                currentIndex: _currentIndex,
-                onTap: _onTabTapped,
-                type: BottomNavigationBarType.fixed,
-                backgroundColor: Colors.transparent,
-                selectedItemColor: Theme.of(context).colorScheme.primary,
-                unselectedItemColor: Theme.of(
-                  context,
-                ).colorScheme.onSurfaceVariant,
-                selectedFontSize: 12,
-                unselectedFontSize: 12,
-                items: [
-                  const BottomNavigationBarItem(
-                    icon: Icon(Icons.home),
-                    label: 'Inicio',
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(30),
+                  child: OverflowBox(
+                    maxHeight: 66,
+                    alignment: Alignment.topCenter,
+                    child: BottomNavigationBar(
+                      elevation: 0,
+                      currentIndex: _currentIndex,
+                      onTap: _onNavBarItemTapped,
+                      type: BottomNavigationBarType.fixed,
+                      backgroundColor: Colors.transparent,
+                      selectedItemColor: Theme.of(context).colorScheme.primary,
+                      unselectedItemColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurfaceVariant,
+                      selectedFontSize: 12,
+                      unselectedFontSize: 12,
+                      showSelectedLabels: showLabels,
+                      showUnselectedLabels: showLabels,
+                      items: [
+                        const BottomNavigationBarItem(
+                          icon: Icon(Icons.home),
+                          label: 'Inicio',
+                        ),
+                        const BottomNavigationBarItem(
+                          icon: Icon(Icons.search),
+                          label: 'Buscar',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: _withNavBadge(2, const Icon(Icons.group)),
+                          label: 'Actividad',
+                        ),
+                        const BottomNavigationBarItem(
+                          icon: Icon(Icons.local_offer),
+                          label: 'Bundles',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: _withNavBadge(4, const Icon(Icons.person)),
+                          label: 'Perfil',
+                        ),
+                      ],
+                    ),
                   ),
-                  const BottomNavigationBarItem(
-                    icon: Icon(Icons.search),
-                    label: 'Buscar',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: _withNavBadge(2, const Icon(Icons.group)),
-                    label: 'Actividad',
-                  ),
-                  const BottomNavigationBarItem(
-                    icon: Icon(Icons.local_offer),
-                    label: 'Bundles',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: _withNavBadge(4, const Icon(Icons.person)),
-                    label: 'Perfil',
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -1161,6 +1203,28 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    if (notification.metrics.maxScrollExtent < 80) return false;
+
+    if (notification is UserScrollNotification) {
+      if (notification.direction == ScrollDirection.reverse) {
+        _setNavCollapsed(true);
+      } else if (notification.direction == ScrollDirection.forward) {
+        _setNavCollapsed(false);
+      }
+    }
+    return false;
+  }
+
+  void _setNavCollapsed(bool collapsed) {
+    if (collapsed) {
+      _navCollapseController.forward();
+    } else {
+      _navCollapseController.reverse();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
@@ -1196,14 +1260,17 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             children: [
               if (isDesktop) _buildTopNavigationBar(context),
               Expanded(
-                child: Stack(
-                  children: [
-                    _buildNavigator(0),
-                    _buildNavigator(1),
-                    _buildNavigator(2),
-                    _buildNavigator(3),
-                    _buildNavigator(4),
-                  ],
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _handleScrollNotification,
+                  child: Stack(
+                    children: [
+                      _buildNavigator(0),
+                      _buildNavigator(1),
+                      _buildNavigator(2),
+                      _buildNavigator(3),
+                      _buildNavigator(4),
+                    ],
+                  ),
                 ),
               ),
             ],
