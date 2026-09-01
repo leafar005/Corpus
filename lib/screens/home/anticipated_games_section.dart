@@ -175,98 +175,113 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
       backgroundUrl = IGDBService.getCoverUrl(game['cover']['image_id']);
     }
 
-    return GestureDetector(
-      onTap: () {
-        if (game['id'] != null) {
-          context.pushGameDetails({'igdb_id': game['id'], 'title': title});
-        }
-      },
-      child: CorpusStyledPanel(
-        padding: EdgeInsets.zero,
-        backgroundColor: const Color(0xFF0A0A0A),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (backgroundUrl.isNotEmpty)
-              Positioned.fill(
-                child: ColorFiltered(
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withValues(alpha: 0.55),
-                    BlendMode.srcOver,
-                  ),
-                  child: CorpusNetworkImage(
-                    url: backgroundUrl,
-                    fit: BoxFit.cover,
-                  ),
+    bool isHovered = false;
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return MouseRegion(
+          onEnter: (_) => setState(() => isHovered = true),
+          onExit: (_) => setState(() => isHovered = false),
+          cursor: SystemMouseCursors.click,
+          child: AnimatedScale(
+            scale: isHovered ? 1.03 : 1.0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            child: GestureDetector(
+              onTap: () {
+                if (game['id'] != null) {
+                  context.pushGameDetails({'igdb_id': game['id'], 'title': title});
+                }
+              },
+              child: CorpusStyledPanel(
+                padding: EdgeInsets.zero,
+                backgroundColor: const Color(0xFF0A0A0A),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (backgroundUrl.isNotEmpty)
+                      Positioned.fill(
+                        child: ColorFiltered(
+                          colorFilter: ColorFilter.mode(
+                            Colors.black.withValues(alpha: 0.55),
+                            BlendMode.srcOver,
+                          ),
+                          child: CorpusNetworkImage(
+                            url: backgroundUrl,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            dateStr,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (widget.countdownStyle == 'days_only')
+                            Row(
+                              children: [
+                                _buildCountdownSection(days, 'DÍAS RESTANTES'),
+                              ],
+                            )
+                          else
+                            Row(
+                              children: [
+                                _buildCountdownSection(days, 'DAYS'),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text(
+                                    '|',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w300,
+                                    ),
+                                  ),
+                                ),
+                                _buildCountdownSection(hours, 'HOURS'),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text(
+                                    '|',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w300,
+                                    ),
+                                  ),
+                                ),
+                                _buildCountdownSection(minutes, 'MINUTES'),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dateStr,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (widget.countdownStyle == 'days_only')
-                    Row(
-                      children: [
-                        _buildCountdownSection(days, 'DÍAS RESTANTES'),
-                      ],
-                    )
-                  else
-                    Row(
-                      children: [
-                        _buildCountdownSection(days, 'DAYS'),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            '|',
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w300,
-                            ),
-                          ),
-                        ),
-                        _buildCountdownSection(hours, 'HOURS'),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            '|',
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w300,
-                            ),
-                          ),
-                        ),
-                        _buildCountdownSection(minutes, 'MINUTES'),
-                      ],
-                    ),
-                ],
-              ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

@@ -266,6 +266,7 @@ class AppNavigationController {
         final steps = currentDepth - depth;
         for (var i = 0; i < steps; i++) {
           final topFrame = frames[currentDepth - i];
+          debugPrint('[swipe-back] isNative=$isNativeBrowserBack route=${topFrame.route}');
           if (isNativeBrowserBack && topFrame.route != null) {
             navigator?.removeRoute(topFrame.route!);
           } else {
@@ -333,18 +334,15 @@ class AppNavigationController {
     // porque YA estamos en esta entrada del historial (la trajo el propio
     // popstate): no queremos añadir una entrada más, solo corregirla.
     navigator?.push(route);
-    final newToken = _nextToken++;
-    _stacks[tab] = [
-      ...(_stacks[tab] ?? const []),
-      NavHistoryFrame(token: newToken, settings: route.settings),
-    ];
+    final lastFrame = _stacks[tab]!.last;
+    
     setWebPath(
       publicPathForTabRoute(tab, subRoute),
       replace: true,
       state: {
         'tab': tab,
         'depth': (_stacks[tab]!.length - 1),
-        'token': newToken,
+        'token': lastFrame.token,
       },
     );
   }
@@ -400,18 +398,15 @@ class AppNavigationController {
         final route = await DeepRouteResolver.buildRoute(subRoute);
         if (route != null) {
           navigator?.push(route);
-          final newToken = _nextToken++;
-          _stacks[tab] = [
-            ...(_stacks[tab] ?? const []),
-            NavHistoryFrame(token: newToken, settings: route.settings),
-          ];
+          final lastFrame = _stacks[tab]!.last;
+          
           setWebPath(
             publicPathForTabRoute(tab, subRoute),
             replace: true,
             state: {
               'tab': tab,
               'depth': (_stacks[tab]!.length - 1),
-              'token': newToken,
+              'token': lastFrame.token,
             },
           );
         }
