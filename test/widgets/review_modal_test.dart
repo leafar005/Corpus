@@ -20,7 +20,6 @@ void main() {
     testWidgets(
       'Al pulsar el chip "Quiero" (wishlist), los sliders de nota, tiempo jugadas y fechas desaparecen al instante',
       (WidgetTester tester) async {
-        final commentController = TextEditingController();
 
         await tester.pumpWidget(
           MaterialApp(
@@ -41,7 +40,6 @@ void main() {
                         currentRatingSoundtrack: 0,
                         currentRatingVisuals: 0,
                         currentStatus: 'beaten',
-                        commentController: commentController,
                         inLibrary: true,
                         onSave:
                             ({
@@ -117,7 +115,6 @@ void main() {
     testWidgets(
       'Al pulsar "Jugando", se ocultan nota/reseña y la información extra queda visible',
       (WidgetTester tester) async {
-        final commentController = TextEditingController();
 
         await tester.pumpWidget(
           MaterialApp(
@@ -138,7 +135,6 @@ void main() {
                         currentRatingSoundtrack: 0,
                         currentRatingVisuals: 0,
                         currentStatus: 'beaten',
-                        commentController: commentController,
                         inLibrary: true,
                         onSave:
                             ({
