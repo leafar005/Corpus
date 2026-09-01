@@ -41,16 +41,8 @@ class _MainScreenState extends State<MainScreen>
   RealtimeChannel? _activityFeedChannel;
   RealtimeChannel? _notificationsChannel;
 
-  late final AnimationController _navCollapseController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 260),
-    reverseDuration: const Duration(milliseconds: 200),
-  );
-  late final Animation<double> _navCollapseAnim = CurvedAnimation(
-    parent: _navCollapseController,
-    curve: Curves.easeOutCubic,
-    reverseCurve: Curves.easeOutCubic,
-  );
+  late final AnimationController _navCollapseController;
+  late final Animation<double> _navCollapseAnim;
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = [
     GlobalKey<NavigatorState>(),
@@ -98,6 +90,16 @@ class _MainScreenState extends State<MainScreen>
   @override
   void initState() {
     super.initState();
+    _navCollapseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+      reverseDuration: const Duration(milliseconds: 200),
+    );
+    _navCollapseAnim = CurvedAnimation(
+      parent: _navCollapseController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeOutCubic,
+    );
     WidgetsBinding.instance.addObserver(this);
     AppNavigationController.instance.registerTabNavigatorKeys(_navigatorKeys);
     AppNavigationController.instance.registerRootNavigatorKey(
@@ -190,7 +192,11 @@ class _MainScreenState extends State<MainScreen>
           .eq('addressee_id', myId)
           .eq('status', 'pending');
       if (mounted) unreadFriendRequestsCount.value = res.length;
-    } catch (_) {}
+    } catch (e) {
+      debugPrint(
+        '[MainScreen] Error cargando contador de solicitudes de amistad: $e',
+      );
+    }
 
     // Recargar el contador de actividad no leída, calculado en el servidor
     // (get_unread_activity_summary) a partir de users.last_activity_read_at.
@@ -214,43 +220,6 @@ class _MainScreenState extends State<MainScreen>
 
     // Carga inicial al arrancar.
     _fetchInitialBadges();
-
-    // --- FIX TEMPORAL PARA FECHAS EN EL FUTURO ---
-    // (sin cambios: se mantiene tal cual estaba; ver sección 7 de este spec)
-    try {
-      final futureDate = DateTime.now()
-          .add(const Duration(minutes: 1))
-          .toUtc()
-          .toIso8601String();
-      final nowStr = DateTime.now().toUtc().toIso8601String();
-
-      final afRes = await Supabase.instance.client
-          .from('activity_feed')
-          .select('id')
-          .eq('user_id', myId)
-          .gt('created_at', futureDate);
-      for (var row in (afRes as List)) {
-        await Supabase.instance.client
-            .from('activity_feed')
-            .update({'created_at': nowStr})
-            .eq('id', row['id']);
-      }
-
-      final rRes = await Supabase.instance.client
-          .from('reviews')
-          .select('id')
-          .eq('user_id', myId)
-          .gt('created_at', futureDate);
-      for (var row in (rRes as List)) {
-        await Supabase.instance.client
-            .from('reviews')
-            .update({'created_at': nowStr})
-            .eq('id', row['id']);
-      }
-    } catch (e) {
-      debugPrint('[MainScreen] Error fixing future dates: $e');
-    }
-    // ---------------------------------------------
 
     if (!mounted) return;
 
@@ -408,7 +377,10 @@ class _MainScreenState extends State<MainScreen>
     if (kIsWeb) return true;
     try {
       return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-    } catch (_) {
+    } catch (e) {
+      debugPrint(
+        '[MainScreen] Platform.isDesktop falló (plataforma no reconocida): $e',
+      );
       return false;
     }
   }
