@@ -52,8 +52,9 @@ class AppNavigationController {
   NavigatorState? _navigatorFor(int stackIndex) {
     if (stackIndex == rootStackIndex) return _rootNavigatorKey?.currentState;
     final keys = _tabNavigatorKeys;
-    if (keys == null || stackIndex < 0 || stackIndex >= keys.length)
+    if (keys == null || stackIndex < 0 || stackIndex >= keys.length) {
       return null;
+    }
     return keys[stackIndex].currentState;
   }
 

@@ -198,20 +198,20 @@ class AppTheme {
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: kIsWeb
             ? {
-                TargetPlatform.iOS: const FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.android:
-                    const FadeUpwardsPageTransitionsBuilder(),
+                    FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.windows:
-                    const FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.linux: const FadeUpwardsPageTransitionsBuilder(),
+                    FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
               }
             : {
-                TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
-                TargetPlatform.macOS: const CupertinoPageTransitionsBuilder(),
-                TargetPlatform.android: const CupertinoPageTransitionsBuilder(),
-                TargetPlatform.windows: const CupertinoPageTransitionsBuilder(),
-                TargetPlatform.linux: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
               },
       ),
       dividerTheme: const DividerThemeData(color: Colors.white24, thickness: 1),
@@ -322,20 +322,20 @@ class AppTheme {
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: kIsWeb
             ? {
-                TargetPlatform.iOS: const FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.android:
-                    const FadeUpwardsPageTransitionsBuilder(),
+                    FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.windows:
-                    const FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.linux: const FadeUpwardsPageTransitionsBuilder(),
+                    FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
               }
             : {
-                TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
-                TargetPlatform.macOS: const CupertinoPageTransitionsBuilder(),
-                TargetPlatform.android: const CupertinoPageTransitionsBuilder(),
-                TargetPlatform.windows: const CupertinoPageTransitionsBuilder(),
-                TargetPlatform.linux: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
               },
       ),
       dividerTheme: DividerThemeData(color: Colors.grey.shade300, thickness: 1),
