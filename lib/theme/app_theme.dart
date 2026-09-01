@@ -56,6 +56,8 @@ class ThemeNotifier extends ChangeNotifier {
     }
 
     mobileGridColumnsNotifier.value = prefs.getInt('mobile_grid_columns') ?? 3;
+    floatingMobileNavNotifier.value =
+        prefs.getBool('floating_mobile_nav') ?? true;
 
     notifyListeners();
   }

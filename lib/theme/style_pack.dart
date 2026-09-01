@@ -58,7 +58,7 @@ class StylePack {
     this.borderRadiusSmall = 8,
     this.borderRadiusMedium = 12,
     this.borderRadiusLarge = 16,
-    this.navBarStyle = NavBarStyle.liquidGlass,
+    this.navBarStyle = NavBarStyle.solid,
     this.useDynamicFrames = false,
     this.musicFile,
   });
@@ -80,7 +80,7 @@ class StylePack {
     borderRadiusSmall: 8,
     borderRadiusMedium: 12,
     borderRadiusLarge: 16,
-    navBarStyle: NavBarStyle.liquidGlass,
+    navBarStyle: NavBarStyle.solid,
   );
 
   /// Built-in Persona 5 Royal pack (also available as `.corpuspack` addon).
@@ -192,10 +192,10 @@ class StylePack {
   }
 
   static NavBarStyle _navBarStyleFromString(String? value) {
-    if (value == null) return NavBarStyle.liquidGlass;
+    if (value == null) return NavBarStyle.solid;
     return NavBarStyle.values.firstWhere(
       (e) => e.name == value,
-      orElse: () => NavBarStyle.liquidGlass,
+      orElse: () => NavBarStyle.solid,
     );
   }
 }

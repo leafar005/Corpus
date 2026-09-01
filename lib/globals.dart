@@ -49,6 +49,9 @@ double getBottomSpacer(BuildContext context) {
 /// Define la cantidad de columnas (2, 3 o 4) para las cuadrículas de juegos en móviles.
 final ValueNotifier<int> mobileGridColumnsNotifier = ValueNotifier<int>(3);
 
+/// Define si el menú de navegación en móviles es flotante o anclado.
+final ValueNotifier<bool> floatingMobileNavNotifier = ValueNotifier<bool>(true);
+
 /// Genera el SliverGridDelegate adaptado a la configuración actual (Móvil vs Escritorio)
 SliverGridDelegate getCorpusGridDelegate(
   BuildContext context,

@@ -27,7 +27,7 @@ class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
     this.borderRadiusSmall = 8,
     this.borderRadiusMedium = 12,
     this.borderRadiusLarge = 16,
-    this.navBarStyle = NavBarStyle.liquidGlass,
+    this.navBarStyle = NavBarStyle.solid,
     this.useDynamicFrames = false,
   });
 

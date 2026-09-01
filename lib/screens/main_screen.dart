@@ -24,8 +24,6 @@ import '../services/deep_link_service.dart';
 import 'package:corpus/globals.dart';
 import '../widgets/edge_swipe_back_detector.dart';
 import '../routes/app_navigation_controller.dart';
-import '../../services/deep_link_service.dart';
-import '../../utils/on_screen_log.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -950,32 +948,100 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildSolidNavBar(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: _currentIndex,
-      onTap: _onTabTapped,
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      selectedItemColor: Theme.of(context).colorScheme.primary,
-      unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
-      items: [
-        const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.search),
-          label: 'Buscar',
-        ),
-        BottomNavigationBarItem(
-          icon: _withNavBadge(2, const Icon(Icons.group)),
-          label: 'Actividad',
-        ),
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.local_offer),
-          label: 'Bundles',
-        ),
-        BottomNavigationBarItem(
-          icon: _withNavBadge(4, const Icon(Icons.person)),
-          label: 'Perfil',
-        ),
-      ],
+    return ValueListenableBuilder<bool>(
+      valueListenable: floatingMobileNavNotifier,
+      builder: (context, isFloating, _) {
+        if (!isFloating) {
+          return BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: _onTabTapped,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            selectedItemColor: Theme.of(context).colorScheme.primary,
+            unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            items: [
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: 'Inicio',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.search),
+                label: 'Buscar',
+              ),
+              BottomNavigationBarItem(
+                icon: _withNavBadge(2, const Icon(Icons.group)),
+                label: 'Actividad',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.local_offer),
+                label: 'Bundles',
+              ),
+              BottomNavigationBarItem(
+                icon: _withNavBadge(4, const Icon(Icons.person)),
+                label: 'Perfil',
+              ),
+            ],
+          );
+        }
+
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              vertical: 2,
+            ), // Slightly thicker
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: BottomNavigationBar(
+                elevation: 0,
+                currentIndex: _currentIndex,
+                onTap: _onTabTapped,
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.transparent,
+                selectedItemColor: Theme.of(context).colorScheme.primary,
+                unselectedItemColor: Theme.of(
+                  context,
+                ).colorScheme.onSurfaceVariant,
+                selectedFontSize: 12,
+                unselectedFontSize: 12,
+                items: [
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.home),
+                    label: 'Inicio',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.search),
+                    label: 'Buscar',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: _withNavBadge(2, const Icon(Icons.group)),
+                    label: 'Actividad',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.local_offer),
+                    label: 'Bundles',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: _withNavBadge(4, const Icon(Icons.person)),
+                    label: 'Perfil',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1016,7 +1082,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   Widget _buildMobileNavBar(BuildContext context) {
     final ext = Theme.of(context).extension<CorpusThemeExtension>();
-    final style = ext?.navBarStyle ?? NavBarStyle.liquidGlass;
+    final style = ext?.navBarStyle ?? NavBarStyle.solid;
     return switch (style) {
       NavBarStyle.liquidGlass => _buildLiquidGlassNavBar(context),
       NavBarStyle.solid => _buildSolidNavBar(context),
@@ -1124,53 +1190,25 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         }
       },
       child: EdgeSwipeBackDetector(
-        child: Stack(
-          children: [
-            Scaffold(
-              extendBody: !isDesktop,
-              body: Column(
-                children: [
-                  if (isDesktop) _buildTopNavigationBar(context),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        _buildNavigator(0),
-                        _buildNavigator(1),
-                        _buildNavigator(2),
-                        _buildNavigator(3),
-                        _buildNavigator(4),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              bottomNavigationBar: isDesktop ? null : _buildMobileNavBar(context),
-            ),
-            Positioned(
-              left: 8,
-              right: 8,
-              top: 100,
-              child: IgnorePointer(
-                child: ValueListenableBuilder<List<String>>(
-                  valueListenable: OnScreenLog.lines,
-                  builder: (context, lines, _) => Container(
-                    padding: const EdgeInsets.all(8),
-                    color: Colors.black.withValues(alpha: 0.85),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: lines
-                          .map((l) => Text(
-                                l,
-                                style: const TextStyle(color: Colors.greenAccent, fontSize: 14, fontWeight: FontWeight.bold),
-                              ))
-                          .toList(),
-                    ),
-                  ),
+        child: Scaffold(
+          extendBody: !isDesktop,
+          body: Column(
+            children: [
+              if (isDesktop) _buildTopNavigationBar(context),
+              Expanded(
+                child: Stack(
+                  children: [
+                    _buildNavigator(0),
+                    _buildNavigator(1),
+                    _buildNavigator(2),
+                    _buildNavigator(3),
+                    _buildNavigator(4),
+                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
+          bottomNavigationBar: isDesktop ? null : _buildMobileNavBar(context),
         ),
       ),
     );

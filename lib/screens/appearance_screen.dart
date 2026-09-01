@@ -119,6 +119,8 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             ),
             const SizedBox(height: 16),
             _buildGridColumnSelector(),
+            const SizedBox(height: 16),
+            _buildFloatingNavSelector(),
           ],
 
           const SizedBox(height: 24),
@@ -618,6 +620,36 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
               ),
             );
           }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildFloatingNavSelector() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: floatingMobileNavNotifier,
+      builder: (context, isFloating, child) {
+        return SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text(
+            'Menú de navegación flotante',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Desactívalo para anclar el menú a la parte inferior de la pantalla.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          value: isFloating,
+          onChanged: (value) async {
+            floatingMobileNavNotifier.value = value;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('floating_mobile_nav', value);
+          },
         );
       },
     );
