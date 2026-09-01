@@ -8,6 +8,7 @@ import 'package:corpus/routes/tab_deep_route.dart';
 import 'package:corpus/routes/tab_url_sync.dart';
 import 'package:corpus/routes/deep_route_resolver.dart';
 import 'package:corpus/utils/web_js.dart';
+import 'package:corpus/utils/on_screen_log.dart';
 
 class AppNavigationController {
   AppNavigationController._();
@@ -266,7 +267,7 @@ class AppNavigationController {
         final steps = currentDepth - depth;
         for (var i = 0; i < steps; i++) {
           final topFrame = frames[currentDepth - i];
-          debugPrint('[swipe-back] isNative=$isNativeBrowserBack route=${topFrame.route}');
+          OnScreenLog.add('isNative=$isNativeBrowserBack route=${topFrame.route != null}');
           if (isNativeBrowserBack && topFrame.route != null) {
             navigator?.removeRoute(topFrame.route!);
           } else {

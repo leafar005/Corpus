@@ -24,6 +24,8 @@ import '../services/deep_link_service.dart';
 import 'package:corpus/globals.dart';
 import '../widgets/edge_swipe_back_detector.dart';
 import '../routes/app_navigation_controller.dart';
+import '../../services/deep_link_service.dart';
+import '../../utils/on_screen_log.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -1122,25 +1124,53 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         }
       },
       child: EdgeSwipeBackDetector(
-        child: Scaffold(
-          extendBody: !isDesktop,
-          body: Column(
-            children: [
-              if (isDesktop) _buildTopNavigationBar(context),
-              Expanded(
-                child: Stack(
-                  children: [
-                    _buildNavigator(0),
-                    _buildNavigator(1),
-                    _buildNavigator(2),
-                    _buildNavigator(3),
-                    _buildNavigator(4),
-                  ],
+        child: Stack(
+          children: [
+            Scaffold(
+              extendBody: !isDesktop,
+              body: Column(
+                children: [
+                  if (isDesktop) _buildTopNavigationBar(context),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        _buildNavigator(0),
+                        _buildNavigator(1),
+                        _buildNavigator(2),
+                        _buildNavigator(3),
+                        _buildNavigator(4),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              bottomNavigationBar: isDesktop ? null : _buildMobileNavBar(context),
+            ),
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: 8,
+              child: IgnorePointer(
+                child: ValueListenableBuilder<List<String>>(
+                  valueListenable: OnScreenLog.lines,
+                  builder: (context, lines, _) => Container(
+                    padding: const EdgeInsets.all(6),
+                    color: Colors.black.withValues(alpha: 0.75),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: lines
+                          .map((l) => Text(
+                                l,
+                                style: const TextStyle(color: Colors.greenAccent, fontSize: 10),
+                              ))
+                          .toList(),
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
-          bottomNavigationBar: isDesktop ? null : _buildMobileNavBar(context),
+            ),
+          ],
         ),
       ),
     );
