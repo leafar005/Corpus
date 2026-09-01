@@ -81,7 +81,10 @@ class _FriendshipButtonState extends State<FriendshipButton> {
         'status': 'pending',
       });
       if (mounted) setState(() => _status = FriendshipStatus.sent);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FriendshipButton] Error enviando solicitud: $e');
+      if (mounted) setState(() => _status = FriendshipStatus.none);
+    }
     if (mounted) setState(() => _isProcessing = false);
   }
 
@@ -93,7 +96,10 @@ class _FriendshipButtonState extends State<FriendshipButton> {
         'addressee_id': widget.targetUserId,
       });
       if (mounted) setState(() => _status = FriendshipStatus.none);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FriendshipButton] Error cancelando solicitud: $e');
+      if (mounted) setState(() => _status = FriendshipStatus.sent);
+    }
     if (mounted) setState(() => _isProcessing = false);
   }
 
@@ -105,7 +111,10 @@ class _FriendshipButtonState extends State<FriendshipButton> {
         'addressee_id': _myId,
       });
       if (mounted) setState(() => _status = FriendshipStatus.friends);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FriendshipButton] Error aceptando solicitud: $e');
+      if (mounted) setState(() => _status = FriendshipStatus.received);
+    }
     if (mounted) setState(() => _isProcessing = false);
   }
 
@@ -119,7 +128,10 @@ class _FriendshipButtonState extends State<FriendshipButton> {
             'and(requester_id.eq.$_myId,addressee_id.eq.${widget.targetUserId}),and(requester_id.eq.${widget.targetUserId},addressee_id.eq.$_myId)',
           );
       if (mounted) setState(() => _status = FriendshipStatus.none);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FriendshipButton] Error eliminando amistad: $e');
+      if (mounted) setState(() => _status = FriendshipStatus.friends);
+    }
     if (mounted) setState(() => _isProcessing = false);
   }
 

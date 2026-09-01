@@ -14,8 +14,6 @@ import 'package:corpus/globals.dart';
 import '../../services/igdb_service.dart';
 import '../../utils/igdb_constants.dart';
 import 'package:corpus/routes/corpus_router.dart';
-import 'package:corpus/routes/deep_route_resolver.dart';
-import 'package:corpus/routes/tab_deep_route.dart';
 import '../library/review_modal.dart';
 import '../../widgets/achievement_toast.dart';
 import '../../models/models.dart';
@@ -244,7 +242,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             if (match is Map) {
               name = match['name']?.toString() ?? match['title']?.toString();
             }
-          } catch (_) {}
+          } catch (e) {
+            debugPrint(
+              '[GameDetails] Error buscando juego en _relatedGames (getOriginalGame): $e',
+            );
+          }
         }
         return (id: id, name: name);
       }
@@ -288,7 +290,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           }
           foundInRam = true;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          '[GameDetails] Error buscando juego en _relatedGames (RAM): $e',
+        );
+      }
     }
 
     // 2. BÚSQUEDA RÁPIDA EN SUPABASE (Si no estaba en RAM o le falta la carátula)
@@ -353,7 +359,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             }
           }
         }
-      } catch (_) {
+      } catch (e) {
+        debugPrint(
+          '[GameDetails] Error enriqueciendo datos desde IGDB/Supabase: $e',
+        );
         if (showingSpinner && mounted) {
           Navigator.of(context, rootNavigator: true).pop();
         }
@@ -402,7 +411,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       currentRatingSoundtrack: _ratingSoundtrack,
       currentRatingVisuals: _ratingVisuals,
       currentStatus: _status,
-      commentController: _commentController,
+      initialComment: _commentController.text,
       onSave: _saveReview,
       inLibrary: _inLibrary,
     );
@@ -456,69 +465,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
       // Mostrar toasts de logros recién desbloqueados
       if (mounted && result.newAchievementDetails.isNotEmpty) {
-        int toastDelay = 300;
-        for (final ach in result.newAchievementDetails) {
-          final String aId = ach['id'] as String;
-          final String title = ach['name'] as String? ?? 'Logro desbloqueado';
-          final String rarity =
-              (ach['rarity'] as String?)?.toLowerCase() ?? 'comun';
-          final int xpReward = ach['xp_reward'] as int? ?? 0;
-
-          String subtitle = 'Logro desbloqueado';
-          Color color = const Color(0xFFFFD700);
-
-          if (title.contains('(Maestro)') ||
-              title.contains('(Nivel 3)') ||
-              aId.endsWith('_all')) {
-            subtitle = 'Maestro de saga';
-            color = const Color(0xFFFFD700);
-          } else if (title.contains('(Nivel 2)')) {
-            subtitle = 'Hito alcanzado';
-            color = const Color(0xFFC0C0C0);
-          } else if (title.contains('(Nivel 1)')) {
-            subtitle = 'Logro desbloqueado';
-            color = const Color(0xFFCD7F32);
-          } else {
-            if (rarity == 'legendario' ||
-                rarity == 'platino' ||
-                rarity == 'épico' ||
-                rarity == 'epico') {
-              subtitle = 'Hazaña legendaria';
-              color = Colors.cyanAccent;
-            } else if (rarity == 'difícil' ||
-                rarity == 'dificil' ||
-                rarity == 'medio') {
-              subtitle = 'Logro desbloqueado';
-              color = Colors.blueAccent;
-            } else {
-              subtitle = 'Logro desbloqueado';
-              color = Colors.green;
-            }
-          }
-
-          Future.delayed(Duration(milliseconds: toastDelay), () {
-            if (mounted) {
-              AchievementToast.show(
-                context,
-                title: title,
-                subtitle: subtitle,
-                xpReward: xpReward,
-                icon: Icons.workspace_premium,
-                color: color,
-                onTap: () async {
-                  final groupId = aId.split('_').first;
-                  final route = await DeepRouteResolver.buildRoute(
-                    AchievementGamesDeepRoute(achievementId: groupId),
-                  );
-                  if (route != null && mounted) {
-                    Navigator.push(context, route);
-                  }
-                },
-              );
-            }
-          });
-          toastDelay += 3700;
-        }
+        AchievementToast.showFromList(
+          context,
+          result.newAchievementDetails,
+          isMounted: () => mounted,
+        );
       }
 
       if (mounted) {

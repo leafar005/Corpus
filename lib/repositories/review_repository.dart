@@ -389,7 +389,11 @@ class ReviewRepository {
       beforeAchievements = beforeRes
           .map((e) => e['achievement_id'] as String)
           .toSet();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint(
+        '[ReviewRepository] Error obteniendo snapshot de logros previos: $e',
+      );
+    }
 
     // Upsert del juego en el catálogo
     await upsertGame(
@@ -625,7 +629,11 @@ class ReviewRepository {
           (dbReview['image_urls'] as List).map((e) => e.toString()),
         );
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint(
+        '[ReviewRepository] Error recogiendo image_urls de la reseña al borrar: $e',
+      );
+    }
 
     final reviewImageUrls = reviewData.imageUrls;
     for (var url in reviewImageUrls) {
@@ -712,8 +720,11 @@ class ReviewRepository {
       friendIds = List<Map<String, dynamic>>.from(
         pairsResult,
       ).map((r) => r['friend_id'] as String).toList();
-    } catch (_) {
-      // Fallback: vista no aplicada todavía — usa el método original con 3 queries
+    } catch (e) {
+      // Fallback: vista v_friend_pairs no aplicada todavía — usa el método original con 3 queries
+      debugPrint(
+        '[ReviewRepository] v_friend_pairs no disponible, usando fallback de friendships: $e',
+      );
       final sentFriends = await _client
           .from('friendships')
           .select('addressee_id')
@@ -810,7 +821,9 @@ class ReviewRepository {
                   .maybeSingle());
 
         review = reviewResponse;
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[ReviewRepository] Error cargando reseña existente: $e');
+      }
     }
 
     return (activities: activities, review: review);
@@ -945,8 +958,11 @@ class ReviewRepository {
         friendIds = List<Map<String, dynamic>>.from(
           pairs,
         ).map((r) => r['friend_id'] as String).toList();
-      } catch (_) {
+      } catch (e) {
         // Fallback: leer friendships directamente (bidireccional).
+        debugPrint(
+          '[ReviewRepository] v_friend_pairs no disponible en fetchFriendActivity, usando fallback: $e',
+        );
         try {
           final sent = await _client
               .from('friendships')
@@ -966,7 +982,8 @@ class ReviewRepository {
               received,
             ).map((f) => f['requester_id'] as String),
           ];
-        } catch (_) {
+        } catch (e) {
+          debugPrint('[ReviewRepository] Error en fallback de friendships: $e');
           return [];
         }
       }

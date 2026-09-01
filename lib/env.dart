@@ -15,12 +15,6 @@ class Env {
     defaultValue: '',
   );
 
-  // ── IGDB / Twitch Developer ────────────────────────────────────────────────
-  static const String igdbClientId = String.fromEnvironment(
-    'IGDB_CLIENT_ID',
-    defaultValue: '',
-  );
-
   // ── Firebase ───────────────────────────────────────────────────────────────
   static const String firebaseApiKey = String.fromEnvironment(
     'FIREBASE_API_KEY',
@@ -60,9 +54,6 @@ class Env {
     }
     if (supabaseAnonKey.isEmpty) {
       missing.add('SUPABASE_ANON_KEY');
-    }
-    if (igdbClientId.isEmpty) {
-      missing.add('IGDB_CLIENT_ID');
     }
     if (firebaseProjectId.isEmpty) {
       missing.add('FIREBASE_PROJECT_ID');

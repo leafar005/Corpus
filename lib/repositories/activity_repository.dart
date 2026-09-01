@@ -119,7 +119,11 @@ class ActivityRepository {
         for (final r in reviewsList) {
           reviewsById[r['id'] as String] = r;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          '[ActivityRepository] Error enriqueciendo reviews del feed: $e',
+        );
+      }
     }
 
     // 3. Partners (user_games) — batch único
@@ -167,7 +171,9 @@ class ActivityRepository {
                 .toList();
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[ActivityRepository] Error cargando partners del feed: $e');
+      }
     }
 
     // 4. Enriquecer + merge — lógica de presentación pura (sin queries)
@@ -269,7 +275,11 @@ class ActivityRepository {
         for (final r in reviewsList) {
           reviewsById[r['id'] as String] = r;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          '[ActivityRepository] Error enriqueciendo reviews de stories: $e',
+        );
+      }
     }
 
     // Partners (misma lógica que fetchActivityPage)
@@ -317,7 +327,11 @@ class ActivityRepository {
                 .toList();
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint(
+          '[ActivityRepository] Error cargando partners de stories: $e',
+        );
+      }
     }
 
     return groupAndMergeByUser(
@@ -444,7 +458,11 @@ class ActivityRepository {
           (dbReview['image_urls'] as List).map((e) => e.toString()),
         );
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint(
+        '[ActivityRepository] Error recogiendo image_urls de la reseña al borrar: $e',
+      );
+    }
 
     try {
       final commentsResp = await _client
@@ -454,7 +472,11 @@ class ActivityRepository {
       for (final c in commentsResp) {
         if (c['image_url'] != null) urlsToDelete.add(c['image_url'] as String);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint(
+        '[ActivityRepository] Error recogiendo imágenes de comentarios al borrar reseña: $e',
+      );
+    }
 
     if (urlsToDelete.isNotEmpty) {
       await StorageUtils.deleteImagesFromUrls(urlsToDelete.toList());

@@ -1,16 +1,12 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { igdbGamesRequest, IGDB_FIELDS, getIgdbAccessToken } from '../_shared/igdb-client.ts';
+import { corsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 
 const IGDB_CLIENT_ID = Deno.env.get('IGDB_CLIENT_ID') ?? '';
 const IGDB_CLIENT_SECRET = Deno.env.get('IGDB_CLIENT_SECRET') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const STEAM_WEB_API_KEY = Deno.env.get('STEAM_WEB_API_KEY') ?? '';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 // Blacklist similar to sync-bundles
 const STEAM_LIBRARY_BLACKLIST = [
@@ -36,9 +32,8 @@ Deno.serve(async (req) => {
     return TIME_BUDGET_MS - (Date.now() - FUNCTION_START);
   }
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
 
   try {
     const authHeader = req.headers.get('Authorization');

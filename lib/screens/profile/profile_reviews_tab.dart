@@ -153,30 +153,6 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
     }
   }
 
-  String _formatDate(String? isoString) {
-    if (isoString == null) return '';
-    try {
-      final date = DateTime.parse(isoString).toLocal();
-      const months = [
-        'ene',
-        'feb',
-        'mar',
-        'abr',
-        'may',
-        'jun',
-        'jul',
-        'ago',
-        'sep',
-        'oct',
-        'nov',
-        'dic',
-      ];
-      return '${date.day} ${months[date.month - 1]} ${date.year}';
-    } catch (_) {
-      return '';
-    }
-  }
-
   void _openReview(Map<String, dynamic> review) {
     context
         .pushReviewDetails(review['games'], widget.userData, review)
@@ -363,7 +339,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _formatDate(review['created_at']),
+                      formatDateMinimal(review['created_at']),
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

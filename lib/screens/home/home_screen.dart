@@ -83,8 +83,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _isDesktop {
     if (!mounted) return false;
     try {
-      return MediaQuery.sizeOf(context).width >= 768;
-    } catch (_) {
+      return MediaQuery.sizeOf(context).width > kDesktopBreakpoint;
+    } catch (e) {
+      debugPrint('[HomeScreen] MediaQuery no disponible en _isDesktop: $e');
       return defaultTargetPlatform == TargetPlatform.windows ||
           defaultTargetPlatform == TargetPlatform.macOS ||
           defaultTargetPlatform == TargetPlatform.linux;
@@ -183,24 +184,30 @@ class _HomeScreenState extends State<HomeScreen> {
       final userId = currentUser.id;
 
       // Las tres llamadas a Supabase del usuario en paralelo
-      final results = await Future.wait<dynamic>([
-        Supabase.instance.client
-            .from('users')
-            .select('display_name, username')
-            .eq('id', userId)
-            .maybeSingle(),
-        Supabase.instance.client
-            .from('user_games')
-            .select('*, games(*)')
-            .eq('user_id', userId)
-            .eq('status', 'playing'),
-        Supabase.instance.client
-            .from('reviews')
-            .select('game_id')
-            .eq('user_id', userId)
-            .eq('status', 'playing')
-            .eq('completion_type', 'on_hold'),
-      ]);
+      final results =
+          await Future.wait<dynamic>([
+            Supabase.instance.client
+                .from('users')
+                .select('display_name, username')
+                .eq('id', userId)
+                .maybeSingle(),
+            Supabase.instance.client
+                .from('user_games')
+                .select('*, games(*)')
+                .eq('user_id', userId)
+                .eq('status', 'playing'),
+            Supabase.instance.client
+                .from('reviews')
+                .select('game_id')
+                .eq('user_id', userId)
+                .eq('status', 'playing')
+                .eq('completion_type', 'on_hold'),
+          ]).timeout(
+            const Duration(seconds: 20),
+            onTimeout: () => throw TimeoutException(
+              'HomeScreen: timeout al cargar datos del usuario (>20s)',
+            ),
+          );
 
       final userResp = results[0] as Map<String, dynamic>?;
       displayName = (userResp?['display_name'] as String?)?.isNotEmpty == true

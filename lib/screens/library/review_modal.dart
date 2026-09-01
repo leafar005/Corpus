@@ -50,7 +50,7 @@ typedef OnSaveReview =
 ///   isSaving: _isSaving,
 ///   currentRating: _rating,
 ///   currentStatus: _status,
-///   commentController: _commentController,
+///   initialComment: _commentController.text,
 ///   onSave: _saveReview,
 /// );
 /// ```
@@ -76,7 +76,11 @@ class ReviewModal {
     required double currentRatingSoundtrack,
     required double currentRatingVisuals,
     required String currentStatus,
-    required TextEditingController commentController,
+
+    /// Texto inicial del campo de comentario.
+    /// Reemplaza el antiguo `commentController` externo — el modal gestiona
+    /// su propio [TextEditingController] internamente y lo disposa al cerrarse.
+    String initialComment = '',
     required OnSaveReview onSave,
     bool inLibrary = false,
   }) {
@@ -102,17 +106,12 @@ class ReviewModal {
         ? (r!.completionType ?? 'story')
         : 'story';
     bool reviewIsReplay = hasReview && r!.isReplay;
-    // r.replayNumber SÍ existe en el modelo (columna replay_number). Antes
-    // se ignoraba y se hardcodeaba a 1, así que reabrir una reseña de
-    // rejugada para editar cualquier otro campo pisaba silenciosamente el
-    // número de rejugada real de vuelta a 1 al guardar.
+    // Preserva el número de rejugada real al editar (no se resetea a 1).
     int reviewReplayNumber = (hasReview ? r!.replayNumber : null) ?? 1;
     String? reviewPlatform = hasReview ? r!.platform : null;
     String playTimeText = hasReview && r!.playTimeHours != null
         ? r.playTimeHours.toString()
         : '';
-    // Review model does not have played_from/played_until/progress_percent yet.
-    // They might be in user_games or they might be missing. We'll leave them as null/0 for now.
     DateTime? reviewPlayedFrom = hasReview ? r!.playedFrom : null;
     DateTime? reviewPlayedUntil = hasReview ? r!.playedUntil : null;
     int reviewProgressPercent = hasReview ? (r!.progressPercent ?? 0) : 0;
@@ -139,9 +138,9 @@ class ReviewModal {
       reviewCompletionType = 'none';
     }
 
-    // El controller de comentario vive dentro del modal (con texto inicial)
+    // El controller de comentario vive dentro del modal y se disposa al cerrarse.
     final reviewCommentController = TextEditingController(
-      text: hasReview ? (r!.comment ?? '') : commentController.text,
+      text: hasReview ? (r!.comment ?? '') : initialComment,
     );
     final String? reviewId = hasReview ? r!.id : null;
     final TextEditingController partnerSearchController =
@@ -1377,6 +1376,9 @@ class ReviewModal {
           },
         );
       },
-    );
+    ).then((_) {
+      reviewCommentController.dispose();
+      partnerSearchController.dispose();
+    });
   }
 }

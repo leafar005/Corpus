@@ -9,20 +9,15 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const SELF_URL = Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "supabase.co/functions/v1") ?? "";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
 
   try {
     const payload = await req.json();
@@ -169,6 +164,13 @@ Deno.serve(async (req) => {
         data: { type: "friend_activity", user_id: userId, game_id: String(gameId ?? ""), review_id: record?.review_id ?? "" },
       }),
     });
+
+    if (!sendRes.ok) {
+      console.error(`[notify-friend-activity] send-push-notification falló: HTTP ${sendRes.status}`);
+      return new Response(JSON.stringify({ sent: 0, reason: "push failed" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const sendResult = await sendRes.json();
     console.log("[notify-friend-activity] Result:", sendResult);

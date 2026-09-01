@@ -31,64 +31,6 @@ class GameReviewsCard extends StatelessWidget {
   final Function(BuildContext, List<String>, int)? onShowFullScreenGallery;
   final Function(Map<String, dynamic>)? onShowFriendActivity;
 
-  String _getMonthAbbr(int month) {
-    const months = [
-      'ene',
-      'feb',
-      'mar',
-      'abr',
-      'may',
-      'jun',
-      'jul',
-      'ago',
-      'sep',
-      'oct',
-      'nov',
-      'dic',
-    ];
-    return months[month - 1];
-  }
-
-  String _formatDateRange(DateTime? from, DateTime? until) {
-    if (from == null) return '';
-    try {
-      final f = from;
-      final fs = '${f.day} ${_getMonthAbbr(f.month)}';
-      if (until == null) return '$fs ${f.year}';
-      final u = until;
-      if (f.year == u.year) {
-        if (f.month == u.month && f.day == u.day) return '$fs ${f.year}';
-        return '$fs - ${u.day} ${_getMonthAbbr(u.month)} ${f.year}';
-      }
-      return '$fs ${f.year} - ${u.day} ${_getMonthAbbr(u.month)} ${u.year}';
-    } catch (_) {
-      return '';
-    }
-  }
-
-  String _formatDate(String isoString) {
-    try {
-      final date = DateTime.parse(isoString).toLocal();
-      const months = [
-        'Enero',
-        'Febrero',
-        'Marzo',
-        'Abril',
-        'Mayo',
-        'Junio',
-        'Julio',
-        'Agosto',
-        'Septiembre',
-        'Octubre',
-        'Noviembre',
-        'Diciembre',
-      ];
-      return "${date.day} de ${months[date.month - 1]} de ${date.year}";
-    } catch (e) {
-      return '';
-    }
-  }
-
   Widget _buildSubRatingBadge(
     BuildContext context,
     String label,
@@ -212,7 +154,7 @@ class GameReviewsCard extends StatelessWidget {
         final rVisuals = review.ratingVisuals ?? 0.0;
         final List<String> imageUrls = review.imageUrls;
         final dateStr = createdAt != null
-            ? _formatDate(createdAt.toIso8601String())
+            ? formatDateLong(createdAt.toIso8601String())
             : '';
         final rStatus = review.status.dbValue;
         String statusText;
@@ -474,7 +416,10 @@ class GameReviewsCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _formatDateRange(playedFrom, playedUntil),
+                              formatDateRange(
+                                playedFrom.toIso8601String(),
+                                playedUntil?.toIso8601String(),
+                              ),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Theme.of(

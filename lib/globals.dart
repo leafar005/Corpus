@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'utils/igdb_constants.dart';
 
+/// Punto de ruptura canónico para distinguir diseño de escritorio del móvil.
+/// Uso: `MediaQuery.sizeOf(context).width > kDesktopBreakpoint`
+const double kDesktopBreakpoint = 800.0;
+
 // Notificador global. Lo incrementaremos cada vez que el usuario añada/edite un juego en su biblioteca.
 // Cualquier pantalla que necesite refrescarse (como ProfileScreen o HomeScreen) puede escuchar este notificador.
 final ValueNotifier<int> libraryUpdateNotifier = ValueNotifier<int>(0);
@@ -75,4 +79,19 @@ SliverGridDelegate getCorpusGridDelegate(
       mainAxisSpacing: spacing,
     );
   }
+}
+
+/// Resetea todos los notificadores globales a sus valores por defecto.
+/// Llamar cuando el usuario cierra sesión para evitar que datos de una
+/// cuenta queden visibles al iniciar sesión con otra.
+void resetAllGlobalState() {
+  libraryUpdateNotifier.value = 0;
+  onlineUsersNotifier.value = {};
+  viewedStoryIdsNotifier.value = {};
+  unreadActivityCount.value = 0;
+  unreadFriendRequestsCount.value = 0;
+  unreadNotificationsCount.value = 0;
+  currentTabIndexNotifier.value = 0;
+  // mobileGridColumnsNotifier y floatingMobileNavNotifier son preferencias
+  // de UI del dispositivo, no datos de cuenta — no se resetean al hacer logout.
 }
