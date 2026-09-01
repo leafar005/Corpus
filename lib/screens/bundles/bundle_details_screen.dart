@@ -48,6 +48,9 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
     final title = widget.bundleData['title'] ?? 'Bundle';
     final url = widget.bundleData['url'] as String?;
     final endDateStr = widget.bundleData['end_date'] as String?;
+    final storeName = widget.bundleData['store_name'] as String? ?? '';
+    final isHumble = storeName.toLowerCase().contains('humble');
+    final isFanatical = storeName.toLowerCase().contains('fanatical');
     final tiers = widget.bundleData['tiers'] as List<dynamic>? ?? [];
 
     String? daysRemaining;
@@ -55,8 +58,14 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
       final endDate = DateTime.tryParse(endDateStr);
       if (endDate != null) {
         final diff = endDate.difference(DateTime.now());
-        if (diff.inDays >= 0) {
-          daysRemaining = 'Quedan ${diff.inDays} días';
+        if (diff.inSeconds >= 0) {
+          final int days = diff.inDays;
+          final int hours = diff.inHours % 24;
+          if (days > 0) {
+            daysRemaining = 'Quedan $days días y $hours horas';
+          } else {
+            daysRemaining = 'Quedan $hours horas';
+          }
         } else {
           daysRemaining = 'Terminado';
         }
@@ -93,44 +102,74 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Título principal en el body
-            Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            if (daysRemaining != null)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.amber),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.amber,
-                      size: 18,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isHumble)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 24.0, bottom: 16.0),
+                    child: Image.asset(
+                      'assets/images/humble_logo.png',
+                      height: 80,
+                      width: 80,
+                      fit: BoxFit.contain,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      daysRemaining,
-                      style: const TextStyle(
-                        color: Colors.amber,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                  )
+                else if (isFanatical)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 24.0, bottom: 16.0),
+                    child: Image.asset(
+                      'assets/images/fanatical_logo.png',
+                      height: 80,
+                      width: 80,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      if (daysRemaining != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.amber),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.warning_amber_rounded,
+                                color: Colors.amber,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                daysRemaining,
+                                style: const TextStyle(
+                                  color: Colors.amber,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
+            ),
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 24),

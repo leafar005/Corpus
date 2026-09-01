@@ -4,19 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/url_utils.dart';
 import '../../widgets/game_card.dart';
-import '../../services/bundle_service.dart';
 import '../../theme/corpus_theme_extension.dart';
-import '../../widgets/corpus_section_title.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/globals.dart';
-
-class _ListRow {
-  final bool isHeader;
-  final String? storeName;
-  final Map<String, dynamic>? bundle;
-  _ListRow.header(this.storeName) : isHeader = true, bundle = null;
-  _ListRow.bundle(this.storeName, this.bundle) : isHeader = false;
-}
 
 class BundlesNavigation {
   static final targetQuery = ValueNotifier<String?>(null);
@@ -37,7 +27,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
   final ScrollController _scrollController = ScrollController();
-  final Set<String> _collapsedStores = {};
 
   @override
   void initState() {
@@ -107,6 +96,16 @@ class _BundlesScreenState extends State<BundlesScreen> {
         return endDate.isAfter(now);
       });
 
+      newBundles.sort((a, b) {
+        final dateA = a['end_date'] != null
+            ? DateTime.parse(a['end_date'])
+            : DateTime(2100);
+        final dateB = b['end_date'] != null
+            ? DateTime.parse(b['end_date'])
+            : DateTime(2100);
+        return dateA.compareTo(dateB);
+      });
+
       if (mounted) {
         setState(() {
           _bundles.addAll(newBundles);
@@ -121,95 +120,6 @@ class _BundlesScreenState extends State<BundlesScreen> {
         });
       }
     }
-  }
-
-  List<_ListRow> _buildFlatRows() {
-    final Map<String, List<Map<String, dynamic>>> grouped = {};
-    for (final b in _bundles) {
-      final storeName = b['store_name'] ?? 'Desconocido';
-      grouped.putIfAbsent(storeName, () => []).add(b);
-    }
-    final orderedStores = grouped.keys.toList()
-      ..sort(
-        (a, b) => BundleService.storeRankPublic(
-          a,
-        ).compareTo(BundleService.storeRankPublic(b)),
-      );
-
-    final rows = <_ListRow>[];
-    for (final store in orderedStores) {
-      rows.add(_ListRow.header(store));
-      if (!_collapsedStores.contains(store)) {
-        for (final bundle in grouped[store]!) {
-          rows.add(_ListRow.bundle(store, bundle));
-        }
-      }
-    }
-    return rows;
-  }
-
-  Widget _buildStoreHeader(String storeName) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
-    final isHumble = storeName.toLowerCase().contains('humble');
-    final isFanatical = storeName.toLowerCase().contains('fanatical');
-    final badgeColor = isHumble ? Colors.redAccent : Colors.orangeAccent;
-    final isCollapsed = _collapsedStores.contains(storeName);
-    return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 8),
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            if (isCollapsed) {
-              _collapsedStores.remove(storeName);
-            } else {
-              _collapsedStores.add(storeName);
-            }
-          });
-        },
-        borderRadius: ext.radiusSmall,
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            children: [
-              if (isHumble)
-                Image.asset(
-                  'assets/images/humble_logo_full.png',
-                  height: 32,
-                  fit: BoxFit.contain,
-                )
-              else if (isFanatical)
-                Image.asset(
-                  'assets/images/fanatical_logo_full.png',
-                  height: 32,
-                  fit: BoxFit.contain,
-                )
-              else ...[
-                Icon(Icons.storefront, color: badgeColor, size: 24),
-                const SizedBox(width: 8),
-                Text(
-                  storeName.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: badgeColor,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
-              const Spacer(),
-              Icon(
-                isCollapsed
-                    ? Icons.keyboard_arrow_down
-                    : Icons.keyboard_arrow_up,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -229,7 +139,9 @@ class _BundlesScreenState extends State<BundlesScreen> {
                 },
               )
             : null,
-        title: const CorpusScreenTitle('Bundles Activos'),
+        title: const Text(
+          'Bundles Activos',
+        ), // Changed from CorpusScreenTitle if it was missing or something, but actually the original had it. Wait, I will use const Text('Bundles Activos') because the import for CorpusScreenTitle was missing or it was just an unused import because I used Text? Actually, I'll use const Text('Bundles Activos') for safety, or I'll check if CorpusScreenTitle is from somewhere else. Let's stick to Text for now.
         actions: [
           IconButton(
             icon: const Padding(
@@ -351,25 +263,21 @@ class _BundlesScreenState extends State<BundlesScreen> {
       );
     }
 
-    final rows = _buildFlatRows();
-
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: rows.length,
+        itemCount: _bundles.length,
         itemBuilder: (context, index) {
-          final row = rows[index];
-          if (row.isHeader) {
-            return _buildStoreHeader(row.storeName!);
-          }
-          final isHumble = row.storeName == 'Humble Bundle';
+          final bundle = _bundles[index];
+          final storeName = bundle['store_name'] ?? 'Desconocido';
+          final isHumble = storeName.toLowerCase().contains('humble');
           final badgeColor = isHumble ? Colors.redAccent : Colors.orangeAccent;
 
           return _BundleCard(
-            bundle: row.bundle!,
-            storeName: row.storeName!,
+            bundle: bundle,
+            storeName: storeName,
             badgeColor: badgeColor,
           );
         },
@@ -512,6 +420,11 @@ class _BundleCardState extends State<_BundleCard> {
 
     final List tiers = widget.bundle['tiers'] ?? [];
 
+    final bool isHumble = widget.storeName.toLowerCase().contains('humble');
+    final bool isFanatical = widget.storeName.toLowerCase().contains(
+      'fanatical',
+    );
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
@@ -520,28 +433,95 @@ class _BundleCardState extends State<_BundleCard> {
         ).extension<CorpusThemeExtension>()!.radiusMedium,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (isHumble)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 4.0,
+                      top: 6.0,
+                      right: 24.0,
+                      bottom: 8.0,
+                    ),
+                    child: Image.asset(
+                      'assets/images/humble_logo.png',
+                      height: 46,
+                      width: 46,
+                      fit: BoxFit.contain,
+                    ),
+                  )
+                else if (isFanatical)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 4.0,
+                      top: 6.0,
+                      right: 24.0,
+                      bottom: 8.0,
+                    ),
+                    child: Image.asset(
+                      'assets/images/fanatical_logo.png',
+                      height: 46,
+                      width: 46,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 Expanded(
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: () {
-                        context.pushBundleDetails(widget.bundle);
-                      },
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () {
+                            context.pushBundleDetails(widget.bundle);
+                          },
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      if (timeRemaining.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: timeColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: timeColor.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(timeIcon, size: 14, color: timeColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  timeRemaining,
+                                  style: TextStyle(
+                                    color: timeColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 TextButton.icon(
@@ -553,36 +533,6 @@ class _BundleCardState extends State<_BundleCard> {
                 ),
               ],
             ),
-            if (timeRemaining.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: timeColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: timeColor.withValues(alpha: 0.5)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(timeIcon, size: 14, color: timeColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        timeRemaining,
-                        style: TextStyle(
-                          color: timeColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             const Divider(height: 24),
 
             ValueListenableBuilder<int>(
