@@ -1149,20 +1149,20 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             Positioned(
               left: 8,
               right: 8,
-              bottom: 8,
+              top: 100,
               child: IgnorePointer(
                 child: ValueListenableBuilder<List<String>>(
                   valueListenable: OnScreenLog.lines,
                   builder: (context, lines, _) => Container(
-                    padding: const EdgeInsets.all(6),
-                    color: Colors.black.withValues(alpha: 0.75),
+                    padding: const EdgeInsets.all(8),
+                    color: Colors.black.withValues(alpha: 0.85),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: lines
                           .map((l) => Text(
                                 l,
-                                style: const TextStyle(color: Colors.greenAccent, fontSize: 10),
+                                style: const TextStyle(color: Colors.greenAccent, fontSize: 14, fontWeight: FontWeight.bold),
                               ))
                           .toList(),
                     ),
