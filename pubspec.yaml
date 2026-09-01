@@ -1,7 +1,7 @@
 name: corpus
 description: "Personal & social video game tracker."
 publish_to: 'none'
-version: 1.2.1+6
+version: 1.2.2+7
 
 environment:
   sdk: ^3.12.2
@@ -19,7 +19,7 @@ dependencies:
   file_picker: ^11.0.3
   csv: ^6.0.0
   flutter_image_compress: ^2.5.1
-  liquid_glass_easy: ^3.5.0
+  liquid_glass_easy: 3.5.0 # anclado: API visual sensible a cambios de versión
 
   # Push notifications
   firebase_core: ^3.14.0
