@@ -200,10 +200,8 @@ class AppTheme {
             ? {
                 TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.android:
-                    FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.windows:
-                    FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
               }
             : {
@@ -324,10 +322,8 @@ class AppTheme {
             ? {
                 TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.android:
-                    FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.windows:
-                    FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
               }
             : {

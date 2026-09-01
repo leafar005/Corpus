@@ -95,10 +95,7 @@ class TabUrlSyncObserver extends NavigatorObserver {
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    AppNavigationController.instance.onNavigatorPush(
-      stackIndex,
-      route.settings,
-    );
+    AppNavigationController.instance.onNavigatorPush(stackIndex, route);
   }
 
   @override
@@ -107,11 +104,16 @@ class TabUrlSyncObserver extends NavigatorObserver {
   }
 
   @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    AppNavigationController.instance.onNavigatorPop(stackIndex);
+  }
+
+  @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     if (newRoute == null) return;
     AppNavigationController.instance.onNavigatorReplace(
       stackIndex,
-      newSettings: newRoute.settings,
+      newRoute: newRoute,
     );
   }
 }

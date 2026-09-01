@@ -33,6 +33,11 @@ class AppNavigationController {
   /// usuario y disparen otra vuelta de sincronización (reentrada infinita).
   bool _replaying = false;
 
+  /// Controla si el retroceso que desencadena el popstate fue provocado por
+  /// el botón "atrás" de nuestra propia UI, en lugar de por un gesto nativo
+  /// o botón de atrás del propio navegador.
+  bool _isProgrammaticBack = false;
+
   /// Registradas una sola vez al arrancar la app.
   List<GlobalKey<NavigatorState>>?
   _tabNavigatorKeys; // longitud 5, índice = pestaña
@@ -83,11 +88,11 @@ class AppNavigationController {
     );
   }
 
-  void onNavigatorPush(int stackIndex, RouteSettings settings) {
+  void onNavigatorPush(int stackIndex, Route<dynamic> route) {
     final token = _nextToken++;
     _stacks[stackIndex] = [
       ...(_stacks[stackIndex] ?? []),
-      NavHistoryFrame(token: token, settings: settings),
+      NavHistoryFrame(token: token, settings: route.settings, route: route),
     ];
 
     if (_replaying) return; // eco de un popstate que ya estamos procesando
@@ -100,7 +105,9 @@ class AppNavigationController {
     }
 
     final depth = _stacks[stackIndex]!.length - 1;
-    final subRoute = deepRouteFromRouteSettings(settings); // puede ser null
+    final subRoute = deepRouteFromRouteSettings(
+      route.settings,
+    ); // puede ser null
 
     final String path;
     if (stackIndex == rootStackIndex) {
@@ -130,19 +137,20 @@ class AppNavigationController {
     _stacks[stackIndex] = frames.sublist(0, frames.length - 1);
   }
 
-  void onNavigatorReplace(
-    int stackIndex, {
-    required RouteSettings newSettings,
-  }) {
+  void onNavigatorReplace(int stackIndex, {required Route<dynamic> newRoute}) {
     final frames = _stacks[stackIndex];
     if (frames == null || frames.isEmpty) {
-      onNavigatorPush(stackIndex, newSettings);
+      onNavigatorPush(stackIndex, newRoute);
       return;
     }
     final last = frames.last;
     _stacks[stackIndex] = [
       ...frames.sublist(0, frames.length - 1),
-      NavHistoryFrame(token: last.token, settings: newSettings),
+      NavHistoryFrame(
+        token: last.token,
+        settings: newRoute.settings,
+        route: newRoute,
+      ),
     ];
   }
 
@@ -178,6 +186,7 @@ class AppNavigationController {
     final frames = _stacks[stackIndex] ?? const [];
     if (frames.length <= 1) return false; // ya en la raíz de esta pila
 
+    _isProgrammaticBack = true;
     goBackInBrowserHistory(); // dispara un popstate real
     return true;
   }
@@ -200,6 +209,9 @@ class AppNavigationController {
     Map<String, Object?>? state,
     String pathname,
   ) async {
+    final isNativeBrowserBack = !_isProgrammaticBack;
+    _isProgrammaticBack = false;
+
     try {
       if (state != null &&
           state['token'] is int &&
@@ -210,6 +222,7 @@ class AppNavigationController {
           depth: state['depth'] as int,
           token: state['token'] as int,
           pathname: pathname,
+          isNativeBrowserBack: isNativeBrowserBack,
         );
       } else {
         await _handleLegacyPopState(pathname);
@@ -231,6 +244,7 @@ class AppNavigationController {
     required int depth,
     required int token,
     required String pathname,
+    required bool isNativeBrowserBack,
   }) async {
     _replaying = true;
     try {
@@ -251,7 +265,12 @@ class AppNavigationController {
         final navigator = _navigatorFor(tab);
         final steps = currentDepth - depth;
         for (var i = 0; i < steps; i++) {
-          navigator?.pop();
+          final topFrame = frames[currentDepth - i];
+          if (isNativeBrowserBack && topFrame.route != null) {
+            navigator?.removeRoute(topFrame.route!);
+          } else {
+            navigator?.pop();
+          }
         }
       } else if (depth == currentDepth && targetFrameStillAlive) {
         // Nada que hacer (p. ej. el usuario pulsó atrás y adelante muy

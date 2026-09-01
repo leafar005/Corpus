@@ -8,5 +8,11 @@ import 'package:flutter/widgets.dart';
 class NavHistoryFrame {
   final int token;
   final RouteSettings settings;
-  const NavHistoryFrame({required this.token, required this.settings});
+  final Route<dynamic>? route;
+
+  const NavHistoryFrame({
+    required this.token,
+    required this.settings,
+    this.route,
+  });
 }
