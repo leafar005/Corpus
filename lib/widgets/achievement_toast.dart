@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../routes/deep_route_resolver.dart';
+import '../routes/tab_deep_route.dart';
 import '../theme/corpus_theme_extension.dart';
 
 class AchievementToast {
@@ -31,6 +33,83 @@ class AchievementToast {
     );
 
     overlayState.insert(overlayEntry);
+  }
+
+  /// Muestra de forma escalonada los toasts de logros recién desbloqueados.
+  ///
+  /// [achievements] proviene de `SaveReviewResult.newAchievementDetails`.
+  /// [isMounted] debe ser una función que devuelva `mounted` del [State] caller
+  /// para evitar mostrar toasts sobre widgets ya destruidos.
+  static void showFromList(
+    BuildContext context,
+    List<Map<String, dynamic>> achievements, {
+    required bool Function() isMounted,
+  }) {
+    int toastDelay = 300;
+    for (final ach in achievements) {
+      final String aId = ach['id'] as String;
+      final String title = ach['name'] as String? ?? 'Logro desbloqueado';
+      final String rarity =
+          (ach['rarity'] as String?)?.toLowerCase() ?? 'comun';
+      final int xpReward = ach['xp_reward'] as int? ?? 0;
+
+      String subtitle = 'Logro desbloqueado';
+      Color color = const Color(0xFFFFD700);
+
+      if (title.contains('(Maestro)') ||
+          title.contains('(Nivel 3)') ||
+          aId.endsWith('_all')) {
+        subtitle = 'Maestro de saga';
+        color = const Color(0xFFFFD700);
+      } else if (title.contains('(Nivel 2)')) {
+        subtitle = 'Hito alcanzado';
+        color = const Color(0xFFC0C0C0);
+      } else if (title.contains('(Nivel 1)')) {
+        subtitle = 'Logro desbloqueado';
+        color = const Color(0xFFCD7F32);
+      } else {
+        if (rarity == 'legendario' ||
+            rarity == 'platino' ||
+            rarity == 'épico' ||
+            rarity == 'epico') {
+          subtitle = 'Hazaña legendaria';
+          color = Colors.cyanAccent;
+        } else if (rarity == 'difícil' ||
+            rarity == 'dificil' ||
+            rarity == 'medio') {
+          subtitle = 'Logro desbloqueado';
+          color = Colors.blueAccent;
+        } else {
+          subtitle = 'Logro desbloqueado';
+          color = Colors.green;
+        }
+      }
+
+      Future.delayed(Duration(milliseconds: toastDelay), () {
+        if (!context.mounted) return;
+        if (isMounted()) {
+          AchievementToast.show(
+            context,
+            title: title,
+            subtitle: subtitle,
+            xpReward: xpReward,
+            icon: Icons.workspace_premium,
+            color: color,
+            onTap: () async {
+              final groupId = aId.split('_').first;
+              final route = await DeepRouteResolver.buildRoute(
+                AchievementGamesDeepRoute(achievementId: groupId),
+              );
+              if (!context.mounted) return;
+              if (route != null && isMounted()) {
+                Navigator.push(context, route);
+              }
+            },
+          );
+        }
+      });
+      toastDelay += 3700;
+    }
   }
 }
 
