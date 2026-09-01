@@ -1101,6 +1101,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
+        if (kIsWeb)
+          return; // En web, AppNavigationController procesa el popstate nativo
 
         final handled = AppNavigationController.instance.requestBack(
           context,
