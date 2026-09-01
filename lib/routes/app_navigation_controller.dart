@@ -8,7 +8,6 @@ import 'package:corpus/routes/tab_deep_route.dart';
 import 'package:corpus/routes/tab_url_sync.dart';
 import 'package:corpus/routes/deep_route_resolver.dart';
 import 'package:corpus/utils/web_js.dart';
-import 'package:corpus/utils/on_screen_log.dart';
 
 class AppNavigationController {
   AppNavigationController._();
@@ -267,7 +266,6 @@ class AppNavigationController {
         final steps = currentDepth - depth;
         for (var i = 0; i < steps; i++) {
           final topFrame = frames[currentDepth - i];
-          OnScreenLog.add('isNative=$isNativeBrowserBack route=${topFrame.route != null}');
           if (isNativeBrowserBack && topFrame.route != null) {
             navigator?.removeRoute(topFrame.route!);
           } else {
@@ -335,15 +333,18 @@ class AppNavigationController {
     // porque YA estamos en esta entrada del historial (la trajo el propio
     // popstate): no queremos añadir una entrada más, solo corregirla.
     navigator?.push(route);
-    final lastFrame = _stacks[tab]!.last;
-    
+    final newToken = _nextToken++;
+    _stacks[tab] = [
+      ...(_stacks[tab] ?? const []),
+      NavHistoryFrame(token: newToken, settings: route.settings),
+    ];
     setWebPath(
       publicPathForTabRoute(tab, subRoute),
       replace: true,
       state: {
         'tab': tab,
         'depth': (_stacks[tab]!.length - 1),
-        'token': lastFrame.token,
+        'token': newToken,
       },
     );
   }
@@ -399,15 +400,18 @@ class AppNavigationController {
         final route = await DeepRouteResolver.buildRoute(subRoute);
         if (route != null) {
           navigator?.push(route);
-          final lastFrame = _stacks[tab]!.last;
-          
+          final newToken = _nextToken++;
+          _stacks[tab] = [
+            ...(_stacks[tab] ?? const []),
+            NavHistoryFrame(token: newToken, settings: route.settings),
+          ];
           setWebPath(
             publicPathForTabRoute(tab, subRoute),
             replace: true,
             state: {
               'tab': tab,
               'depth': (_stacks[tab]!.length - 1),
-              'token': lastFrame.token,
+              'token': newToken,
             },
           );
         }

@@ -189,7 +189,10 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
             child: GestureDetector(
               onTap: () {
                 if (game['id'] != null) {
-                  context.pushGameDetails({'igdb_id': game['id'], 'title': title});
+                  context.pushGameDetails({
+                    'igdb_id': game['id'],
+                    'title': title,
+                  });
                 }
               },
               child: CorpusStyledPanel(
