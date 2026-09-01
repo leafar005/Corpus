@@ -199,18 +199,29 @@ class AppNavigationController {
     Map<String, Object?>? state,
     String pathname,
   ) async {
-    if (state != null &&
-        state['token'] is int &&
-        state['tab'] is int &&
-        state['depth'] is int) {
-      await _handleTypedPopState(
-        tab: state['tab'] as int,
-        depth: state['depth'] as int,
-        token: state['token'] as int,
-        pathname: pathname,
-      );
-    } else {
-      await _handleLegacyPopState(pathname);
+    try {
+      if (state != null &&
+          state['token'] is int &&
+          state['tab'] is int &&
+          state['depth'] is int) {
+        await _handleTypedPopState(
+          tab: state['tab'] as int,
+          depth: state['depth'] as int,
+          token: state['token'] as int,
+          pathname: pathname,
+        );
+      } else {
+        await _handleLegacyPopState(pathname);
+      }
+    } catch (e, st) {
+      debugPrint('[AppNavigationController] Error parsing popstate: $e\n$st');
+      // Fallback a reconstruir desde URL pura si todo lo demás falla
+      try {
+        final tab = AppRoutes.tabIndexFromPublicPath(pathname) ?? 0;
+        await _rebuildStackFromUrl(tab, pathname);
+      } catch (_) {
+        // En caso catastrófico, no hacer nada y esperar nueva interacción.
+      }
     }
   }
 

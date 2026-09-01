@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/style_pack_url_override.dart';
 import 'style_pack.dart';
@@ -195,13 +196,23 @@ class AppTheme {
         prefixIconColor: Colors.grey,
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
-        },
+        builders: kIsWeb
+            ? {
+                TargetPlatform.iOS: const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.android:
+                    const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.windows:
+                    const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.linux: const FadeUpwardsPageTransitionsBuilder(),
+              }
+            : {
+                TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.macOS: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.android: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.windows: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.linux: const CupertinoPageTransitionsBuilder(),
+              },
       ),
       dividerTheme: const DividerThemeData(color: Colors.white24, thickness: 1),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
@@ -309,13 +320,23 @@ class AppTheme {
         prefixIconColor: Colors.grey.shade600,
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
-        },
+        builders: kIsWeb
+            ? {
+                TargetPlatform.iOS: const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.android:
+                    const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.windows:
+                    const FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.linux: const FadeUpwardsPageTransitionsBuilder(),
+              }
+            : {
+                TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.macOS: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.android: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.windows: const CupertinoPageTransitionsBuilder(),
+                TargetPlatform.linux: const CupertinoPageTransitionsBuilder(),
+              },
       ),
       dividerTheme: DividerThemeData(color: Colors.grey.shade300, thickness: 1),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
