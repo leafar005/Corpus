@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2026-09-01
+
+### Añadido
+- **Navegación Móvil:** Barra de navegación móvil sólida, opaca y flotante, que incluye una animación para ocultarse al hacer scroll y un botón para los Ajustes.
+- **Bundles:** Nueva pantalla de detalles de paquete (`BundleDetailsScreen`). Además, se han aplanado los niveles (Tiers) para Fanatical y Humble Choice.
+- **Navegación Web (AppNavigationController):** Creado un motor de navegación e historial completamente personalizado, capaz de interpretar rutas profundas (`deep routes`) en versión Web de manera robusta.
+- **Feed de Notificaciones:** Interfaz (UI) y repositorio propio para el centro de notificaciones.
+- **Historias:** Ahora puedes ver tus propias historias desde el perfil de usuario.
+
+### Cambiado
+- **Interfaz y Portadas:** El encabezado de detalles del juego emplea ahora una AppBar nativa para lograr un alineamiento perfecto. Se han unificado los bordes y mejorado los colores de títulos, así como la usabilidad del Hall of Fame.
+
+### Arreglado
+- **Gestos y Botón Atrás (Web/PWA):** Subsanado el bucle en cascada de los gestos "Atrás" (`PopScope`). También se han evitado fallos relacionados con la historia (History API) y la caché estática en Vercel.
+- **Notificaciones Push:** Solucionado íntegramente el fallo con las notificaciones PWA en iOS y Vercel empleando el evento Push nativo del *service worker*.
+- **Historias (Stories):** Arreglados 4 bugs críticos que involucraban ordenamiento, navegación incorrecta y estados residuales (state leaks).
+- **Logros (Achievements):** Reparadas las URLs de deep-linking para los juegos con logros, y ajustados los filtros de exclusión (Nintendo Land, sagas) junto a los cálculos de experiencia.
+- **Reseñas:** El modal de reseñas de la biblioteca ahora inicializa el número de rejugada (`replayNumber`) sin errores.
+
 ## [1.2.1] - 2026-08-30
 
 ### Añadido
