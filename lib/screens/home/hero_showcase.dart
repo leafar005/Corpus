@@ -480,52 +480,14 @@ class _HeroShowcaseState extends State<HeroShowcase>
 
                       final coverSection = AnimatedSwitcher(
                         duration: const Duration(milliseconds: 600),
-                        child: MouseRegion(
+                        child: _HoverableHeroCover(
                           key: ValueKey(coverUrl),
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () => _navigateToGameDetails(
-                              gameData,
-                              coverUrl,
-                              false,
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.6),
-                                    blurRadius: 40,
-                                    offset: const Offset(0, 20),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: Theme.of(context)
-                                    .extension<CorpusThemeExtension>()!
-                                    .radiusLarge,
-                                child: coverUrl.isNotEmpty
-                                    ? CorpusNetworkImage(
-                                        url: coverUrl,
-                                        fit: BoxFit.cover,
-                                        width: isPortrait
-                                            ? constraints.maxWidth * 0.38
-                                            : 240,
-                                      )
-                                    : Container(
-                                        width: isPortrait
-                                            ? constraints.maxWidth * 0.38
-                                            : 240,
-                                        height: isPortrait
-                                            ? (constraints.maxWidth * 0.38) *
-                                                  1.4
-                                            : 340,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.surfaceContainerHighest,
-                                      ),
-                              ),
-                            ),
-                          ),
+                          coverUrl: coverUrl,
+                          gameData: gameData,
+                          isPortrait: isPortrait,
+                          maxWidth: constraints.maxWidth,
+                          onTap: () =>
+                              _navigateToGameDetails(gameData, coverUrl, false),
                         ),
                       );
 
@@ -585,6 +547,78 @@ class _HeroShowcaseState extends State<HeroShowcase>
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _HoverableHeroCover extends StatefulWidget {
+  final String coverUrl;
+  final Map<String, dynamic> gameData;
+  final bool isPortrait;
+  final double maxWidth;
+  final VoidCallback onTap;
+
+  const _HoverableHeroCover({
+    super.key,
+    required this.coverUrl,
+    required this.gameData,
+    required this.isPortrait,
+    required this.maxWidth,
+    required this.onTap,
+  });
+
+  @override
+  State<_HoverableHeroCover> createState() => _HoverableHeroCoverState();
+}
+
+class _HoverableHeroCoverState extends State<_HoverableHeroCover> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _isHovering ? 1.05 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: Theme.of(
+                context,
+              ).extension<CorpusThemeExtension>()!.radiusLarge,
+              child: widget.coverUrl.isNotEmpty
+                  ? CorpusNetworkImage(
+                      url: widget.coverUrl,
+                      fit: BoxFit.cover,
+                      width: widget.isPortrait ? widget.maxWidth * 0.38 : 240,
+                    )
+                  : Container(
+                      width: widget.isPortrait ? widget.maxWidth * 0.38 : 240,
+                      height: widget.isPortrait
+                          ? (widget.maxWidth * 0.38) * 1.4
+                          : 340,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                    ),
+            ),
+          ),
+        ),
       ),
     );
   }
