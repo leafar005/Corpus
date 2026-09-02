@@ -87,7 +87,8 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       final res = await Supabase.instance.client
           .from('reviews')
           .select(_orderColumn)
-          .eq('user_id', widget.userId);
+          .eq('user_id', widget.userId)
+          .inFilter('status', ['playing', 'beaten', 'completed']);
 
       final Set<int> years = {};
       for (final r in res) {
@@ -137,7 +138,8 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     var query = Supabase.instance.client
         .from('reviews')
         .select('*, games!inner(*)')
-        .eq('user_id', widget.userId);
+        .eq('user_id', widget.userId)
+        .inFilter('status', ['playing', 'beaten', 'completed']);
 
     if (_searchQuery.isNotEmpty) {
       query = query.ilike('games.title', '%$_searchQuery%');
@@ -230,10 +232,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
   String _getStatusText(String status) => GameStatus.labelForString(status);
 
-  String _platformLabel(String? platform) {
-    if (platform == null || platform.isEmpty) return '';
-    return platform[0].toUpperCase() + platform.substring(1);
-  }
+
 
   Widget _buildStarRow(double rating) {
     return Row(
@@ -460,6 +459,9 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     final status = review['status'] ?? 'beaten';
     final platform = review['platform'] as String?;
     final isReplay = review['is_replay'] == true;
+    final completionType = review['completion_type'] as String?;
+    final isPlatinado =
+        status == 'completed' || completionType == '100_percent';
 
     return InkWell(
       onTap: () => _openReview(review),
@@ -549,60 +551,66 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                       ],
                     ],
                   ),
-                  if (rating > 0) ...[
+                  if (rating > 0 || isPlatinado) ...[
                     const SizedBox(height: 6),
-                    _buildStarRow(rating),
+                    Row(
+                      children: [
+                        if (rating > 0) _buildStarRow(rating),
+                        if (rating > 0 && isPlatinado) const SizedBox(width: 8),
+                        if (isPlatinado)
+                          const Icon(
+                            Icons.emoji_events,
+                            size: 16,
+                            color: Colors.amber,
+                          ),
+                      ],
+                    ),
                   ],
                 ],
               ),
             ),
             if (MediaQuery.of(context).size.width > 600) ...[
               SizedBox(
-                width: 140,
+                width: 60,
                 child: Row(
                   children: [
                     if (platform != null)
-                      if (IgdbConstants.getPlatformStyle(platform)['icon'] !=
-                          null)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6.0),
-                          child: Image.asset(
-                            IgdbConstants.getPlatformStyle(platform)['icon']
-                                as String,
-                            width: 16,
-                            height: 16,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        )
-                      else if (IgdbConstants.getPlatformStyle(
+                      Builder(
+                        builder: (context) {
+                          final style = IgdbConstants.getPlatformStyle(
                             platform,
-                          )['materialIcon'] !=
-                          null)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6.0),
-                          child: Icon(
-                            IgdbConstants.getPlatformStyle(
-                                  platform,
-                                )['materialIcon']
-                                as IconData,
-                            size: 16,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    Expanded(
-                      child: Text(
-                        _platformLabel(platform),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 14,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                          );
+                          final color =
+                              style['color'] as Color? ??
+                              Theme.of(context).colorScheme.primary;
+                          final iconPath = style['icon'] as String?;
+                          final iconData = style['materialIcon'] as IconData?;
+                          return Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: iconPath != null
+                                  ? Image.asset(
+                                      iconPath,
+                                      width: 16,
+                                      height: 16,
+                                      color: Colors.white,
+                                    )
+                                  : (iconData != null
+                                        ? Icon(
+                                            iconData,
+                                            size: 16,
+                                            color: Colors.white,
+                                          )
+                                        : const SizedBox.shrink()),
+                            ),
+                          );
+                        },
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -630,12 +638,14 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                   ],
                 ),
               ),
+            ] else ...[
+              const SizedBox(width: 12),
+              Icon(
+                _getStatusIcon(status),
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ],
-            Icon(
-              Icons.arrow_forward,
-              size: 18,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
           ],
         ),
       ),

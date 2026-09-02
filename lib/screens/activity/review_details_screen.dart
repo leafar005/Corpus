@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/comment_thread_utils.dart';
 import 'package:corpus/utils/format_utils.dart';
@@ -382,7 +383,12 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     }
   }
 
-  Widget _buildInfoBadge(String label, IconData icon, Color color) {
+  Widget _buildInfoBadge(
+    String label,
+    IconData icon,
+    Color color, {
+    Widget? customIcon,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -395,7 +401,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
+          customIcon ?? Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
           Text(
             label,
@@ -626,10 +632,43 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                       Colors.orangeAccent,
                                     ),
                                   if (platform != null)
-                                    _buildInfoBadge(
-                                      platform,
-                                      Icons.devices,
-                                      Colors.blueGrey,
+                                    Builder(
+                                      builder: (context) {
+                                        final pStyle =
+                                            IgdbConstants.getPlatformStyle(
+                                              platform,
+                                            );
+                                        final pColor =
+                                            pStyle['color'] as Color? ??
+                                            Colors.blueGrey;
+                                        final iconPath =
+                                            pStyle['icon'] as String?;
+                                        final materialIcon =
+                                            pStyle['materialIcon'] as IconData?;
+
+                                        Widget? customIcon;
+                                        if (iconPath != null) {
+                                          customIcon = Image.asset(
+                                            iconPath,
+                                            width: 14,
+                                            height: 14,
+                                            color: pColor,
+                                          );
+                                        } else if (materialIcon != null) {
+                                          customIcon = Icon(
+                                            materialIcon,
+                                            size: 14,
+                                            color: pColor,
+                                          );
+                                        }
+
+                                        return _buildInfoBadge(
+                                          platform,
+                                          Icons.devices,
+                                          pColor,
+                                          customIcon: customIcon,
+                                        );
+                                      },
                                     ),
                                 ],
                               ),

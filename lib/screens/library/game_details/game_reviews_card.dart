@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/utils/igdb_constants.dart';
 
 import 'package:corpus/routes/corpus_router.dart';
 import '../../../models/models.dart';
@@ -71,7 +72,12 @@ class GameReviewsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoBadge(String label, IconData icon, Color color) {
+  Widget _buildInfoBadge(
+    String label,
+    IconData icon,
+    Color color, {
+    Widget? customIcon,
+  }) {
     return Container(
       margin: const EdgeInsets.only(left: 8),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -83,7 +89,7 @@ class GameReviewsCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
+          customIcon ?? Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
             label,
@@ -233,10 +239,41 @@ class GameReviewsCard extends StatelessWidget {
                               Colors.orangeAccent,
                             ),
                           if (rPlatform != null)
-                            _buildInfoBadge(
-                              rPlatform,
-                              Icons.devices,
-                              Colors.blueGrey,
+                            Builder(
+                              builder: (context) {
+                                final pStyle = IgdbConstants.getPlatformStyle(
+                                  rPlatform,
+                                );
+                                final pColor =
+                                    pStyle['color'] as Color? ??
+                                    Colors.blueGrey;
+                                final iconPath = pStyle['icon'] as String?;
+                                final materialIcon =
+                                    pStyle['materialIcon'] as IconData?;
+
+                                Widget? customIcon;
+                                if (iconPath != null) {
+                                  customIcon = Image.asset(
+                                    iconPath,
+                                    width: 12,
+                                    height: 12,
+                                    color: pColor,
+                                  );
+                                } else if (materialIcon != null) {
+                                  customIcon = Icon(
+                                    materialIcon,
+                                    size: 12,
+                                    color: pColor,
+                                  );
+                                }
+
+                                return _buildInfoBadge(
+                                  rPlatform,
+                                  Icons.devices,
+                                  pColor,
+                                  customIcon: customIcon,
+                                );
+                              },
                             ),
                         ],
                       ),
