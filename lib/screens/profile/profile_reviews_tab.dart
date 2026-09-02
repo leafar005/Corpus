@@ -339,7 +339,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      formatDateMinimal(review['created_at']),
+                      formatDateShort(review['created_at']),
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

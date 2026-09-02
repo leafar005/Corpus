@@ -120,19 +120,16 @@ class ReviewModal {
     // Snapshot inmutable de la fecha original, para restaurarla si el usuario
     // cambia de estado por error durante la edición (ver applyStatusChange).
     final DateTime? initialReviewDate = reviewDate;
+    final String initialReviewStatus = reviewStatus;
 
     /// Aplica un cambio de estado desde los chips de "Estado".
-    /// Si pasa de un estado no finalizado (quiero/jugando) a uno finalizado
-    /// (terminado/abandonado), autorellena la fecha con hoy. Si se revierte a
-    /// un estado no finalizado antes de guardar, restaura la fecha original
-    /// (por si ha sido un misclick).
+    /// Actualiza la fecha a hoy siempre que el estado cambie, pero si
+    /// se vuelve al estado original, se restaura la fecha original.
     void applyStatusChange(String v) {
-      final wasFinished = GameStatus.fromString(reviewStatus).isFinished;
-      final willBeFinished = GameStatus.fromString(v).isFinished;
-      if (!wasFinished && willBeFinished) {
-        reviewDate = DateTime.now();
-      } else if (wasFinished && !willBeFinished) {
+      if (v == initialReviewStatus) {
         reviewDate = initialReviewDate;
+      } else if (reviewStatus != v) {
+        reviewDate = DateTime.now();
       }
       reviewStatus = v;
       reviewCompletionType = 'none';

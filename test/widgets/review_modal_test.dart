@@ -20,7 +20,6 @@ void main() {
     testWidgets(
       'Al pulsar el chip "Quiero" (wishlist), los sliders de nota, tiempo jugadas y fechas desaparecen al instante',
       (WidgetTester tester) async {
-
         await tester.pumpWidget(
           MaterialApp(
             theme: ThemeData(extensions: const [CorpusThemeExtension()]),
@@ -115,7 +114,6 @@ void main() {
     testWidgets(
       'Al pulsar "Jugando", se ocultan nota/reseña y la información extra queda visible',
       (WidgetTester tester) async {
-
         await tester.pumpWidget(
           MaterialApp(
             theme: ThemeData(extensions: const [CorpusThemeExtension()]),
