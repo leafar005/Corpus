@@ -4,11 +4,9 @@ import '../../utils/igdb_constants.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/corpus_network_image.dart';
 import '../../models/models.dart';
 import '../../widgets/game_card.dart';
-import '../../services/igdb_service.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'hero_showcase.dart';
 import 'anticipated_games_section.dart';
@@ -16,43 +14,7 @@ import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../../widgets/p5r_styled_panel.dart';
 
-// ─── Modelos de datos por fase ──────────────────────────────────────────────
-
-/// Datos que llegan rápido (Supabase del usuario + prefs).
-class _PhaseOneData {
-  final List<Map<String, dynamic>> games;
-  final String displayName;
-  final List<String> sectionsOrder;
-  final Set<String> sectionsHidden;
-  final String anticipatedCountdownStyle;
-  final String wishlistCountdownStyle;
-  final int bundlesEndingSoonDays;
-
-  const _PhaseOneData({
-    required this.games,
-    required this.displayName,
-    required this.sectionsOrder,
-    required this.sectionsHidden,
-    required this.anticipatedCountdownStyle,
-    required this.wishlistCountdownStyle,
-    required this.bundlesEndingSoonDays,
-  });
-}
-
-/// Datos que tardan más (IGDB + reseñas globales + wishlist anticipated).
-class _PhaseTwoData {
-  final List<dynamic> anticipatedGames;
-  final List<dynamic> wishlistAnticipatedGames;
-  final List<Map<String, dynamic>> latestReviews;
-  final List<Map<String, dynamic>> bundlesEndingSoon;
-
-  const _PhaseTwoData({
-    required this.anticipatedGames,
-    required this.wishlistAnticipatedGames,
-    required this.latestReviews,
-    required this.bundlesEndingSoon,
-  });
-}
+import 'controller/home_controller.dart';
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -92,18 +54,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  late Future<_PhaseOneData> _phaseOneFuture;
-  _PhaseTwoData? _phaseTwoData;
-  bool _phaseTwoLoaded = false;
-
+  late final HomeController _controller;
   StreamSubscription<AuthState>? _authSub;
 
-  bool get _isGuest => Supabase.instance.client.auth.currentUser == null;
+  bool get _isGuest => _controller.isGuest;
 
   @override
   void initState() {
     super.initState();
-    _startLoading();
+    _controller = HomeController();
+    _controller.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _controller.reload();
+
     libraryUpdateNotifier.addListener(_onLibraryUpdated);
     _latestReviewsScrollController.addListener(_updateScrollArrows);
     _bundlesScrollController.addListener(_updateBundlesScrollArrows);
@@ -112,23 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _updateBundlesScrollArrows();
     });
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-      if (mounted) _startLoading();
-    });
-  }
-
-  void _startLoading() {
-    setState(() {
-      _phaseTwoData = null;
-      _phaseTwoLoaded = false;
-      _phaseOneFuture = _fetchPhaseOne();
-    });
-    _fetchPhaseTwo().then((data) {
-      if (mounted) {
-        setState(() {
-          _phaseTwoData = data;
-          _phaseTwoLoaded = true;
-        });
-      }
+      if (mounted) _controller.reload();
     });
   }
 
@@ -149,6 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _controller.dispose();
     _latestReviewsScrollController.removeListener(_updateScrollArrows);
     _latestReviewsScrollController.dispose();
     _bundlesScrollController.removeListener(_updateBundlesScrollArrows);
@@ -164,223 +113,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onLibraryUpdated() {
-    if (mounted) _startLoading();
+    if (mounted) _controller.reload();
   }
 
   Future<void> _handleRefresh() async {
-    _startLoading();
-    await _phaseOneFuture;
-  }
-
-  // ── FASE 1: datos del usuario en paralelo ─────────────────────────────────
-  Future<_PhaseOneData> _fetchPhaseOne() async {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    final prefsFuture = SharedPreferences.getInstance();
-
-    String displayName = '';
-    List<Map<String, dynamic>> games = [];
-
-    if (currentUser != null) {
-      final userId = currentUser.id;
-
-      // Las tres llamadas a Supabase del usuario en paralelo
-      final results =
-          await Future.wait<dynamic>([
-            Supabase.instance.client
-                .from('users')
-                .select('display_name, username')
-                .eq('id', userId)
-                .maybeSingle(),
-            Supabase.instance.client
-                .from('user_games')
-                .select('*, games(*)')
-                .eq('user_id', userId)
-                .eq('status', 'playing'),
-            Supabase.instance.client
-                .from('reviews')
-                .select('game_id')
-                .eq('user_id', userId)
-                .eq('status', 'playing')
-                .eq('completion_type', 'on_hold'),
-          ]).timeout(
-            const Duration(seconds: 20),
-            onTimeout: () => throw TimeoutException(
-              'HomeScreen: timeout al cargar datos del usuario (>20s)',
-            ),
-          );
-
-      final userResp = results[0] as Map<String, dynamic>?;
-      displayName = (userResp?['display_name'] as String?)?.isNotEmpty == true
-          ? userResp!['display_name'] as String
-          : (userResp?['username'] as String?)?.isNotEmpty == true
-          ? userResp!['username'] as String
-          : (currentUser.email?.split('@').first ?? 'tu');
-
-      games = List<Map<String, dynamic>>.from(results[1] as List<dynamic>);
-
-      final onHoldReviews = results[2] as List<dynamic>;
-      if (onHoldReviews.isNotEmpty) {
-        final onHoldGameIds = onHoldReviews
-            .map((r) => (r['game_id'] as num).toInt())
-            .toSet();
-        games.removeWhere(
-          (g) => onHoldGameIds.contains((g['game_id'] as num).toInt()),
-        );
-      }
-
-      // Screenshots (batch único de IGDB — depende de la lista de juegos)
-      final igdbIds = games.map((g) => g['game_id'] as int).toList();
-      if (igdbIds.isNotEmpty) {
-        try {
-          final igdbData = await IGDBService.getGamesByIds(igdbIds);
-          final screenshotsMap = <int, List<String>>{};
-          for (var item in igdbData) {
-            final id = item['id'] as int;
-            final screenshots = item['screenshots'] as List<dynamic>? ?? [];
-            screenshotsMap[id] = screenshots
-                .map(
-                  (s) => IGDBService.getScreenshotUrl(s['image_id'] as String?),
-                )
-                .where((url) => url.isNotEmpty)
-                .toList();
-          }
-          for (var game in games) {
-            final id = game['game_id'] as int;
-            game['screenshots_list'] = screenshotsMap[id] ?? [];
-          }
-        } catch (e) {
-          debugPrint(
-            'Error obteniendo capturas para la pantalla de inicio: $e',
-          );
-        }
-      }
-    }
-
-    final prefs = await prefsFuture;
-    final savedOrder =
-        prefs.getStringList('home_sections_order') ??
-        ['hero', 'stash_activity', 'anticipated_games'];
-    final savedHidden = prefs.getStringList('home_sections_hidden') ?? [];
-    final anticipatedCountdownStyle =
-        prefs.getString('anticipated_countdown_style') ?? 'days_only';
-    final wishlistCountdownStyle =
-        prefs.getString('wishlist_countdown_style') ??
-        prefs.getString('anticipated_countdown_style') ??
-        'days_only';
-    final bundlesEndingSoonDays =
-        prefs.getInt('home_bundles_ending_soon_days') ?? 3;
-
-    const defaultOrder = [
-      'hero',
-      'bundles_ending_soon',
-      'stash_activity',
-      'wishlist_anticipated',
-      'anticipated_games',
-    ];
-    List<String> loadedOrder = List<String>.from(savedOrder);
-    for (int i = 0; i < defaultOrder.length; i++) {
-      if (!loadedOrder.contains(defaultOrder[i])) {
-        loadedOrder.insert(i.clamp(0, loadedOrder.length), defaultOrder[i]);
-      }
-    }
-    loadedOrder.removeWhere((key) => !defaultOrder.contains(key));
-
-    return _PhaseOneData(
-      games: games,
-      displayName: displayName,
-      sectionsOrder: loadedOrder,
-      sectionsHidden: savedHidden.toSet(),
-      anticipatedCountdownStyle: anticipatedCountdownStyle,
-      wishlistCountdownStyle: wishlistCountdownStyle,
-      bundlesEndingSoonDays: bundlesEndingSoonDays,
-    );
-  }
-
-  // ── FASE 2: IGDB + reseñas globales, todo en paralelo ────────────────────
-  Future<_PhaseTwoData> _fetchPhaseTwo() async {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-
-    final anticipatedFuture = IGDBService.getMostAnticipatedGames().catchError((
-      e,
-    ) {
-      debugPrint('Error obteniendo anticipated games: $e');
-      return <dynamic>[];
-    });
-
-    final reviewsFuture = currentUser != null
-        ? Supabase.instance.client
-              .from('stash_community_reviews')
-              .select('*, games(title, cover_url)')
-              .eq('source_context', 'recent_activity_feed')
-              .order('stash_created_at', ascending: false)
-              .limit(25)
-              .then((r) => List<Map<String, dynamic>>.from(r))
-              .catchError((e) {
-                debugPrint('Error obteniendo resenas globales: $e');
-                return <Map<String, dynamic>>[];
-              })
-        : Future.value(<Map<String, dynamic>>[]);
-
-    Future<List<dynamic>> wishlistFuture() async {
-      if (currentUser == null) return [];
-      try {
-        final wishlistResp = await Supabase.instance.client
-            .from('user_games')
-            .select('game_id')
-            .eq('user_id', currentUser.id)
-            .eq('status', 'wishlist');
-        final wishlistGameIds = List<Map<String, dynamic>>.from(
-          wishlistResp,
-        ).map((g) => g['game_id'] as int).toList();
-        if (wishlistGameIds.isEmpty) return [];
-        return await IGDBService.getUpcomingGamesByIds(wishlistGameIds);
-      } catch (e) {
-        debugPrint('Error obteniendo wishlist anticipados: $e');
-        return [];
-      }
-    }
-
-    Future<List<Map<String, dynamic>>> bundlesFuture() async {
-      try {
-        final p1 = await _phaseOneFuture;
-        if (p1.sectionsHidden.contains('bundles_ending_soon')) return [];
-
-        final limitDate = DateTime.now().add(
-          Duration(days: p1.bundlesEndingSoonDays),
-        );
-        final resp = await Supabase.instance.client
-            .from('active_bundles')
-            .select()
-            .gte('end_date', DateTime.now().toIso8601String())
-            .lte('end_date', limitDate.toIso8601String())
-            .order('end_date', ascending: true);
-        return List<Map<String, dynamic>>.from(resp);
-      } catch (e) {
-        debugPrint('Error obteniendo bundles por terminar: $e');
-        return [];
-      }
-    }
-
-    // Capturamos cada resultado en variables tipadas via .then()
-    // para evitar problemas de inferencia con Future.wait heterogéneo.
-    List<dynamic> anticipatedResult = [];
-    List<Map<String, dynamic>> reviewsResult = [];
-    List<dynamic> wishlistResult = [];
-    List<Map<String, dynamic>> bundlesResult = [];
-
-    await Future.wait([
-      anticipatedFuture.then((v) => anticipatedResult = v),
-      reviewsFuture.then((v) => reviewsResult = v),
-      wishlistFuture().then((v) => wishlistResult = v),
-      bundlesFuture().then((v) => bundlesResult = v),
-    ]);
-
-    return _PhaseTwoData(
-      anticipatedGames: anticipatedResult,
-      latestReviews: reviewsResult,
-      wishlistAnticipatedGames: wishlistResult,
-      bundlesEndingSoon: bundlesResult,
-    );
+    _controller.reload();
+    await _controller.phaseOneFuture;
   }
 
   // ── BUILD ─────────────────────────────────────────────────────────────────
@@ -395,8 +133,8 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundColor: Colors.black.withValues(alpha: 0.5),
               elevation: 0,
             ),
-      body: FutureBuilder<_PhaseOneData>(
-        future: _phaseOneFuture,
+      body: FutureBuilder<HomePhaseOneData>(
+        future: _controller.phaseOneFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -406,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           final p1 = snapshot.data!;
-          final p2 = _phaseTwoData;
+          final p2 = _controller.phaseTwoData;
 
           final latestReviews = p2?.latestReviews ?? [];
           final anticipatedGames = p2?.anticipatedGames ?? [];
@@ -454,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverToBoxAdapter(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
-                    child: _phaseTwoLoaded
+                    child: _controller.phaseTwoLoaded
                         ? (wishlistAnticipatedGames.isNotEmpty
                               ? AnticipatedGamesSection(
                                   key: const ValueKey(
@@ -479,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverToBoxAdapter(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
-                    child: _phaseTwoLoaded
+                    child: _controller.phaseTwoLoaded
                         ? (anticipatedGames.isNotEmpty
                               ? AnticipatedGamesSection(
                                   key: const ValueKey('anticipated_loaded'),
@@ -502,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverToBoxAdapter(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
-                    child: _phaseTwoLoaded
+                    child: _controller.phaseTwoLoaded
                         ? (bundles.isNotEmpty
                               ? _buildBundlesEndingSoonSection(bundles)
                               : const SizedBox.shrink(
@@ -520,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverToBoxAdapter(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
-                    child: _phaseTwoLoaded
+                    child: _controller.phaseTwoLoaded
                         ? (latestReviews.isNotEmpty
                               ? _buildStashActivity(latestReviews)
                               : const SizedBox.shrink(

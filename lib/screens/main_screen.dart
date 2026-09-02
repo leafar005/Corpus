@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home/home_screen.dart';
 import 'library/search_screen.dart';
 import 'activity/activity_screen.dart';
@@ -25,6 +23,7 @@ import 'package:corpus/globals.dart';
 import '../widgets/edge_swipe_back_detector.dart';
 import '../routes/app_navigation_controller.dart';
 import 'package:flutter/rendering.dart';
+import 'main/main_screen_controller.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -37,9 +36,7 @@ class _MainScreenState extends State<MainScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   int _currentIndex = 0;
   StreamSubscription<void>? _webPopStateSub;
-  RealtimeChannel? _friendshipsChannel;
-  RealtimeChannel? _activityFeedChannel;
-  RealtimeChannel? _notificationsChannel;
+  late final MainScreenController _badgeController;
 
   late final AnimationController _navCollapseController;
   late final Animation<double> _navCollapseAnim;
@@ -105,6 +102,9 @@ class _MainScreenState extends State<MainScreen>
     AppNavigationController.instance.registerRootNavigatorKey(
       DeepLinkService.navigatorKey,
     );
+    _badgeController = MainScreenController(
+      isOnActivityTab: () => _currentIndex == 2,
+    );
     AppNavigationController.instance.onTabSwitchedByBrowser = (newTab) {
       if (!mounted) return;
       _setNavCollapsed(false);
@@ -113,8 +113,8 @@ class _MainScreenState extends State<MainScreen>
         _initializedTabs.add(newTab);
       });
       currentTabIndexNotifier.value = newTab;
-      if (newTab == 2) _markActivityRead();
-      if (_shouldPersistTab) {
+      if (newTab == 2) _badgeController.markActivityRead();
+      if (MainScreenController.shouldPersistTab) {
         SharedPreferences.getInstance().then(
           (p) => p.setInt('main_tab_index', newTab),
         );
@@ -136,9 +136,7 @@ class _MainScreenState extends State<MainScreen>
       dispatchCorpusReady();
     });
     DeepLinkService.pendingTab.addListener(_onPendingTab);
-    _subscribeFriendRequests();
-    _subscribeActivityFeed();
-    _subscribeNotifications();
+    _badgeController.init();
   }
 
   @override
@@ -147,211 +145,19 @@ class _MainScreenState extends State<MainScreen>
       if (_currentIndex == 2) {
         // Seguimos "dentro" de Actividad: cualquier cosa nueva llegada
         // mientras estábamos en segundo plano también se marca como leída.
-        _markActivityRead();
-        _fetchNotificationsCount();
+        _badgeController.markActivityRead();
+        _badgeController.fetchNotificationsCount();
       } else {
         // En cualquier otra pestaña: recalculamos los contadores por si el
         // WebSocket se cerró mientras estábamos en segundo plano y perdimos
         // eventos de Realtime.
-        _fetchInitialBadges();
-        _fetchNotificationsCount();
+        _badgeController.fetchInitialBadges();
+        _badgeController.fetchNotificationsCount();
       }
     }
   }
 
-  /// Marca la actividad como leída: resetea el badge de forma optimista en la
-  /// UI al instante, y persiste el "leído hasta ahora" en el servidor (vía
-  /// mark_activity_read(), que usa la hora del servidor) para que el resto de
-  /// dispositivos de la misma cuenta también vean el badge a 0.
-  Future<void> _markActivityRead() async {
-    final myId = Supabase.instance.client.auth.currentUser?.id;
-    if (myId == null) return;
-
-    unreadActivityCount.value = 0; // Reset optimista inmediato en la UI.
-
-    try {
-      await Supabase.instance.client.rpc('mark_activity_read');
-    } catch (e) {
-      debugPrint('[MainScreen] Error marcando actividad como leída: $e');
-      // No revertimos el 0 optimista: es preferible que el badge desaparezca
-      // un instante de más a que se quede "pegado". El próximo resync
-      // (resume de la app, reconexión del canal, o el siguiente arranque)
-      // recalculará el valor correcto desde el servidor de todas formas.
-    }
-  }
-
-  void _fetchInitialBadges() async {
-    final myId = Supabase.instance.client.auth.currentUser?.id;
-    if (myId == null) return;
-
-    // Recargar solicitudes de amistad (sin cambios respecto a antes).
-    try {
-      final res = await Supabase.instance.client
-          .from('friendships')
-          .select('requester_id')
-          .eq('addressee_id', myId)
-          .eq('status', 'pending');
-      if (mounted) unreadFriendRequestsCount.value = res.length;
-    } catch (e) {
-      debugPrint(
-        '[MainScreen] Error cargando contador de solicitudes de amistad: $e',
-      );
-    }
-
-    // Recargar el contador de actividad no leída, calculado en el servidor
-    // (get_unread_activity_summary) a partir de users.last_activity_read_at.
-    // Sustituye a la antigua lectura de SharedPreferences('last_activity_visit')
-    // + query manual, que era local al dispositivo.
-    try {
-      final res = await Supabase.instance.client
-          .rpc('get_unread_activity_summary')
-          .single();
-      if (mounted) {
-        unreadActivityCount.value = (res['unread_count'] as num?)?.toInt() ?? 0;
-      }
-    } catch (e) {
-      debugPrint('[MainScreen] Error fetch activity resume: $e');
-    }
-  }
-
-  void _subscribeActivityFeed() async {
-    final myId = Supabase.instance.client.auth.currentUser?.id;
-    if (myId == null) return;
-
-    // Carga inicial al arrancar.
-    _fetchInitialBadges();
-
-    if (!mounted) return;
-
-    final recentGames = <String>{};
-
-    _activityFeedChannel = Supabase.instance.client
-        .channel('main_activity_feed_badge')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'activity_feed',
-          callback: (payload) {
-            final userId = payload.newRecord['user_id'];
-            if (userId == myId) return; // Ignorar posts propios
-
-            final gameId = payload.newRecord['game_id'];
-            if (gameId != null) {
-              final key = '${userId}_$gameId';
-              if (recentGames.contains(key)) return; // Ya sumado recientemente
-              recentGames.add(key);
-              if (recentGames.length > 50) recentGames.clear();
-            }
-
-            // Solo incrementar si el usuario NO está ya en la pestaña Actividad.
-            if (_currentIndex != 2) {
-              unreadActivityCount.value++;
-            }
-          },
-        )
-        .subscribe((status, error) {
-          if (status == RealtimeSubscribeStatus.subscribed) {
-            // Se ejecuta también en cada reconexión (no solo en la suscripción
-            // inicial), que es precisamente el caso que antes se perdía: un
-            // corte de red o una suspensión del equipo mientras la app seguía
-            // en primer plano, sin pasar por didChangeAppLifecycleState.
-            _fetchInitialBadges();
-          }
-          if (status == RealtimeSubscribeStatus.channelError ||
-              status == RealtimeSubscribeStatus.timedOut) {
-            debugPrint(
-              '[MainScreen] Canal de actividad con problemas: $status / $error',
-            );
-          }
-        });
-  }
-
-  Future<void> _fetchNotificationsCount() async {
-    final myId = Supabase.instance.client.auth.currentUser?.id;
-    if (myId == null) return;
-    try {
-      final res = await Supabase.instance.client.rpc(
-        'get_unread_notifications_count',
-      );
-      if (mounted) {
-        unreadNotificationsCount.value = (res as num?)?.toInt() ?? 0;
-      }
-    } catch (e) {
-      debugPrint('[MainScreen] Error fetch notifications count: $e');
-    }
-  }
-
-  void _subscribeNotifications() {
-    final myId = Supabase.instance.client.auth.currentUser?.id;
-    if (myId == null) return;
-
-    _fetchNotificationsCount();
-
-    // Escuchamos TODOS los eventos (insert/update/delete), no solo insert:
-    // un like retirado, una solicitud cancelada o un "marcar como leído"
-    // hecho desde otro dispositivo también deben mover este contador, y
-    // recalcularlo por completo en servidor evita que un incremento/
-    // decremento local a ciegas se desincronice.
-    _notificationsChannel = Supabase.instance.client
-        .channel('unread_notifications_badge')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'notifications',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'recipient_id',
-            value: myId,
-          ),
-          callback: (payload) => _fetchNotificationsCount(),
-        )
-        .subscribe((status, error) {
-          if (status == RealtimeSubscribeStatus.subscribed) {
-            // Se ejecuta también en cada reconexión, no solo en la
-            // suscripción inicial (mismo motivo que en
-            // _subscribeActivityFeed: un corte de red o una suspensión del
-            // equipo con la app en primer plano no debe perder eventos
-            // para siempre).
-            _fetchNotificationsCount();
-          }
-        });
-  }
-
-  void _subscribeFriendRequests() {
-    final myId = Supabase.instance.client.auth.currentUser?.id;
-    if (myId == null) return;
-
-    // Cargar el conteo inicial de solicitudes pendientes
-    Supabase.instance.client
-        .from('friendships')
-        .select('requester_id')
-        .eq('addressee_id', myId)
-        .eq('status', 'pending')
-        .then((rows) {
-          if (mounted) unreadFriendRequestsCount.value = rows.length;
-        });
-
-    // Suscribirse a nuevas solicitudes en tiempo real
-    _friendshipsChannel = Supabase.instance.client
-        .channel('pending_friend_requests')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'friendships',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'addressee_id',
-            value: myId,
-          ),
-          callback: (payload) {
-            final status = payload.newRecord['status'];
-            if (status == 'pending') {
-              unreadFriendRequestsCount.value++;
-            }
-          },
-        )
-        .subscribe();
-  }
+  // Badge y canal Realtime delegados a MainScreenController (_badgeController).
 
   void _onPendingTab() {
     final index = DeepLinkService.pendingTab.value;
@@ -365,25 +171,13 @@ class _MainScreenState extends State<MainScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     DeepLinkService.pendingTab.removeListener(_onPendingTab);
-    _friendshipsChannel?.unsubscribe();
-    _activityFeedChannel?.unsubscribe();
-    _notificationsChannel?.unsubscribe();
+    _badgeController.dispose();
     _webPopStateSub?.cancel();
     _navCollapseController.dispose();
     super.dispose();
   }
 
-  bool get _shouldPersistTab {
-    if (kIsWeb) return true;
-    try {
-      return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-    } catch (e) {
-      debugPrint(
-        '[MainScreen] Platform.isDesktop falló (plataforma no reconocida): $e',
-      );
-      return false;
-    }
-  }
+  // _shouldPersistTab → MainScreenController.shouldPersistTab
 
   Future<void> _loadSavedTab() async {
     if (kIsWeb) {
@@ -400,7 +194,7 @@ class _MainScreenState extends State<MainScreen>
               _initializedTabs.add(fromUrl);
             });
             currentTabIndexNotifier.value = fromUrl;
-            if (fromUrl == 2) _markActivityRead();
+            if (fromUrl == 2) _badgeController.markActivityRead();
             if (subRoute != null) {
               WidgetsBinding.instance.addPostFrameCallback((_) async {
                 await _resolveAndPushSubRoute(fromUrl, subRoute);
@@ -412,7 +206,7 @@ class _MainScreenState extends State<MainScreen>
       }
     }
 
-    if (!_shouldPersistTab) return;
+    if (!MainScreenController.shouldPersistTab) return;
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       final savedIndex = prefs.getInt('main_tab_index') ?? 0;
@@ -421,7 +215,7 @@ class _MainScreenState extends State<MainScreen>
         _initializedTabs.add(savedIndex);
       });
       currentTabIndexNotifier.value = savedIndex;
-      if (savedIndex == 2) _markActivityRead();
+      if (savedIndex == 2) _badgeController.markActivityRead();
       if (kIsWeb) {
         final rootToken =
             AppNavigationController.instance
@@ -483,14 +277,14 @@ class _MainScreenState extends State<MainScreen>
       // motivo (p. ej. llegó actividad nueva mientras estábamos aquí y no se
       // marcó como leída), volver a tocar el icono también lo limpia.
       if (index == 2 && unreadActivityCount.value != 0) {
-        _markActivityRead();
+        _badgeController.markActivityRead();
       }
       return;
     }
 
     if (index == 2) {
       // Al entrar a Actividad, reseteamos badge y lo persistimos en servidor.
-      _markActivityRead();
+      _badgeController.markActivityRead();
     }
 
     if (index == 4) {
@@ -503,7 +297,7 @@ class _MainScreenState extends State<MainScreen>
       _initializedTabs.add(index); // Marca la pestaña como inicializada
     });
     currentTabIndexNotifier.value = index;
-    if (_shouldPersistTab) {
+    if (MainScreenController.shouldPersistTab) {
       SharedPreferences.getInstance().then(
         (p) => p.setInt('main_tab_index', index),
       );

@@ -8,9 +8,10 @@ import '../../widgets/friendship_button.dart';
 import '../library/game_details_screen.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
-import '../../utils/level_calculator.dart';
+import '../../widgets/level_progress_bar.dart';
 import '../../widgets/game_card.dart';
 import '../../models/models.dart';
+import 'widgets/profile_mobile_header.dart';
 import '../../widgets/activity_story_ring.dart';
 import '../activity/activity_story_viewer.dart';
 import '../../repositories/activity_repository.dart';
@@ -264,11 +265,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       SliverToBoxAdapter(child: SizedBox.shrink(key: _tabsKey)),
                       SliverPersistentHeader(
                         pinned: true,
-                        delegate: _MobileProfileHeaderDelegate(
+                        delegate: MobileProfileHeaderDelegate(
                           topPadding: topPadding,
                           hasCurrentlyPlaying:
                               _userProfile?['currently_playing_appid'] != null,
-                          profileBuilder: _buildMobileProfileRow,
+                          profileBuilder: (collapseProgress) =>
+                              ProfileMobileHeader(
+                                userProfile: _userProfile,
+                                collapseProgress: collapseProgress,
+                                openOwnStory: _openOwnStory,
+                                stories: _controller.stories,
+                                isOwnProfile: _isOwnProfile,
+                                onLevelTapped: () {
+                                  final userId =
+                                      _userProfile?['id'] ??
+                                      Supabase
+                                          .instance
+                                          .client
+                                          .auth
+                                          .currentUser
+                                          ?.id;
+                                  if (userId == null) return;
+                                  context
+                                      .pushAchievements(
+                                        userId,
+                                        (_userProfile?['xp'] as num?)
+                                                ?.toInt() ??
+                                            0,
+                                      )
+                                      .then(
+                                        (_) => _controller.fetchProfileData(),
+                                      );
+                                },
+                                buildFriendsCountLink: _buildFriendsCountLink,
+                              ),
                           tabBarBuilder: () => _buildNavBar(isDesktop: false),
                         ),
                       ),
@@ -393,189 +423,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileProfileRow(double collapseProgress) {
-    final username = _userProfile?['username'] ?? 'Jugador';
-    final displayName = _userProfile?['display_name'] ?? username;
-    final avatarUrl = _userProfile?['avatar_url'];
-    final t = collapseProgress.clamp(0.0, 1.0);
-
-    final nameFontSize = 22.0 - (4.0 * t);
-    final handleFontSize = 13.0 - (1.0 * t);
-    const nameHandleGap = 2.0;
-    // Colapsado: misma altura que nombre + @.
-    const expandedAvatarRadius = 40.0;
-    final collapsedAvatarRadius =
-        (nameFontSize * 1.1 + nameHandleGap + handleFontSize * 1.1) / 2;
-    final avatarRadius =
-        expandedAvatarRadius -
-        (expandedAvatarRadius - collapsedAvatarRadius) * t;
-    final showLevel = t < 0.5;
-    final showPlaying = t < 0.35 && _userProfile != null;
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 8.0 - (2.0 * t), 16, 8.0 - (2.0 * t)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          GestureDetector(
-            onTap: _openOwnStory,
-            child: ValueListenableBuilder<Set<String>>(
-              valueListenable: viewedStoryIdsNotifier,
-              builder: (context, viewedIds, _) {
-                final hasStory = _controller.stories.isNotEmpty;
-                final hasUnseenStory =
-                    hasStory &&
-                    ActivityRepository.groupHasUnseenStory(
-                      _controller.stories,
-                      viewedIds,
-                    );
-                return Container(
-                  decoration: const BoxDecoration(shape: BoxShape.circle),
-                  child: ActivityStoryRing(
-                    radius: avatarRadius,
-                    hasStory: hasStory,
-                    hasUnseenStory: hasUnseenStory,
-                    avatarUrl: avatarUrl,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                    ringWidth: 3.0,
-                  ),
-                );
-              },
-            ),
-          ),
-          SizedBox(width: 12.0 - (2.0 * t)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: nameFontSize,
-                          fontWeight: FontWeight.bold,
-                          height: 1.1,
-                        ),
-                      ),
-                    ),
-                    if (_userProfile != null)
-                      _buildFriendsCountLink(
-                        isDesktop: false,
-                        compact: true,
-                        onImage: false,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: nameHandleGap),
-                Row(
-                  children: [
-                    Text(
-                      '@$username',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: handleFontSize,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        height: 1.1,
-                      ),
-                    ),
-                    if (showPlaying && _userProfile != null) ...[
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: CurrentlyPlayingBadge(
-                          userId: _userProfile!['id'],
-                          initialProfile: _userProfile!,
-                          compact: true,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (showLevel) ...[
-                  SizedBox(height: 4.0 - (1.0 * t)),
-                  _buildInlineLevelProgress(compact: t > 0.25),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInlineLevelProgress({bool compact = false}) {
-    final xp = (_userProfile?['xp'] as num?)?.toInt() ?? 0;
-    final levelLabelSize = compact ? 13.0 : 15.0;
-    final progressLabelSize = compact ? 12.0 : 13.0;
-    final barHeight = compact ? 6.0 : 8.0;
-    final spacing = compact ? 4.0 : 6.0;
-
-    return InkWell(
-      borderRadius: Theme.of(
-        context,
-      ).extension<CorpusThemeExtension>()!.radiusSmall,
-      onTap: _isOwnProfile
-          ? () {
-              final userId =
-                  _userProfile?['id'] ??
-                  Supabase.instance.client.auth.currentUser?.id;
-              if (userId == null) return;
-              context
-                  .pushAchievements(userId, xp)
-                  .then((_) => _controller.fetchProfileData());
-            }
-          : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Nivel ${LevelCalculator.getLevel(xp)}',
-                style: TextStyle(
-                  fontSize: levelLabelSize,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                LevelCalculator.getProgressString(xp),
-                style: TextStyle(
-                  fontSize: progressLabelSize,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: spacing),
-          ClipRRect(
-            borderRadius: Theme.of(
-              context,
-            ).extension<CorpusThemeExtension>()!.radiusSmall,
-            child: LinearProgressIndicator(
-              value: LevelCalculator.getProgressFraction(xp),
-              minHeight: barHeight,
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
         ],
       ),
     );
@@ -877,7 +724,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 10),
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 350),
-                          child: _buildInlineLevelProgress(compact: false),
+                          child: LevelProgressBar(
+                            xp: (_userProfile?['xp'] as num?)?.toInt() ?? 0,
+                            compact: false,
+                            onTap: _isOwnProfile
+                                ? () {
+                                    final userId =
+                                        _userProfile?['id'] ??
+                                        Supabase
+                                            .instance
+                                            .client
+                                            .auth
+                                            .currentUser
+                                            ?.id;
+                                    if (userId == null) return;
+                                    context
+                                        .pushAchievements(
+                                          userId,
+                                          (_userProfile?['xp'] as num?)
+                                                  ?.toInt() ??
+                                              0,
+                                        )
+                                        .then(
+                                          (_) => _controller.fetchProfileData(),
+                                        );
+                                  }
+                                : null,
+                          ),
                         ),
                       ],
                     ),
@@ -1904,81 +1777,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 // Boton eliminado para un conteo centralizado
-
-class _MobileProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
-  // Tabs: padding 12*2 + text 15 + borde 3 ≈ 42 → reservamos 48
-  static const double _tabBarHeight = 48.0;
-  // Expandido: avatar 80 + padding + nivel ≈ 120; +~22 si hay "Jugando"
-  static const double _expandedProfileHeight = 120.0;
-  static const double _playingExtraHeight = 22.0;
-  // Colapsado: avatar ≈ nombre+@ (~40) + padding ≈ 60
-  static const double _collapsedProfileHeight = 60.0;
-
-  final double topPadding;
-  final bool hasCurrentlyPlaying;
-  final Widget Function(double collapseProgress) profileBuilder;
-  final Widget Function() tabBarBuilder;
-
-  _MobileProfileHeaderDelegate({
-    required this.topPadding,
-    this.hasCurrentlyPlaying = false,
-    required this.profileBuilder,
-    required this.tabBarBuilder,
-  });
-
-  double get _expandedProfile =>
-      _expandedProfileHeight +
-      (hasCurrentlyPlaying ? _playingExtraHeight : 0.0);
-
-  @override
-  double get minExtent => topPadding + _collapsedProfileHeight + _tabBarHeight;
-
-  @override
-  double get maxExtent => topPadding + _expandedProfile + _tabBarHeight;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final collapseRange = maxExtent - minExtent;
-    final collapseProgress = collapseRange > 0
-        ? (shrinkOffset / collapseRange).clamp(0.0, 1.0)
-        : 0.0;
-    final profileHeight =
-        _expandedProfile -
-        ((_expandedProfile - _collapsedProfileHeight) * collapseProgress);
-
-    return Material(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      elevation: overlapsContent ? 1 : 0,
-      shadowColor: Colors.black26,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(height: topPadding),
-          SizedBox(
-            height: profileHeight,
-            child: ClipRect(child: profileBuilder(collapseProgress)),
-          ),
-          SizedBox(
-            height: _tabBarHeight,
-            child: ClipRect(child: tabBarBuilder()),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _MobileProfileHeaderDelegate oldDelegate) {
-    return oldDelegate.topPadding != topPadding ||
-        oldDelegate.hasCurrentlyPlaying != hasCurrentlyPlaying ||
-        oldDelegate.profileBuilder != profileBuilder ||
-        oldDelegate.tabBarBuilder != tabBarBuilder;
-  }
-}
 
 class _FriendsBadgeButton extends StatefulWidget {
   final VoidCallback onPressed;
