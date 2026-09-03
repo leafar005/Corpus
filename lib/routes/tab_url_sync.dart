@@ -15,16 +15,13 @@ import 'package:corpus/routes/app_routes.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/tab_deep_route.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
+import 'package:corpus/models/models.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 String? _currentUserId() => Supabase.instance.client.auth.currentUser?.id;
 
-int? _extractIgdbId(Map<String, dynamic> gameData) {
-  final raw = gameData['igdb_id'] ?? gameData['id'];
-  if (raw is int) return raw;
-  if (raw is num) return raw.toInt();
-  if (raw is String) return int.tryParse(raw);
-  return null;
+int? _extractIgdbId(Game gameData) {
+  return gameData.igdbId;
 }
 
 /// A partir de los `arguments` con los que se empujó una pantalla, reconstruye

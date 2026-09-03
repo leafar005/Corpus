@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../models/models.dart';
+
 import '../screens/activity/review_details_screen.dart';
 import '../screens/appearance_screen.dart';
 import '../screens/design/design_screen.dart';
@@ -30,7 +32,7 @@ import 'package:corpus/routes/app_routes.dart';
 // ── Argumentos de rutas ──────────────────────────────────────────────────────
 
 class GameDetailsArgs {
-  final Map<String, dynamic> gameData;
+  final Game gameData;
   final ScrollController? scrollController;
   final bool autoOpenReview;
 
@@ -48,7 +50,7 @@ class BundleDetailsArgs {
 }
 
 class ReviewDetailsArgs {
-  final Map<String, dynamic> gameData;
+  final Game gameData;
   final Map<String, dynamic>? userData;
   final Map<String, dynamic> reviewData;
   final bool focusComment;
@@ -386,7 +388,7 @@ extension CorpusNavigation on BuildContext {
   }
 
   Future<T?> pushGameDetails<T>(
-    Map<String, dynamic> gameData, {
+    Game gameData, {
     bool autoOpenReview = false,
     ScrollController? scrollController,
   }) {
@@ -401,7 +403,7 @@ extension CorpusNavigation on BuildContext {
   }
 
   Future<T?> pushReviewDetails<T>(
-    Map<String, dynamic> gameData,
+    Game gameData,
     Map<String, dynamic>? userData,
     Map<String, dynamic> reviewData, {
     bool focusComment = false,

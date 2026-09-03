@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../models/models.dart';
 import '../routes/deep_route_resolver.dart';
 import '../screens/activity/review_details_screen.dart';
 import '../screens/bundles/bundles_screen.dart';
@@ -97,7 +99,9 @@ class DeepLinkService {
     final state = navigatorKey.currentState;
     if (state == null) return;
     state.push(
-      MaterialPageRoute(builder: (_) => GameDetailsScreen(gameData: game)),
+      MaterialPageRoute(
+        builder: (_) => GameDetailsScreen(gameData: Game.fromMap(game)),
+      ),
     );
   }
 

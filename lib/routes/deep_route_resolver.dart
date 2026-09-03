@@ -22,6 +22,7 @@ import 'package:corpus/routes/app_routes.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/tab_deep_route.dart';
 import 'package:corpus/utils/achievement_utils.dart';
+import 'package:corpus/models/models.dart';
 
 abstract final class DeepRouteResolver {
   /// Construye la ruta completa (pantalla + `RouteSettings`) correspondiente
@@ -41,9 +42,9 @@ abstract final class DeepRouteResolver {
         return MaterialPageRoute(
           settings: RouteSettings(
             name: AppRoutes.gameDetails,
-            arguments: GameDetailsArgs(gameData: game),
+            arguments: GameDetailsArgs(gameData: Game.fromMap(game)),
           ),
-          builder: (_) => GameDetailsScreen(gameData: game),
+          builder: (_) => GameDetailsScreen(gameData: Game.fromMap(game)),
         );
 
       case BundleDeepRoute(:final bundleId):
@@ -176,7 +177,7 @@ abstract final class DeepRouteResolver {
           .maybeSingle();
       if (res == null) return null;
       return ReviewDetailsArgs(
-        gameData: Map<String, dynamic>.from(res['games']),
+        gameData: Game.fromMap(Map<String, dynamic>.from(res['games'])),
         userData: res['users'] != null
             ? Map<String, dynamic>.from(res['users'])
             : null,
