@@ -5,6 +5,7 @@ import 'package:csv/csv.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/utils/stash_json_to_csv_converter.dart';
 import 'package:corpus/models/game_status.dart';
+import 'package:corpus/utils/igdb_constants.dart';
 
 class CsvGameRow {
   String title;
@@ -422,7 +423,25 @@ class ImportService {
           'platforms': getNames(gameData['platforms']),
           'developer': developer,
           'summary': gameData['summary'],
-          'category': gameData['game_type'] ?? gameData['category'] ?? 0,
+          'category': () {
+            final rawCat = gameData['game_type'] ?? gameData['category'];
+            final int? catId = rawCat is int
+                ? rawCat
+                : int.tryParse(rawCat?.toString() ?? '');
+            final String title = gameData['name'] ?? gameData['title'] ?? row.title;
+            final bool hasParent =
+                gameData['parent_game'] != null ||
+                gameData['version_parent'] != null ||
+                gameData['remake_of'] != null ||
+                gameData['remaster_of'] != null;
+            return IgdbConstants.resolveCategory(
+                  catId,
+                  title,
+                  hasParentGame: hasParent,
+                  summary: gameData['summary']?.toString(),
+                ) ??
+                0;
+          }(),
           'collection': gameData['collection'] != null
               ? {
                   'name':
