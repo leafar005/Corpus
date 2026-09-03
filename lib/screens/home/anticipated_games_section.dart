@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../models/models.dart';
 import '../../services/igdb_service.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -189,10 +190,9 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
             child: GestureDetector(
               onTap: () {
                 if (game['id'] != null) {
-                  context.pushGameDetails({
-                    'igdb_id': game['id'],
-                    'title': title,
-                  });
+                  context.pushGameDetails(
+                    Game.fromMap({'igdb_id': game['id'], 'title': title}),
+                  );
                 }
               },
               child: CorpusStyledPanel(

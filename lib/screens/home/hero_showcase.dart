@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import '../../models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -200,7 +201,10 @@ class _HeroShowcaseState extends State<HeroShowcase>
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
     if (isDesktop) {
-      context.pushGameDetails(cleanData, autoOpenReview: autoOpenReview);
+      context.pushGameDetails(
+        Game.fromMap(cleanData),
+        autoOpenReview: autoOpenReview,
+      );
     } else {
       showModalBottomSheet(
         context: context,
@@ -215,7 +219,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
           snap: true,
           builder: (context, scrollController) {
             return GameDetailsScreen(
-              gameData: cleanData,
+              gameData: Game.fromMap(cleanData),
               scrollController: scrollController,
               autoOpenReview: autoOpenReview,
             );

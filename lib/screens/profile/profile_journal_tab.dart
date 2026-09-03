@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/models.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../utils/igdb_constants.dart';
-import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
 
 /// Pestaña "Diario" del perfil: timeline cronológico de las reseñas del
@@ -232,8 +232,6 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
   String _getStatusText(String status) => GameStatus.labelForString(status);
 
-
-
   Widget _buildStarRow(double rating) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -254,12 +252,18 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
   void _openReview(Map<String, dynamic> review) {
     context
-        .pushReviewDetails(review['games'], widget.userData, review)
+        .pushReviewDetails(
+          Game.fromMap(review['games']),
+          widget.userData,
+          review,
+        )
         .then((_) => _refreshInPlace());
   }
 
   void _openGame(Map<String, dynamic> review) {
-    context.pushGameDetails(review['games']).then((_) => _refreshInPlace());
+    context
+        .pushGameDetails(Game.fromMap(review['games']))
+        .then((_) => _refreshInPlace());
   }
 
   /// Aplana [_reviews] en una lista de "filas" (cabecera de mes o entrada)

@@ -696,13 +696,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               Navigator.pop(
                                 context,
                               ); // Close the bottom sheet first
-                              context.pushGameDetails({
-                                'id': review['game_id'],
-                                if (game['title'] != null)
-                                  'title': game['title'],
-                                if (game['cover_url'] != null)
-                                  'cover_url': game['cover_url'],
-                              });
+                              context.pushGameDetails(
+                                Game.fromMap({
+                                  'id': review['game_id'],
+                                  if (game['title'] != null)
+                                    'title': game['title'],
+                                  if (game['cover_url'] != null)
+                                    'cover_url': game['cover_url'],
+                                }),
+                              );
                             }
                           },
                           borderRadius: BorderRadius.circular(8),
@@ -852,13 +854,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                       InkWell(
                                         onTap: () {
                                           if (review['game_id'] != null) {
-                                            context.pushGameDetails({
-                                              'id': review['game_id'],
-                                              if (game?['title'] != null)
-                                                'title': game!['title'],
-                                              if (game?['cover_url'] != null)
-                                                'cover_url': game!['cover_url'],
-                                            });
+                                            context.pushGameDetails(
+                                              Game.fromMap({
+                                                'id': review['game_id'],
+                                                if (game?['title'] != null)
+                                                  'title': game!['title'],
+                                                if (game?['cover_url'] != null)
+                                                  'cover_url':
+                                                      game!['cover_url'],
+                                              }),
+                                            );
                                           }
                                         },
                                         child: ClipRRect(

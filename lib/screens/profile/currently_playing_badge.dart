@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/models.dart';
 import 'package:corpus/routes/corpus_router.dart';
 
 class CurrentlyPlayingBadge extends StatefulWidget {
@@ -79,7 +80,7 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
             .maybeSingle();
 
         if (res != null && context.mounted) {
-          context.pushGameDetails(res);
+          context.pushGameDetails(Game.fromMap(res));
         }
       },
       child: Container(

@@ -1424,7 +1424,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           800;
                                       if (isDesktop) {
                                         context
-                                            .pushGameDetails(game)
+                                            .pushGameDetails(Game.fromMap(game))
                                             .then(
                                               (_) => _controller
                                                   .fetchProfileData(),
@@ -1448,7 +1448,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                       scrollController,
                                                     ) {
                                                       return GameDetailsScreen(
-                                                        gameData: game,
+                                                        gameData: Game.fromMap(
+                                                          game,
+                                                        ),
                                                         scrollController:
                                                             scrollController,
                                                       );

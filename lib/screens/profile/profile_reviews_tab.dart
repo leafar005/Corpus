@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/globals.dart';
+import 'package:corpus/models/models.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
 
@@ -155,7 +156,11 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
 
   void _openReview(Map<String, dynamic> review) {
     context
-        .pushReviewDetails(review['games'], widget.userData, review)
+        .pushReviewDetails(
+          Game.fromMap(review['games']),
+          widget.userData,
+          review,
+        )
         .then((_) => _refreshInPlace());
   }
 
