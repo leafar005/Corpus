@@ -49,6 +49,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/logo/
+    - assets/images/logo_full/
     - assets/guest_showcase/
   fonts:
     - family: Syne
@@ -68,18 +70,21 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo.png"
+  image_path: "assets/images/logo/logo_default.png"
+  image_path_android: "assets/images/logo/logo_default.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/images/logo/logo_default_padded.png"
   min_sdk_android: 21
   web:
-    generate: true
-    image_path: "assets/images/logo_c.png"
+    generate: false
+    image_path: "assets/images/logo/logo_default.png"
     background_color: "#000000"
     theme_color: "#7E57C2"
   windows:
     generate: true
-    image_path: "assets/images/logo.png"
+    image_path: "assets/images/logo/logo_default.png"
     icon_size: 48
   macos:
     generate: true
-    image_path: "assets/images/logo.png"
+    image_path: "assets/images/logo/logo_default.png"
 
