@@ -461,7 +461,7 @@ class ImportService {
           'comment': row.comment?.isNotEmpty == true ? row.comment : null,
           'status': row.status,
           'completion_type':
-              row.completionType ?? (row.status == 'beaten' ? 'story' : 'none'),
+              row.completionType ?? 'none',
           'platform': row.platform,
           'play_time_hours': (row.playTimeHours ?? 0) > 0
               ? row.playTimeHours

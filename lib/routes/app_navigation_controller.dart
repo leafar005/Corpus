@@ -267,8 +267,11 @@ class AppNavigationController {
       final frames = _stacks[tab] ?? const [];
       final currentDepth = frames.length - 1;
 
-      final targetFrameStillAlive =
-          depth >= 0 && depth < frames.length && frames[depth].token == token;
+      // Relajamos el token check para no destruir la pila de Flutter solo porque 
+      // el navegador haya modificado el history.state. Si vamos hacia atrás (depth < currentDepth),
+      // nos basta con que el depth exista en nuestra pila.
+      final targetFrameStillAlive = depth >= 0 && depth < frames.length && 
+          (depth < currentDepth || frames[depth].token == token);
 
       if (depth < currentDepth && targetFrameStillAlive) {
         // ── CAMINO RÁPIDO ────────────────────────────────────────────
@@ -277,14 +280,7 @@ class AppNavigationController {
         final navigator = _navigatorFor(tab);
         final steps = currentDepth - depth;
         
-        // En Web, cada vez que salta un evento `popstate`, el motor interno de Flutter
-        // lanza un SystemNavigator.pop() de forma nativa. Si nosotros también hacemos
-        // pop de todas las rutas, tendríamos un DOBLE POP.
-        // Por lo tanto, hacemos (steps - 1) pops manuales y dejamos que el último 
-        // lo haga Flutter automáticamente.
-        final manualSteps = steps - 1;
-        
-        for (var i = 0; i < manualSteps; i++) {
+        for (var i = 0; i < steps; i++) {
           final topFrame = frames[currentDepth - i];
           if (isNativeBrowserBack && topFrame.route != null) {
             navigator?.removeRoute(topFrame.route!);
@@ -390,6 +386,46 @@ class AppNavigationController {
 
   Future<void> _handleLegacyPopState(String pathname) async {
     final tab = AppRoutes.tabIndexFromPublicPath(pathname) ?? 0;
+    
+    final frames = _stacks[tab] ?? const [];
+    if (frames.isNotEmpty) {
+      // 1. Verificamos si la ruta actual en Flutter ya coincide con la URL 
+      final last = frames.last;
+      final subRoute = deepRouteFromRouteSettings(last.settings);
+      final currentPath = publicPathForTabRoute(tab, subRoute);
+      if (currentPath == pathname) {
+        setWebPath(pathname, replace: true, state: {
+          'tab': tab,
+          'depth': frames.length - 1,
+          'token': last.token
+        });
+        return;
+      }
+
+      // 2. Buscamos si la URL destino está más abajo en nuestra pila
+      // Esto pasa si el navegador pierde el state pero Flutter sigue intacto.
+      for (int i = frames.length - 2; i >= 0; i--) {
+        final frameRoute = deepRouteFromRouteSettings(frames[i].settings);
+        final framePath = publicPathForTabRoute(tab, frameRoute);
+        if (framePath == pathname) {
+          final navigator = _navigatorFor(tab);
+          final stepsToPop = frames.length - 1 - i;
+          
+          // Pops visuales nativos sin recargar toda la jerarquía
+          for (int j = 0; j < stepsToPop; j++) {
+            navigator?.pop();
+          }
+          
+          setWebPath(pathname, replace: true, state: {
+            'tab': tab,
+            'depth': i,
+            'token': frames[i].token
+          });
+          return;
+        }
+      }
+    }
+
     if (tab != currentTabIndexNotifier.value) {
       onTabSwitchedByBrowser?.call(tab);
     }
