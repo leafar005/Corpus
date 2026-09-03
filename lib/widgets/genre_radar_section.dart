@@ -1,7 +1,7 @@
 // lib/widgets/genre_radar_section.dart
 
 import 'package:flutter/material.dart';
-import '../models/genre_radar_entry.dart';
+import '../models/models.dart';
 import '../repositories/profile_repository.dart';
 import '../utils/genre_radar_calculator.dart';
 import '../utils/igdb_constants.dart';
@@ -191,12 +191,12 @@ class _GenreRadarSectionState extends State<GenreRadarSection> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => GameDetailsScreen(
-                          gameData: {
+                          gameData: Game.fromMap({
                             'igdb_id': game.gameId,
                             'title': game.gameTitle,
                             if (game.coverUrl != null)
                               'cover_url': game.coverUrl,
-                          },
+                          }),
                         ),
                       ),
                     );

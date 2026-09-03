@@ -10,6 +10,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/models.dart';
 
 import 'package:corpus/globals.dart';
 import '../../repositories/notifications_repository.dart';
@@ -121,7 +122,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
         final nav = await _repo.fetchReviewForNavigation(reviewId);
         if (nav == null || !mounted) return;
         context.pushReviewDetails(
-          nav.gameData,
+          Game.fromMap(nav.gameData),
           nav.userData,
           nav.reviewData,
           focusComment: type == 'comment' || type == 'reply',

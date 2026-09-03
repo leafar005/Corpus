@@ -133,7 +133,7 @@ class _GameCardState extends State<GameCard> {
               }
 
               context
-                  .pushGameDetails(widget.game.toMap())
+                  .pushGameDetails(widget.game)
                   .then((_) => widget.onReturn());
             },
             borderRadius:
