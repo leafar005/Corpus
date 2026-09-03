@@ -217,20 +217,28 @@ class AppNavigationController {
     _isProgrammaticBack = false;
 
     try {
-      if (state != null &&
-          state['token'] is num &&
-          state['tab'] is num &&
-          state['depth'] is num) {
-        await _handleTypedPopState(
-          tab: (state['tab'] as num).toInt(),
-          depth: (state['depth'] as num).toInt(),
-          token: (state['token'] as num).toInt(),
-          pathname: pathname,
-          isNativeBrowserBack: isNativeBrowserBack,
-        );
-      } else {
-        await _handleLegacyPopState(pathname);
+      final tokenObj = state?['token'];
+      final tabObj = state?['tab'];
+      final depthObj = state?['depth'];
+
+      if (tokenObj != null && tabObj != null && depthObj != null) {
+        final tabInt = tabObj is num ? tabObj.toInt() : int.tryParse(tabObj.toString());
+        final depthInt = depthObj is num ? depthObj.toInt() : int.tryParse(depthObj.toString());
+        final tokenInt = tokenObj is num ? tokenObj.toInt() : int.tryParse(tokenObj.toString());
+
+        if (tabInt != null && depthInt != null && tokenInt != null) {
+          await _handleTypedPopState(
+            tab: tabInt,
+            depth: depthInt,
+            token: tokenInt,
+            pathname: pathname,
+            isNativeBrowserBack: isNativeBrowserBack,
+          );
+          return;
+        }
       }
+      
+      await _handleLegacyPopState(pathname);
     } catch (e, st) {
       debugPrint('[AppNavigationController] Error parsing popstate: $e\n$st');
       // Fallback a reconstruir desde URL pura si todo lo demás falla

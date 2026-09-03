@@ -85,6 +85,19 @@ Map<String, Object?>? readWebHistoryState(Object? rawState) {
     } else {
       final dynamic decoded = js_util.dartify(rawState);
       if (decoded is Map) return Map<String, Object?>.from(decoded);
+      
+      // Fallback: Si dartify no devuelve un Map (por temas de prototipos de JS), 
+      // leemos las propiedades directamente.
+      if (js_util.hasProperty(rawState, 'tab')) {
+        return {
+          'tab': js_util.getProperty(rawState, 'tab'),
+          'depth': js_util.getProperty(rawState, 'depth'),
+          'token': js_util.getProperty(rawState, 'token'),
+          'serialCount': js_util.hasProperty(rawState, 'serialCount') 
+              ? js_util.getProperty(rawState, 'serialCount') 
+              : null,
+        };
+      }
     }
   } catch (e) {
     debugPrint('[WebJs] Error leyendo history.state: $e');
