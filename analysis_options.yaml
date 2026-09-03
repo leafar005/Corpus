@@ -44,8 +44,8 @@ linter:
 
     # ── Seguridad ─────────────────────────────────────────────────────────────
     # Evitar dynamic explícito — usar Object?, T, o tipos concretos
-    # (desactivado por ahora: el proyecto usa Map<String,dynamic> extensivamente)
-    # avoid_dynamic: true
+    # Activado en Fase 4 tras completar la migración del modelo Game
+    avoid_dynamic: true
 
     # ── Estilo ────────────────────────────────────────────────────────────────
     # Comillas simples (desactivado: el proyecto usa comillas dobles consistentemente)
