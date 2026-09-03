@@ -218,13 +218,13 @@ class AppNavigationController {
 
     try {
       if (state != null &&
-          state['token'] is int &&
-          state['tab'] is int &&
-          state['depth'] is int) {
+          state['token'] is num &&
+          state['tab'] is num &&
+          state['depth'] is num) {
         await _handleTypedPopState(
-          tab: state['tab'] as int,
-          depth: state['depth'] as int,
-          token: state['token'] as int,
+          tab: (state['tab'] as num).toInt(),
+          depth: (state['depth'] as num).toInt(),
+          token: (state['token'] as num).toInt(),
           pathname: pathname,
           isNativeBrowserBack: isNativeBrowserBack,
         );

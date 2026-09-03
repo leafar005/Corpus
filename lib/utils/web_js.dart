@@ -47,7 +47,12 @@ void setWebPath(
     int serialCount = 0;
     if (currentState != null &&
         js_util.hasProperty(currentState, 'serialCount')) {
-      serialCount = js_util.getProperty(currentState, 'serialCount') as int;
+      final dynamic rawSerial = js_util.getProperty(currentState, 'serialCount');
+      if (rawSerial is num) {
+        serialCount = rawSerial.toInt();
+      } else if (rawSerial is String) {
+        serialCount = int.tryParse(rawSerial) ?? 0;
+      }
     }
 
     if (!replace) {
