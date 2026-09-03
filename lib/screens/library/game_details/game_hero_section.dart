@@ -667,7 +667,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
           Icon(
             Icons.business,
             size: 16,
-            color: Colors.white.withValues(alpha: 0.9),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
           ),
           const SizedBox(width: 4),
           Flexible(
@@ -675,9 +675,11 @@ class _GameHeroSectionState extends State<GameHeroSection> {
               developer,
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withValues(alpha: 0.9),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w500,
-                shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                shadows: theme.brightness == Brightness.dark
+                    ? const [Shadow(color: Colors.black54, blurRadius: 4)]
+                    : null,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -706,7 +708,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 Icon(
                   Icons.storefront,
                   size: 16,
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
                 ),
                 const SizedBox(width: 4),
                 Flexible(
@@ -714,11 +716,11 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                     publisher,
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w500,
-                      shadows: const [
-                        Shadow(color: Colors.black54, blurRadius: 4),
-                      ],
+                      shadows: theme.brightness == Brightness.dark
+                          ? const [Shadow(color: Colors.black54, blurRadius: 4)]
+                          : null,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -788,12 +790,14 @@ class _GameHeroSectionState extends State<GameHeroSection> {
           ),
         Text(
           name,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w900,
             height: 1.1,
-            color: Colors.white,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 10)],
+            color: theme.colorScheme.onSurface,
+            shadows: theme.brightness == Brightness.dark
+                ? const [Shadow(color: Colors.black54, blurRadius: 10)]
+                : null,
           ),
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
@@ -810,7 +814,9 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                         '  ·  ',
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                       ),
                       Flexible(child: publisherWidget),
@@ -834,15 +840,17 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             Icon(
               Icons.calendar_today,
               size: 16,
-              color: Colors.white.withValues(alpha: 0.7),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
             const SizedBox(width: 4),
             Text(
               releaseDate,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.7),
-                shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                shadows: theme.brightness == Brightness.dark
+                    ? const [Shadow(color: Colors.black54, blurRadius: 4)]
+                    : null,
               ),
             ),
           ],
