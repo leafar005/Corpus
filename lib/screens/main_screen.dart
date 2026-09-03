@@ -359,20 +359,11 @@ class _MainScreenState extends State<MainScreen>
       ),
       child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.gamepad, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 12),
-              Text(
-                'CORPUS',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  letterSpacing: 2,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
+          Image.asset(
+            'assets/images/logo_full.png',
+            height: 60,
+            filterQuality: FilterQuality.high,
+            isAntiAlias: true,
           ),
           const Spacer(),
           _buildTopNavItem(0, 'Inicio', Icons.home),
@@ -409,22 +400,11 @@ class _MainScreenState extends State<MainScreen>
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Row(
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.gamepad, color: Colors.white),
-                      const SizedBox(width: 12),
-                      Text(
-                        'CORPUS',
-                        style: CorpusTypography.display(
-                          context,
-                          Theme.of(context).extension<CorpusThemeExtension>()!,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                  Image.asset(
+                    'assets/images/logo_full.png',
+                    height: 24,
+                    filterQuality: FilterQuality.high,
+                    isAntiAlias: true,
                   ),
                   const Spacer(),
                   _buildPersona5RoyalTopNavItem(0, 'Inicio', Icons.home),

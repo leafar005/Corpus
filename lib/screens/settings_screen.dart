@@ -5,6 +5,7 @@ import 'package:corpus/routes/corpus_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
+import '../services/user_settings_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   final Map<String, dynamic> userProfile;
@@ -127,6 +128,7 @@ class SettingsScreen extends StatelessWidget {
                         activeThumbColor: Theme.of(context).colorScheme.primary,
                         onChanged: (bool value) {
                           prefs.setBool('localize_links', value);
+                          UserSettingsService().push({'localize_links': value});
                           setState(() {});
                         },
                       ),
@@ -139,10 +141,11 @@ class SettingsScreen extends StatelessWidget {
                         value: duracionDeEnabled,
                         activeThumbColor: Theme.of(context).colorScheme.primary,
                         onChanged: (bool value) {
-                          prefs.setString(
-                            'time_source_pref',
-                            value ? 'duracionde' : 'igdb',
-                          );
+                          final prefValue = value ? 'duracionde' : 'igdb';
+                          prefs.setString('time_source_pref', prefValue);
+                          UserSettingsService().push({
+                            'time_source_pref': prefValue,
+                          });
                           setState(() {});
                         },
                       ),

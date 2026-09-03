@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
+import '../../services/user_settings_service.dart';
 
 class HomeAppearanceScreen extends StatefulWidget {
   const HomeAppearanceScreen({super.key});
@@ -100,6 +101,14 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
     );
     await prefs.setString('wishlist_countdown_style', _wishlistCountdownStyle);
     await prefs.setInt('home_bundles_ending_soon_days', _bundlesEndingSoonDays);
+
+    UserSettingsService().push({
+      'home_sections_order': _order,
+      'home_sections_hidden': _hiddenItems.toList(),
+      'anticipated_countdown_style': _anticipatedCountdownStyle,
+      'wishlist_countdown_style': _wishlistCountdownStyle,
+      'home_bundles_ending_soon_days': _bundlesEndingSoonDays,
+    });
   }
 
   void _onReorderItem(int oldIndex, int newIndex) {

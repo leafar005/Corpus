@@ -12,8 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../services/user_settings_service.dart';
+import 'package:corpus/models/models.dart';
 import '../../../repositories/review_repository.dart';
-import '../../../models/models.dart';
 import '../../../services/igdb_service.dart';
 import '../../../services/duracionde_service.dart';
 
@@ -765,6 +766,7 @@ class GameDetailsController extends ChangeNotifier {
     _notify();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('info_tab_order', newOrder);
+    UserSettingsService().push({'info_tab_order': newOrder});
   }
 
   /// Alterna la visibilidad de una sección del tab Info y persiste.
@@ -773,5 +775,6 @@ class GameDetailsController extends ChangeNotifier {
     _notify();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('info_tab_hidden', infoTabHidden.toList());
+    UserSettingsService().push({'info_tab_hidden': infoTabHidden.toList()});
   }
 }

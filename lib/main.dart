@@ -16,6 +16,7 @@ import 'services/style_pack_music_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/deep_link_service.dart';
 import 'screens/auth/reset_password_screen.dart';
+import 'services/user_settings_service.dart';
 
 import 'package:corpus/globals.dart';
 import 'routes/app_root.dart';
@@ -52,6 +53,10 @@ void main() async {
     url: Env.supabaseUrl,
     publishableKey: Env.supabaseAnonKey,
   );
+
+  if (Supabase.instance.client.auth.currentSession != null) {
+    await UserSettingsService().pullAndApplyToLocalCache();
+  }
 
   // 5. Carga packs importados por el usuario
   await StylePackRegistry.loadImported();
@@ -166,6 +171,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                 return;
               }
               if (data.session?.user != null) {
+                UserSettingsService().pullAndApplyToLocalCache().then((_) {
+                  themeNotifier.reloadFromPrefs();
+                });
                 _setupPresence();
               } else {
                 _cleanupPresence();
@@ -209,11 +217,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         });
   }
 
-  void _cleanupPresence() {
+  Future<void> _cleanupPresence() async {
     _presenceChannel?.untrack();
     _presenceChannel?.unsubscribe();
     _presenceChannel = null;
-    resetAllGlobalState();
+    await resetAllGlobalState();
   }
 
   @override

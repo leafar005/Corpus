@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'utils/igdb_constants.dart';
+import 'services/user_settings_service.dart';
 
 /// Punto de ruptura canónico para distinguir diseño de escritorio del móvil.
 /// Uso: `MediaQuery.sizeOf(context).width > kDesktopBreakpoint`
@@ -84,7 +85,7 @@ SliverGridDelegate getCorpusGridDelegate(
 /// Resetea todos los notificadores globales a sus valores por defecto.
 /// Llamar cuando el usuario cierra sesión para evitar que datos de una
 /// cuenta queden visibles al iniciar sesión con otra.
-void resetAllGlobalState() {
+Future<void> resetAllGlobalState() async {
   libraryUpdateNotifier.value = 0;
   onlineUsersNotifier.value = {};
   viewedStoryIdsNotifier.value = {};
@@ -92,6 +93,12 @@ void resetAllGlobalState() {
   unreadFriendRequestsCount.value = 0;
   unreadNotificationsCount.value = 0;
   currentTabIndexNotifier.value = 0;
-  // mobileGridColumnsNotifier y floatingMobileNavNotifier son preferencias
-  // de UI del dispositivo, no datos de cuenta — no se resetean al hacer logout.
+  // AHORA: mobileGridColumnsNotifier, floatingMobileNavNotifier y el resto de
+  // ajustes sincronizados vía UserSettingsService SÍ se resetean al cerrar sesión.
+  // Si no se hiciera, los ajustes de una cuenta se filtrarían a la sesión de otra
+  // persona que inicie sesión después en el mismo dispositivo.
+  mobileGridColumnsNotifier.value = 3;
+  floatingMobileNavNotifier.value = true;
+  await themeNotifier.resetToDefaults();
+  await UserSettingsService().resetLocalCacheToDefaults();
 }

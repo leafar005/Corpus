@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
+import '../../services/user_settings_service.dart';
 
 class InfoTabAppearanceScreen extends StatefulWidget {
   const InfoTabAppearanceScreen({super.key});
@@ -90,6 +91,11 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('info_tab_order', _order);
     await prefs.setStringList('info_tab_hidden', _hiddenItems.toList());
+
+    UserSettingsService().push({
+      'info_tab_order': _order,
+      'info_tab_hidden': _hiddenItems.toList(),
+    });
   }
 
   void _onReorderItem(int oldIndex, int newIndex) {

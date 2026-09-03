@@ -10,6 +10,7 @@ import '../theme/style_pack.dart';
 import '../widgets/corpus_section_title.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/utils/igdb_constants.dart';
+import '../services/user_settings_service.dart';
 
 class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
@@ -551,6 +552,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                 mobileGridColumnsNotifier.value = columns;
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setInt('mobile_grid_columns', columns);
+                UserSettingsService().push({'mobile_grid_columns': columns});
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -649,6 +651,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             floatingMobileNavNotifier.value = value;
             final prefs = await SharedPreferences.getInstance();
             await prefs.setBool('floating_mobile_nav', value);
+            UserSettingsService().push({'floating_mobile_nav': value});
           },
         );
       },

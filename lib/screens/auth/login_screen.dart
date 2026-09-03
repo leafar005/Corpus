@@ -79,10 +79,11 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.videogame_asset,
-                  size: 80,
-                  color: Theme.of(context).colorScheme.primary,
+                Image.asset(
+                  'assets/images/logo_no_bg.png',
+                  height: 200,
+                  filterQuality: FilterQuality.high,
+                  isAntiAlias: true,
                 ),
                 const SizedBox(height: 24),
                 const Text(

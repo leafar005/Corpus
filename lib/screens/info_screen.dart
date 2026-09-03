@@ -27,13 +27,11 @@ class InfoScreen extends StatelessWidget {
           children: [
             // Header del Proyecto
             const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColorDark,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.library_books, size: 60),
+            Image.asset(
+              'assets/images/logo_no_bg.png',
+              height: 100,
+              filterQuality: FilterQuality.high,
+              isAntiAlias: true,
             ),
             const SizedBox(height: 16),
             const Text(

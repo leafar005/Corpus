@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/style_pack_url_override.dart';
+import '../services/user_settings_service.dart';
 import 'style_pack.dart';
 import 'style_pack_registry.dart';
 import 'corpus_theme_extension.dart';
@@ -33,7 +34,17 @@ class ThemeNotifier extends ChangeNotifier {
     _initialized = true;
 
     final prefs = await SharedPreferences.getInstance();
+    await _applyFromPrefs(prefs);
 
+    final urlPackId = StylePackUrlOverride.packIdFromUri(Uri.base);
+    if (urlPackId != null) {
+      _applyStylePack(urlPackId, persist: false);
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> _applyFromPrefs(SharedPreferences prefs) async {
     final modeStr = prefs.getString('theme_mode') ?? 'system';
     _currentMode = ThemeMode.values.firstWhere(
       (e) => e.toString().split('.').last == modeStr,
@@ -50,30 +61,44 @@ class ThemeNotifier extends ChangeNotifier {
       _stylePackId = 'default';
     }
 
-    final urlPackId = StylePackUrlOverride.packIdFromUri(Uri.base);
-    if (urlPackId != null) {
-      _applyStylePack(urlPackId, persist: false);
-    }
-
     mobileGridColumnsNotifier.value = prefs.getInt('mobile_grid_columns') ?? 3;
     floatingMobileNavNotifier.value =
         prefs.getBool('floating_mobile_nav') ?? true;
+  }
 
+  Future<void> reloadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await _applyFromPrefs(prefs);
     notifyListeners();
+  }
+
+  Future<void> resetToDefaults() async {
+    _currentMode = ThemeMode.system;
+    _stylePackId = 'default';
+    _seedColor = currentPack.seedColor;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('theme_mode');
+    await prefs.remove('theme_color');
+    await prefs.remove('style_pack_id');
   }
 
   Future<void> setTheme(ThemeMode mode) async {
     _currentMode = mode;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('theme_mode', mode.toString().split('.').last);
+    final valStr = mode.toString().split('.').last;
+    await prefs.setString('theme_mode', valStr);
+    UserSettingsService().push({'theme_mode': valStr});
   }
 
   Future<void> setColor(Color color) async {
     _seedColor = color;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('theme_color', color.toARGB32());
+    final argb = color.toARGB32();
+    await prefs.setInt('theme_color', argb);
+    UserSettingsService().push({'theme_color': argb});
   }
 
   Future<void> setStylePack(String id) async {
@@ -91,8 +116,10 @@ class ThemeNotifier extends ChangeNotifier {
     _seedColor = pack.seedColor;
     if (persist) {
       SharedPreferences.getInstance().then((prefs) async {
+        final argb = pack.seedColor.toARGB32();
         await prefs.setString('style_pack_id', id);
-        await prefs.setInt('theme_color', pack.seedColor.toARGB32());
+        await prefs.setInt('theme_color', argb);
+        UserSettingsService().push({'style_pack_id': id, 'theme_color': argb});
       });
     }
   }
