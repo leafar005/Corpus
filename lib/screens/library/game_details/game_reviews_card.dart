@@ -23,7 +23,7 @@ class GameReviewsCard extends StatelessWidget {
   });
 
   final List<Review> reviews;
-  final Map<String, dynamic> gameData;
+  final Game gameData;
   final UserProfile? userData;
   final List<UserProfile> partnersData;
   final bool isDesktop;

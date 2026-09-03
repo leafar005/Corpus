@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../models/models.dart';
 import '../../../utils/url_utils.dart';
 import '../../../utils/igdb_constants.dart';
 import '../../../utils/format_utils.dart';
@@ -32,7 +33,7 @@ class GameInfoTab extends StatelessWidget {
     this.timeToBeat,
   });
 
-  final Map<String, dynamic> gameData;
+  final Game gameData;
   final Map<String, dynamic> enrichedData;
   final String? summary;
   final String? collectionName;

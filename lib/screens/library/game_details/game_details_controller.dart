@@ -18,9 +18,9 @@ import '../../../services/igdb_service.dart';
 import '../../../services/duracionde_service.dart';
 
 class GameDetailsController extends ChangeNotifier {
-  GameDetailsController({required this.gameData}) : _repo = ReviewRepository();
+  GameDetailsController(this.game) : _repo = ReviewRepository();
 
-  final Map<String, dynamic> gameData; // TODO(B-A1): reemplazar por GameModel
+  final Game game;
   final ReviewRepository _repo;
 
   bool _disposed = false;
@@ -172,7 +172,7 @@ class GameDetailsController extends ChangeNotifier {
 
   /// Origen: _fetchMetacritic, líneas 190-251.
   Future<void> fetchMetacritic() async {
-    final gameModel = Game.fromMap({...gameData, ...enrichedData});
+    final gameModel = Game.fromMap({...game.toMap(), ...enrichedData});
 
     if (gameModel.hasRecentMetacriticData) {
       metacriticScore = gameModel.metacriticScore;
@@ -185,16 +185,15 @@ class GameDetailsController extends ChangeNotifier {
     final title = gameModel.title;
     if (title.isEmpty) return;
 
-    final gameId = gameData['id']?.toString();
-    final cachedSlug =
-        gameData['metacritic_slug'] ?? enrichedData['metacritic_slug'];
+    final gameId = game.igdbId;
+    final cachedSlug = game.metacriticSlug ?? enrichedData['metacritic_slug'];
 
     isLoadingMetacritic = true;
     _notify();
 
     try {
       final payload = <String, dynamic>{'gameTitle': title.toString()};
-      if (gameId != null) payload['gameId'] = gameId;
+      payload['gameId'] = gameId.toString();
       if (cachedSlug != null) payload['metacriticSlug'] = cachedSlug.toString();
 
       final response = await _repo.client.functions.invoke(
@@ -269,9 +268,8 @@ class GameDetailsController extends ChangeNotifier {
   /// Origen: _fetchTimeToBeat, líneas 298-334.
   /// Incluye fallback de duracionde → IGDB si el primero no encuentra datos.
   Future<void> fetchTimeToBeat() async {
-    final igdbId = gameData['igdb_id'] ?? gameData['id'];
-    if (igdbId == null) return;
-    final id = igdbId is int ? igdbId : int.parse(igdbId.toString());
+    final igdbId = game.igdbId;
+    final id = igdbId;
 
     final prefs = await SharedPreferences.getInstance();
     final source = prefs.getString('time_source_pref') ?? 'igdb';
@@ -279,7 +277,7 @@ class GameDetailsController extends ChangeNotifier {
     Map<String, dynamic>? ttb;
 
     if (source == 'duracionde') {
-      final title = (gameData['title'] ?? gameData['name'] ?? '') as String;
+      final title = game.title.isNotEmpty ? game.title : '';
       ttb = await DuracionDeService.getTimeToBeat(id, title: title);
 
       if (ttb == null || ttb['found'] == false) {
@@ -308,16 +306,9 @@ class GameDetailsController extends ChangeNotifier {
 
   /// Origen: _fetchRelatedGames, líneas 336-355.
   Future<void> fetchRelatedGames() async {
-    final igdbId = gameData['igdb_id'] ?? gameData['id'];
-    if (igdbId == null) {
-      isLoadingRelated = false;
-      _notify();
-      return;
-    }
+    final igdbId = game.igdbId;
     try {
-      final results = await IGDBService.getRelatedGames(
-        igdbId is int ? igdbId : int.parse(igdbId.toString()),
-      );
+      final results = await IGDBService.getRelatedGames(igdbId);
       relatedGames = results;
     } catch (_) {
       // Silenciar error — los relacionados son opcionales
@@ -329,8 +320,7 @@ class GameDetailsController extends ChangeNotifier {
 
   /// Origen: _fetchFriendsWithGame, líneas 358-373.
   Future<void> fetchFriendsWithGame() async {
-    final gameId = gameData['igdb_id'] ?? gameData['id'];
-    if (gameId == null) return;
+    final gameId = game.igdbId;
     final myId = currentUserId;
     if (myId == null) return;
 
@@ -356,42 +346,17 @@ class GameDetailsController extends ChangeNotifier {
     void Function(List enrichedScreenshots, bool forceInitialSwap)?
     onScreenshotsEnriched,
   }) async {
-    final hasSummary =
-        gameData['summary'] != null &&
-        gameData['summary'].toString() != 'null' &&
-        gameData['summary'].toString().isNotEmpty;
+    final hasSummary = game.summary?.isNotEmpty == true;
     final hasDeveloper =
-        gameData['developer'] != null &&
-        gameData['developer'] != 'Desconocido' &&
-        gameData['developer'] != 'Desarrollador desconocido';
-    final hasCategory = gameData['category'] != null;
-    final hasScreenshots =
-        (gameData['screenshots'] as List?)?.isNotEmpty == true;
+        game.developer != null &&
+        game.developer != 'Desconocido' &&
+        game.developer != 'Desarrollador desconocido';
+    final hasCategory = game.category != null || game.gameType != null;
+    final hasScreenshots = game.screenshots.isNotEmpty;
 
-    final hasGameEngines =
-        (gameData['game_engines'] as List?)
-            ?.where(
-              (e) =>
-                  e != null &&
-                  e.toString() != 'null' &&
-                  e.toString().isNotEmpty,
-            )
-            .isNotEmpty ==
-        true;
-    final hasCollection =
-        gameData['collection'] != null &&
-        gameData['collection'].toString() != 'null' &&
-        gameData['collection'].toString().isNotEmpty;
-    final hasFranchises =
-        (gameData['franchises'] as List?)
-            ?.where(
-              (f) =>
-                  f != null &&
-                  f.toString() != 'null' &&
-                  f.toString().isNotEmpty,
-            )
-            .isNotEmpty ==
-        true;
+    final hasGameEngines = game.gameEngines.isNotEmpty;
+    final hasCollection = game.collection?.isNotEmpty == true;
+    final hasFranchises = game.franchises.isNotEmpty;
 
     // Solo omitir la llamada si tenemos TODOS los datos (primarios + secundarios)
     if (hasSummary &&
@@ -406,17 +371,10 @@ class GameDetailsController extends ChangeNotifier {
       return;
     }
 
-    final igdbId = gameData['igdb_id'] ?? gameData['id'];
-    if (igdbId == null) {
-      isEnriching = false;
-      _notify();
-      return;
-    }
+    final igdbId = game.igdbId;
 
     try {
-      final game = await IGDBService.getGameById(
-        igdbId is int ? igdbId : int.parse(igdbId.toString()),
-      );
+      final game = await IGDBService.getGameById(igdbId);
       if (game != null && !_disposed) {
         // Extraer desarrollador
         String? developer;
@@ -536,8 +494,7 @@ class GameDetailsController extends ChangeNotifier {
         // campos clave) y ahora los hemos resuelto vía IGDB, los persistimos
         // para que listas y carruseles dejen de mostrar el placeholder.
         final bool missingCoverInDb =
-            gameData['cover_url'] == null ||
-            gameData['cover_url'].toString().isEmpty;
+            this.game.coverUrl == null || this.game.coverUrl!.isEmpty;
 
         if (missingCoverInDb && enrichedData['cover_url'] != null) {
           try {
@@ -579,7 +536,7 @@ class GameDetailsController extends ChangeNotifier {
   Future<void> fetchUserData() async {
     final userId = currentUserId;
     if (userId == null) return;
-    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+    final igdbId = game.igdbId;
 
     try {
       final response = await _repo.fetchUserGame(
@@ -620,7 +577,7 @@ class GameDetailsController extends ChangeNotifier {
   Future<void> fetchReviews() async {
     final userId = currentUserId;
     if (userId == null) return;
-    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+    final igdbId = game.igdbId;
 
     try {
       final result = await _repo.fetchReviews(userId: userId, gameId: igdbId);
@@ -633,8 +590,7 @@ class GameDetailsController extends ChangeNotifier {
 
   /// Origen: _fetchStashReviews, líneas 1063-1089.
   Future<void> fetchStashReviews() async {
-    final igdbId = gameData['igdb_id'] ?? gameData['id'];
-    if (igdbId == null) return;
+    final igdbId = game.igdbId;
 
     try {
       final local = await _repo.fetchStashReviewsLocal(igdbId);
@@ -657,8 +613,7 @@ class GameDetailsController extends ChangeNotifier {
 
   /// Origen: _fetchStashStats, líneas 1091-1117.
   Future<void> fetchStashStats() async {
-    final igdbId = gameData['igdb_id'] ?? gameData['id'];
-    if (igdbId == null) return;
+    final igdbId = game.igdbId;
 
     try {
       final local = await _repo.fetchStashStatsLocal(igdbId);
@@ -720,13 +675,13 @@ class GameDetailsController extends ChangeNotifier {
       _notify();
       throw Exception('Not logged in');
     }
-    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+    final igdbId = game.igdbId;
 
     try {
       final result = await _repo.saveReview(
         userId: userId,
         igdbId: igdbId,
-        gameData: gameData,
+        gameData: game.toMap(),
         enrichedData: enrichedData,
         reviewId: reviewId,
         rating: rating,
@@ -771,7 +726,7 @@ class GameDetailsController extends ChangeNotifier {
   Future<void> deleteFromLibrary() async {
     final userId = currentUserId;
     if (userId == null) throw Exception('Not logged in');
-    final igdbId = gameData['igdb_id'] ?? gameData['id'];
+    final igdbId = game.igdbId;
 
     await _repo.deleteFromLibrary(userId: userId, gameId: igdbId);
 
@@ -787,7 +742,7 @@ class GameDetailsController extends ChangeNotifier {
   }
 
   Future<bool> deleteReview(Review review) async {
-    final gameId = gameData['igdb_id'] ?? gameData['id'];
+    final gameId = game.igdbId;
     final removedFromLibrary = await _repo.deleteReview(
       reviewId: review.id,
       reviewData: review,

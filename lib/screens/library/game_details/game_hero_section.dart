@@ -19,7 +19,7 @@ import '../../../globals.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 
 class GameHeroSection extends StatefulWidget {
-  final Map<String, dynamic> gameData;
+  final Game gameData;
   final GameDetailsController controller;
   final bool isDesktop;
 
@@ -77,12 +77,9 @@ class _GameHeroSectionState extends State<GameHeroSection> {
   Timer? _carouselTimer;
 
   // Función auxiliar para extraer las capturas priorizando siempre gameData pero cayendo en enrichedData
-  List _getScreenshots(
-    Map<String, dynamic> game,
-    Map<String, dynamic> enriched,
-  ) {
-    return (game['screenshots'] as List?)?.isNotEmpty == true
-        ? game['screenshots']!
+  List _getScreenshots(Game game, Map<String, dynamic> enriched) {
+    return game.screenshots.isNotEmpty
+        ? game.screenshots
         : (enriched['screenshots'] as List? ?? []);
   }
 
@@ -158,8 +155,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
     final friendId = user['id'];
     if (friendId == null) return;
 
-    final igdbId = widget.gameData['igdb_id'] ?? widget.gameData['id'];
-    if (igdbId == null) return;
+    final igdbId = widget.gameData.igdbId;
+    if (igdbId == 0) return;
 
     showDialog(
       context: context,
@@ -377,7 +374,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                       : Review(
                           id: '',
                           userId: widget.userData!.id,
-                          gameId: (widget.gameData['id'] as num).toInt(),
+                          gameId: widget.gameData.igdbId,
                           rating: 0,
                           ratingGameplay: 0,
                           ratingNarrative: 0,
@@ -473,11 +470,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                   review = Review(
                     id: '',
                     userId: widget.userData?.id ?? '',
-                    gameId:
-                        int.tryParse(
-                          widget.gameData['id']?.toString() ?? '0',
-                        ) ??
-                        0,
+                    gameId: widget.gameData.igdbId,
                     rating: 0,
                     ratingGameplay: 0,
                     ratingNarrative: 0,
@@ -578,44 +571,37 @@ class _GameHeroSectionState extends State<GameHeroSection> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // CORRECCIÓN: Usar fallbacks para la carátula (DB -> IGDB API anidada -> Enriched Data)
     final String? coverUrl =
-        widget.gameData['cover_url'] ??
-        widget.enrichedData['cover_url'] ??
-        (widget.gameData['cover']?['image_id'] != null
-            ? IGDBService.getCoverUrl(widget.gameData['cover']['image_id'])
-            : null);
+        widget.gameData.coverUrl ?? widget.enrichedData['cover_url'];
 
-    // CORRECCIÓN: Usar fallbacks para el título (DB 'title' -> IGDB API 'name' -> Enriched Data)
-    final String name =
-        widget.gameData['title'] ??
-        widget.gameData['name'] ??
-        widget.enrichedData['title'] ??
-        widget.enrichedData['name'] ??
-        'Desconocido';
+    final String name = widget.gameData.title.isNotEmpty
+        ? widget.gameData.title
+        : (widget.enrichedData['title'] ??
+              widget.enrichedData['name'] ??
+              'Desconocido');
 
     final hasDeveloper =
-        widget.gameData['developer'] != null &&
-        widget.gameData['developer'] != 'Desconocido' &&
-        widget.gameData['developer'] != 'Desarrollador desconocido';
+        widget.gameData.developer != null &&
+        widget.gameData.developer != 'Desconocido' &&
+        widget.gameData.developer != 'Desarrollador desconocido';
     final developer = hasDeveloper
-        ? widget.gameData['developer']
+        ? widget.gameData.developer!
         : (widget.enrichedData['developer'] ?? 'Desconocido');
     final developerId =
-        widget.gameData['developer_id'] ?? widget.enrichedData['developer_id'];
+        widget.gameData.developerId ?? widget.enrichedData['developer_id'];
 
     final hasPublisher =
-        widget.gameData['publisher'] != null &&
-        widget.gameData['publisher'].toString().isNotEmpty;
+        widget.gameData.publisher != null &&
+        widget.gameData.publisher!.isNotEmpty;
     final publisher = hasPublisher
-        ? widget.gameData['publisher']
+        ? widget.gameData.publisher!
         : widget.enrichedData['publisher'];
     final publisherId =
-        widget.gameData['publisher_id'] ?? widget.enrichedData['publisher_id'];
+        widget.gameData.publisherId ?? widget.enrichedData['publisher_id'];
 
     String releaseDate = 'Fecha desconocida';
     final rawReleaseDate =
-        widget.gameData['release_date'] ?? widget.enrichedData['release_date'];
+        widget.gameData.releaseDate ?? widget.enrichedData['release_date'];
     if (rawReleaseDate != null) {
       try {
         final date = DateTime.parse(rawReleaseDate.toString());

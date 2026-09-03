@@ -21,7 +21,7 @@ import '../../utils/format_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameDetailsScreen extends StatefulWidget {
-  final Map<String, dynamic> gameData;
+  final Game gameData;
   final ScrollController? scrollController;
   final bool autoOpenReview;
 
@@ -96,7 +96,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = GameDetailsController(gameData: widget.gameData);
+    _controller = GameDetailsController(widget.gameData);
     _scrollController = widget.scrollController ?? ScrollController();
     _scrollController.addListener(_onScroll);
 
@@ -120,7 +120,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       },
     );
 
-    _startCarousel(widget.gameData['screenshots']);
+    _startCarousel(widget.gameData.screenshots);
   }
 
   @override
@@ -182,18 +182,15 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
-  // _showImageGallery implementation removed in favor of full_screen_gallery.dart
-
-  /// Obtiene el ID y nombre del juego original (si existe) desde parent_game, version_parent, etc.
   ({int id, String? name})? _getOriginalGameInfo() {
     final candidates = [
-      widget.gameData['parent_game'],
+      widget.gameData.parentGameId,
       _enrichedData['parent_game'],
-      widget.gameData['version_parent'],
+      widget.gameData.versionParentId,
       _enrichedData['version_parent'],
-      widget.gameData['remake_of'],
+      widget.gameData.remakeOfId,
       _enrichedData['remake_of'],
-      widget.gameData['remaster_of'],
+      widget.gameData.remasterOfId,
       _enrichedData['remaster_of'],
     ];
 
@@ -233,11 +230,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       }
 
       if (id != null && id > 0) {
-        // Si IGDB solo devolvió el ID sin el nombre, intentamos buscar el título en juegos relacionados
         if (name == null && _relatedGames.isNotEmpty) {
           try {
             final match = _relatedGames.firstWhere(
               (g) => (g is Map) && ((g['id'] == id) || (g['igdb_id'] == id)),
+              orElse: () => null,
             );
             if (match is Map) {
               name = match['name']?.toString() ?? match['title']?.toString();
@@ -254,20 +251,18 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     return null;
   }
 
-  /// Navega al juego original de forma INSTANTÁNEA precargando su carátula y datos desde la RAM o base de datos local
   Future<void> _navigateToOriginalGame(int id, String? name) async {
     final cleanData = <String, dynamic>{'igdb_id': id, 'id': id};
     if (name != null) {
       cleanData['title'] = name;
     }
 
-    // 1. BÚSQUEDA INSTANTÁNEA EN RAM (_relatedGames)
-    // En el 90% de los casos, tu pestaña "Relacionado" ya descargó este juego con su carátula en segundo plano.
     bool foundInRam = false;
     if (_relatedGames.isNotEmpty) {
       try {
         final match = _relatedGames.firstWhere(
           (g) => (g is Map) && ((g['id'] == id) || (g['igdb_id'] == id)),
+          orElse: () => null,
         );
         if (match is Map) {
           final matchMap = Map<String, dynamic>.from(match);
@@ -297,14 +292,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       }
     }
 
-    // 2. BÚSQUEDA RÁPIDA EN SUPABASE (Si no estaba en RAM o le falta la carátula)
     final hasCover =
         cleanData['cover_url'] != null &&
         (cleanData['cover_url'] as String).isNotEmpty;
     if (!foundInRam || !hasCover) {
       bool showingSpinner = false;
       try {
-        // Hacemos una consulta ultra-rápida a tu tabla local (tarda unos 50ms, imperceptible para el ojo humano)
         final localDbGame = await Supabase.instance.client
             .from('games')
             .select()
@@ -314,7 +307,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         if (localDbGame != null) {
           cleanData.addAll(localDbGame);
         } else {
-          // 3. FALLBACK A IGDB (Solo si es un juego jamás visto ni cacheado por ningún usuario de la app)
           showingSpinner = true;
           if (!mounted) return;
           showDialog(
@@ -334,15 +326,13 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 igdbGame['cover']['image_id'],
               );
               cleanData['cover_url'] = newCoverUrl;
-              // Persistir la portada en BD para que el feed y el perfil
-              // la muestren correctamente sin volver a consultar IGDB.
               Supabase.instance.client
                   .from('games')
                   .update({'cover_url': newCoverUrl})
                   .eq('igdb_id', id)
-                  .isFilter('cover_url', null) // solo si aún es NULL
+                  .isFilter('cover_url', null)
                   .then((_) {})
-                  .catchError((_) {}); // fire-and-forget, no bloqueante
+                  .catchError((_) {});
             }
             if (igdbGame['summary'] != null) {
               cleanData['summary'] = igdbGame['summary'];
@@ -371,9 +361,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     if (!mounted) return;
 
-    // Abrimos la pantalla con el 100% de los datos listos
     if (MediaQuery.of(context).size.width >= 800) {
-      context.pushGameDetails(cleanData);
+      context.pushGameDetails(Game.fromMap(cleanData));
     } else {
       showModalBottomSheet(
         context: context,
@@ -387,7 +376,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           expand: false,
           snap: true,
           builder: (context, scrollController) => GameDetailsScreen(
-            gameData: cleanData,
+            gameData: Game.fromMap(cleanData),
             scrollController: scrollController,
           ),
         ),
@@ -395,13 +384,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
-  /// Abre el bottom sheet de creación/edición de reseña.
-  /// La lógica del formulario vive en [ReviewModal] (review_modal.dart).
   void _showReviewModal({Review? existingReview}) {
     ReviewModal.show(
       context: context,
-      gameData: widget.gameData,
-      enrichedData: _enrichedData,
+      gameData: widget.gameData.toMap(),
+      enrichedData: widget.gameData.toMap(),
       existingReview: existingReview,
       currentPartnerIds: _partnersData.map((e) => e.id).toList(),
       isSaving: _isSaving,
@@ -463,7 +450,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         partnerIds: partnerIds,
       );
 
-      // Mostrar toasts de logros recién desbloqueados
       if (mounted && result.newAchievementDetails.isNotEmpty) {
         AchievementToast.showFromList(
           context,
@@ -488,10 +474,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       if (mounted) setState(() => _isSaving = false);
     }
   }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Helpers de UI extraídos del build() para mantenerlo legible
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildTabButton(int index, String title) {
     final isSelected = _selectedMainTabIndex == index;
@@ -576,58 +558,48 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   }
 
   Widget _buildContent(BuildContext context) {
-    final title =
-        widget.gameData['title'] ??
-        _enrichedData['title'] ??
-        (_isEnriching ? 'Cargando...' : 'Desconocido');
+    final title = widget.gameData.title.isNotEmpty
+        ? widget.gameData.title
+        : (_enrichedData['title'] ??
+              _enrichedData['name'] ??
+              (_isEnriching ? 'Cargando...' : 'Desconocido'));
 
-    // Datos con fallback a _enrichedData (para cuando venimos de la biblioteca)
-    final summary = widget.gameData['summary'] ?? _enrichedData['summary'];
+    final summary = widget.gameData.summary ?? _enrichedData['summary'];
     final originalGame = _getOriginalGameInfo();
     final hasParentGame = originalGame != null;
 
-    // Resolver categoría usando IgdbConstants (centralizado)
-    // Fix #3: Lectura segura del tipo numérico (puede llegar como int, double o num desde JSON/Supabase)
-    final dynamic rawCat =
-        widget.gameData['game_type'] ??
-        widget.gameData['category'] ??
-        _enrichedData['game_type'] ??
+    final int? categoryId =
+        widget.gameData.gameType ??
+        widget.gameData.category ??
         _enrichedData['category'];
-    final int? categoryId = (rawCat is num)
-        ? rawCat.toInt()
-        : int.tryParse(rawCat?.toString() ?? '');
 
     final int? resolvedCategory = IgdbConstants.resolveCategory(
       categoryId,
       title,
       hasParentGame: hasParentGame,
       summary:
-          widget.gameData['summary']?.toString() ??
+          widget.gameData.summary?.toString() ??
           _enrichedData['summary']?.toString(),
     );
     final String? categoryLabel =
         resolvedCategory != null && !IgdbConstants.isMainGame(resolvedCategory)
         ? IgdbConstants.getCategoryName(resolvedCategory)
         : null;
-    // catColor: delegado a GameInfoTab vía IgdbConstants
 
-    final List<dynamic> genresList =
-        (widget.gameData['genres'] as List?)?.isNotEmpty == true
-        ? widget.gameData['genres']
+    final List<dynamic> genresList = widget.gameData.genres.isNotEmpty
+        ? widget.gameData.genres
         : (_enrichedData['genres'] as List? ?? []);
-    final List<dynamic> platformsList =
-        (widget.gameData['platforms'] as List?)?.isNotEmpty == true
-        ? widget.gameData['platforms']
+    final List<dynamic> platformsList = widget.gameData.platforms.isNotEmpty
+        ? widget.gameData.platforms
         : (_enrichedData['platforms'] as List? ?? []);
-    final List<dynamic> themesList =
-        (widget.gameData['themes'] as List?)?.isNotEmpty == true
-        ? widget.gameData['themes']
+    final List<dynamic> themesList = widget.gameData.themes.isNotEmpty
+        ? widget.gameData.themes
         : (_enrichedData['themes'] as List? ?? []);
-    // --- LECTURA INTELIGENTE DE COLECCIÓN Y FRANQUICIAS ---
+
     int? collectionId;
     String? collectionName;
     final dynamic enrichedCol = _enrichedData['collection'];
-    final dynamic fallbackCol = widget.gameData['collection'];
+    final dynamic fallbackCol = widget.gameData.collection;
     final dynamic rawCol = (enrichedCol != null && enrichedCol is Map)
         ? enrichedCol
         : fallbackCol;
@@ -645,11 +617,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     final List<Map<String, dynamic>> franchisesData = [];
 
-    // ─── franchises (plural array — campo moderno) ────────────────────────────
     final List<dynamic> rawFranchises =
         (_enrichedData['franchises'] as List?)?.isNotEmpty == true
         ? (_enrichedData['franchises'] as List)
-        : ((widget.gameData['franchises'] as List?) ?? []);
+        : (widget.gameData.franchises);
 
     for (final f in rawFranchises) {
       if (f is Map && f['name'] != null) {
@@ -664,11 +635,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       }
     }
 
-    // ─── franchise (singular — campo legacy, juegos pre-2015) ─────────────────
-    // Algunos juegos (ej. Mario Kart DS, Wii, 7) solo tienen este campo en IGDB.
-    // Si ya está cubierto por franchises[], lo ignoramos; si no, lo añadimos.
     final dynamic singularFranchise =
-        _enrichedData['franchise'] ?? widget.gameData['franchise'];
+        _enrichedData['franchise'] ??
+        (widget.gameData.franchises.isNotEmpty
+            ? widget.gameData.franchises.first
+            : null);
     if (singularFranchise is Map && singularFranchise['name'] != null) {
       final int? sfId = (singularFranchise['id'] is num)
           ? (singularFranchise['id'] as num).toInt()
@@ -681,37 +652,26 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       }
     }
 
-    final List<dynamic> rawEngines =
-        (widget.gameData['game_engines'] as List?)
-            ?.where(
-              (e) =>
-                  e != null &&
-                  e.toString() != 'null' &&
-                  e.toString().isNotEmpty,
-            )
-            .toList() ??
-        [];
+    final List<dynamic> rawEngines = widget.gameData.gameEngines
+        .where((e) => e.toString() != 'null' && e.toString().isNotEmpty)
+        .toList();
     final List<dynamic> gameEnginesList = rawEngines.isNotEmpty
         ? rawEngines
         : (_enrichedData['game_engines'] as List? ?? []);
 
-    final List screenshotsList =
-        (widget.gameData['screenshots'] as List?)?.isNotEmpty == true
-        ? widget.gameData['screenshots']
+    final List screenshotsList = widget.gameData.screenshots.isNotEmpty
+        ? widget.gameData.screenshots
         : (_enrichedData['screenshots'] as List? ?? []);
-    final List artworksList =
-        (widget.gameData['artworks'] as List?)?.isNotEmpty == true
-        ? widget.gameData['artworks']
+    final List artworksList = widget.gameData.artworks.isNotEmpty
+        ? widget.gameData.artworks
         : (_enrichedData['artworks'] as List? ?? []);
-    final List videosList =
-        (widget.gameData['videos'] as List?)?.isNotEmpty == true
-        ? widget.gameData['videos']
+    final List videosList = widget.gameData.videos.isNotEmpty
+        ? widget.gameData.videos
         : (_enrichedData['videos'] as List? ?? []);
-    final List baseWebsitesList =
-        (widget.gameData['websites'] as List?)?.isNotEmpty == true
-        ? widget.gameData['websites']
+    final List baseWebsitesList = widget.gameData.websites.isNotEmpty
+        ? widget.gameData.websites
         : (_enrichedData['websites'] as List? ?? []);
-    final String? igdbUrl = _enrichedData['url'] ?? widget.gameData['url'];
+    final String? igdbUrl = _enrichedData['url'] ?? widget.gameData.url;
     final List websitesList = List.from(baseWebsitesList);
     if (igdbUrl != null && !websitesList.any((w) => w['url'] == igdbUrl)) {
       websitesList.add({'url': igdbUrl, 'category': 1000});

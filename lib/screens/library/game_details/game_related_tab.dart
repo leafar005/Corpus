@@ -3,6 +3,7 @@ import 'package:corpus/routes/corpus_router.dart';
 import '../../../services/igdb_service.dart';
 import '../game_details_screen.dart';
 import 'game_details_controller.dart';
+import '../../../models/models.dart';
 import '../../../widgets/corpus_network_image.dart';
 
 class GameRelatedTab extends StatelessWidget {
@@ -131,7 +132,7 @@ class GameRelatedTab extends StatelessWidget {
                         .toList();
                   }
                   if (MediaQuery.of(context).size.width >= 800) {
-                    context.pushGameDetails(cleanData);
+                    context.pushGameDetails(Game.fromMap(cleanData));
                   } else {
                     showModalBottomSheet(
                       context: context,
@@ -146,7 +147,7 @@ class GameRelatedTab extends StatelessWidget {
                         snap: true,
                         builder: (context, scrollController) {
                           return GameDetailsScreen(
-                            gameData: cleanData,
+                            gameData: Game.fromMap(cleanData),
                             scrollController: scrollController,
                           );
                         },
