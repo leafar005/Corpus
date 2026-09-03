@@ -41,7 +41,26 @@ void setWebPath(
   try {
     final search = html.window.location.search;
     final url = '$path$search';
-    final jsState = state == null ? null : jsonEncode(state);
+    // Flutter Web requiere que el objeto history.state tenga la propiedad
+    // 'serialCount' para su router interno, de lo contrario da un assertion error.
+    dynamic currentState = html.window.history.state;
+    int serialCount = 0;
+    if (currentState != null &&
+        js_util.hasProperty(currentState, 'serialCount')) {
+      serialCount = js_util.getProperty(currentState, 'serialCount') as int;
+    }
+
+    if (!replace) {
+      serialCount += 1;
+    }
+
+    final stateMap = <String, dynamic>{'serialCount': serialCount};
+    if (state != null) {
+      stateMap.addAll(state);
+    }
+
+    final jsState = js_util.jsify(stateMap);
+
     if (replace) {
       html.window.history.replaceState(jsState, '', url);
     } else {

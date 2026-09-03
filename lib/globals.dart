@@ -45,6 +45,18 @@ bool kDisableCarouselForTests = false;
 /// por algo que pasa en una pestaña que el usuario no está viendo.
 final ValueNotifier<int> currentTabIndexNotifier = ValueNotifier<int>(0);
 
+/// Un notificador por cada pestaña (índice 0-4). MainScreen lo incrementa
+/// cada vez que el usuario toca el icono de una pestaña que ya está activa
+/// y está en su raíz (Navigator.isFirst). Las pantallas raíz de cada pestaña
+/// escuchan este notificador para hacer scroll al inicio y resetear su
+/// estado interno (p. ej. la sub-pestaña activa del perfil).
+///
+/// Uso: `tabScrollToTopNotifiers[tabIndex].value++`
+final List<ValueNotifier<int>> tabScrollToTopNotifiers = List.generate(
+  5,
+  (_) => ValueNotifier<int>(0),
+);
+
 // Utilidad global para obtener el espaciado inferior en listas (móvil vs escritorio)
 double getBottomSpacer(BuildContext context) {
   final isDesktop = MediaQuery.of(context).size.width > 800;

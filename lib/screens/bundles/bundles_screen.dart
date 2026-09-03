@@ -43,6 +43,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
 
     _fetchBundles();
     BundlesNavigation.targetQuery.addListener(_onExternalSearch);
+    tabScrollToTopNotifiers[3].addListener(_onScrollToTop);
   }
 
   void _onExternalSearch() {
@@ -58,10 +59,22 @@ class _BundlesScreenState extends State<BundlesScreen> {
   @override
   void dispose() {
     BundlesNavigation.targetQuery.removeListener(_onExternalSearch);
+    tabScrollToTopNotifiers[3].removeListener(_onScrollToTop);
     _debounce?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScrollToTop() {
+    if (!mounted) return;
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _refresh() async {

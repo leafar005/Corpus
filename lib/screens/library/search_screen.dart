@@ -53,6 +53,10 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
     } else {
       _fetchPopularGames(isInitial: true);
     }
+    // Solo la instancia raíz del tab Buscar escucha la señal de scroll-al-inicio.
+    if (widget.initialQuery == null && !widget.isSelectionMode) {
+      tabScrollToTopNotifiers[1].addListener(_onScrollToTop);
+    }
   }
 
   @override
@@ -66,10 +70,24 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
 
   @override
   void dispose() {
+    if (widget.initialQuery == null && !widget.isSelectionMode) {
+      tabScrollToTopNotifiers[1].removeListener(_onScrollToTop);
+    }
     disposePagination();
     _searchController.dispose();
     _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onScrollToTop() {
+    if (!mounted) return;
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _fetchPopularGames({required bool isInitial}) async {

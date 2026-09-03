@@ -42,6 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final ValueNotifier<bool> _canScrollBundlesRight = ValueNotifier(true);
   final ValueNotifier<int> _currentBundlePage = ValueNotifier(0);
 
+  // Controlador principal de scroll de la pantalla (CustomScrollView).
+  final ScrollController _mainScrollController = ScrollController();
+
   bool get _isDesktop {
     if (!mounted) return false;
     try {
@@ -71,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
     libraryUpdateNotifier.addListener(_onLibraryUpdated);
     _latestReviewsScrollController.addListener(_updateScrollArrows);
     _bundlesScrollController.addListener(_updateBundlesScrollArrows);
+    tabScrollToTopNotifiers[0].addListener(_onScrollToTop);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateScrollArrows();
       _updateBundlesScrollArrows();
@@ -98,6 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    tabScrollToTopNotifiers[0].removeListener(_onScrollToTop);
+    _mainScrollController.dispose();
     _latestReviewsScrollController.removeListener(_updateScrollArrows);
     _latestReviewsScrollController.dispose();
     _bundlesScrollController.removeListener(_updateBundlesScrollArrows);
@@ -110,6 +116,17 @@ class _HomeScreenState extends State<HomeScreen> {
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
     _authSub?.cancel();
     super.dispose();
+  }
+
+  void _onScrollToTop() {
+    if (!mounted) return;
+    if (_mainScrollController.hasClients) {
+      _mainScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _onLibraryUpdated() {
@@ -281,6 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return RefreshIndicator(
             onRefresh: _handleRefresh,
             child: CustomScrollView(
+              controller: _mainScrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: slivers,
             ),

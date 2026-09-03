@@ -75,15 +75,28 @@ class _ActivityScreenState extends State<ActivityScreen>
       _subscribeRealtime();
       libraryUpdateNotifier.addListener(_onLibraryUpdated);
     });
+    tabScrollToTopNotifiers[2].addListener(_onScrollToTop);
   }
 
   @override
   void dispose() {
     disposePagination();
+    tabScrollToTopNotifiers[2].removeListener(_onScrollToTop);
     _realtimeChannel?.unsubscribe();
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
     _authSub?.cancel();
     super.dispose();
+  }
+
+  void _onScrollToTop() {
+    if (!mounted) return;
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _onLibraryUpdated() {

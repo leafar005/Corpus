@@ -94,14 +94,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!_controller.isGuestProfile) {
       libraryUpdateNotifier.addListener(_onLibraryUpdated);
     }
+    // Solo la instancia raíz del tab Perfil (perfil propio) reacciona
+    // a la señal de scroll-al-inicio emitida desde MainScreen.
+    if (widget.userId == null) {
+      tabScrollToTopNotifiers[4].addListener(_onScrollToTop);
+    }
   }
 
   @override
   void dispose() {
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
+    if (widget.userId == null) {
+      tabScrollToTopNotifiers[4].removeListener(_onScrollToTop);
+    }
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Reacciona a la señal de scroll-al-inicio emitida por MainScreen cuando
+  /// el usuario toca el icono del tab Perfil estando ya en él.
+  void _onScrollToTop() {
+    if (!mounted) return;
+    // Volver a la primera sub-pestaña (índice 0).
+    if (_selectedTab != 0) {
+      setState(() => _selectedTab = 0);
+    }
+    // Animar hasta la parte superior del scroll principal.
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _onLibraryUpdated() {

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'forgot_password_screen.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../globals.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -80,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Image.asset(
-                  'assets/images/logo_no_bg.png',
+                  'assets/images/logo/logo_default.png',
                   height: 200,
                   filterQuality: FilterQuality.high,
                   isAntiAlias: true,

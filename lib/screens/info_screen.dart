@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../utils/url_utils.dart';
 import '../widgets/corpus_section_title.dart';
+import '../globals.dart';
 
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
@@ -28,7 +29,7 @@ class InfoScreen extends StatelessWidget {
             // Header del Proyecto
             const SizedBox(height: 20),
             Image.asset(
-              'assets/images/logo_no_bg.png',
+              'assets/images/logo/logo_default.png',
               height: 100,
               filterQuality: FilterQuality.high,
               isAntiAlias: true,

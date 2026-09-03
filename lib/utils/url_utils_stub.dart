@@ -17,6 +17,7 @@ class Location {
 }
 
 class History {
+  dynamic state;
   void pushState(dynamic state, String title, String url) {}
   void replaceState(dynamic state, String title, String url) {}
   void back() {}

@@ -10,7 +10,6 @@ import 'bundles/bundles_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import '../theme/corpus_theme_extension.dart';
-import '../theme/corpus_typography.dart';
 import '../theme/style_pack.dart';
 import '../widgets/p5r_dynamic_frame.dart';
 import '../utils/web_js.dart';
@@ -273,6 +272,10 @@ class _MainScreenState extends State<MainScreen>
         AppNavigationController.instance.replaceCurrentUrlWithRoot(index);
       }
 
+      // Señal a la pantalla raíz para que haga scroll al inicio y, si aplica,
+      // resetee su estado interno (p. ej. sub-pestaña del perfil).
+      tabScrollToTopNotifiers[index].value++;
+
       // Si ya estamos en Actividad y el badge quedó "pegado" por cualquier
       // motivo (p. ej. llegó actividad nueva mientras estábamos aquí y no se
       // marcó como leída), volver a tocar el icono también lo limpia.
@@ -360,7 +363,9 @@ class _MainScreenState extends State<MainScreen>
       child: Row(
         children: [
           Image.asset(
-            'assets/images/logo_full.png',
+            Theme.of(context).brightness == Brightness.dark
+                ? 'assets/images/logo_full/logo_full_default.png'
+                : 'assets/images/logo_full/logo_full_light.png',
             height: 60,
             filterQuality: FilterQuality.high,
             isAntiAlias: true,
@@ -401,7 +406,9 @@ class _MainScreenState extends State<MainScreen>
               child: Row(
                 children: [
                   Image.asset(
-                    'assets/images/logo_full.png',
+                    Theme.of(context).brightness == Brightness.dark
+                        ? 'assets/images/logo_full/logo_full_default.png'
+                        : 'assets/images/logo_full/logo_full_light.png',
                     height: 24,
                     filterQuality: FilterQuality.high,
                     isAntiAlias: true,
@@ -479,7 +486,7 @@ class _MainScreenState extends State<MainScreen>
     final isSelected = _currentIndex == index;
     final color = isSelected
         ? Theme.of(context).colorScheme.primary
-        : Colors.grey.shade400;
+        : Theme.of(context).colorScheme.onSurfaceVariant;
 
     return InkWell(
       onTap: () => _onTabTapped(index),

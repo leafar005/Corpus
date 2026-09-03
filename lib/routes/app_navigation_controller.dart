@@ -124,9 +124,13 @@ class AppNavigationController {
       path = getWebPathname() ?? publicPathForTabRoute(stackIndex, null);
     }
 
+    // depth == 0 → ruta raíz de la pestaña: usamos replaceState para
+    // sustituir la entrada inicial (p. ej. '/') por la URL canónica
+    // (p. ej. '/inicio'), evitando que quede una entrada «huérfana» en
+    // el historial que un «atrás» pudiera retomar.
     setWebPath(
       path,
-      replace: false,
+      replace: depth == 0,
       state: {'tab': stackIndex, 'depth': depth, 'token': token},
     );
   }
@@ -275,12 +279,29 @@ class AppNavigationController {
       } else if (depth == currentDepth && targetFrameStillAlive) {
         // Nada que hacer (p. ej. el usuario pulsó atrás y adelante muy
         // rápido y los eventos se superpusieron): ya estamos donde toca.
+      } else if (depth > currentDepth) {
+        // ── CASO: HISTORIAL HUÉRFANO ─────────────────────────────────
+        // El historial del navegador pide una ruta hacia adelante que ya
+        // no existe en nuestra pila (típico al hacer truncateStack tras pulsar
+        // el icono de un tab). Reemplazamos la URL por la que corresponde
+        // al tope actual de la pila y abortamos.
+        final last = frames.isNotEmpty ? frames.last : null;
+        final subRoute = last != null
+            ? deepRouteFromRouteSettings(last.settings)
+            : null;
+        setWebPath(
+          publicPathForTabRoute(tab, subRoute),
+          replace: true,
+          state: {
+            'tab': tab,
+            'depth': currentDepth,
+            'token': last?.token ?? -1,
+          },
+        );
       } else {
         // ── CAMINO LENTO ─────────────────────────────────────────────
-        // O vamos hacia adelante (rehacer) a un frame que ya no existe en
-        // memoria, o el token no coincide (el usuario saltó varias
-        // entradas con el menú de historial del navegador, o recargó la
-        // página). Único caso en que se acepta una petición de red.
+        // O vamos hacia atrás a un frame que ya no existe en memoria
+        // (por limpieza), o el token no coincide. Reconstruimos desde la URL.
         await _rebuildStackFromUrl(tab, pathname);
       }
     } finally {
@@ -336,7 +357,9 @@ class AppNavigationController {
     final newToken = _nextToken++;
     _stacks[tab] = [
       ...(_stacks[tab] ?? const []),
-      NavHistoryFrame(token: newToken, settings: route.settings),
+      // Guardamos el objeto Route para que removeRoute() funcione
+      // correctamente si el usuario pulsa atrás desde aquí.
+      NavHistoryFrame(token: newToken, settings: route.settings, route: route),
     ];
     setWebPath(
       publicPathForTabRoute(tab, subRoute),
@@ -362,15 +385,21 @@ class AppNavigationController {
     }
   }
 
-  void recordTabSwitch(int toTab) {
+  void recordTabSwitch(int toTab, {int retries = 0}) {
     final frames = _stacks[toTab] ?? const [];
     if (frames.isEmpty) {
+      if (retries >= 5) {
+        debugPrint(
+          '[Nav] recordTabSwitch: frames de tab $toTab siguen vacíos tras $retries reintentos',
+        );
+        return;
+      }
       // Primera visita a esta pestaña en la sesión: su Navigator todavía
       // no ha construido ni empujado su ruta raíz (eso ocurre en el
       // siguiente frame). Diferimos un frame — mismo patrón que ya usaba
       // el código actual para este caso (`addPostFrameCallback`).
       WidgetsBinding.instance.addPostFrameCallback(
-        (_) => recordTabSwitch(toTab),
+        (_) => recordTabSwitch(toTab, retries: retries + 1),
       );
       return;
     }
@@ -384,40 +413,5 @@ class AppNavigationController {
     );
   }
 
-  Future<void> bootstrapStack(String fromUrl, TabDeepRoute? subRoute) async {
-    final tab = AppRoutes.tabIndexFromPublicPath(fromUrl) ?? 0;
-
-    // First, give the Navigator a tick to push the root frame.
-    // Wait for frames to populate the root frame first!
-    if ((_stacks[tab] ?? const []).isEmpty) {
-      await Future.delayed(const Duration(milliseconds: 50));
-    }
-
-    _replaying = true;
-    try {
-      if (subRoute != null) {
-        final navigator = _navigatorFor(tab);
-        final route = await DeepRouteResolver.buildRoute(subRoute);
-        if (route != null) {
-          navigator?.push(route);
-          final newToken = _nextToken++;
-          _stacks[tab] = [
-            ...(_stacks[tab] ?? const []),
-            NavHistoryFrame(token: newToken, settings: route.settings),
-          ];
-          setWebPath(
-            publicPathForTabRoute(tab, subRoute),
-            replace: true,
-            state: {
-              'tab': tab,
-              'depth': (_stacks[tab]!.length - 1),
-              'token': newToken,
-            },
-          );
-        }
-      }
-    } finally {
-      _replaying = false;
-    }
-  }
+  // (Eliminado bootstrapStack por ser código muerto)
 }

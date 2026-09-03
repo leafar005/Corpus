@@ -372,8 +372,30 @@ abstract final class CorpusRouter {
 // `arguments` de la ruta; para añadir una pantalla nueva a esa lista, se
 // añade un caso en deepRouteFromRouteSettings.
 
+// ── Debounce de navegación ───────────────────────────────────────────────────
+//
+// Previene que taps rápidos/repetidos encolen múltiples pantallas.
+// Si se produce un segundo push dentro de los 600 ms siguientes al anterior,
+// se descarta silenciosamente (devuelve Future(null)).
+//
+// pushReplacementRoute queda exento: se usa en flujos de control (importación
+// de Steam, etc.) donde no hay riesgo de taps múltiples accidentales.
+DateTime? _lastPushTime;
+const Duration _pushDebounceWindow = Duration(milliseconds: 600);
+
+bool _shouldThrottlePush() {
+  final now = DateTime.now();
+  if (_lastPushTime != null &&
+      now.difference(_lastPushTime!) < _pushDebounceWindow) {
+    return true; // demasiado pronto — descartar
+  }
+  _lastPushTime = now;
+  return false;
+}
+
 extension CorpusNavigation on BuildContext {
   Future<T?> pushRoute<T>(String name, {Object? arguments}) {
+    if (_shouldThrottlePush()) return Future.value(null);
     return Navigator.push<T>(
       this,
       CorpusRouter.route<T>(RouteSettings(name: name, arguments: arguments)),
