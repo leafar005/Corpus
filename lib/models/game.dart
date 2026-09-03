@@ -28,12 +28,27 @@ class Game {
     this.category,
     this.gameType,
     this.parentGameId,
+    this.versionParentId,
+    this.remakeOfId,
+    this.remasterOfId,
     this.isSteamOnly = false,
     this.metacriticScore,
     this.metacriticUrl,
     this.metacriticUserScore,
     this.metacriticSlug,
     this.metacriticUpdatedAt,
+    this.screenshots = const [],
+    this.artworks = const [],
+    this.videos = const [],
+    this.websites = const [],
+    this.publisher,
+    this.publisherId,
+    this.developerId,
+    this.playerPerspectives = const [],
+    this.aggregatedRating,
+    this.url,
+    this.metacriticCriticCount,
+    this.metacriticUserRatingCount,
   });
 
   final int igdbId;
@@ -52,6 +67,9 @@ class Game {
   final int? category;
   final int? gameType;
   final int? parentGameId;
+  final int? versionParentId;
+  final int? remakeOfId;
+  final int? remasterOfId;
   final bool isSteamOnly;
 
   // Metacritic (persistido desde la Edge Function get-metacritic-score)
@@ -60,6 +78,20 @@ class Game {
   final double? metacriticUserScore;
   final String? metacriticSlug;
   final DateTime? metacriticUpdatedAt;
+  final int? metacriticCriticCount;
+  final int? metacriticUserRatingCount;
+
+  // Nuevos campos fase 4
+  final List<String> screenshots;
+  final List<String> artworks;
+  final List<String> videos;
+  final List<dynamic> websites;
+  final String? publisher;
+  final int? publisherId;
+  final int? developerId;
+  final List<String> playerPerspectives;
+  final double? aggregatedRating;
+  final String? url;
 
   /// Devuelve true si el dato de Metacritic existe y tiene menos de 30 días.
   bool get hasRecentMetacriticData {
@@ -98,6 +130,9 @@ class Game {
       category: (map['category'] as num?)?.toInt(),
       gameType: (map['game_type'] as num?)?.toInt(),
       parentGameId: (map['parent_game'] as num?)?.toInt(),
+      versionParentId: (map['version_parent'] as num?)?.toInt(),
+      remakeOfId: (map['remake_of'] as num?)?.toInt(),
+      remasterOfId: (map['remaster_of'] as num?)?.toInt(),
       isSteamOnly: map['is_steam_only'] == true,
       metacriticScore: (map['metacritic_score'] as num?)?.toInt(),
       metacriticUrl: map['metacritic_url'] as String?,
@@ -110,6 +145,19 @@ class Game {
       metacriticUpdatedAt: map['metacritic_updated_at'] != null
           ? DateTime.tryParse(map['metacritic_updated_at'] as String)
           : null,
+      metacriticCriticCount: (map['metacritic_critic_count'] as num?)?.toInt(),
+      metacriticUserRatingCount: (map['metacritic_user_rating_count'] as num?)
+          ?.toInt(),
+      screenshots: _parseStringList(map['screenshots'], isImage: true),
+      artworks: _parseStringList(map['artworks'], isImage: true),
+      videos: _parseStringList(map['videos'], isVideo: true),
+      websites: map['websites'] is List ? map['websites'] as List : [],
+      publisher: map['publisher'] as String?,
+      publisherId: (map['publisher_id'] as num?)?.toInt(),
+      developerId: (map['developer_id'] as num?)?.toInt(),
+      playerPerspectives: _parseStringList(map['player_perspectives']),
+      aggregatedRating: (map['aggregated_rating'] as num?)?.toDouble(),
+      url: map['url'] as String?,
     );
   }
 
@@ -130,6 +178,9 @@ class Game {
     if (category != null) 'category': category,
     if (gameType != null) 'game_type': gameType,
     if (parentGameId != null) 'parent_game': parentGameId,
+    if (versionParentId != null) 'version_parent': versionParentId,
+    if (remakeOfId != null) 'remake_of': remakeOfId,
+    if (remasterOfId != null) 'remaster_of': remasterOfId,
     if (isSteamOnly) 'is_steam_only': true,
     if (metacriticScore != null) 'metacritic_score': metacriticScore,
     if (metacriticUrl != null) 'metacritic_url': metacriticUrl,
@@ -138,16 +189,43 @@ class Game {
     if (metacriticSlug != null) 'metacritic_slug': metacriticSlug,
     if (metacriticUpdatedAt != null)
       'metacritic_updated_at': metacriticUpdatedAt!.toIso8601String(),
+    if (metacriticCriticCount != null)
+      'metacritic_critic_count': metacriticCriticCount,
+    if (metacriticUserRatingCount != null)
+      'metacritic_user_rating_count': metacriticUserRatingCount,
+    if (screenshots.isNotEmpty) 'screenshots': screenshots,
+    if (artworks.isNotEmpty) 'artworks': artworks,
+    if (videos.isNotEmpty) 'videos': videos,
+    if (websites.isNotEmpty) 'websites': websites,
+    if (publisher != null) 'publisher': publisher,
+    if (publisherId != null) 'publisher_id': publisherId,
+    if (developerId != null) 'developer_id': developerId,
+    if (playerPerspectives.isNotEmpty)
+      'player_perspectives': playerPerspectives,
+    if (aggregatedRating != null) 'aggregated_rating': aggregatedRating,
+    if (url != null) 'url': url,
   };
 
   // ── Helpers de parsing ──────────────────────────────────────────────────────
 
-  static List<String> _parseStringList(dynamic raw) {
+  static List<String> _parseStringList(
+    dynamic raw, {
+    bool isImage = false,
+    bool isVideo = false,
+  }) {
     if (raw == null) return const [];
     if (raw is List) {
       return raw
           .map((e) {
-            if (e is Map) return e['name']?.toString() ?? '';
+            if (e is Map) {
+              if (isImage && e['image_id'] != null) {
+                return e['image_id'].toString();
+              }
+              if (isVideo && e['video_id'] != null) {
+                return e['video_id'].toString();
+              }
+              return e['name']?.toString() ?? '';
+            }
             return e.toString();
           })
           .where((s) => s.isNotEmpty)
