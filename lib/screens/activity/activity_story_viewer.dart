@@ -324,7 +324,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     _togglePause(true);
     final isDesktop = MediaQuery.of(context).size.width > 800;
     final future = isDesktop
-        ? context.pushGameDetails(gameData)
+        ? context.pushGameDetails(Game.fromMap(gameData))
         : showModalBottomSheet(
             context: context,
             isScrollControlled: true,
@@ -337,7 +337,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
               expand: false,
               snap: true,
               builder: (context, scrollController) => GameDetailsScreen(
-                gameData: gameData,
+                gameData: Game.fromMap(gameData),
                 scrollController: scrollController,
               ),
             ),
@@ -354,7 +354,11 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     _togglePause(true);
     final navigator = Navigator.of(context);
     navigator.pop();
-    navigator.context.pushReviewDetails(gameData, _currentUserData, review);
+    navigator.context.pushReviewDetails(
+      Game.fromMap(gameData),
+      _currentUserData,
+      review,
+    );
   }
 
   @override

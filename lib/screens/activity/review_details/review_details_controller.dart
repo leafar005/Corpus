@@ -9,12 +9,12 @@ import '../../../models/models.dart';
 class ReviewDetailsController extends ChangeNotifier {
   ReviewDetailsController({
     required Map<String, dynamic> initialReviewData,
-    required this.gameData,
+    required this.game,
   }) : currentReviewData = Map<String, dynamic>.from(initialReviewData),
        _activityRepo = ActivityRepository(),
        _reviewRepo = ReviewRepository();
 
-  final Map<String, dynamic> gameData;
+  final Game game;
   final ActivityRepository _activityRepo;
   final ReviewRepository _reviewRepo;
 
@@ -150,14 +150,10 @@ class ReviewDetailsController extends ChangeNotifier {
   }
 
   Future<void> deleteReview(String reviewId) async {
-    final gameId =
-        (gameData['igdb_id'] ??
-                gameData['id'] ??
-                currentReviewData['game_id'] as num?)
-            ?.toInt();
+    final gameId = game.igdbId;
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
-    if (gameId == null || currentUserId == null) return;
+    if (currentUserId == null) return;
 
     await _reviewRepo.deleteReview(
       reviewId: reviewId,
@@ -199,15 +195,14 @@ class ReviewDetailsController extends ChangeNotifier {
       throw Exception('Not logged in');
     }
 
-    final igdbId =
-        gameData['igdb_id'] ?? gameData['id'] ?? currentReviewData['game_id'];
+    final igdbId = game.igdbId;
 
     try {
       final result = await _reviewRepo.saveReview(
         userId: userId,
         igdbId: igdbId,
-        gameData: gameData,
-        enrichedData: gameData,
+        gameData: game.toMap(),
+        enrichedData: game.toMap(),
         reviewId: reviewId ?? currentReviewData['id'],
         rating: rating,
         ratingGameplay: ratingGameplay,

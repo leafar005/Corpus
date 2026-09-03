@@ -411,21 +411,28 @@ class _ActivityScreenState extends State<ActivityScreen>
     void openReview() {
       if (review == null) return;
       context
-          .pushReviewDetails(gameData, userData, review)
+          .pushReviewDetails(Game.fromMap(gameData), userData, review)
           .then((_) => _refreshInPlace());
     }
 
     void openReviewComments() {
       if (review == null) return;
       context
-          .pushReviewDetails(gameData, userData, review, focusComment: true)
+          .pushReviewDetails(
+            Game.fromMap(gameData),
+            userData,
+            review,
+            focusComment: true,
+          )
           .then((_) => _refreshInPlace());
     }
 
     void openGameDetails() {
       final isDesktop = MediaQuery.of(context).size.width > 800;
       if (isDesktop) {
-        context.pushGameDetails(gameData).then((_) => _refreshInPlace());
+        context
+            .pushGameDetails(Game.fromMap(gameData))
+            .then((_) => _refreshInPlace());
       } else {
         showModalBottomSheet(
           context: context,
@@ -439,7 +446,7 @@ class _ActivityScreenState extends State<ActivityScreen>
             expand: false,
             snap: true,
             builder: (context, scrollController) => GameDetailsScreen(
-              gameData: gameData,
+              gameData: Game.fromMap(gameData),
               scrollController: scrollController,
             ),
           ),
@@ -458,7 +465,7 @@ class _ActivityScreenState extends State<ActivityScreen>
         );
         if (review != null && mounted) {
           context
-              .pushReviewDetails(gameData, userData, review)
+              .pushReviewDetails(Game.fromMap(gameData), userData, review)
               .then((_) => _refreshInPlace());
           return;
         }

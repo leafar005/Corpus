@@ -23,7 +23,7 @@ import '../../widgets/coop_badge.dart';
 import 'review_details/review_details_controller.dart';
 
 class ReviewDetailsScreen extends StatefulWidget {
-  final Map<String, dynamic> gameData;
+  final Game gameData;
   final Map<String, dynamic>? userData;
   final Map<String, dynamic> reviewData;
   final bool focusComment;
@@ -64,7 +64,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     super.initState();
     _controller = ReviewDetailsController(
       initialReviewData: widget.reviewData,
-      gameData: widget.gameData,
+      game: widget.gameData,
     );
     _controller.fetchInteractions();
     _controller.fetchPartner();
@@ -255,8 +255,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
     ReviewModal.show(
       context: context,
-      gameData: widget.gameData,
-      enrichedData: widget.gameData,
+      gameData: widget.gameData.toMap(),
+      enrichedData: widget.gameData.toMap(),
       existingReview: Review.fromMap(_currentReviewData),
       currentPartnerIds: _partnersData.map((e) => e['id'] as String).toList(),
       isSaving: _isSubmitting,
@@ -451,8 +451,10 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
-    final title = widget.gameData['title'] ?? 'Desconocido';
-    final coverUrl = widget.gameData['cover_url'] ?? '';
+    final title = widget.gameData.title.isNotEmpty
+        ? widget.gameData.title
+        : 'Desconocido';
+    final coverUrl = widget.gameData.coverUrl ?? '';
     final username = widget.userData?['username'] ?? 'Jugador';
     final avatarUrl = widget.userData?['avatar_url'];
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
@@ -1359,7 +1361,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                         if (isDesktop) {
                                                           context
                                                               .pushGameDetails(
-                                                                gameData,
+                                                                Game.fromMap(
+                                                                  gameData,
+                                                                ),
                                                               );
                                                         } else {
                                                           showModalBottomSheet(
@@ -1381,7 +1385,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                                     scrollController,
                                                                   ) => GameDetailsScreen(
                                                                     gameData:
-                                                                        gameData,
+                                                                        Game.fromMap(
+                                                                          gameData,
+                                                                        ),
                                                                     scrollController:
                                                                         scrollController,
                                                                   ),
