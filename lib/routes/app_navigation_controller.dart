@@ -276,7 +276,15 @@ class AppNavigationController {
         // falta desapilar. Cero peticiones de red, cero spinners.
         final navigator = _navigatorFor(tab);
         final steps = currentDepth - depth;
-        for (var i = 0; i < steps; i++) {
+        
+        // En Web, cada vez que salta un evento `popstate`, el motor interno de Flutter
+        // lanza un SystemNavigator.pop() de forma nativa. Si nosotros también hacemos
+        // pop de todas las rutas, tendríamos un DOBLE POP.
+        // Por lo tanto, hacemos (steps - 1) pops manuales y dejamos que el último 
+        // lo haga Flutter automáticamente.
+        final manualSteps = steps - 1;
+        
+        for (var i = 0; i < manualSteps; i++) {
           final topFrame = frames[currentDepth - i];
           if (isNativeBrowserBack && topFrame.route != null) {
             navigator?.removeRoute(topFrame.route!);

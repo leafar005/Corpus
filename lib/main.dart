@@ -235,6 +235,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
   }
 
+
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
