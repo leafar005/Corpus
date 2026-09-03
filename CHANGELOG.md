@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3] - 2026-09-03
+
+### Añadido
+- **Tipado Fuerte (Type Safety):** Migración completa de toda la aplicación (Router, Core, Modelos y todas las pantallas de UI) a modelos de juego fuertemente tipados (`Game`). Activada la regla de análisis estricta `avoid_dynamic` para evitar fallos inesperados.
+- **Diario (Journal) e Interfaz:** Modernizada la pestaña del Diario, renovado el diseño de los iconos de plataformas (badges) y añadido un efecto de zoom al hacer hover en las carátulas grandes (Hero showcase).
+- **Componentes de UI:** Nuevo widget `mention_text` para interactuar con nombres de usuario etiquetados, y sistema de *Scroll-to-top* integrado: pulsar en la pestaña activa del menú ahora hace que la pantalla se desplace al principio automáticamente.
+- **Ajustes y Personalización:** Preparada la infraestructura del servicio de preferencias y ajustes del usuario, junto a un rediseño de logos y recursos gráficos (assets).
+
+### Cambiado
+- **Iconos del Sistema y PWA:** Sustitución global de iconos adaptativos en Android, iOS, Windows, macOS y Web. La PWA instalada usa ahora el isotipo alargado completo, mientras que el *favicon* en la pestaña web mantiene el diseño reducido.
+
+### Arreglado
+- **Navegación Web (Router & History):** Arreglado un *crash* del motor interno de Flutter Web originado por un objeto de estado del historial vacío (`serialCount`); se ha estabilizado la sincronización entre el estado interno y el historial del navegador.
+- **Doble Navegación:** Implementado un escudo `debounce` global en las llamadas directas e indirectas de `Navigator.push` para bloquear las transiciones dobles al tocar múltiples veces un elemento rápido.
+- **Modo Claro (Accesibilidad):** Se han eliminado sombras invasivas y corregido el color del texto superpuesto en las cabeceras de juegos (`Game Hero Section`) para garantizar su legibilidad en temas claros.
+- **Modal de Reseñas:** Los campos de fecha ahora reaccionan lógicamente a los cambios de estado del juego, borrándose o ajustándose automáticamente según corresponda.
+- **Logros:** Refactorizada la arquitectura interna de la gestión de Logros y subsanados los errores de contexto en sus ventanas emergentes (`Toasts`).
+- **Rendimiento y Limpieza:** Arregladas fugas de memoria (`AnimationController` mal desechado en `main_screen`), y reducida la memoria RAM asignada al demonio de Gradle (`gradle.properties`) para solucionar bloqueos por falta de memoria virtual (`C2 CompilerThread out of memory`) en sistemas de desarrollo en Windows.
+
 ## [1.2.2] - 2026-09-01
 
 ### Añadido
