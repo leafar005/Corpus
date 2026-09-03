@@ -38,6 +38,10 @@ class AppNavigationController {
   /// o botón de atrás del propio navegador.
   bool _isProgrammaticBack = false;
 
+  // Contador para ignorar pops nativos que ya hemos procesado sincrónicamente
+  // para evitar double-truncating de la pila en clics rápidos.
+  int _ignorePopSyncCount = 0;
+
   /// Registradas una sola vez al arrancar la app.
   List<GlobalKey<NavigatorState>>?
   _tabNavigatorKeys; // longitud 5, índice = pestaña
@@ -136,6 +140,11 @@ class AppNavigationController {
   }
 
   void onNavigatorPop(int stackIndex) {
+    if (!kIsWeb) return;
+    if (_ignorePopSyncCount > 0) {
+      _ignorePopSyncCount--;
+      return;
+    }
     final frames = _stacks[stackIndex];
     if (frames == null || frames.isEmpty) return; // defensivo
     _stacks[stackIndex] = frames.sublist(0, frames.length - 1);
@@ -280,6 +289,11 @@ class AppNavigationController {
         final navigator = _navigatorFor(tab);
         final steps = currentDepth - depth;
         
+        // Actualizamos sincrónicamente para evitar condiciones de carrera en 
+        // clics rápidos donde didPop/didRemove tardan en actualizar el estado.
+        _stacks[tab] = frames.sublist(0, frames.length - steps);
+        _ignorePopSyncCount += steps;
+        
         for (var i = 0; i < steps; i++) {
           final topFrame = frames[currentDepth - i];
           if (isNativeBrowserBack && topFrame.route != null) {
@@ -411,6 +425,9 @@ class AppNavigationController {
           final navigator = _navigatorFor(tab);
           final stepsToPop = frames.length - 1 - i;
           
+          _stacks[tab] = frames.sublist(0, frames.length - stepsToPop);
+          _ignorePopSyncCount += stepsToPop;
+
           // Pops visuales nativos sin recargar toda la jerarquía
           for (int j = 0; j < stepsToPop; j++) {
             navigator?.pop();
