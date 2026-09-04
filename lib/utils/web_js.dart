@@ -138,6 +138,10 @@ Map<String, Object?>? readWebHistoryState(Object? rawState) {
     } else {
       final dynamic decoded = js_util.dartify(rawState);
       if (decoded is Map) return Map<String, Object?>.from(decoded);
+      if (decoded is String) {
+        final parsed = jsonDecode(decoded);
+        if (parsed is Map) return Map<String, Object?>.from(parsed);
+      }
     }
   } catch (e) {
     debugPrint('[WebJs] Error leyendo history.state: $e');

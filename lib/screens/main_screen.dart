@@ -319,25 +319,32 @@ class _MainScreenState extends State<MainScreen>
     if (!_initializedTabs.contains(index)) {
       return const SizedBox.shrink();
     }
-    return Offstage(
-      offstage: _currentIndex != index,
-      child: Navigator(
-        key: _navigatorKeys[index],
-        observers: [_tabUrlObservers[index]],
-        onGenerateRoute: (routeSettings) {
-          final tabRoute = switch (index) {
-            0 => AppRoutes.tabHome,
-            1 => AppRoutes.tabSearch,
-            2 => AppRoutes.tabActivity,
-            3 => AppRoutes.tabBundles,
-            4 => AppRoutes.tabProfile,
-            _ => AppRoutes.tabHome,
-          };
-          return MaterialPageRoute(
-            settings: RouteSettings(name: tabRoute),
-            builder: (context) => _getScreen(index),
-          );
-        },
+    final isOffstage = _currentIndex != index;
+    return ExcludeFocus(
+      excluding: isOffstage,
+      child: TickerMode(
+        enabled: !isOffstage,
+        child: Offstage(
+          offstage: isOffstage,
+          child: Navigator(
+            key: _navigatorKeys[index],
+            observers: [_tabUrlObservers[index]],
+            onGenerateRoute: (routeSettings) {
+              final tabRoute = switch (index) {
+                0 => AppRoutes.tabHome,
+                1 => AppRoutes.tabSearch,
+                2 => AppRoutes.tabActivity,
+                3 => AppRoutes.tabBundles,
+                4 => AppRoutes.tabProfile,
+                _ => AppRoutes.tabHome,
+              };
+              return MaterialPageRoute(
+                settings: RouteSettings(name: tabRoute),
+                builder: (context) => _getScreen(index),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
