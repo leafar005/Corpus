@@ -12,7 +12,7 @@ import '../../widgets/corpus_network_image.dart';
 /// Callback invocado cuando el usuario pulsa "Guardar/Publicar Reseña".
 /// Firma idéntica a [_GameDetailsScreenState._saveReview].
 typedef OnSaveReview =
-    Future<void> Function({
+    Future<bool> Function({
       String? reviewId,
       required double rating,
       required double ratingGameplay,
@@ -157,6 +157,7 @@ class ReviewModal {
 
     // Paso 1: elegir estado. Paso 2: rellenar datos.
     bool statusStepConfirmed = hasReview || inLibrary;
+    bool isLocalSaving = false;
 
     showModalBottomSheet(
       context: context,
@@ -1306,38 +1307,55 @@ class ReviewModal {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: isSaving
+                          onPressed: isLocalSaving
                               ? null
-                              : () => onSave(
-                                  reviewId: reviewId,
-                                  rating: reviewRating,
-                                  ratingGameplay: reviewRatingGameplay,
-                                  ratingNarrative: reviewRatingNarrative,
-                                  ratingSoundtrack: reviewRatingSoundtrack,
-                                  ratingVisuals: reviewRatingVisuals,
-                                  comment: reviewCommentController.text,
-                                  status: reviewStatus,
-                                  completionType: reviewStatus == 'wishlist'
-                                      ? 'none'
-                                      : reviewCompletionType,
-                                  isReplay:
-                                      !(reviewStatus == 'wishlist') &&
-                                      reviewIsReplay,
-                                  replayNumber: reviewIsReplay
-                                      ? reviewReplayNumber
-                                      : null,
-                                  platform: reviewPlatform,
-                                  playTimeHours: double.tryParse(playTimeText),
-                                  playedFrom: reviewPlayedFrom,
-                                  playedUntil: reviewPlayedUntil,
-                                  progressPercent: reviewProgressPercent > 0
-                                      ? reviewProgressPercent
-                                      : null,
-                                  reviewDate: reviewDate,
-                                  newImages: newImages,
-                                  existingImages: existingImages,
-                                  partnerIds: reviewPartnerIds,
-                                ),
+                              : () async {
+                                  setModalState(() => isLocalSaving = true);
+                                  final success = await onSave(
+                                    reviewId: reviewId,
+                                    rating: reviewRating,
+                                    ratingGameplay: reviewRatingGameplay,
+                                    ratingNarrative: reviewRatingNarrative,
+                                    ratingSoundtrack: reviewRatingSoundtrack,
+                                    ratingVisuals: reviewRatingVisuals,
+                                    comment: reviewCommentController.text,
+                                    status: reviewStatus,
+                                    completionType: reviewStatus == 'wishlist'
+                                        ? 'none'
+                                        : reviewCompletionType,
+                                    isReplay:
+                                        !(reviewStatus == 'wishlist') &&
+                                        reviewIsReplay,
+                                    replayNumber: reviewIsReplay
+                                        ? reviewReplayNumber
+                                        : null,
+                                    platform: reviewPlatform,
+                                    playTimeHours: double.tryParse(
+                                      playTimeText,
+                                    ),
+                                    playedFrom: reviewPlayedFrom,
+                                    playedUntil: reviewPlayedUntil,
+                                    progressPercent: reviewProgressPercent > 0
+                                        ? reviewProgressPercent
+                                        : null,
+                                    reviewDate: reviewDate,
+                                    newImages: newImages,
+                                    existingImages: existingImages,
+                                    partnerIds: reviewPartnerIds,
+                                  );
+                                  if (modalContext.mounted) {
+                                    if (success) {
+                                      final route = ModalRoute.of(modalContext);
+                                      if (route != null && route.isCurrent) {
+                                        Navigator.of(modalContext).pop();
+                                      }
+                                    } else {
+                                      setModalState(
+                                        () => isLocalSaving = false,
+                                      );
+                                    }
+                                  }
+                                },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(
                               modalContext,
@@ -1346,7 +1364,7 @@ class ReviewModal {
                               modalContext,
                             ).scaffoldBackgroundColor,
                           ),
-                          child: isSaving
+                          child: isLocalSaving
                               ? CircularProgressIndicator(
                                   color: Theme.of(
                                     modalContext,

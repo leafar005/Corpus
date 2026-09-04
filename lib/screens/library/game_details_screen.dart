@@ -404,7 +404,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     );
   }
 
-  Future<void> _saveReview({
+  Future<bool> _saveReview({
     String? reviewId,
     required double rating,
     required double ratingGameplay,
@@ -460,16 +460,16 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
       if (mounted) {
         libraryUpdateNotifier.value++;
-        Navigator.pop(context);
       }
+      return true;
     } catch (e) {
       debugPrint('[CORPUS] Error saving review: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error al guardar reseña: $e')));
-        Navigator.pop(context);
       }
+      return false;
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

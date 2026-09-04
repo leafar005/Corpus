@@ -480,7 +480,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
               row.platform = platform;
               row.playTimeHours = playTimeHours;
             });
-            Navigator.pop(context);
+            return true;
           },
     );
   }

@@ -272,7 +272,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     );
   }
 
-  Future<void> _saveReviewModal({
+  Future<bool> _saveReviewModal({
     String? reviewId,
     required double rating,
     required double ratingGameplay,
@@ -328,11 +328,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       }
 
       if (mounted) {
-        Navigator.pop(context); // Cierra el modal de reseña
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reseña actualizada con éxito')),
         );
       }
+      return true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -342,6 +342,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
           ),
         );
       }
+      return false;
     }
   }
 

@@ -342,6 +342,29 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
+  String _getDynamicLogoFullPath(BuildContext context) {
+    final color = themeNotifier.seedColor;
+    if (color.value == Colors.orange.value)
+      return 'assets/images/logo_full/logo_full_orange.png';
+    if (color.value == Colors.amber.value)
+      return 'assets/images/logo_full/logo_full_amber.png';
+    if (color.value == Colors.green.value)
+      return 'assets/images/logo_full/logo_full_green.png';
+    if (color.value == Colors.teal.value)
+      return 'assets/images/logo_full/logo_full_teal.png';
+    if (color.value == Colors.blueAccent.value)
+      return 'assets/images/logo_full/logo_full_blueAccent.png';
+    if (color.value == Colors.redAccent.value)
+      return 'assets/images/logo_full/logo_full_redAccent.png';
+    if (color.value == Colors.pinkAccent.value)
+      return 'assets/images/logo_full/logo_full_pinkAccent.png';
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? 'assets/images/logo_full/logo_full_default.png'
+        : 'assets/images/logo_full/logo_full_light.png';
+  }
+
   Widget _buildTopNavigationBar(BuildContext context) {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     if (ext.navBarStyle == NavBarStyle.persona5Royal) {
@@ -363,9 +386,7 @@ class _MainScreenState extends State<MainScreen>
       child: Row(
         children: [
           Image.asset(
-            Theme.of(context).brightness == Brightness.dark
-                ? 'assets/images/logo_full/logo_full_default.png'
-                : 'assets/images/logo_full/logo_full_light.png',
+            _getDynamicLogoFullPath(context),
             height: 60,
             filterQuality: FilterQuality.high,
             isAntiAlias: true,
@@ -406,9 +427,7 @@ class _MainScreenState extends State<MainScreen>
               child: Row(
                 children: [
                   Image.asset(
-                    Theme.of(context).brightness == Brightness.dark
-                        ? 'assets/images/logo_full/logo_full_default.png'
-                        : 'assets/images/logo_full/logo_full_light.png',
+                    _getDynamicLogoFullPath(context),
                     height: 24,
                     filterQuality: FilterQuality.high,
                     isAntiAlias: true,
