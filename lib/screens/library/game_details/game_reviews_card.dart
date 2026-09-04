@@ -313,13 +313,13 @@ class GameReviewsCard extends StatelessWidget {
                   ],
                 ),
                 const Divider(height: 24),
-                if (partnersData.isNotEmpty) ...[
+                if (review.partners.isNotEmpty) ...[
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: partnersData.map((partner) {
+                      children: review.partners.map((partner) {
                         return CoopBadge(
                           username: partner.effectiveName,
                           avatarUrl: partner.avatarUrl,

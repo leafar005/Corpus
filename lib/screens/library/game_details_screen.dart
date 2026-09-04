@@ -390,7 +390,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       gameData: widget.gameData.toMap(),
       enrichedData: widget.gameData.toMap(),
       existingReview: existingReview,
-      currentPartnerIds: _partnersData.map((e) => e.id).toList(),
+      currentPartnerIds:
+          existingReview?.partnerIds ?? _partnersData.map((e) => e.id).toList(),
       isSaving: _isSaving,
       currentRating: _rating,
       currentRatingGameplay: _ratingGameplay,
