@@ -41,31 +41,7 @@ void setWebPath(
   try {
     final search = html.window.location.search;
     final url = '$path$search';
-    // Flutter Web requiere que el objeto history.state tenga la propiedad
-    // 'serialCount' para su router interno, de lo contrario da un assertion error.
-    dynamic currentState = html.window.history.state;
-    int serialCount = 0;
-    if (currentState != null &&
-        js_util.hasProperty(currentState, 'serialCount')) {
-      final dynamic rawSerial = js_util.getProperty(currentState, 'serialCount');
-      if (rawSerial is num) {
-        serialCount = rawSerial.toInt();
-      } else if (rawSerial is String) {
-        serialCount = int.tryParse(rawSerial) ?? 0;
-      }
-    }
-
-    if (!replace) {
-      serialCount += 1;
-    }
-
-    final stateMap = <String, dynamic>{'serialCount': serialCount};
-    if (state != null) {
-      stateMap.addAll(state);
-    }
-
-    final jsState = js_util.jsify(stateMap);
-
+    final jsState = state == null ? null : jsonEncode(state);
     if (replace) {
       html.window.history.replaceState(jsState, '', url);
     } else {
@@ -85,19 +61,6 @@ Map<String, Object?>? readWebHistoryState(Object? rawState) {
     } else {
       final dynamic decoded = js_util.dartify(rawState);
       if (decoded is Map) return Map<String, Object?>.from(decoded);
-      
-      // Fallback: Si dartify no devuelve un Map (por temas de prototipos de JS), 
-      // leemos las propiedades directamente.
-      if (js_util.hasProperty(rawState, 'tab')) {
-        return {
-          'tab': js_util.getProperty(rawState, 'tab'),
-          'depth': js_util.getProperty(rawState, 'depth'),
-          'token': js_util.getProperty(rawState, 'token'),
-          'serialCount': js_util.hasProperty(rawState, 'serialCount') 
-              ? js_util.getProperty(rawState, 'serialCount') 
-              : null,
-        };
-      }
     }
   } catch (e) {
     debugPrint('[WebJs] Error leyendo history.state: $e');
