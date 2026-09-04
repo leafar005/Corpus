@@ -714,8 +714,9 @@ class GameDetailsController extends ChangeNotifier {
       this.ratingSoundtrack = ratingSoundtrack;
       this.ratingVisuals = ratingVisuals;
 
-      // Fetch reviews without awaiting, as in the screen logic
+      // Fetch reviews and user data (to update partners) without awaiting
       fetchReviews();
+      fetchUserData();
 
       return result;
     } finally {
@@ -739,6 +740,7 @@ class GameDetailsController extends ChangeNotifier {
     ratingNarrative = 0;
     ratingSoundtrack = 0;
     ratingVisuals = 0;
+    partnersData.clear();
     _notify();
   }
 
@@ -751,7 +753,12 @@ class GameDetailsController extends ChangeNotifier {
     );
 
     reviews.removeWhere((r) => r.id == review.id);
-    if (removedFromLibrary) inLibrary = false;
+    if (removedFromLibrary) {
+      inLibrary = false;
+      partnersData.clear();
+    } else {
+      fetchUserData(); // Refresh global partners
+    }
     _notify();
     return removedFromLibrary;
   }

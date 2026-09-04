@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/globals.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/comment_thread_utils.dart';
@@ -227,6 +228,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Reseña eliminada')));
+        libraryUpdateNotifier.value++;
         AppNavigationController.instance.requestBack(context);
       }
     } catch (e) {
@@ -331,6 +333,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reseña actualizada con éxito')),
         );
+        libraryUpdateNotifier.value++;
       }
       return true;
     } catch (e) {
