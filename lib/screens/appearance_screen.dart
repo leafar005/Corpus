@@ -380,7 +380,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           ).extension<CorpusThemeExtension>()!.radiusLarge,
         ),
         onTap: () {
-          context.pushHomeAppearance();
+          context.pushHomeAppearance().then((_) {
+            libraryUpdateNotifier.value++;
+          });
         },
       ),
     );
@@ -409,7 +411,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           ).extension<CorpusThemeExtension>()!.radiusLarge,
         ),
         onTap: () {
-          context.pushInfoTabAppearance();
+          context.pushInfoTabAppearance().then((_) {
+            libraryUpdateNotifier.value++;
+          });
         },
       ),
     );

@@ -49,7 +49,9 @@ class SettingsScreen extends StatelessWidget {
             title: 'Apariencia',
             subtitle: 'Modo, color principal',
             onTap: () {
-              context.pushAppearance();
+              context.pushAppearance().then((_) {
+                libraryUpdateNotifier.value++;
+              });
             },
           ),
           _buildSettingsTile(
