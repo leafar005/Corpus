@@ -83,4 +83,5 @@ abstract final class AppRoutes {
   static const steamImportProgress = '/steam-import-progress';
   static const importPreview = '/import-preview';
   static const design = '/design';
+  static const privateCollection = '/private/collection';
 }

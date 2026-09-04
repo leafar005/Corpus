@@ -401,7 +401,7 @@ class _MainScreenState extends State<MainScreen>
           const Spacer(),
           _buildTopNavItem(0, 'Inicio', Icons.home),
           const SizedBox(width: 16),
-          _buildTopNavItem(1, 'Buscar', Icons.search),
+          _buildTopNavItem(1, 'Explorar', Icons.explore_outlined),
           const SizedBox(width: 16),
           _buildTopNavItem(2, 'Actividad', Icons.group),
           const SizedBox(width: 16),
@@ -442,7 +442,7 @@ class _MainScreenState extends State<MainScreen>
                   const Spacer(),
                   _buildPersona5RoyalTopNavItem(0, 'Inicio', Icons.home),
                   const SizedBox(width: 16),
-                  _buildPersona5RoyalTopNavItem(1, 'Buscar', Icons.search),
+                  _buildPersona5RoyalTopNavItem(1, 'Explorar', Icons.explore_outlined),
                   const SizedBox(width: 16),
                   _buildPersona5RoyalTopNavItem(2, 'Actividad', Icons.group),
                   const SizedBox(width: 16),
@@ -573,8 +573,8 @@ class _MainScreenState extends State<MainScreen>
                     items: const [
                       LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
                       LiquidGlassTabBarItem(
-                        icon: Icons.search,
-                        label: 'Buscar',
+                        icon: Icons.explore_outlined,
+                        label: 'Explorar',
                       ),
                       LiquidGlassTabBarItem(
                         icon: Icons.group,
@@ -654,7 +654,7 @@ class _MainScreenState extends State<MainScreen>
   Widget _buildPersona5RoyalNavBar(BuildContext context) {
     const items = [
       (Icons.home, 'Inicio'),
-      (Icons.search, 'Buscar'),
+      (Icons.explore_outlined, 'Explorar'),
       (Icons.group, 'Actividad'),
       (Icons.local_offer, 'Bundles'),
       (Icons.person, 'Perfil'),
@@ -764,8 +764,8 @@ class _MainScreenState extends State<MainScreen>
                 label: 'Inicio',
               ),
               const BottomNavigationBarItem(
-                icon: Icon(Icons.search),
-                label: 'Buscar',
+                icon: Icon(Icons.explore_outlined),
+                label: 'Explorar',
               ),
               BottomNavigationBarItem(
                 icon: _withNavBadge(2, const Icon(Icons.group)),
@@ -839,8 +839,8 @@ class _MainScreenState extends State<MainScreen>
                           label: 'Inicio',
                         ),
                         const BottomNavigationBarItem(
-                          icon: Icon(Icons.search),
-                          label: 'Buscar',
+                          icon: Icon(Icons.explore_outlined),
+                          label: 'Explorar',
                         ),
                         BottomNavigationBarItem(
                           icon: _withNavBadge(2, const Icon(Icons.group)),

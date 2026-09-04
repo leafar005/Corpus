@@ -13,6 +13,7 @@ import '../screens/library/group_games_screen.dart';
 import '../screens/library/search_screen.dart';
 import '../screens/profile/achievement_games_screen.dart';
 import '../screens/profile/achievements_screen.dart';
+import '../screens/profile/collection_shelf_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/hall_of_fame_selector_screen.dart';
 import '../screens/profile/profile_screen.dart';
@@ -357,6 +358,12 @@ abstract final class CorpusRouter {
           builder: (_) => const DesignScreen(),
         );
 
+      case AppRoutes.privateCollection:
+        return MaterialPageRoute<T>(
+          settings: settings,
+          builder: (_) => const CollectionShelfScreen(),
+        );
+
       default:
         throw FlutterError('Ruta no registrada: ${settings.name}');
     }
@@ -573,4 +580,7 @@ extension CorpusNavigation on BuildContext {
   }
 
   Future<T?> pushDesign<T>() => pushRoute<T>(AppRoutes.design);
+
+  Future<T?> pushPrivateCollection<T>() =>
+      pushRoute<T>(AppRoutes.privateCollection);
 }

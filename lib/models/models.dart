@@ -13,3 +13,4 @@ export 'achievement.dart';
 export 'game_filters.dart';
 export 'genre_radar_entry.dart';
 export 'genre_time_stat.dart';
+export 'user_game_platform.dart';
