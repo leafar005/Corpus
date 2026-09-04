@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../theme/corpus_theme_extension.dart';
 import 'corpus_pointer.dart';
 
 /// Themed icon button with desktop pointer cursor and pack-aware shape.
 class CorpusIconButton extends StatefulWidget {
-  final IconData icon;
+  final CorpusIconKind icon;
   final VoidCallback? onPressed;
   final String? tooltip;
   final double size;
@@ -47,8 +49,7 @@ class _CorpusIconButtonState extends State<CorpusIconButton> {
       width: widget.size,
       height: widget.size,
       decoration: BoxDecoration(color: bg, borderRadius: ext.radiusMedium),
-      child: Icon(
-        widget.icon,
+      child: CorpusTablerIcon(widget.icon!,
         size: widget.size * 0.5,
         color: enabled ? fg : fg.withValues(alpha: 0.4),
       ),

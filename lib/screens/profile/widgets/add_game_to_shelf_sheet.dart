@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../../repositories/collection_repository.dart';
 import '../../../widgets/corpus_network_image.dart';
@@ -122,7 +124,7 @@ class _AddGameToShelfSheetState extends State<_AddGameToShelfSheet> {
               TextField(
                 decoration: const InputDecoration(
                   hintText: 'Buscar en tu biblioteca…',
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: CorpusTablerIcon(CorpusIconKind.Search),
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -191,7 +193,7 @@ class _LibraryGameTile extends StatelessWidget {
                   color: Theme.of(
                     context,
                   ).colorScheme.surfaceContainerHighest,
-                  child: const Icon(Icons.videogame_asset, size: 20),
+                  child: const CorpusTablerIcon(CorpusIconKind.VideogameAsset, size: 20),
                 ),
         ),
       ),
@@ -214,7 +216,7 @@ class _LibraryGameTile extends StatelessWidget {
               style: TextStyle(fontSize: 12),
             )
           : null,
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const CorpusTablerIcon(CorpusIconKind.ChevronRight),
       onTap: onTap,
     );
   }

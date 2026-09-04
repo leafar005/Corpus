@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -298,7 +300,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       radius: radius,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-      child: avatarUrl == null ? Icon(Icons.person, size: radius) : null,
+      child: avatarUrl == null ? CorpusTablerIcon(CorpusIconKind.Person, size: radius) : null,
     );
   }
 
@@ -311,10 +313,10 @@ class _FriendsScreenState extends State<FriendsScreen>
             controller: _searchController,
             decoration: InputDecoration(
               hintText: 'Buscar por nombre de usuario…',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear),
+                      icon: const CorpusTablerIcon(CorpusIconKind.Clear),
                       onPressed: () {
                         _searchController.clear();
                         _searchUsers('');
@@ -390,7 +392,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                         );
                       } else {
                         trailingWidget = FilledButton.icon(
-                          icon: const Icon(Icons.person_add, size: 18),
+                          icon: const CorpusTablerIcon(CorpusIconKind.PersonAdd, size: 18),
                           label: const Text('Añadir'),
                           onPressed: () => _sendRequest(userId),
                         );
@@ -433,8 +435,7 @@ class _FriendsScreenState extends State<FriendsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.inbox_rounded,
+            CorpusTablerIcon(CorpusIconKind.InboxRounded,
               size: 64,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -477,8 +478,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(
-                        Icons.check_circle_rounded,
+                      icon: const CorpusTablerIcon(CorpusIconKind.CheckCircleRounded,
                         color: Colors.green,
                         size: 30,
                       ),
@@ -486,8 +486,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                       onPressed: () => _acceptRequest(requesterId),
                     ),
                     IconButton(
-                      icon: const Icon(
-                        Icons.cancel_rounded,
+                      icon: const CorpusTablerIcon(CorpusIconKind.CancelRounded,
                         color: Colors.red,
                         size: 30,
                       ),
@@ -521,7 +520,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                 },
                 trailing: TextButton.icon(
                   onPressed: () => _cancelSentRequest(addresseeId),
-                  icon: const Icon(Icons.close_rounded, size: 18),
+                  icon: const CorpusTablerIcon(CorpusIconKind.CloseRounded, size: 18),
                   label: const Text('Cancelar'),
                   style: TextButton.styleFrom(
                     foregroundColor: Theme.of(context).colorScheme.error,
@@ -568,8 +567,7 @@ class _FriendsScreenState extends State<FriendsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.group_rounded,
+            CorpusTablerIcon(CorpusIconKind.GroupRounded,
               size: 64,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -618,8 +616,7 @@ class _FriendsScreenState extends State<FriendsScreen>
               context.pushProfile(userId: friendId);
             },
             trailing: IconButton(
-              icon: Icon(
-                Icons.person_remove_outlined,
+              icon: CorpusTablerIcon(CorpusIconKind.PersonRemoveOutlined,
                 color: Theme.of(context).colorScheme.error,
               ),
               tooltip: 'Eliminar amigo',
@@ -636,7 +633,7 @@ class _FriendsScreenState extends State<FriendsScreen>
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
           onPressed: () =>
               AppNavigationController.instance.requestBack(context),
         ),
@@ -644,12 +641,12 @@ class _FriendsScreenState extends State<FriendsScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            const Tab(icon: Icon(Icons.search), text: 'Buscar'),
+            const Tab(icon: CorpusTablerIcon(CorpusIconKind.Search), text: 'Buscar'),
             Tab(
               icon: Badge(
                 isLabelVisible: _receivedRequests.isNotEmpty,
                 label: Text(_receivedRequests.length.toString()),
-                child: const Icon(Icons.notifications_rounded),
+                child: const CorpusTablerIcon(CorpusIconKind.NotificationsRounded),
               ),
               text: 'Solicitudes',
             ),
@@ -657,7 +654,7 @@ class _FriendsScreenState extends State<FriendsScreen>
               icon: Badge(
                 isLabelVisible: _friends.isNotEmpty,
                 label: Text(_friends.length.toString()),
-                child: const Icon(Icons.group_rounded),
+                child: const CorpusTablerIcon(CorpusIconKind.GroupRounded),
               ),
               text: 'Mis amigos',
             ),

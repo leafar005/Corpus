@@ -12,6 +12,7 @@ import 'filter_screen.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_tabler_icon.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
@@ -385,7 +386,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
           ),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear, size: 20),
+                  icon: const CorpusTablerIcon.clear(size: 20),
                   onPressed: () {
                     _searchController.clear();
                     _onSearchChanged('');
@@ -409,7 +410,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
       child: Align(
         alignment: Alignment.centerLeft,
         child: TextButton.icon(
-          icon: const Icon(Icons.tune, size: 20),
+          icon: const CorpusTablerIcon.tune(size: 20),
           label: Text(
             'Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}',
           ),

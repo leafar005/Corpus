@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../widgets/corpus_network_image.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -418,8 +420,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         .scaffoldBackgroundColor
                                         .withValues(alpha: 0.54),
                                     radius: 24,
-                                    child: const Icon(
-                                      Icons.camera_alt,
+                                    child: const CorpusTablerIcon(CorpusIconKind.CameraAlt,
                                       size: 24,
                                     ),
                                   ),
@@ -466,7 +467,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     child:
                                         _newAvatarBytes == null &&
                                             _avatarUrl == null
-                                        ? const Icon(Icons.person, size: 50)
+                                        ? const CorpusTablerIcon(CorpusIconKind.Person, size: 50)
                                         : null,
                                   ),
                                   Container(
@@ -477,8 +478,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           .withValues(alpha: 0.54),
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(
-                                      Icons.camera_alt,
+                                    child: const CorpusTablerIcon(CorpusIconKind.CameraAlt,
                                       size: 24,
                                     ),
                                   ),
@@ -524,8 +524,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       fillColor: Theme.of(
                                         context,
                                       ).colorScheme.surface,
-                                      prefixIcon: Icon(
-                                        Icons.person,
+                                      prefixIcon: CorpusTablerIcon(CorpusIconKind.Person,
                                         color: Theme.of(
                                           context,
                                         ).colorScheme.onSurfaceVariant,
@@ -556,8 +555,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       fillColor: Theme.of(
                                         context,
                                       ).colorScheme.surface,
-                                      prefixIcon: Icon(
-                                        Icons.alternate_email,
+                                      prefixIcon: CorpusTablerIcon(CorpusIconKind.AlternateEmail,
                                         color: Theme.of(
                                           context,
                                         ).colorScheme.onSurfaceVariant,
@@ -602,8 +600,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       fillColor: Theme.of(
                                         context,
                                       ).colorScheme.surface,
-                                      prefixIcon: Icon(
-                                        Icons.email,
+                                      prefixIcon: CorpusTablerIcon(CorpusIconKind.Email,
                                         color: Theme.of(
                                           context,
                                         ).colorScheme.onSurfaceVariant,
@@ -711,7 +708,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                                   Theme.of(context)
                                                       .colorScheme
                                                       .onSurfaceVariant,
-                                                  icon: Icons.computer,
+                                                  icon: CorpusIconKind.Computer,
                                                 );
                                                 break;
                                               case 'playstation':
@@ -883,7 +880,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildPlatformBadge(
     String platform,
     Color activeColor, {
-    IconData? icon,
+    CorpusIconKind? icon,
     String? imagePath,
     Key? key,
   }) {
@@ -921,8 +918,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ? activeColor
                     : Theme.of(context).colorScheme.onSurfaceVariant,
               )
-            : Icon(
-                icon,
+            : CorpusTablerIcon(icon!,
                 color: isSelected
                     ? activeColor
                     : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1026,8 +1022,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                             ),
                                           )
                                         : Center(
-                                            child: Icon(
-                                              Icons.add,
+                                            child: CorpusTablerIcon(CorpusIconKind.Add,
                                               color: isNumberOne
                                                   ? Colors.amber.withValues(
                                                       alpha: 0.8,
@@ -1068,8 +1063,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         shape: BoxShape.circle,
                                       ),
                                       padding: const EdgeInsets.all(4),
-                                      child: Icon(
-                                        Icons.close,
+                                      child: CorpusTablerIcon(CorpusIconKind.Close,
                                         size: 14,
                                         color: Theme.of(
                                           context,
@@ -1137,7 +1131,7 @@ class _WebCropperPageState extends State<_WebCropperPage> {
             )
           else
             IconButton(
-              icon: const Icon(Icons.done),
+              icon: const CorpusTablerIcon(CorpusIconKind.Done),
               onPressed: () async {
                 if (_processing) return;
                 setState(() => _processing = true);

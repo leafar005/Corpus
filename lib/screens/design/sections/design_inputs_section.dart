@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../../widgets/design/corpus_section.dart';
 import '../../../widgets/design/corpus_text_field.dart';
@@ -34,22 +35,22 @@ class _DesignInputsSectionState extends State<DesignInputsSection> {
                 controller: _emailController,
                 label: 'Correo electrónico',
                 hint: 'tu@email.com',
-                prefixIcon: Icons.email_outlined,
+                prefixIcon: CorpusIconKind.EmailOutlined,
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
               CorpusTextField(
                 label: 'Contraseña',
                 obscureText: _obscure,
-                prefixIcon: Icons.lock_outline,
-                suffixIcon: _obscure ? Icons.visibility : Icons.visibility_off,
+                prefixIcon: CorpusIconKind.LockOutline,
+                suffixIcon: _obscure ? CorpusIconKind.Visibility : CorpusIconKind.VisibilityOff,
                 onSuffixTap: () => setState(() => _obscure = !_obscure),
               ),
               const SizedBox(height: 16),
               const CorpusTextField(
                 label: 'Con error',
                 errorText: 'Este campo es obligatorio',
-                prefixIcon: Icons.warning_amber_outlined,
+                prefixIcon: CorpusIconKind.WarningAmberOutlined,
               ),
               const SizedBox(height: 16),
               const CorpusTextField(

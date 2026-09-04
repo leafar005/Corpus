@@ -36,6 +36,7 @@ dependencies:
   cross_file: ^0.3.5+4
   cached_network_image: ^3.4.1
   flutter_svg: ^2.3.0
+  tabler_icons_next: ^3.45.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

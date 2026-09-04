@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'forgot_password_screen.dart';
@@ -97,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _emailController,
                   decoration: InputDecoration(
                     labelText: 'Correo electrónico',
-                    prefixIcon: const Icon(Icons.email),
+                    prefixIcon: const CorpusTablerIcon(CorpusIconKind.Email),
                     border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   keyboardType: TextInputType.emailAddress,
@@ -108,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
-                    prefixIcon: const Icon(Icons.lock),
+                    prefixIcon: const CorpusTablerIcon(CorpusIconKind.Lock),
                     border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   obscureText: true,

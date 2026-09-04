@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../../widgets/design/corpus_button.dart';
 import '../../../widgets/design/corpus_icon_button.dart';
@@ -21,13 +22,13 @@ class DesignButtonsSection extends StatelessWidget {
             children: [
               CorpusButton(
                 label: 'Primario',
-                icon: Icons.play_arrow_rounded,
+                icon: CorpusIconKind.PlayArrowRounded,
                 onPressed: () {},
               ),
               CorpusButton(
                 label: 'Acento',
                 variant: CorpusButtonVariant.accent,
-                icon: Icons.star_rounded,
+                icon: CorpusIconKind.StarRounded,
                 onPressed: () {},
               ),
               CorpusButton(
@@ -71,7 +72,7 @@ class DesignButtonsSection extends StatelessWidget {
               CorpusButton(
                 label: 'Large',
                 size: CorpusButtonSize.large,
-                icon: Icons.arrow_forward_rounded,
+                icon: CorpusIconKind.ArrowForwardRounded,
                 iconTrailing: true,
                 onPressed: () {},
               ),
@@ -84,7 +85,7 @@ class DesignButtonsSection extends StatelessWidget {
           subtitle: 'CTAs en formularios y modales.',
           child: CorpusButton(
             label: 'Continuar',
-            icon: Icons.check_rounded,
+            icon: CorpusIconKind.CheckRounded,
             expand: true,
             onPressed: () {},
           ),
@@ -96,18 +97,18 @@ class DesignButtonsSection extends StatelessWidget {
           child: Row(
             children: [
               CorpusIconButton(
-                icon: Icons.favorite_border,
+                icon: CorpusIconKind.FavoriteBorder,
                 tooltip: 'Favorito',
                 onPressed: () {},
               ),
               const SizedBox(width: 8),
               CorpusIconButton(
-                icon: Icons.share,
+                icon: CorpusIconKind.Share,
                 tooltip: 'Compartir',
                 onPressed: () {},
               ),
               const SizedBox(width: 8),
-              const CorpusIconButton(icon: Icons.block, onPressed: null),
+              const CorpusIconButton(icon: CorpusIconKind.Block, onPressed: null),
             ],
           ),
         ),

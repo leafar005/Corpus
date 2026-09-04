@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../../repositories/collection_repository.dart';
 import '../../../utils/shelf_platforms.dart';
@@ -227,7 +229,7 @@ class _BulkAddToShelfSheetState extends State<BulkAddToShelfSheet> {
                       TextField(
                         decoration: InputDecoration(
                           hintText: 'Buscar en tu biblioteca…',
-                          prefixIcon: const Icon(Icons.search),
+                          prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
                           border: const OutlineInputBorder(),
                           isDense: true,
                           suffixText: platform?.shortLabel,
@@ -422,7 +424,7 @@ class _PlatformSelector extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.expand_more),
+                const CorpusTablerIcon(CorpusIconKind.ExpandMore),
               ],
             ),
           ),
@@ -432,7 +434,7 @@ class _PlatformSelector extends StatelessWidget {
 
     return OutlinedButton.icon(
       onPressed: () => _openPlatformList(context),
-      icon: const Icon(Icons.sports_esports),
+      icon: const CorpusTablerIcon(CorpusIconKind.SportsEsports),
       label: const Text('Elegir plataforma'),
     );
   }
@@ -507,8 +509,7 @@ class _PlatformListSheet extends StatelessWidget {
                     ),
                     title: Text(platform.label),
                     trailing: selectedId == platform.id
-                        ? Icon(
-                            Icons.check_circle,
+                        ? CorpusTablerIcon(CorpusIconKind.CheckCircle,
                             color: Theme.of(context).colorScheme.primary,
                           )
                         : null,
@@ -539,8 +540,7 @@ class _PlatformMiniIcon extends StatelessWidget {
         color: platform.textColor,
       );
     }
-    return Icon(
-      platform.materialIcon ?? Icons.sports_esports,
+    return CorpusTablerIcon(platform.fallbackIcon ?? CorpusIconKind.SportsEsports,
       size: 16,
       color: platform.textColor,
     );
@@ -564,7 +564,7 @@ class _CoverThumb extends StatelessWidget {
             ? CorpusNetworkImage(url: url, fit: BoxFit.cover)
             : ColoredBox(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: const Icon(Icons.videogame_asset, size: 18),
+                child: const CorpusTablerIcon(CorpusIconKind.VideogameAsset, size: 18),
               ),
       ),
     );

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/models/models.dart';
@@ -324,10 +326,10 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
             controller: _searchController,
             decoration: InputDecoration(
               hintText: 'Buscar juego...',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear),
+                      icon: const CorpusTablerIcon(CorpusIconKind.Clear),
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _searchQuery = '');
@@ -360,7 +362,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
           offset: const Offset(0, 0),
           child: FilledButton.icon(
             onPressed: _openFilters,
-            icon: const Icon(Icons.tune),
+            icon: const CorpusTablerIcon(CorpusIconKind.Tune),
             label: const Text('Filtros'),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(
@@ -384,7 +386,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     );
   }
 
-  IconData _getIconForStatus(GameStatus status) => status.icon;
+  CorpusIconKind _getIconForStatus(GameStatus status) => status.icon;
 
   Widget _buildStatusChips() {
     final validStatuses = GameStatus.values.where(
@@ -403,8 +405,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(
-                    _getIconForStatus(status),
+                  CorpusTablerIcon(_getIconForStatus(status),
                     size: 18,
                     color: isSelected
                         ? Theme.of(context).colorScheme.onPrimary

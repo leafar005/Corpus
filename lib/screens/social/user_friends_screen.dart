@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../profile/profile_screen.dart';
 import '../../widgets/friendship_button.dart';
@@ -74,7 +76,7 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
       radius: radius,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-      child: avatarUrl == null ? Icon(Icons.person, size: radius) : null,
+      child: avatarUrl == null ? CorpusTablerIcon(CorpusIconKind.Person, size: radius) : null,
     );
   }
 

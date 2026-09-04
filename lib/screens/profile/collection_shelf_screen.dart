@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../repositories/collection_repository.dart';
@@ -134,7 +136,7 @@ class _CollectionShelfScreenState extends State<CollectionShelfScreen> {
         title: const Text('Mi Estantería'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const CorpusTablerIcon(CorpusIconKind.Refresh),
             tooltip: 'Recargar',
             onPressed: _loading ? null : _load,
           ),
@@ -162,8 +164,7 @@ class _CollectionShelfScreenState extends State<CollectionShelfScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.shelves,
+              CorpusTablerIcon(CorpusIconKind.Shelves,
                 size: 64,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -256,8 +257,7 @@ class _EmptyShelf extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.shelves,
+            CorpusTablerIcon(CorpusIconKind.Shelves,
               size: 80,
               color: Theme.of(
                 context,
@@ -280,7 +280,7 @@ class _EmptyShelf extends StatelessWidget {
             const SizedBox(height: 28),
             FilledButton.icon(
               onPressed: onAdd,
-              icon: const Icon(Icons.add),
+              icon: const CorpusTablerIcon(CorpusIconKind.Add),
               label: const Text('Añadir primer juego'),
             ),
           ],
@@ -313,7 +313,7 @@ class _ShelfBottomBar extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onBulkAdd,
-                  icon: const Icon(Icons.library_add_check_outlined),
+                  icon: const CorpusTablerIcon(CorpusIconKind.LibraryAddCheckOutlined),
                   label: const Text('Selección masiva'),
                 ),
               ),
@@ -321,7 +321,7 @@ class _ShelfBottomBar extends StatelessWidget {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: onAddGame,
-                  icon: const Icon(Icons.add),
+                  icon: const CorpusTablerIcon(CorpusIconKind.Add),
                   label: const Text('Añadir juego'),
                 ),
               ),

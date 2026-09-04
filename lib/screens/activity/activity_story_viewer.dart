@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -677,7 +679,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
                   ? NetworkImage(avatarUrl)
                   : null,
               child: avatarUrl == null
-                  ? const Icon(Icons.person, size: 18)
+                  ? const CorpusTablerIcon(CorpusIconKind.Person, size: 18)
                   : null,
             ),
           ),
@@ -704,7 +706,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const CorpusTablerIcon(CorpusIconKind.Close),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -718,7 +720,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     required Map<String, dynamic> gameData,
     required String gameTitle,
     required String? coverUrl,
-    required IconData actionIcon,
+    required CorpusIconKind actionIcon,
     required Color actionColor,
     required String actionText,
     required bool isOwn,
@@ -764,11 +766,9 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              actionIcon,
+            CorpusTablerIcon(actionIcon,
               color: actionColor,
               size: 22,
-              shadows: textShadows,
             ),
             const SizedBox(width: 8),
             Flexible(
@@ -904,14 +904,14 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
               _metaChip(
                 cs,
                 ext,
-                icon: Icons.access_time,
+                icon: CorpusIconKind.AccessTime,
                 label: '${playTimeHours.toStringAsFixed(1)} h',
               ),
             if (replayCount > 0)
               _metaChip(
                 cs,
                 ext,
-                icon: Icons.replay,
+                icon: CorpusIconKind.Replay,
                 label: 'Replay ×$replayCount',
                 color: cs.secondary,
               ),
@@ -937,7 +937,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         const SizedBox(height: 20),
         FilledButton.icon(
           onPressed: () => _openFullReview(gameData, review),
-          icon: const Icon(Icons.article_outlined, size: 18),
+          icon: const CorpusTablerIcon(CorpusIconKind.ArticleOutlined, size: 18),
           label: const Text('Ver reseña completa'),
         ),
       ],
@@ -947,7 +947,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   Widget _metaChip(
     ColorScheme cs,
     CorpusThemeExtension ext, {
-    required IconData icon,
+    required CorpusIconKind icon,
     required String label,
     Color? color,
   }) {
@@ -960,7 +960,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color ?? cs.onSurface),
+          CorpusTablerIcon(icon, size: 16, color: color ?? cs.onSurface),
           const SizedBox(width: 6),
           Text(
             label,
@@ -1000,8 +1000,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      _hasLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                    CorpusTablerIcon(_hasLiked ? CorpusIconKind.ThumbUp : CorpusIconKind.ThumbUpAltOutlined,
                       size: 22,
                       color: _hasLiked ? cs.primary : cs.onSurfaceVariant,
                     ),
@@ -1057,7 +1056,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
               )
             else
               IconButton(
-                icon: Icon(Icons.send, color: cs.primary),
+                icon: CorpusTablerIcon(CorpusIconKind.Send, color: cs.primary),
                 tooltip: 'Enviar',
                 onPressed: _submitComment,
               ),
@@ -1077,7 +1076,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(GameStatus.iconForString(status), size: 16, color: cs.onSurface),
+          CorpusTablerIcon(GameStatus.iconForString(status), size: 16, color: cs.onSurface),
           const SizedBox(width: 6),
           Text(
             GameStatus.labelForString(status),
@@ -1092,7 +1091,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.star, color: cs.secondary, size: 20),
+        CorpusTablerIcon(CorpusIconKind.Star, color: cs.secondary, size: 20),
         const SizedBox(width: 4),
         Text(
           formatRating(rating),

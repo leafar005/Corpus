@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 // lib/models/game_status.dart
 //
@@ -80,7 +81,7 @@ enum GameStatus {
   }
 
   /// Helper estático para obtener el icono desde una cadena raw de BD.
-  static IconData iconForString(String? statusStr) {
+  static CorpusIconKind iconForString(String? statusStr) {
     return fromStringOrDefault(statusStr).icon;
   }
 
@@ -121,13 +122,13 @@ enum GameStatus {
   };
 
   /// Icono representativo para UI.
-  IconData get icon => switch (this) {
-    GameStatus.wishlist => Icons.favorite,
-    GameStatus.playing => Icons.videogame_asset,
-    GameStatus.beaten => Icons.check_circle,
-    GameStatus.completed => Icons.emoji_events,
-    GameStatus.abandoned => Icons.cancel_outlined,
-    GameStatus.onHold => Icons.pause_circle_outline,
+  CorpusIconKind get icon => switch (this) {
+    GameStatus.wishlist => CorpusIconKind.Favorite,
+    GameStatus.playing => CorpusIconKind.VideogameAsset,
+    GameStatus.beaten => CorpusIconKind.CheckCircle,
+    GameStatus.completed => CorpusIconKind.EmojiEvents,
+    GameStatus.abandoned => CorpusIconKind.CancelOutlined,
+    GameStatus.onHold => CorpusIconKind.PauseCircleOutline,
   };
 
   /// Color del estado contextual al tema de Flutter.

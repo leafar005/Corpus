@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
@@ -193,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const CorpusTablerIcon(CorpusIconKind.ErrorOutline, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
                   const Text('No se pudo cargar el perfil.'),
                   const SizedBox(height: 8),
@@ -201,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: () {
                       _controller.fetchProfileData();
                     },
-                    icon: const Icon(Icons.refresh),
+                    icon: const CorpusTablerIcon(CorpusIconKind.Refresh),
                     label: const Text('Reintentar'),
                   ),
                 ],
@@ -415,7 +417,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               top: topInset + 4.0,
               left: 4,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack, color: Colors.white),
                 onPressed: () =>
                     AppNavigationController.instance.requestBack(context),
                 style: IconButton.styleFrom(
@@ -435,10 +437,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     },
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.settings,
+                    icon: const CorpusTablerIcon(CorpusIconKind.Settings,
                       color: Colors.white,
-                      shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                     ),
                     onPressed: () {
                       context
@@ -571,7 +571,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   MediaQuery.of(context).padding.top + (isDesktop ? 10.0 : 4.0),
               left: 4,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack, color: Colors.white),
                 onPressed: () =>
                     AppNavigationController.instance.requestBack(context),
                 style: IconButton.styleFrom(
@@ -594,10 +594,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     },
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.settings,
+                    icon: const CorpusTablerIcon(CorpusIconKind.Settings,
                       color: Colors.white,
-                      shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                     ),
                     onPressed: () {
                       context
@@ -678,24 +676,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  shadows: [
-                                    Shadow(
-                                      offset: Offset(-1, -1),
-                                      color: Colors.black,
-                                    ),
-                                    Shadow(
-                                      offset: Offset(1, -1),
-                                      color: Colors.black,
-                                    ),
-                                    Shadow(
-                                      offset: Offset(1, 1),
-                                      color: Colors.black,
-                                    ),
-                                    Shadow(
-                                      offset: Offset(-1, 1),
-                                      color: Colors.black,
-                                    ),
-                                  ],
                                 ),
                               ),
                             ),
@@ -716,24 +696,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: const TextStyle(
                                 fontSize: 18,
                                 color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    offset: Offset(-1, -1),
-                                    color: Colors.black,
-                                  ),
-                                  Shadow(
-                                    offset: Offset(1, -1),
-                                    color: Colors.black,
-                                  ),
-                                  Shadow(
-                                    offset: Offset(1, 1),
-                                    color: Colors.black,
-                                  ),
-                                  Shadow(
-                                    offset: Offset(-1, 1),
-                                    color: Colors.black,
-                                  ),
-                                ],
                               ),
                             ),
                             if (_userProfile != null) ...[
@@ -799,24 +761,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  shadows: [
-                                    Shadow(
-                                      offset: Offset(-1, -1),
-                                      color: Colors.black,
-                                    ),
-                                    Shadow(
-                                      offset: Offset(1, -1),
-                                      color: Colors.black,
-                                    ),
-                                    Shadow(
-                                      offset: Offset(1, 1),
-                                      color: Colors.black,
-                                    ),
-                                    Shadow(
-                                      offset: Offset(-1, 1),
-                                      color: Colors.black,
-                                    ),
-                                  ],
                                 ),
                               ),
                             ),
@@ -837,24 +781,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: const TextStyle(
                                 fontSize: 14,
                                 color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    offset: Offset(-1, -1),
-                                    color: Colors.black,
-                                  ),
-                                  Shadow(
-                                    offset: Offset(1, -1),
-                                    color: Colors.black,
-                                  ),
-                                  Shadow(
-                                    offset: Offset(1, 1),
-                                    color: Colors.black,
-                                  ),
-                                  Shadow(
-                                    offset: Offset(-1, 1),
-                                    color: Colors.black,
-                                  ),
-                                ],
                               ),
                             ),
                             if (_userProfile != null) ...[
@@ -1241,11 +1167,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(
-                Icons.group_rounded,
+              CorpusTablerIcon(CorpusIconKind.GroupRounded,
                 size: fontSize + 2,
                 color: color,
-                shadows: shadows,
               ),
               const SizedBox(width: 4),
               Text(
@@ -1526,15 +1450,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Icons.star,
                                   color: Colors.amber,
                                   size: 26,
-                                  shadows: [
-                                    Shadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                      offset: const Offset(0, 2),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
                                 ),
                               ),
                           ],
@@ -1657,11 +1572,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildPlatformIcon(String platform) {
     String? imagePath;
-    IconData? icon;
+    CorpusIconKind? icon;
     Color color;
     switch (platform) {
       case 'pc':
-        icon = Icons.computer;
+        icon = CorpusIconKind.Computer;
         color = Theme.of(context).colorScheme.onSurfaceVariant;
         break;
       case 'linux':
@@ -1713,7 +1628,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color = Theme.of(context).colorScheme.onSurfaceVariant;
         break;
       case 'firetv':
-        icon = Icons.tv;
+        icon = CorpusIconKind.Tv;
         color = Theme.of(context).colorScheme.onSurfaceVariant;
         break;
       case 'nintendo':
@@ -1721,7 +1636,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color = Colors.red;
         break; // Fallback para datos antiguos
       default:
-        icon = Icons.device_unknown;
+        icon = CorpusIconKind.DeviceUnknown;
         color = Theme.of(context).colorScheme.onSurfaceVariant;
         break;
     }
@@ -1735,7 +1650,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: imagePath != null
           ? Image.asset(imagePath, width: 24, height: 24, color: color)
-          : Icon(icon, color: color, size: 24),
+          : CorpusTablerIcon(icon!, color: color, size: 24),
     );
   }
 
@@ -1844,10 +1759,8 @@ class _FriendsBadgeButtonState extends State<_FriendsBadgeButton> {
       isLabelVisible: _pendingCount > 0,
       label: Text(_pendingCount.toString()),
       child: IconButton(
-        icon: const Icon(
-          Icons.people_rounded,
+        icon: const CorpusTablerIcon(CorpusIconKind.PeopleRounded,
           color: Colors.white,
-          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
         ),
         tooltip: 'Amigos',
         onPressed: () {

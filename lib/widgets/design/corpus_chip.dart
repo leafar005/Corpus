@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../theme/corpus_theme_extension.dart';
 import '../../theme/corpus_typography.dart';
@@ -13,7 +15,7 @@ class CorpusChip extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
   final CorpusChipVariant variant;
-  final IconData? icon;
+  final CorpusIconKind? icon;
   final bool showCheckmark;
 
   const CorpusChip({
@@ -53,13 +55,13 @@ class CorpusChip extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (icon != null) ...[
-          Icon(icon, size: 16, color: fg),
+          CorpusTablerIcon(icon!, size: 16, color: fg),
           const SizedBox(width: 6),
         ],
         if (selected &&
             showCheckmark &&
             variant == CorpusChipVariant.filter) ...[
-          Icon(Icons.check, size: 14, color: fg),
+          CorpusTablerIcon(CorpusIconKind.Check, size: 14, color: fg),
           const SizedBox(width: 4),
         ],
         Text(

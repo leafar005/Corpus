@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../../models/models.dart';
 import '../../../routes/corpus_router.dart';
@@ -288,15 +290,13 @@ class _PlatformGlyph extends StatelessWidget {
         width: size,
         height: size,
         color: platform.textColor,
-        errorBuilder: (_, _, _) => Icon(
-          platform.materialIcon ?? Icons.sports_esports,
+        errorBuilder: (_, _, _) => CorpusTablerIcon(platform.fallbackIcon ?? CorpusIconKind.SportsEsports,
           size: size,
           color: platform.textColor,
         ),
       );
     }
-    return Icon(
-      platform.materialIcon ?? Icons.sports_esports,
+    return CorpusTablerIcon(platform.fallbackIcon ?? CorpusIconKind.SportsEsports,
       size: size,
       color: platform.textColor,
     );

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/services/import_service.dart';
@@ -200,9 +202,9 @@ class _SteamImportProgressScreenState extends State<SteamImportProgressScreen> {
               if (!_isDone && !_isError)
                 const CircularProgressIndicator()
               else if (_isDone)
-                const Icon(Icons.check_circle, color: Colors.green, size: 64)
+                const CorpusTablerIcon(CorpusIconKind.CheckCircle, color: Colors.green, size: 64)
               else
-                const Icon(Icons.error, color: Colors.red, size: 64),
+                const CorpusTablerIcon(CorpusIconKind.Error, color: Colors.red, size: 64),
 
               const SizedBox(height: 32),
               Text(

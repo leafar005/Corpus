@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../utils/igdb_constants.dart';
@@ -164,8 +166,7 @@ class _FilterOptionScreenState extends State<FilterOptionScreen> {
               child: Row(
                 children: [
                   if (flatItem == 'PC & Mac') ...[
-                    Icon(
-                      Icons.computer,
+                    CorpusTablerIcon(CorpusIconKind.Computer,
                       size: 18,
                       color: scheme.onSurfaceVariant,
                     ),

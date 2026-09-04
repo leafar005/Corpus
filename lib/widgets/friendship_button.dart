@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FriendshipButton extends StatefulWidget {
@@ -155,22 +157,21 @@ class _FriendshipButtonState extends State<FriendshipButton> {
       case FriendshipStatus.none:
         if (widget.isIconOnly) {
           return IconButton(
-            icon: const Icon(Icons.person_add_alt_1_rounded),
+            icon: const CorpusTablerIcon(CorpusIconKind.PersonAddAlt1Rounded),
             onPressed: _sendRequest,
             tooltip: 'Añadir amigo',
           );
         }
         return ElevatedButton.icon(
           onPressed: _sendRequest,
-          icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+          icon: const CorpusTablerIcon(CorpusIconKind.PersonAddAlt1Rounded, size: 18),
           label: const Text('Añadir amigo'),
         );
 
       case FriendshipStatus.sent:
         if (widget.isIconOnly) {
           return IconButton(
-            icon: Icon(
-              Icons.cancel_schedule_send_rounded,
+            icon: CorpusTablerIcon(CorpusIconKind.CancelScheduleSendRounded,
               color: Theme.of(context).colorScheme.error,
             ),
             onPressed: _cancelRequest,
@@ -179,7 +180,7 @@ class _FriendshipButtonState extends State<FriendshipButton> {
         }
         return OutlinedButton.icon(
           onPressed: _cancelRequest,
-          icon: const Icon(Icons.cancel_schedule_send_rounded, size: 18),
+          icon: const CorpusTablerIcon(CorpusIconKind.CancelScheduleSendRounded, size: 18),
           label: const Text('Cancelar solicitud'),
           style: OutlinedButton.styleFrom(
             foregroundColor: Theme.of(context).colorScheme.error,
@@ -189,14 +190,14 @@ class _FriendshipButtonState extends State<FriendshipButton> {
       case FriendshipStatus.received:
         if (widget.isIconOnly) {
           return IconButton(
-            icon: const Icon(Icons.check_circle_rounded, color: Colors.green),
+            icon: const CorpusTablerIcon(CorpusIconKind.CheckCircleRounded, color: Colors.green),
             onPressed: _acceptRequest,
             tooltip: 'Aceptar solicitud',
           );
         }
         return ElevatedButton.icon(
           onPressed: _acceptRequest,
-          icon: const Icon(Icons.check_circle_rounded, size: 18),
+          icon: const CorpusTablerIcon(CorpusIconKind.CheckCircleRounded, size: 18),
           label: const Text('Aceptar solicitud'),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,
@@ -207,14 +208,14 @@ class _FriendshipButtonState extends State<FriendshipButton> {
       case FriendshipStatus.friends:
         if (widget.isIconOnly) {
           return IconButton(
-            icon: const Icon(Icons.person_remove_rounded),
+            icon: const CorpusTablerIcon(CorpusIconKind.PersonRemoveRounded),
             onPressed: _removeFriend,
             tooltip: 'Eliminar amigo',
           );
         }
         return OutlinedButton.icon(
           onPressed: _removeFriend,
-          icon: const Icon(Icons.person_remove_rounded, size: 18),
+          icon: const CorpusTablerIcon(CorpusIconKind.PersonRemoveRounded, size: 18),
           label: const Text('Amigos'),
         );
       default:

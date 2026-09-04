@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import 'package:corpus/utils/format_utils.dart';
@@ -66,8 +68,7 @@ class _GameCardState extends State<GameCard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.videogame_asset,
+          CorpusTablerIcon(CorpusIconKind.VideogameAsset,
             size: 40,
             color: Theme.of(
               context,
@@ -361,16 +362,16 @@ class _GameCardState extends State<GameCard> {
   }
 
   Widget _buildSubstatusBadge(BuildContext context, String type) {
-    final (IconData icon, Color color) = switch (type) {
-      'on_hold' => (Icons.pause_rounded, Colors.orange),
-      'endless' => (Icons.all_inclusive_rounded, Colors.teal),
+    final (CorpusIconKind icon, Color color) = switch (type) {
+      'on_hold' => (CorpusIconKind.PauseRounded, Colors.orange),
+      'endless' => (CorpusIconKind.AllInclusiveRounded, Colors.teal),
       'story' => (
-        Icons.auto_stories_rounded,
+        CorpusIconKind.AutoStoriesRounded,
         Theme.of(context).colorScheme.primary,
       ),
-      'story_extras' => (Icons.extension_rounded, Colors.purple),
-      '100_percent' => (Icons.emoji_events_rounded, const Color(0xFFFFD700)),
-      _ => (Icons.flag_rounded, Theme.of(context).colorScheme.primary),
+      'story_extras' => (CorpusIconKind.ExtensionRounded, Colors.purple),
+      '100_percent' => (CorpusIconKind.EmojiEventsRounded, const Color(0xFFFFD700)),
+      _ => (CorpusIconKind.FlagRounded, Theme.of(context).colorScheme.primary),
     };
 
     return Container(
@@ -387,7 +388,7 @@ class _GameCardState extends State<GameCard> {
           ),
         ],
       ),
-      child: Icon(icon, size: 13, color: color),
+      child: CorpusTablerIcon(icon, size: 13, color: color),
     );
   }
 }

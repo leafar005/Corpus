@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../models/models.dart';
 
@@ -108,7 +109,7 @@ class AchievementGamesArgs {
   final int? collectionId2;
   final int? franchiseId2;
   final List<Map<String, dynamic>> milestones;
-  final IconData? achievementIcon;
+  final CorpusIconKind? achievementIcon;
   final Color? achievementColor;
 
   const AchievementGamesArgs({

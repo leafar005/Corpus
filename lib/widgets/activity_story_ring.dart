@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 /// Avatar circular con anillo de gradiente (estilo stories) cuando [hasStory].
 ///
@@ -33,7 +35,7 @@ class ActivityStoryRing extends StatelessWidget {
       backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
       child:
           child ??
-          (avatarUrl == null ? Icon(Icons.person, size: radius) : null),
+          (avatarUrl == null ? CorpusTablerIcon(CorpusIconKind.Person, size: radius) : null),
     );
 
     if (!hasStory) {

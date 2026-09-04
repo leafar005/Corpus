@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/services/import_service.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/globals.dart';
@@ -150,7 +152,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                   child: TextField(
                     decoration: const InputDecoration(
                       hintText: 'Buscar juego...',
-                      prefixIcon: Icon(Icons.search),
+                      prefixIcon: CorpusTablerIcon(CorpusIconKind.Search),
                       isDense: true,
                       border: OutlineInputBorder(),
                     ),
@@ -230,7 +232,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
             children: [
               ElevatedButton.icon(
                 onPressed: totalMatched == 0 ? null : _importData,
-                icon: const Icon(Icons.cloud_upload),
+                icon: const CorpusTablerIcon(CorpusIconKind.CloudUpload),
                 label: Text('Importar $totalMatched juegos a mi biblioteca'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
@@ -297,7 +299,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
             subtitle: Text(
               'Estado: ${row.status.toUpperCase()} ${row.rating != null ? "• Nota: ${formatRating(row.rating!)}" : ""}',
             ),
-            trailing: const Icon(Icons.check_circle, color: Colors.green),
+            trailing: const CorpusTablerIcon(CorpusIconKind.CheckCircle, color: Colors.green),
           ),
         );
       },
@@ -423,7 +425,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
-            leading: const Icon(Icons.error_outline, color: Colors.redAccent),
+            leading: const CorpusTablerIcon(CorpusIconKind.ErrorOutline, color: Colors.redAccent),
             title: Text(
               row.title,
               style: const TextStyle(fontWeight: FontWeight.bold),

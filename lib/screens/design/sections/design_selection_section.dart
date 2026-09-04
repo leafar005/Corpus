@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../../widgets/design/corpus_chip.dart';
 import '../../../widgets/design/corpus_dropdown.dart';
@@ -66,7 +67,7 @@ class _DesignSelectionSectionState extends State<DesignSelectionSection> {
                   CorpusChip(
                     label: 'Aplicar filtros',
                     variant: CorpusChipVariant.action,
-                    icon: Icons.tune,
+                    icon: CorpusIconKind.Tune,
                     showCheckmark: false,
                     onTap: () {},
                   ),

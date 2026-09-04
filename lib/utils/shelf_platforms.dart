@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 /// Dimensiones físicas aproximadas de la caja (lomo × alto en mm).
 ///
@@ -44,7 +45,7 @@ class ShelfPlatform {
     required this.shortLabel,
     required this.color,
     this.iconAsset,
-    this.materialIcon,
+    this.fallbackIcon,
     this.textColor = Colors.white,
     this.group = 'Otras',
   });
@@ -55,7 +56,7 @@ class ShelfPlatform {
   final String shortLabel;
   final Color color;
   final String? iconAsset;
-  final IconData? materialIcon;
+  final CorpusIconKind? fallbackIcon;
   final Color textColor;
   final String group;
 }
@@ -244,7 +245,7 @@ abstract final class ShelfPlatforms {
       shortLabel: 'GB',
       color: Color(0xFF9E9E9E),
       textColor: Color(0xFF212121),
-      materialIcon: Icons.videogame_asset,
+      fallbackIcon: CorpusIconKind.VideogameAsset,
       group: 'Nintendo',
     ),
     ShelfPlatform(
@@ -252,7 +253,7 @@ abstract final class ShelfPlatforms {
       label: 'Game Boy Advance',
       shortLabel: 'GBA',
       color: Color(0xFF6A5ACD),
-      materialIcon: Icons.videogame_asset,
+      fallbackIcon: CorpusIconKind.VideogameAsset,
       group: 'Nintendo',
     ),
 
@@ -278,7 +279,7 @@ abstract final class ShelfPlatforms {
       label: 'Epic Games Store',
       shortLabel: 'Epic',
       color: Color(0xFF2F2F2F),
-      materialIcon: Icons.storefront_rounded,
+      fallbackIcon: CorpusIconKind.StorefrontRounded,
       group: 'PC y digital',
     ),
     ShelfPlatform(
@@ -286,7 +287,7 @@ abstract final class ShelfPlatforms {
       label: 'GOG',
       shortLabel: 'GOG',
       color: Color(0xFF86328A),
-      materialIcon: Icons.store_rounded,
+      fallbackIcon: CorpusIconKind.StoreRounded,
       group: 'PC y digital',
     ),
     ShelfPlatform(
@@ -294,7 +295,7 @@ abstract final class ShelfPlatforms {
       label: 'EA App (Origin)',
       shortLabel: 'EA',
       color: Color(0xFFFF4747),
-      materialIcon: Icons.store_rounded,
+      fallbackIcon: CorpusIconKind.StoreRounded,
       group: 'PC y digital',
     ),
     ShelfPlatform(
@@ -302,7 +303,7 @@ abstract final class ShelfPlatforms {
       label: 'Ubisoft Connect',
       shortLabel: 'Ubisoft',
       color: Color(0xFF0070FF),
-      materialIcon: Icons.store_rounded,
+      fallbackIcon: CorpusIconKind.StoreRounded,
       group: 'PC y digital',
     ),
     ShelfPlatform(
@@ -310,7 +311,7 @@ abstract final class ShelfPlatforms {
       label: 'Battle.net',
       shortLabel: 'Battle.net',
       color: Color(0xFF00AEFF),
-      materialIcon: Icons.cloud_rounded,
+      fallbackIcon: CorpusIconKind.CloudRounded,
       group: 'PC y digital',
     ),
     ShelfPlatform(
@@ -658,7 +659,7 @@ abstract final class ShelfPlatforms {
           ? '${platformName.substring(0, 10)}…'
           : platformName,
       color: Colors.blueGrey.shade700,
-      materialIcon: Icons.sports_esports,
+      fallbackIcon: CorpusIconKind.SportsEsports,
     );
   }
 

@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:corpus/screens/library/review_modal.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:cross_file/cross_file.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+Finder findCorpusIcon(CorpusIconKind kind) => find.byWidgetPredicate(
+  (w) => w is CorpusTablerIcon && w.kind == kind,
+);
 
 void main() {
   setUpAll(() async {
@@ -85,7 +91,7 @@ void main() {
         expect(find.text('Información Extra'), findsOneWidget);
 
         // 2. Volver al selector y pulsar "Quiero" (wishlist)
-        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.tap(findCorpusIcon(CorpusIconKind.ArrowBack));
         await tester.pump();
         await tester.tap(find.text('Quiero'));
         await tester.pump();
@@ -101,7 +107,7 @@ void main() {
         expect(find.text('Guardar'), findsOneWidget);
 
         // 4. Cambiar a "Terminado" y verificar que reaparecen
-        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.tap(findCorpusIcon(CorpusIconKind.ArrowBack));
         await tester.pump();
         await tester.tap(find.text('Terminado'));
         await tester.pump();
@@ -171,7 +177,7 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
 
-        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.tap(findCorpusIcon(CorpusIconKind.ArrowBack));
         await tester.pump();
         await tester.tap(find.text('Jugando'));
         await tester.pump();

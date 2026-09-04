@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:flutter/services.dart';
 import 'corpus_network_image.dart';
 
@@ -101,7 +103,7 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
               top: 16,
               right: 16,
               child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                icon: const CorpusTablerIcon(CorpusIconKind.Close, color: Colors.white, size: 32),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),
@@ -119,8 +121,7 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(
-                          Icons.chevron_left,
+                        icon: const CorpusTablerIcon(CorpusIconKind.ChevronLeft,
                           color: Colors.white,
                           size: 36,
                         ),
@@ -141,8 +142,7 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(
-                          Icons.chevron_right,
+                        icon: const CorpusTablerIcon(CorpusIconKind.ChevronRight,
                           color: Colors.white,
                           size: 36,
                         ),

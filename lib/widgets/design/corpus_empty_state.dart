@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../theme/corpus_typography.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -6,16 +8,16 @@ import 'corpus_button.dart';
 
 /// Placeholder for empty lists, guest zones, search with no results, etc.
 class CorpusEmptyState extends StatelessWidget {
-  final IconData icon;
+  final CorpusIconKind icon;
   final String title;
   final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onAction;
-  final IconData? actionIcon;
+  final CorpusIconKind? actionIcon;
 
   const CorpusEmptyState({
     super.key,
-    this.icon = Icons.inbox_outlined,
+    this.icon = CorpusIconKind.InboxOutlined,
     required this.title,
     this.subtitle,
     this.actionLabel,
@@ -33,7 +35,7 @@ class CorpusEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 56, color: cs.primary.withValues(alpha: 0.5)),
+          CorpusTablerIcon(icon, size: 56, color: cs.primary.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
             title,

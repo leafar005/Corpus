@@ -1,6 +1,8 @@
 import 'dart:async';
 import '../../models/models.dart';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/url_utils.dart';
 import '../../widgets/game_card.dart';
@@ -142,7 +144,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
       appBar: AppBar(
         leading: _searchQuery.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.arrow_back),
+                icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
                 onPressed: () {
                   _searchController.clear();
                   setState(() {
@@ -159,7 +161,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
           IconButton(
             icon: const Padding(
               padding: EdgeInsets.only(top: 2.0),
-              child: Icon(Icons.refresh),
+              child: CorpusTablerIcon(CorpusIconKind.Refresh),
             ),
             onPressed: _refresh,
           ),
@@ -172,10 +174,10 @@ class _BundlesScreenState extends State<BundlesScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Buscar bundle o juego...',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: const CorpusTablerIcon(CorpusIconKind.Clear),
                         onPressed: () {
                           _searchController.clear();
                           setState(() {
@@ -223,8 +225,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
+              const CorpusTablerIcon(CorpusIconKind.ErrorOutline,
                 size: 64,
                 color: Colors.redAccent,
               ),
@@ -245,7 +246,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: _refresh,
-                icon: const Icon(Icons.refresh),
+                icon: const CorpusTablerIcon(CorpusIconKind.Refresh),
                 label: const Text('Reintentar'),
               ),
             ],
@@ -259,8 +260,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.local_offer_outlined,
+            CorpusTablerIcon(CorpusIconKind.LocalOfferOutlined,
               size: 64,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -383,7 +383,7 @@ class _BundleCardState extends State<_BundleCard> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.sell_outlined, size: 14, color: badgeColor),
+                CorpusTablerIcon(CorpusIconKind.SellOutlined, size: 14, color: badgeColor),
                 const SizedBox(width: 4),
                 Text(
                   priceText + perGameText,
@@ -409,7 +409,7 @@ class _BundleCardState extends State<_BundleCard> {
 
     String timeRemaining = '';
     Color timeColor = Theme.of(context).colorScheme.onSurfaceVariant;
-    IconData timeIcon = Icons.schedule;
+    CorpusIconKind timeIcon = CorpusIconKind.Schedule;
 
     if (endDateStr != null) {
       final endDate = DateTime.parse(endDateStr);
@@ -417,17 +417,17 @@ class _BundleCardState extends State<_BundleCard> {
       if (diff.isNegative) {
         timeRemaining = 'Caducado';
         timeColor = Colors.red;
-        timeIcon = Icons.timer_off;
+        timeIcon = CorpusIconKind.TimerOff;
       } else if (diff.inDays <= 10) {
         timeRemaining = diff.inDays == 0
             ? '¡Termina hoy!'
             : 'Quedan ${diff.inDays} días';
         timeColor = Colors.amber;
-        timeIcon = Icons.warning_amber_rounded;
+        timeIcon = CorpusIconKind.WarningAmberRounded;
       } else {
         timeRemaining = 'Quedan ${diff.inDays} días';
         timeColor = Colors.green;
-        timeIcon = Icons.calendar_today;
+        timeIcon = CorpusIconKind.CalendarToday;
       }
     }
 
@@ -520,7 +520,7 @@ class _BundleCardState extends State<_BundleCard> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(timeIcon, size: 14, color: timeColor),
+                                CorpusTablerIcon(timeIcon, size: 14, color: timeColor),
                                 const SizedBox(width: 4),
                                 Text(
                                   timeRemaining,
@@ -538,7 +538,7 @@ class _BundleCardState extends State<_BundleCard> {
                   ),
                 ),
                 TextButton.icon(
-                  icon: const Icon(Icons.open_in_new, size: 16),
+                  icon: const CorpusTablerIcon(CorpusIconKind.OpenInNew, size: 16),
                   label: const Text('Tienda'),
                   onPressed: () {
                     if (url.isNotEmpty) openUrl(url);

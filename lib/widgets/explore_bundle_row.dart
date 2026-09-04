@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/igdb_constants.dart';
@@ -177,7 +179,7 @@ class ExploreBundleRow extends StatelessWidget {
                   ),
                 if (url.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.open_in_new, size: 18),
+                    icon: const CorpusTablerIcon(CorpusIconKind.OpenInNew, size: 18),
                     tooltip: 'Tienda',
                     visualDensity: VisualDensity.compact,
                     onPressed: () => openUrl(url),

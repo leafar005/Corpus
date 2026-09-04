@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:corpus/globals.dart';
 import 'package:corpus/utils/format_utils.dart';
@@ -173,7 +175,7 @@ class ReviewModal {
             Widget chip(
               String value,
               String label,
-              IconData icon,
+              CorpusIconKind icon,
               String current,
               Color color,
               Function(String) onSelect,
@@ -190,8 +192,7 @@ class ReviewModal {
                 label: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      icon,
+                    CorpusTablerIcon(icon,
                       size: 18,
                       color: sel
                           ? tc
@@ -228,7 +229,7 @@ class ReviewModal {
             Widget statusButton(
               String value,
               String label,
-              IconData icon,
+              CorpusIconKind icon,
               String current,
               Color color,
               Function(String) onSelect,
@@ -286,7 +287,7 @@ class ReviewModal {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(icon, size: 22, color: labelColor),
+                            CorpusTablerIcon(icon, size: 22, color: labelColor),
                             const SizedBox(width: 10),
                             Text(
                               label,
@@ -336,8 +337,7 @@ class ReviewModal {
                           color: Colors.red,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.close,
+                        child: const CorpusTablerIcon(CorpusIconKind.Close,
                           size: 16,
                           color: Colors.white,
                         ),
@@ -350,7 +350,7 @@ class ReviewModal {
 
             Widget buildSubRatingSlider(
               String label,
-              IconData icon,
+              CorpusIconKind icon,
               double value,
               Function(double) onChange,
             ) {
@@ -359,8 +359,7 @@ class ReviewModal {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        icon,
+                      CorpusTablerIcon(icon,
                         size: 16,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -535,8 +534,7 @@ class ReviewModal {
                                               ? NetworkImage(f.avatarUrl!)
                                               : null,
                                           child: f.avatarUrl == null
-                                              ? const Icon(
-                                                  Icons.person,
+                                              ? const CorpusTablerIcon(CorpusIconKind.Person,
                                                   size: 16,
                                                 )
                                               : null,
@@ -582,13 +580,12 @@ class ReviewModal {
                                           ? NetworkImage(friend.avatarUrl!)
                                           : null,
                                       child: friend.avatarUrl == null
-                                          ? const Icon(Icons.person, size: 16)
+                                          ? const CorpusTablerIcon(CorpusIconKind.Person, size: 16)
                                           : null,
                                     ),
                                     title: Text(friend.effectiveName),
                                     trailing: IconButton(
-                                      icon: const Icon(
-                                        Icons.remove_circle_outline,
+                                      icon: const CorpusTablerIcon(CorpusIconKind.RemoveCircleOutline,
                                         color: Colors.redAccent,
                                       ),
                                       onPressed: () {
@@ -680,7 +677,7 @@ class ReviewModal {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.calendar_today, size: 16),
+                          icon: const CorpusTablerIcon(CorpusIconKind.CalendarToday, size: 16),
                           label: Text(
                             reviewPlayedFrom != null
                                 ? '${reviewPlayedFrom!.day} ${monthAbbr(reviewPlayedFrom!.month)} ${reviewPlayedFrom!.year}'
@@ -715,7 +712,7 @@ class ReviewModal {
                       ),
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.calendar_today, size: 16),
+                          icon: const CorpusTablerIcon(CorpusIconKind.CalendarToday, size: 16),
                           label: Text(
                             reviewPlayedUntil != null
                                 ? '${reviewPlayedUntil!.day} ${monthAbbr(reviewPlayedUntil!.month)} ${reviewPlayedUntil!.year}'
@@ -818,8 +815,7 @@ class ReviewModal {
                                     ),
                                   ),
                                   TextButton.icon(
-                                    icon: const Icon(
-                                      Icons.edit_calendar,
+                                    icon: const CorpusTablerIcon(CorpusIconKind.EditCalendar,
                                       size: 16,
                                     ),
                                     label: Text(() {
@@ -873,7 +869,7 @@ class ReviewModal {
                                 statusButton(
                                   'wishlist',
                                   'Quiero',
-                                  Icons.favorite,
+                                  CorpusIconKind.Favorite,
                                   '',
                                   statusColor('wishlist'),
                                   (v) {
@@ -885,7 +881,7 @@ class ReviewModal {
                                 statusButton(
                                   'playing',
                                   'Jugando',
-                                  Icons.videogame_asset,
+                                  CorpusIconKind.VideogameAsset,
                                   '',
                                   statusColor('playing'),
                                   (v) {
@@ -897,7 +893,7 @@ class ReviewModal {
                                 statusButton(
                                   'beaten',
                                   'Terminado',
-                                  Icons.check_circle,
+                                  CorpusIconKind.CheckCircle,
                                   '',
                                   statusColor('beaten'),
                                   (v) {
@@ -909,7 +905,7 @@ class ReviewModal {
                                 statusButton(
                                   'abandoned',
                                   'Abandonado',
-                                  Icons.cancel_outlined,
+                                  CorpusIconKind.CancelOutlined,
                                   '',
                                   statusColor('abandoned'),
                                   (v) {
@@ -921,7 +917,7 @@ class ReviewModal {
                                 Row(
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.arrow_back),
+                                      icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
                                       tooltip: 'Cambiar estado',
                                       onPressed: () => setModalState(
                                         () => statusStepConfirmed = false,
@@ -933,8 +929,7 @@ class ReviewModal {
                                         minHeight: 36,
                                       ),
                                     ),
-                                    Icon(
-                                      GameStatus.iconForString(reviewStatus),
+                                    CorpusTablerIcon(GameStatus.iconForString(reviewStatus),
                                       size: 20,
                                       color: statusColor(reviewStatus),
                                     ),
@@ -971,7 +966,7 @@ class ReviewModal {
                                       chip(
                                         'none',
                                         'Nada',
-                                        Icons.do_not_disturb_alt,
+                                        CorpusIconKind.DoNotDisturbAlt,
                                         reviewCompletionType,
                                         Theme.of(
                                           modalContext,
@@ -981,7 +976,7 @@ class ReviewModal {
                                       chip(
                                         'story',
                                         'Historia',
-                                        Icons.auto_stories,
+                                        CorpusIconKind.AutoStories,
                                         reviewCompletionType,
                                         Theme.of(
                                           modalContext,
@@ -991,7 +986,7 @@ class ReviewModal {
                                       chip(
                                         'story_extras',
                                         'Historia + Extras',
-                                        Icons.extension,
+                                        CorpusIconKind.Extension,
                                         reviewCompletionType,
                                         Theme.of(
                                           modalContext,
@@ -1001,7 +996,7 @@ class ReviewModal {
                                       chip(
                                         '100_percent',
                                         'Platino',
-                                        Icons.emoji_events,
+                                        CorpusIconKind.EmojiEvents,
                                         reviewCompletionType,
                                         Theme.of(
                                           modalContext,
@@ -1028,7 +1023,7 @@ class ReviewModal {
                                       chip(
                                         'none',
                                         'Nada',
-                                        Icons.do_not_disturb_alt,
+                                        CorpusIconKind.DoNotDisturbAlt,
                                         reviewCompletionType,
                                         Theme.of(
                                           modalContext,
@@ -1038,7 +1033,7 @@ class ReviewModal {
                                       chip(
                                         'endless',
                                         'Sin Fin',
-                                        Icons.all_inclusive,
+                                        CorpusIconKind.AllInclusive,
                                         reviewCompletionType,
                                         Theme.of(
                                           modalContext,
@@ -1048,7 +1043,7 @@ class ReviewModal {
                                       chip(
                                         'on_hold',
                                         'En Pausa',
-                                        Icons.pause,
+                                        CorpusIconKind.Pause,
                                         reviewCompletionType,
                                         Theme.of(
                                           modalContext,
@@ -1122,7 +1117,7 @@ class ReviewModal {
                                       children: [
                                         buildSubRatingSlider(
                                           'Gameplay',
-                                          Icons.sports_esports,
+                                          CorpusIconKind.SportsEsports,
                                           reviewRatingGameplay,
                                           (val) => setModalState(
                                             () => reviewRatingGameplay = val,
@@ -1130,7 +1125,7 @@ class ReviewModal {
                                         ),
                                         buildSubRatingSlider(
                                           'Narrativa',
-                                          Icons.auto_stories,
+                                          CorpusIconKind.AutoStories,
                                           reviewRatingNarrative,
                                           (val) => setModalState(
                                             () => reviewRatingNarrative = val,
@@ -1138,7 +1133,7 @@ class ReviewModal {
                                         ),
                                         buildSubRatingSlider(
                                           'Banda Sonora',
-                                          Icons.music_note,
+                                          CorpusIconKind.MusicNote,
                                           reviewRatingSoundtrack,
                                           (val) => setModalState(
                                             () => reviewRatingSoundtrack = val,
@@ -1146,7 +1141,7 @@ class ReviewModal {
                                         ),
                                         buildSubRatingSlider(
                                           'Gráficos',
-                                          Icons.brush,
+                                          CorpusIconKind.Brush,
                                           reviewRatingVisuals,
                                           (val) => setModalState(
                                             () => reviewRatingVisuals = val,
@@ -1231,8 +1226,7 @@ class ReviewModal {
                                   if (existingImages.length + newImages.length <
                                       3)
                                     OutlinedButton.icon(
-                                      icon: const Icon(
-                                        Icons.add_photo_alternate,
+                                      icon: const CorpusTablerIcon(CorpusIconKind.AddPhotoAlternate,
                                         size: 18,
                                       ),
                                       label: const Text(

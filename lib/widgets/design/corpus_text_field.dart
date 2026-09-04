@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../theme/corpus_theme_extension.dart';
 
@@ -9,8 +11,8 @@ class CorpusTextField extends StatelessWidget {
   final String? hint;
   final String? helperText;
   final String? errorText;
-  final IconData? prefixIcon;
-  final IconData? suffixIcon;
+  final CorpusIconKind? prefixIcon;
+  final CorpusIconKind? suffixIcon;
   final VoidCallback? onSuffixTap;
   final bool obscureText;
   final bool enabled;
@@ -61,9 +63,9 @@ class CorpusTextField extends StatelessWidget {
         hintText: hint,
         helperText: helperText,
         errorText: hasError ? errorText : null,
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+        prefixIcon: prefixIcon != null ? CorpusTablerIcon(prefixIcon!) : null,
         suffixIcon: suffixIcon != null
-            ? IconButton(icon: Icon(suffixIcon), onPressed: onSuffixTap)
+            ? IconButton(icon: CorpusTablerIcon(suffixIcon!), onPressed: onSuffixTap)
             : null,
         filled: true,
         fillColor: enabled

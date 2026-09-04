@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 /// Utilidades compartidas para formatear eventos del feed de actividad.
 class ActivityFormatters {
@@ -69,23 +70,23 @@ class ActivityFormatters {
     }
   }
 
-  static IconData actionIcon(String actionType, String? status) {
-    if (actionType == 'reviewed') return Icons.rate_review_rounded;
-    if (actionType == 'achievement') return Icons.emoji_events_rounded;
+  static CorpusIconKind actionIcon(String actionType, String? status) {
+    if (actionType == 'reviewed') return CorpusIconKind.RateReviewRounded;
+    if (actionType == 'achievement') return CorpusIconKind.EmojiEventsRounded;
     switch (status) {
       case 'beaten':
       case 'completed':
-        return Icons.check_circle;
+        return CorpusIconKind.CheckCircle;
       case 'playing':
-        return Icons.sports_esports;
+        return CorpusIconKind.SportsEsports;
       case 'wishlist':
-        return Icons.bookmark;
+        return CorpusIconKind.Bookmark;
       case 'abandoned':
-        return Icons.cancel;
+        return CorpusIconKind.Cancel;
       case 'on_hold':
-        return Icons.pause_circle;
+        return CorpusIconKind.PauseCircle;
       default:
-        return Icons.flag;
+        return CorpusIconKind.Flag;
     }
   }
 

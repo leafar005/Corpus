@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/main.dart' as app;
 import 'package:corpus/globals.dart' as globals;
+import 'package:corpus/widgets/corpus_icon_kind.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/game_card.dart';
 
 /// Prueba de Integración End-to-End (E2E - Prioridad 5 de la Pirámide de Testing)
@@ -148,7 +150,9 @@ void main() {
           // ── PASO 3: Verificar entrada a MainScreen vía AuthGate ─────────────
           // Al registrarse en Supabase, el AuthGate de main.dart detecta la sesión
           // y nos lleva directamente a la aplicación principal (sin pasar por Login de nuevo).
-          final searchIcon = find.byIcon(Icons.search);
+          final searchIcon = find.byWidgetPredicate(
+            (w) => w is CorpusTablerIcon && w.kind == CorpusIconKind.Search,
+          );
           await waitFor(searchIcon, timeout: const Duration(seconds: 15));
           expect(
             searchIcon,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/models.dart';
 import 'package:corpus/routes/corpus_router.dart';
@@ -90,8 +92,7 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.videogame_asset,
+            CorpusTablerIcon(CorpusIconKind.VideogameAsset,
               size: widget.compact ? 14 : 18,
               color: Colors.greenAccent[400],
             ),

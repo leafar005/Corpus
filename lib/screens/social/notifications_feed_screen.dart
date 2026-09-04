@@ -9,6 +9,8 @@
 // página, no en el estado real ya actualizado en servidor.
 
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/models.dart';
 
@@ -165,20 +167,20 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
     }
   }
 
-  IconData _notificationIcon(String? type) {
+  CorpusIconKind _notificationIcon(String? type) {
     switch (type) {
       case 'like':
-        return Icons.thumb_up_alt_rounded;
+        return CorpusIconKind.ThumbUpAltRounded;
       case 'comment':
-        return Icons.chat_bubble_rounded;
+        return CorpusIconKind.ChatBubbleRounded;
       case 'reply':
-        return Icons.reply_rounded;
+        return CorpusIconKind.ReplyRounded;
       case 'friend_request':
-        return Icons.person_add_alt_1_rounded;
+        return CorpusIconKind.PersonAddAlt1Rounded;
       case 'friend_request_accepted':
-        return Icons.people_alt_rounded;
+        return CorpusIconKind.PeopleAltRounded;
       default:
-        return Icons.notifications_rounded;
+        return CorpusIconKind.NotificationsRounded;
     }
   }
 
@@ -209,7 +211,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
                   backgroundImage: avatarUrl != null
                       ? NetworkImage(avatarUrl)
                       : null,
-                  child: avatarUrl == null ? const Icon(Icons.person) : null,
+                  child: avatarUrl == null ? const CorpusTablerIcon(CorpusIconKind.Person) : null,
                 ),
                 Positioned(
                   bottom: -2,
@@ -221,8 +223,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
                       color: cs.primary,
                       border: Border.all(color: cs.surface, width: 2),
                     ),
-                    child: Icon(
-                      _notificationIcon(n['type'] as String?),
+                    child: CorpusTablerIcon(_notificationIcon(n['type'] as String?),
                       size: 12,
                       color: cs.onPrimary,
                     ),
@@ -290,7 +291,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
       content = Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
             onPressed: () =>
                 AppNavigationController.instance.requestBack(context),
           ),
@@ -298,7 +299,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
         ),
         body: const Center(
           child: GuestLoginPrompt(
-            icon: Icons.notifications_none_rounded,
+            icon: CorpusIconKind.NotificationsNoneRounded,
             message: 'Inicia sesión para ver tus notificaciones.',
           ),
         ),
@@ -307,7 +308,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
       content = Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
             onPressed: () =>
                 AppNavigationController.instance.requestBack(context),
           ),

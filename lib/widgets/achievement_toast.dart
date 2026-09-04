@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../routes/deep_route_resolver.dart';
 import '../routes/tab_deep_route.dart';
 import '../theme/corpus_theme_extension.dart';
@@ -11,7 +13,7 @@ class AchievementToast {
     required String title,
     String subtitle = 'Logro desbloqueado',
     int? xpReward,
-    IconData icon = Icons.emoji_events,
+    CorpusIconKind icon = CorpusIconKind.EmojiEvents,
     Color color = const Color(0xFFFFD700), // Dorado por defecto
     VoidCallback? onTap,
   }) {
@@ -93,7 +95,7 @@ class AchievementToast {
             title: title,
             subtitle: subtitle,
             xpReward: xpReward,
-            icon: Icons.workspace_premium,
+            icon: CorpusIconKind.WorkspacePremium,
             color: color,
             onTap: () async {
               final groupId = aId.split('_').first;
@@ -117,7 +119,7 @@ class _AnimatedAchievementToast extends StatefulWidget {
   final String title;
   final String subtitle;
   final int? xpReward;
-  final IconData icon;
+  final CorpusIconKind icon;
   final Color color;
   final VoidCallback? onTap;
   final VoidCallback onDismissed;
@@ -248,8 +250,7 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
                               color: widget.color.withValues(alpha: 0.5),
                             ),
                           ),
-                          child: Icon(
-                            widget.icon,
+                          child: CorpusTablerIcon(widget.icon!,
                             color: widget.color,
                             size: 24,
                           ),

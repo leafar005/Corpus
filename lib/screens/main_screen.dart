@@ -21,6 +21,7 @@ import '../services/deep_link_service.dart';
 import 'package:corpus/globals.dart';
 import '../widgets/edge_swipe_back_detector.dart';
 import '../routes/app_navigation_controller.dart';
+import '../widgets/corpus_nav_icon.dart';
 import 'package:flutter/rendering.dart';
 import 'main/main_screen_controller.dart';
 
@@ -399,15 +400,15 @@ class _MainScreenState extends State<MainScreen>
             isAntiAlias: true,
           ),
           const Spacer(),
-          _buildTopNavItem(0, 'Inicio', Icons.home),
+          _buildTopNavItem(0, 'Inicio'),
           const SizedBox(width: 16),
-          _buildTopNavItem(1, 'Explorar', Icons.explore_outlined),
+          _buildTopNavItem(1, 'Explorar'),
           const SizedBox(width: 16),
-          _buildTopNavItem(2, 'Actividad', Icons.group),
+          _buildTopNavItem(2, 'Actividad'),
           const SizedBox(width: 16),
-          _buildTopNavItem(3, 'Bundles', Icons.local_offer),
+          _buildTopNavItem(3, 'Bundles'),
           const SizedBox(width: 16),
-          _buildTopNavItem(4, 'Perfil', Icons.person),
+          _buildTopNavItem(4, 'Perfil'),
         ],
       ),
     );
@@ -440,19 +441,15 @@ class _MainScreenState extends State<MainScreen>
                     isAntiAlias: true,
                   ),
                   const Spacer(),
-                  _buildPersona5RoyalTopNavItem(0, 'Inicio', Icons.home),
+                  _buildPersona5RoyalTopNavItem(0, 'Inicio'),
                   const SizedBox(width: 16),
-                  _buildPersona5RoyalTopNavItem(1, 'Explorar', Icons.explore_outlined),
+                  _buildPersona5RoyalTopNavItem(1, 'Explorar'),
                   const SizedBox(width: 16),
-                  _buildPersona5RoyalTopNavItem(2, 'Actividad', Icons.group),
+                  _buildPersona5RoyalTopNavItem(2, 'Actividad'),
                   const SizedBox(width: 16),
-                  _buildPersona5RoyalTopNavItem(
-                    3,
-                    'Bundles',
-                    Icons.local_offer,
-                  ),
+                  _buildPersona5RoyalTopNavItem(3, 'Bundles'),
                   const SizedBox(width: 16),
-                  _buildPersona5RoyalTopNavItem(4, 'Perfil', Icons.person),
+                  _buildPersona5RoyalTopNavItem(4, 'Perfil'),
                 ],
               ),
             ),
@@ -462,7 +459,7 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
-  Widget _buildPersona5RoyalTopNavItem(int index, String label, IconData icon) {
+  Widget _buildPersona5RoyalTopNavItem(int index, String label) {
     final isSelected = _currentIndex == index;
     final color = isSelected ? Colors.white : Colors.white70;
 
@@ -470,7 +467,10 @@ class _MainScreenState extends State<MainScreen>
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          _withNavBadge(index, Icon(icon, color: color, size: 20)),
+          _withNavBadge(
+            index,
+            CorpusNavIcon(tabIndex: index, color: color, size: 20),
+          ),
           const SizedBox(width: 8),
           Text(
             label,
@@ -507,7 +507,7 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
-  Widget _buildTopNavItem(int index, String label, IconData icon) {
+  Widget _buildTopNavItem(int index, String label) {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
     final isSelected = _currentIndex == index;
     final color = isSelected
@@ -521,7 +521,10 @@ class _MainScreenState extends State<MainScreen>
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            _withNavBadge(index, Icon(icon, color: color, size: 20)),
+            _withNavBadge(
+              index,
+              CorpusNavIcon(tabIndex: index, color: color, size: 20),
+            ),
             const SizedBox(width: 8),
             Text(
               label,
@@ -537,8 +540,6 @@ class _MainScreenState extends State<MainScreen>
   }
 
   Widget _buildLiquidGlassNavBar(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return SafeArea(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -565,29 +566,16 @@ class _MainScreenState extends State<MainScreen>
                     alignment: Alignment.topLeft,
                     margin: EdgeInsets.zero,
                     itemStyle: LiquidGlassNavItemStyle(
-                      selectedColor: isDark
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.black,
-                      unselectedColor: isDark ? Colors.white70 : Colors.black54,
+                      selectedColor: Theme.of(context).colorScheme.primary,
+                      unselectedColor:
+                          Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    items: const [
-                      LiquidGlassTabBarItem(icon: Icons.home, label: 'Inicio'),
-                      LiquidGlassTabBarItem(
-                        icon: Icons.explore_outlined,
-                        label: 'Explorar',
-                      ),
-                      LiquidGlassTabBarItem(
-                        icon: Icons.group,
-                        label: 'Actividad',
-                      ),
-                      LiquidGlassTabBarItem(
-                        icon: Icons.local_offer,
-                        label: 'Bundles',
-                      ),
-                      LiquidGlassTabBarItem(
-                        icon: Icons.person,
-                        label: 'Perfil',
-                      ),
+                    items: [
+                      corpusNavTabItem(0, 'Inicio'),
+                      corpusNavTabItem(1, 'Explorar'),
+                      corpusNavTabItem(2, 'Actividad'),
+                      corpusNavTabItem(3, 'Bundles'),
+                      corpusNavTabItem(4, 'Perfil'),
                     ],
                     selectedIndex: _currentIndex,
                     onChanged: (index) => _onTabTapped(index),
@@ -652,13 +640,7 @@ class _MainScreenState extends State<MainScreen>
   }
 
   Widget _buildPersona5RoyalNavBar(BuildContext context) {
-    const items = [
-      (Icons.home, 'Inicio'),
-      (Icons.explore_outlined, 'Explorar'),
-      (Icons.group, 'Actividad'),
-      (Icons.local_offer, 'Bundles'),
-      (Icons.person, 'Perfil'),
-    ];
+    const labels = ['Inicio', 'Explorar', 'Actividad', 'Bundles', 'Perfil'];
 
     return SafeArea(
       top: false,
@@ -678,8 +660,8 @@ class _MainScreenState extends State<MainScreen>
                   ),
                 ),
                 Row(
-                  children: List.generate(items.length, (index) {
-                    final (icon, label) = items[index];
+                  children: List.generate(labels.length, (index) {
+                    final label = labels[index];
                     final isSelected = _currentIndex == index;
                     final color = isSelected ? Colors.white : Colors.white70;
 
@@ -689,7 +671,11 @@ class _MainScreenState extends State<MainScreen>
                       children: [
                         _withNavBadge(
                           index,
-                          Icon(icon, color: color, size: isSelected ? 28 : 24),
+                          CorpusNavIcon(
+                            tabIndex: index,
+                            color: color,
+                            size: isSelected ? 28 : 24,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -746,6 +732,27 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
+  BottomNavigationBarItem _solidNavItem(
+    int index,
+    String label, {
+    bool badge = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final inactive = scheme.onSurfaceVariant;
+    final active = scheme.primary;
+    Widget icon = CorpusNavIcon(tabIndex: index, color: inactive);
+    Widget activeIcon = CorpusNavIcon(tabIndex: index, color: active);
+    if (badge) {
+      icon = _withNavBadge(index, icon);
+      activeIcon = _withNavBadge(index, activeIcon);
+    }
+    return BottomNavigationBarItem(
+      icon: icon,
+      activeIcon: activeIcon,
+      label: label,
+    );
+  }
+
   Widget _buildSolidNavBar(BuildContext context) {
     return ValueListenableBuilder<bool>(
       valueListenable: floatingMobileNavNotifier,
@@ -759,26 +766,11 @@ class _MainScreenState extends State<MainScreen>
             selectedItemColor: Theme.of(context).colorScheme.primary,
             unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
             items: [
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.home),
-                label: 'Inicio',
-              ),
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.explore_outlined),
-                label: 'Explorar',
-              ),
-              BottomNavigationBarItem(
-                icon: _withNavBadge(2, const Icon(Icons.group)),
-                label: 'Actividad',
-              ),
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.local_offer),
-                label: 'Bundles',
-              ),
-              BottomNavigationBarItem(
-                icon: _withNavBadge(4, const Icon(Icons.person)),
-                label: 'Perfil',
-              ),
+              _solidNavItem(0, 'Inicio'),
+              _solidNavItem(1, 'Explorar'),
+              _solidNavItem(2, 'Actividad', badge: true),
+              _solidNavItem(3, 'Bundles'),
+              _solidNavItem(4, 'Perfil', badge: true),
             ],
           );
         }
@@ -834,26 +826,11 @@ class _MainScreenState extends State<MainScreen>
                       showSelectedLabels: showLabels,
                       showUnselectedLabels: showLabels,
                       items: [
-                        const BottomNavigationBarItem(
-                          icon: Icon(Icons.home),
-                          label: 'Inicio',
-                        ),
-                        const BottomNavigationBarItem(
-                          icon: Icon(Icons.explore_outlined),
-                          label: 'Explorar',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: _withNavBadge(2, const Icon(Icons.group)),
-                          label: 'Actividad',
-                        ),
-                        const BottomNavigationBarItem(
-                          icon: Icon(Icons.local_offer),
-                          label: 'Bundles',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: _withNavBadge(4, const Icon(Icons.person)),
-                          label: 'Perfil',
-                        ),
+                        _solidNavItem(0, 'Inicio'),
+                        _solidNavItem(1, 'Explorar'),
+                        _solidNavItem(2, 'Actividad', badge: true),
+                        _solidNavItem(3, 'Bundles'),
+                        _solidNavItem(4, 'Perfil', badge: true),
                       ],
                     ),
                   ),
@@ -873,25 +850,26 @@ class _MainScreenState extends State<MainScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildMinimalNavItem(0, Icons.home),
-            _buildMinimalNavItem(1, Icons.search),
-            _buildMinimalNavItem(2, Icons.group),
-            _buildMinimalNavItem(3, Icons.local_offer),
-            _buildMinimalNavItem(4, Icons.person),
+            _buildMinimalNavItem(0),
+            _buildMinimalNavItem(1, exploreAsSearch: true),
+            _buildMinimalNavItem(2),
+            _buildMinimalNavItem(3),
+            _buildMinimalNavItem(4),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMinimalNavItem(int index, IconData icon) {
+  Widget _buildMinimalNavItem(int index, {bool exploreAsSearch = false}) {
     final isSelected = _currentIndex == index;
     return IconButton(
       onPressed: () => _onTabTapped(index),
       icon: _withNavBadge(
         index,
-        Icon(
-          icon,
+        CorpusNavIcon(
+          tabIndex: index,
+          exploreAsSearch: exploreAsSearch,
           color: isSelected
               ? Theme.of(context).colorScheme.primary
               : Theme.of(context).colorScheme.onSurfaceVariant,

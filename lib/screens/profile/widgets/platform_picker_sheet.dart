@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../../repositories/collection_repository.dart';
 import '../../../utils/shelf_platforms.dart';
@@ -103,8 +105,7 @@ class _PlatformPickerSheetState extends State<_PlatformPickerSheet> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(
-                      Icons.lightbulb_outline,
+                    CorpusTablerIcon(CorpusIconKind.LightbulbOutline,
                       size: 16,
                       color: Theme.of(context).colorScheme.primary,
                     ),
@@ -257,15 +258,13 @@ class _PlatformIcon extends StatelessWidget {
         width: 20,
         height: 20,
         color: platform.textColor,
-        errorBuilder: (_, _, _) => Icon(
-          platform.materialIcon ?? Icons.sports_esports,
+        errorBuilder: (_, _, _) => CorpusTablerIcon(platform.fallbackIcon ?? CorpusIconKind.SportsEsports,
           size: 18,
           color: platform.textColor,
         ),
       );
     }
-    return Icon(
-      platform.materialIcon ?? Icons.sports_esports,
+    return CorpusTablerIcon(platform.fallbackIcon ?? CorpusIconKind.SportsEsports,
       size: 18,
       color: platform.textColor,
     );

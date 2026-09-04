@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -816,60 +818,60 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
     return counts;
   }
 
-  IconData _getIconData(String iconName) {
+  CorpusIconKind _getIconData(String iconName) {
     switch (iconName) {
       case 'hourglass_empty':
-        return Icons.hourglass_empty;
+        return CorpusIconKind.HourglassEmpty;
       case 'menu_book':
-        return Icons.menu_book;
+        return CorpusIconKind.MenuBook;
       case 'rocket_launch':
-        return Icons.rocket_launch;
+        return CorpusIconKind.RocketLaunch;
       case 'gamepad':
-        return Icons.gamepad;
+        return CorpusIconKind.Gamepad;
       case 'computer':
-        return Icons.computer;
+        return CorpusIconKind.Computer;
       case 'devices':
-        return Icons.devices;
+        return CorpusIconKind.Devices;
       case 'swords':
-        return Icons.colorize;
+        return CorpusIconKind.Colorize;
       case 'category':
-        return Icons.category;
+        return CorpusIconKind.Category;
       case 'person':
-        return Icons.person;
+        return CorpusIconKind.Person;
       case 'visibility':
-        return Icons.visibility;
+        return CorpusIconKind.Visibility;
       case 'psychology':
-        return Icons.psychology;
+        return CorpusIconKind.Psychology;
       case 'fireplace':
-        return Icons.fireplace;
+        return CorpusIconKind.Fireplace;
       case 'sports_esports':
-        return Icons.sports_esports;
+        return CorpusIconKind.SportsEsports;
       case 'pets':
-        return Icons.pets;
+        return CorpusIconKind.Pets;
       case 'explore':
-        return Icons.explore;
+        return CorpusIconKind.Explore;
       case 'local_police':
-        return Icons.local_police;
+        return CorpusIconKind.LocalPolice;
       case 'science':
-        return Icons.science;
+        return CorpusIconKind.Science;
       case 'shield':
-        return Icons.shield;
+        return CorpusIconKind.Shield;
       case 'plumbing':
-        return Icons.plumbing;
+        return CorpusIconKind.Plumbing;
       case 'catching_pokemon':
-        return Icons.catching_pokemon;
+        return CorpusIconKind.CatchingPokemon;
       case 'biotech':
-        return Icons.biotech;
+        return CorpusIconKind.Biotech;
       case 'local_fire_department':
-        return Icons.local_fire_department;
+        return CorpusIconKind.LocalFireDepartment;
       case 'visibility_off':
-        return Icons.visibility_off;
+        return CorpusIconKind.VisibilityOff;
       case 'auto_awesome':
-        return Icons.auto_awesome;
+        return CorpusIconKind.AutoAwesome;
       case 'colorize':
-        return Icons.colorize;
+        return CorpusIconKind.Colorize;
       default:
-        return Icons.emoji_events;
+        return CorpusIconKind.EmojiEvents;
     }
   }
 
@@ -1041,7 +1043,7 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
                   <Map<String, dynamic>>[
                     {'target': 1, 'xp': 10},
                   ],
-              achievementIcon: badgeStyle['icon'] as IconData,
+              achievementIcon: badgeStyle['icon'] as CorpusIconKind,
               achievementColor: badgeStyle['color'] as Color,
             ),
           )
@@ -1065,8 +1067,7 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.emoji_events_outlined,
+              CorpusTablerIcon(CorpusIconKind.EmojiEventsOutlined,
                 size: 48,
                 color: Theme.of(
                   context,
@@ -1123,7 +1124,7 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
             );
             final Color badgeColor = badgeStyle['color'] as Color;
             final Color borderColor = badgeStyle['borderColor'] as Color;
-            final IconData badgeIcon = badgeStyle['icon'] as IconData;
+            final CorpusIconKind badgeIcon = badgeStyle['icon'] as CorpusIconKind;
 
             return Card(
               margin: EdgeInsets.zero,
@@ -1153,7 +1154,7 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
                           color: badgeColor.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(badgeIcon, size: 32, color: badgeColor),
+                        child: CorpusTablerIcon(badgeIcon, size: 32, color: badgeColor),
                       ),
                       const SizedBox(height: 8),
                       Text(

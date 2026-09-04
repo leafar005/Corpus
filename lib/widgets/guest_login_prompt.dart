@@ -1,7 +1,9 @@
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:flutter/material.dart';
 import 'package:corpus/routes/app_routes.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'corpus_primary_button.dart';
+import 'corpus_tabler_icon.dart';
 
 /// Aviso reutilizable para zonas de la app en "modo invitado":
 /// icono + mensaje + botón que abre la pantalla de login.
@@ -10,30 +12,37 @@ import 'corpus_primary_button.dart';
 /// dentro de otro layout (p.ej. en vez del botón "Añadir a biblioteca").
 class GuestLoginPrompt extends StatelessWidget {
   final String message;
-  final IconData icon;
+  final CorpusIconKind? icon;
+  final Widget? iconWidget;
   final String buttonLabel;
   final EdgeInsetsGeometry padding;
 
   const GuestLoginPrompt({
     super.key,
     required this.message,
-    this.icon = Icons.lock_outline,
+    this.icon,
+    this.iconWidget,
     this.buttonLabel = 'Iniciar sesión',
     this.padding = const EdgeInsets.all(32),
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = Theme.of(context).colorScheme.primary.withValues(
+      alpha: 0.6,
+    );
+    final leading =
+        iconWidget ??
+        (icon != null
+            ? CorpusTablerIcon(icon!, size: 56, color: iconColor)
+            : CorpusTablerIcon.lock(size: 56, color: iconColor));
+
     return Padding(
       padding: padding,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 56,
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
-          ),
+          leading,
           const SizedBox(height: 16),
           Text(
             message,
@@ -46,7 +55,7 @@ class GuestLoginPrompt extends StatelessWidget {
           const SizedBox(height: 20),
           CorpusPrimaryButton(
             onPressed: () => openLoginScreen(context),
-            icon: Icons.login,
+            icon: CorpusIconKind.Login,
             label: buttonLabel,
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
           ),
@@ -78,7 +87,7 @@ class GuestLoginButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return CorpusPrimaryButton(
       onPressed: () => openLoginScreen(context),
-      icon: Icons.login,
+      icon: CorpusIconKind.Login,
       label: label,
       expand: true,
       height: 50,

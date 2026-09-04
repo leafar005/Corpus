@@ -5,6 +5,7 @@ import 'package:corpus/routes/corpus_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import '../services/user_settings_service.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -36,7 +37,7 @@ class SettingsScreen extends StatelessWidget {
         children: [
           _buildSettingsTile(
             context: context,
-            icon: Icons.person,
+            leading: const CorpusTablerIcon.userFilled(size: 20),
             title: 'Cuenta',
             subtitle: 'Editar perfil, nombre de usuario',
             onTap: () {
@@ -45,7 +46,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           _buildSettingsTile(
             context: context,
-            icon: Icons.palette,
+            leading: const CorpusTablerIcon.palette(size: 20),
             title: 'Apariencia',
             subtitle: 'Modo, color principal',
             onTap: () {
@@ -54,7 +55,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           _buildSettingsTile(
             context: context,
-            icon: Icons.notifications,
+            leading: const CorpusTablerIcon.bell(size: 20),
             title: 'Notificaciones',
             subtitle: 'Avisos, interacciones',
             onTap: () {
@@ -63,17 +64,17 @@ class SettingsScreen extends StatelessWidget {
           ),
           _buildSettingsTile(
             context: context,
-            icon: Icons.integration_instructions,
+            leading: const CorpusTablerIcon.plug(size: 20),
             title: 'Integraciones',
             subtitle: 'Vincular Steam, importar Stash',
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const CorpusTablerIcon.chevronRight(size: 20),
             onTap: () {
               context.pushIntegrations();
             },
           ),
           _buildSettingsTile(
             context: context,
-            icon: Icons.info_outline,
+            leading: const CorpusTablerIcon.info(size: 20),
             title: 'Información',
             subtitle: 'Acerca de Corpus',
             onTap: () {
@@ -119,7 +120,7 @@ class SettingsScreen extends StatelessWidget {
                   return Column(
                     children: [
                       SwitchListTile(
-                        secondary: const Icon(Icons.language),
+                        secondary: const CorpusTablerIcon.language(size: 20),
                         title: const Text('Traducir enlaces de tiendas'),
                         subtitle: const Text(
                           'Convierte los enlaces de tiendas a euros y español.',
@@ -133,7 +134,7 @@ class SettingsScreen extends StatelessWidget {
                         },
                       ),
                       SwitchListTile(
-                        secondary: const Icon(Icons.timer_outlined),
+                        secondary: const CorpusTablerIcon.timer(size: 20),
                         title: const Text('DuracionDe (experimental)'),
                         subtitle: const Text(
                           'Obtener tiempos de duración en español desde duracionde.com (con fallback a IGDB).',
@@ -164,7 +165,7 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           ListTile(
-            leading: const Icon(Icons.delete_forever, color: Colors.orange),
+            leading: const CorpusTablerIcon.trashX(size: 20, color: Colors.orange),
             title: const Text(
               'DEBUG: Vaciar cuenta',
               style: TextStyle(
@@ -285,7 +286,7 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           ListTile(
-            leading: const Icon(Icons.cleaning_services, color: Colors.orange),
+            leading: const CorpusTablerIcon.broom(size: 20, color: Colors.orange),
             title: const Text(
               'DEBUG: Limpiar caché de Bundles',
               style: TextStyle(
@@ -326,8 +327,8 @@ class SettingsScreen extends StatelessWidget {
             height: 32,
           ),
           ListTile(
-            leading: Icon(
-              Icons.logout,
+            leading: CorpusTablerIcon.logout(
+              size: 20,
               color: Theme.of(context).colorScheme.error,
             ),
             title: Text(
@@ -351,7 +352,7 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildSettingsTile({
     required BuildContext context,
-    required IconData icon,
+    required Widget leading,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
@@ -380,14 +381,14 @@ class SettingsScreen extends StatelessWidget {
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 20),
+            child: leading,
           ),
           title: Text(
             title,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           subtitle: Text(subtitle, style: const TextStyle()),
-          trailing: trailing ?? const Icon(Icons.chevron_right),
+          trailing: trailing ?? const CorpusTablerIcon.chevronRight(size: 20),
           onTap: onTap,
         ),
       ),

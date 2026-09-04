@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'package:corpus/widgets/corpus_section_title.dart';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import 'game_details_controller.dart';
 import 'game_reviews_card.dart';
@@ -205,20 +207,20 @@ class _GameHeroSectionState extends State<GameHeroSection> {
     }
   }
 
-  IconData _friendStatusIcon(String status) {
+  CorpusIconKind _friendStatusIcon(String status) {
     switch (status) {
       case 'beaten':
-        return Icons.check_circle;
+        return CorpusIconKind.CheckCircle;
       case 'playing':
-        return Icons.sports_esports;
+        return CorpusIconKind.SportsEsports;
       case 'wishlist':
-        return Icons.bookmark;
+        return CorpusIconKind.Bookmark;
       case 'abandoned':
-        return Icons.cancel;
+        return CorpusIconKind.Cancel;
       case 'on_hold':
-        return Icons.pause_circle;
+        return CorpusIconKind.PauseCircle;
       default:
-        return Icons.help_outline;
+        return CorpusIconKind.HelpOutline;
     }
   }
 
@@ -288,7 +290,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                               ? NetworkImage(avatarUrl)
                               : null,
                           child: avatarUrl == null
-                              ? const Icon(Icons.person, size: 34)
+                              ? const CorpusTablerIcon(CorpusIconKind.Person, size: 34)
                               : null,
                         ),
                         Positioned(
@@ -300,8 +302,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                               color: statusColor,
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(
-                              statusIcon,
+                            child: CorpusTablerIcon(statusIcon,
                               size: 18,
                               color: Colors.white,
                             ),
@@ -357,7 +358,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
 
     final icon = widget.inLibrary
         ? _friendStatusIcon(widget.status)
-        : Icons.add;
+        : CorpusIconKind.Add;
     final textColor = color == Theme.of(context).colorScheme.secondary
         ? Theme.of(context).scaffoldBackgroundColor
         : Colors.white;
@@ -431,8 +432,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                       width: 50,
                       height: 50,
                       child: Center(
-                        child: Icon(
-                          Icons.more_vert,
+                        child: CorpusTablerIcon(CorpusIconKind.MoreVert,
                           color: menuIconColor,
                           size: 20,
                         ),
@@ -448,8 +448,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                       width: 50,
                       height: 50,
                       child: Center(
-                        child: Icon(
-                          Icons.more_vert,
+                        child: CorpusTablerIcon(CorpusIconKind.MoreVert,
                           color: menuIconColor,
                           size: 20,
                         ),
@@ -531,7 +530,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 value: 'add',
                 child: Row(
                   children: [
-                    Icon(Icons.add, size: 20),
+                    CorpusTablerIcon(CorpusIconKind.Add, size: 20),
                     SizedBox(width: 8),
                     Text('Añadir reseña'),
                   ],
@@ -541,7 +540,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 value: 'edit',
                 child: Row(
                   children: [
-                    Icon(Icons.edit, size: 20),
+                    CorpusTablerIcon(CorpusIconKind.Edit, size: 20),
                     SizedBox(width: 8),
                     Text('Editar'),
                   ],
@@ -551,7 +550,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 value: 'delete',
                 child: Row(
                   children: [
-                    Icon(Icons.delete, size: 20, color: Colors.redAccent),
+                    CorpusTablerIcon(CorpusIconKind.Delete, size: 20, color: Colors.redAccent),
                     SizedBox(width: 8),
                     Text(
                       'Borrar juego',
@@ -644,7 +643,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
               ? CorpusNetworkImage(url: coverUrl, fit: BoxFit.cover)
               : Container(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  child: const Icon(Icons.videogame_asset, size: 50),
+                  child: const CorpusTablerIcon(CorpusIconKind.VideogameAsset, size: 50),
                 ),
         ),
       ),
@@ -664,8 +663,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.business,
+          CorpusTablerIcon(CorpusIconKind.Business,
             size: 16,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
           ),
@@ -705,8 +703,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.storefront,
+                CorpusTablerIcon(CorpusIconKind.Storefront,
                   size: 16,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
                 ),
@@ -769,7 +766,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 if (widget.originalGame != null)
                   ActionChip(
                     label: const Text('Ver juego original'),
-                    avatar: const Icon(Icons.arrow_forward, size: 16),
+                    avatar: const CorpusTablerIcon(CorpusIconKind.ArrowForward, size: 16),
                     onPressed: () {
                       if (widget.onNavigateToGame != null) {
                         widget.onNavigateToGame!(widget.originalGame!);
@@ -837,8 +834,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
         const SizedBox(height: 4),
         Row(
           children: [
-            Icon(
-              Icons.calendar_today,
+            CorpusTablerIcon(CorpusIconKind.CalendarToday,
               size: 16,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
@@ -885,7 +881,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             backgroundColor: theme.scaffoldBackgroundColor,
             title: name,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack, color: Colors.white),
               onPressed: () =>
                   AppNavigationController.instance.requestBack(context),
             ),

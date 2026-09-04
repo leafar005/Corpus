@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -29,12 +31,12 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
     'anticipated_games': 'Más Anticipados',
   };
 
-  static const Map<String, IconData> itemIcons = {
-    'hero': Icons.view_carousel_outlined,
-    'bundles_ending_soon': Icons.local_offer_outlined,
-    'stash_activity': Icons.public_outlined,
-    'wishlist_anticipated': Icons.favorite_border,
-    'anticipated_games': Icons.event_available_outlined,
+  static const Map<String, CorpusIconKind> itemIcons = {
+    'hero': CorpusIconKind.ViewCarouselOutlined,
+    'bundles_ending_soon': CorpusIconKind.LocalOfferOutlined,
+    'stash_activity': CorpusIconKind.PublicOutlined,
+    'wishlist_anticipated': CorpusIconKind.FavoriteBorder,
+    'anticipated_games': CorpusIconKind.EventAvailableOutlined,
   };
 
   List<String> _order = [];
@@ -306,8 +308,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                         ),
                       ),
                       child: ListTile(
-                        leading: Icon(
-                          itemIcons[key],
+                        leading: CorpusTablerIcon(itemIcons[key]!,
                           color: _hiddenItems.contains(key)
                               ? Theme.of(context).colorScheme.onSurfaceVariant
                               : Theme.of(context).colorScheme.primary,
@@ -329,12 +330,12 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                             if (key == 'anticipated_games' ||
                                 key == 'wishlist_anticipated')
                               IconButton(
-                                icon: const Icon(Icons.settings_outlined),
+                                icon: const CorpusTablerIcon(CorpusIconKind.SettingsOutlined),
                                 onPressed: () => _showCountdownStyleDialog(key),
                               ),
                             if (key == 'bundles_ending_soon')
                               IconButton(
-                                icon: const Icon(Icons.settings_outlined),
+                                icon: const CorpusTablerIcon(CorpusIconKind.SettingsOutlined),
                                 onPressed: () => _showBundlesDaysDialog(),
                               ),
                             Switch(
@@ -344,8 +345,7 @@ class _HomeAppearanceScreenState extends State<HomeAppearanceScreen> {
                             const SizedBox(width: 8),
                             ReorderableDragStartListener(
                               index: idx,
-                              child: Icon(
-                                Icons.drag_handle,
+                              child: CorpusTablerIcon(CorpusIconKind.DragHandle,
                                 color: Theme.of(
                                   context,
                                 ).colorScheme.onSurface.withValues(alpha: 0.3),

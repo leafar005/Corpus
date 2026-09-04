@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/utils/level_calculator.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -55,60 +57,60 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     super.dispose();
   }
 
-  IconData _getIconData(String iconName) {
+  CorpusIconKind _getIconData(String iconName) {
     switch (iconName) {
       case 'hourglass_empty':
-        return Icons.hourglass_empty;
+        return CorpusIconKind.HourglassEmpty;
       case 'menu_book':
-        return Icons.menu_book;
+        return CorpusIconKind.MenuBook;
       case 'rocket_launch':
-        return Icons.rocket_launch;
+        return CorpusIconKind.RocketLaunch;
       case 'gamepad':
-        return Icons.gamepad;
+        return CorpusIconKind.Gamepad;
       case 'computer':
-        return Icons.computer;
+        return CorpusIconKind.Computer;
       case 'devices':
-        return Icons.devices;
+        return CorpusIconKind.Devices;
       case 'swords':
-        return Icons.colorize;
+        return CorpusIconKind.Colorize;
       case 'category':
-        return Icons.category;
+        return CorpusIconKind.Category;
       case 'person':
-        return Icons.person;
+        return CorpusIconKind.Person;
       case 'visibility':
-        return Icons.visibility;
+        return CorpusIconKind.Visibility;
       case 'psychology':
-        return Icons.psychology;
+        return CorpusIconKind.Psychology;
       case 'fireplace':
-        return Icons.fireplace;
+        return CorpusIconKind.Fireplace;
       case 'sports_esports':
-        return Icons.sports_esports;
+        return CorpusIconKind.SportsEsports;
       case 'pets':
-        return Icons.pets;
+        return CorpusIconKind.Pets;
       case 'explore':
-        return Icons.explore;
+        return CorpusIconKind.Explore;
       case 'local_police':
-        return Icons.local_police;
+        return CorpusIconKind.LocalPolice;
       case 'science':
-        return Icons.science;
+        return CorpusIconKind.Science;
       case 'shield':
-        return Icons.shield;
+        return CorpusIconKind.Shield;
       case 'plumbing':
-        return Icons.plumbing;
+        return CorpusIconKind.Plumbing;
       case 'catching_pokemon':
-        return Icons.catching_pokemon;
+        return CorpusIconKind.CatchingPokemon;
       case 'biotech':
-        return Icons.biotech;
+        return CorpusIconKind.Biotech;
       case 'local_fire_department':
-        return Icons.local_fire_department;
+        return CorpusIconKind.LocalFireDepartment;
       case 'visibility_off':
-        return Icons.visibility_off;
+        return CorpusIconKind.VisibilityOff;
       case 'auto_awesome':
-        return Icons.auto_awesome;
+        return CorpusIconKind.AutoAwesome;
       case 'colorize':
-        return Icons.colorize;
+        return CorpusIconKind.Colorize;
       default:
-        return Icons.emoji_events;
+        return CorpusIconKind.EmojiEvents;
     }
   }
 
@@ -301,7 +303,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         return AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.stars, color: Theme.of(context).colorScheme.primary),
+              CorpusTablerIcon(CorpusIconKind.Stars, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               const Text('¿Cómo ganar XP?'),
             ],
@@ -316,31 +318,31 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
               const SizedBox(height: 16),
               _buildXpRow(
                 context,
-                Icons.person_add,
+                CorpusIconKind.PersonAdd,
                 'Crear tu cuenta',
                 '50 XP',
               ),
               _buildXpRow(
                 context,
-                Icons.add_circle_outline,
+                CorpusIconKind.AddCircleOutline,
                 'Añadir un juego a tu biblioteca',
                 '5 XP',
               ),
               _buildXpRow(
                 context,
-                Icons.emoji_events,
+                CorpusIconKind.EmojiEvents,
                 'Completar (Terminar) un juego',
                 '20 XP',
               ),
               _buildXpRow(
                 context,
-                Icons.rate_review,
+                CorpusIconKind.RateReview,
                 'Escribir una reseña',
                 '10 XP',
               ),
               _buildXpRow(
                 context,
-                Icons.workspace_premium,
+                CorpusIconKind.WorkspacePremium,
                 'Desbloquear logros',
                 'Variable',
               ),
@@ -359,7 +361,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
   Widget _buildXpRow(
     BuildContext context,
-    IconData icon,
+    CorpusIconKind icon,
     String action,
     String xp,
   ) {
@@ -367,7 +369,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          CorpusTablerIcon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 12),
           Expanded(child: Text(action, style: const TextStyle(fontSize: 14))),
           Text(
@@ -399,7 +401,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
           onPressed: () =>
               AppNavigationController.instance.requestBack(context),
         ),
@@ -407,7 +409,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.help_outline),
+            icon: const CorpusTablerIcon(CorpusIconKind.HelpOutline),
             tooltip: '¿Cómo ganar XP?',
             onPressed: _showXpInfoDialog,
           ),
@@ -425,10 +427,10 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                       controller: _searchController,
                       decoration: InputDecoration(
                         hintText: 'Buscar logros...',
-                        prefixIcon: const Icon(Icons.search),
+                        prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear),
+                                icon: const CorpusTablerIcon(CorpusIconKind.Clear),
                                 onPressed: () {
                                   _searchController.clear();
                                   setState(() {
@@ -532,7 +534,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                       final Color borderColor =
                           badgeStyle['borderColor'] as Color;
                       final Color bgColor = badgeStyle['bgColor'] as Color;
-                      final IconData badgeIcon = badgeStyle['icon'] as IconData;
+                      final CorpusIconKind badgeIcon = badgeStyle['icon'] as CorpusIconKind;
                       final bool isMedal = badgeStyle['type'] == 'medal';
                       return Card(
                         margin: EdgeInsets.zero,
@@ -653,8 +655,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                               )
                                             : null,
                                       ),
-                                      child: Icon(
-                                        badgeIcon,
+                                      child: CorpusTablerIcon(badgeIcon,
                                         color: badgeColor,
                                         size: 28,
                                       ),

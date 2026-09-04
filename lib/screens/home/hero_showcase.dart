@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../../models/models.dart';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../theme/corpus_typography.dart';
@@ -475,7 +476,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
                                 coverUrl,
                                 true,
                               ),
-                              icon: Icons.edit,
+                              icon: CorpusIconKind.Edit,
                               label: 'Editar reseña',
                             ),
                           ],
@@ -870,7 +871,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                         const SizedBox(height: 24),
                         CorpusPrimaryButton(
                           onPressed: () => openLoginScreen(context),
-                          icon: Icons.login,
+                          icon: CorpusIconKind.Login,
                           label: 'Iniciar sesión',
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
@@ -1152,7 +1153,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
                     const SizedBox(height: 24),
                     CorpusPrimaryButton(
                       onPressed: widget.onSearchPressed,
-                      icon: Icons.search,
+                      icon: CorpusIconKind.Search,
                       label: 'Buscar un juego',
                     ),
                   ],
