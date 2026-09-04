@@ -231,9 +231,15 @@ class AppNavigationController {
       final depthObj = state?['depth'];
 
       if (tokenObj != null && tabObj != null && depthObj != null) {
-        final tabInt = tabObj is num ? tabObj.toInt() : int.tryParse(tabObj.toString());
-        final depthInt = depthObj is num ? depthObj.toInt() : int.tryParse(depthObj.toString());
-        final tokenInt = tokenObj is num ? tokenObj.toInt() : int.tryParse(tokenObj.toString());
+        final tabInt = tabObj is num
+            ? tabObj.toInt()
+            : int.tryParse(tabObj.toString());
+        final depthInt = depthObj is num
+            ? depthObj.toInt()
+            : int.tryParse(depthObj.toString());
+        final tokenInt = tokenObj is num
+            ? tokenObj.toInt()
+            : int.tryParse(tokenObj.toString());
 
         if (tabInt != null && depthInt != null && tokenInt != null) {
           await _handleTypedPopState(
@@ -246,7 +252,7 @@ class AppNavigationController {
           return;
         }
       }
-      
+
       await _handleLegacyPopState(pathname);
     } catch (e, st) {
       debugPrint('[AppNavigationController] Error parsing popstate: $e\n$st');
@@ -276,10 +282,12 @@ class AppNavigationController {
       final frames = _stacks[tab] ?? const [];
       final currentDepth = frames.length - 1;
 
-      // Relajamos el token check para no destruir la pila de Flutter solo porque 
+      // Relajamos el token check para no destruir la pila de Flutter solo porque
       // el navegador haya modificado el history.state. Si vamos hacia atrás (depth < currentDepth),
       // nos basta con que el depth exista en nuestra pila.
-      final targetFrameStillAlive = depth >= 0 && depth < frames.length && 
+      final targetFrameStillAlive =
+          depth >= 0 &&
+          depth < frames.length &&
           (depth < currentDepth || frames[depth].token == token);
 
       if (depth < currentDepth && targetFrameStillAlive) {
@@ -288,12 +296,12 @@ class AppNavigationController {
         // falta desapilar. Cero peticiones de red, cero spinners.
         final navigator = _navigatorFor(tab);
         final steps = currentDepth - depth;
-        
-        // Actualizamos sincrónicamente para evitar condiciones de carrera en 
+
+        // Actualizamos sincrónicamente para evitar condiciones de carrera en
         // clics rápidos donde didPop/didRemove tardan en actualizar el estado.
         _stacks[tab] = frames.sublist(0, frames.length - steps);
         _ignorePopSyncCount += steps;
-        
+
         for (var i = 0; i < steps; i++) {
           final topFrame = frames[currentDepth - i];
           if (isNativeBrowserBack && topFrame.route != null) {
@@ -400,19 +408,19 @@ class AppNavigationController {
 
   Future<void> _handleLegacyPopState(String pathname) async {
     final tab = AppRoutes.tabIndexFromPublicPath(pathname) ?? 0;
-    
+
     final frames = _stacks[tab] ?? const [];
     if (frames.isNotEmpty) {
-      // 1. Verificamos si la ruta actual en Flutter ya coincide con la URL 
+      // 1. Verificamos si la ruta actual en Flutter ya coincide con la URL
       final last = frames.last;
       final subRoute = deepRouteFromRouteSettings(last.settings);
       final currentPath = publicPathForTabRoute(tab, subRoute);
       if (currentPath == pathname) {
-        setWebPath(pathname, replace: true, state: {
-          'tab': tab,
-          'depth': frames.length - 1,
-          'token': last.token
-        });
+        setWebPath(
+          pathname,
+          replace: true,
+          state: {'tab': tab, 'depth': frames.length - 1, 'token': last.token},
+        );
         return;
       }
 
@@ -424,7 +432,7 @@ class AppNavigationController {
         if (framePath == pathname) {
           final navigator = _navigatorFor(tab);
           final stepsToPop = frames.length - 1 - i;
-          
+
           _stacks[tab] = frames.sublist(0, frames.length - stepsToPop);
           _ignorePopSyncCount += stepsToPop;
 
@@ -432,12 +440,12 @@ class AppNavigationController {
           for (int j = 0; j < stepsToPop; j++) {
             navigator?.pop();
           }
-          
-          setWebPath(pathname, replace: true, state: {
-            'tab': tab,
-            'depth': i,
-            'token': frames[i].token
-          });
+
+          setWebPath(
+            pathname,
+            replace: true,
+            state: {'tab': tab, 'depth': i, 'token': frames[i].token},
+          );
           return;
         }
       }

@@ -196,8 +196,10 @@ class ReviewRepository {
       'partner_ids': isWishlist ? [] : partnerIds,
       // Fecha de finalización: solo se incluye cuando el usuario la elige o al
       // marcar como terminado (el trigger sincroniza last_played_at desde aquí).
-      if (reviewDate != null)
+      if (reviewDate != null) ...{
         'created_at': reviewDate.toUtc().toIso8601String(),
+        'updated_at': reviewDate.toUtc().toIso8601String(),
+      },
     };
   }
 

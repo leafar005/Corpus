@@ -3,7 +3,6 @@ import '../theme/corpus_theme_extension.dart';
 import '../utils/url_utils.dart';
 import '../widgets/corpus_section_title.dart';
 
-
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
 

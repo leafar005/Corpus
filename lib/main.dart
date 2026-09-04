@@ -243,18 +243,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     return super.didPopRoute();
   }
 
-  @override
-  Future<bool> didPushRoute(String route) async {
-    if (kIsWeb) {
-      // Bloqueamos el pushRoute nativo en Web para que Flutter no intente
-      // navegar el Root Navigator automáticamente cuando cambia la URL.
-      return true;
-    }
-    return super.didPushRoute(route);
-  }
+
 
   @override
-  Future<bool> didPushRouteInformation(RouteInformation routeInformation) async {
+  Future<bool> didPushRouteInformation(
+    RouteInformation routeInformation,
+  ) async {
     if (kIsWeb) {
       // Bloqueamos el pushRouteInformation nativo en Web.
       return true;

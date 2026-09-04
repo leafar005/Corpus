@@ -158,6 +158,7 @@ class ReviewModal {
     // Paso 1: elegir estado. Paso 2: rellenar datos.
     bool statusStepConfirmed = hasReview || inLibrary;
     bool isLocalSaving = false;
+    final ScrollController scrollController = ScrollController();
 
     showModalBottomSheet(
       context: context,
@@ -166,9 +167,22 @@ class ReviewModal {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      // En escritorio ampliamos el ancho máximo del modal (Material 3 lo
+      // limita a 640 por defecto) para aprovechar mejor el espacio
+      // horizontal disponible. En móvil la pantalla siempre mide menos de
+      // 640, así que el comportamiento no cambia.
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width > kDesktopBreakpoint
+            ? 880
+            : 640,
+      ),
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (modalContext, setModalState) {
+            // Determina si el modal debe usar el layout de escritorio
+            // (columnas) o el móvil (apilado), reevaluado en cada rebuild.
+            final bool isDesktop =
+                MediaQuery.of(modalContext).size.width > kDesktopBreakpoint;
             // ── helpers locales ───────────────────────────────────────────
             Widget chip(
               String value,
@@ -785,178 +799,470 @@ class ReviewModal {
             Color statusColor(String s) =>
                 GameStatus.colorForString(context, s);
 
+            /// Los 4 botones de selección de estado (Paso 1). Se extraen a una
+            /// función para poder mostrarlos apilados en móvil o en fila en
+            /// escritorio sin duplicar la lógica de cada botón.
+            List<Widget> buildStatusButtons() {
+              return [
+                statusButton(
+                  'wishlist',
+                  'Quiero',
+                  Icons.favorite,
+                  '',
+                  statusColor('wishlist'),
+                  (v) {
+                    applyStatusChange(v);
+                    statusStepConfirmed = true;
+                  },
+                ),
+                statusButton(
+                  'playing',
+                  'Jugando',
+                  Icons.videogame_asset,
+                  '',
+                  statusColor('playing'),
+                  (v) {
+                    applyStatusChange(v);
+                    statusStepConfirmed = true;
+                  },
+                ),
+                statusButton(
+                  'beaten',
+                  'Terminado',
+                  Icons.check_circle,
+                  '',
+                  statusColor('beaten'),
+                  (v) {
+                    applyStatusChange(v);
+                    statusStepConfirmed = true;
+                  },
+                ),
+                statusButton(
+                  'abandoned',
+                  'Abandonado',
+                  Icons.cancel_outlined,
+                  '',
+                  statusColor('abandoned'),
+                  (v) {
+                    applyStatusChange(v);
+                    statusStepConfirmed = true;
+                  },
+                ),
+              ];
+            }
+
+            /// "Tipo de completado" (terminado) / "Modo de juego" (jugando).
+            /// Usado tanto en el layout móvil como en la columna izquierda
+            /// del layout de escritorio.
+            Widget buildTipoCompletadoSection() {
+              if (reviewStatus == 'beaten') {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tipo de completado',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        chip(
+                          'none',
+                          'Nada',
+                          Icons.do_not_disturb_alt,
+                          reviewCompletionType,
+                          Theme.of(modalContext).colorScheme.primary,
+                          (v) => reviewCompletionType = v,
+                        ),
+                        chip(
+                          'story',
+                          'Historia',
+                          Icons.auto_stories,
+                          reviewCompletionType,
+                          Theme.of(modalContext).colorScheme.primary,
+                          (v) => reviewCompletionType = v,
+                        ),
+                        chip(
+                          'story_extras',
+                          'Historia + Extras',
+                          Icons.extension,
+                          reviewCompletionType,
+                          Theme.of(modalContext).colorScheme.primary,
+                          (v) => reviewCompletionType = v,
+                        ),
+                        chip(
+                          '100_percent',
+                          'Platino',
+                          Icons.emoji_events,
+                          reviewCompletionType,
+                          Theme.of(modalContext).colorScheme.primary,
+                          (v) => reviewCompletionType = v,
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              } else if (reviewStatus == 'playing') {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Modo de juego',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        chip(
+                          'none',
+                          'Nada',
+                          Icons.do_not_disturb_alt,
+                          reviewCompletionType,
+                          Theme.of(modalContext).colorScheme.primary,
+                          (v) => reviewCompletionType = v,
+                        ),
+                        chip(
+                          'endless',
+                          'Sin Fin',
+                          Icons.all_inclusive,
+                          reviewCompletionType,
+                          Theme.of(modalContext).colorScheme.primary,
+                          (v) => reviewCompletionType = v,
+                        ),
+                        chip(
+                          'on_hold',
+                          'En Pausa',
+                          Icons.pause,
+                          reviewCompletionType,
+                          Theme.of(modalContext).colorScheme.primary,
+                          (v) => reviewCompletionType = v,
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return const SizedBox.shrink();
+            }
+
+            /// Slider de "Nota" + desglose por categorías. Solo aplica a
+            /// reseñas de juegos terminados o abandonados.
+            Widget buildNotaSection() {
+              if (reviewStatus != 'beaten' && reviewStatus != 'abandoned') {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Nota',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: reviewRating,
+                          min: 0,
+                          max: 10,
+                          divisions: 100,
+                          activeColor: Theme.of(
+                            modalContext,
+                          ).colorScheme.secondary,
+                          label: reviewRating > 0
+                              ? formatRating(reviewRating)
+                              : '-',
+                          onChanged: (val) =>
+                              setModalState(() => reviewRating = val),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          reviewRating > 0 ? formatRating(reviewRating) : '-',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Theme.of(modalContext).colorScheme.secondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Theme(
+                    data: Theme.of(
+                      modalContext,
+                    ).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Desglosar nota',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      children: [
+                        buildSubRatingSlider(
+                          'Gameplay',
+                          Icons.sports_esports,
+                          reviewRatingGameplay,
+                          (val) =>
+                              setModalState(() => reviewRatingGameplay = val),
+                        ),
+                        buildSubRatingSlider(
+                          'Narrativa',
+                          Icons.auto_stories,
+                          reviewRatingNarrative,
+                          (val) =>
+                              setModalState(() => reviewRatingNarrative = val),
+                        ),
+                        buildSubRatingSlider(
+                          'Banda Sonora',
+                          Icons.music_note,
+                          reviewRatingSoundtrack,
+                          (val) =>
+                              setModalState(() => reviewRatingSoundtrack = val),
+                        ),
+                        buildSubRatingSlider(
+                          'Gráficos',
+                          Icons.brush,
+                          reviewRatingVisuals,
+                          (val) =>
+                              setModalState(() => reviewRatingVisuals = val),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            /// Campo de texto de la reseña + imágenes adjuntas. En escritorio
+            /// se muestra en una columna propia, más alta, junto a la nota.
+            Widget buildReseniaSection() {
+              if (reviewStatus != 'beaten' && reviewStatus != 'abandoned') {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Reseña',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: reviewCommentController,
+                    maxLines: isDesktop ? 12 : 4,
+                    minLines: isDesktop ? 9 : 2,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      hintText: '¿Qué te pareció el juego?',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (existingImages.isNotEmpty || newImages.isNotEmpty) ...[
+                    SizedBox(
+                      height: 90,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          ...existingImages.map(
+                            (url) => buildRemovableImage(
+                              imageWidget: CorpusNetworkImage(
+                                url: url,
+                                fit: BoxFit.cover,
+                                width: 80,
+                                height: 80,
+                              ),
+                              onRemove: () => setModalState(
+                                () => existingImages.remove(url),
+                              ),
+                            ),
+                          ),
+                          ...newImages.map(
+                            (file) => buildRemovableImage(
+                              imageWidget: kIsWeb
+                                  ? CorpusNetworkImage(
+                                      url: file.path,
+                                      fit: BoxFit.cover,
+                                      width: 80,
+                                      height: 80,
+                                    )
+                                  : Image.file(
+                                      File(file.path),
+                                      fit: BoxFit.cover,
+                                      width: 80,
+                                      height: 80,
+                                    ),
+                              onRemove: () =>
+                                  setModalState(() => newImages.remove(file)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (existingImages.length + newImages.length < 3)
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.add_photo_alternate, size: 18),
+                      label: const Text('Adjuntar imagen (máx 3)'),
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final pickedFiles = await picker.pickMultiImage(
+                          imageQuality: 70,
+                          maxWidth: 1080,
+                        );
+                        if (pickedFiles.isNotEmpty) {
+                          setModalState(() {
+                            final remaining =
+                                3 - existingImages.length - newImages.length;
+                            newImages.addAll(pickedFiles.take(remaining));
+                          });
+                        }
+                      },
+                    ),
+                ],
+              );
+            }
+
+            /// Sección "Información Extra" (plataforma, tiempo jugado,
+            /// fechas, progreso, rejugada, compañero de cooperativo).
+            Widget buildInfoExtraSection() {
+              if (reviewStatus == 'wishlist') {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (reviewStatus == 'playing') ...[
+                    Text(
+                      'Información Extra',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Theme(
+                    data: Theme.of(
+                      modalContext,
+                    ).copyWith(dividerColor: Colors.transparent),
+                    child: reviewStatus == 'playing'
+                        ? buildExtraInfoFields()
+                        : ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            title: const Text(
+                              'Información Extra',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                            children: [buildExtraInfoFields()],
+                          ),
+                  ),
+                ],
+              );
+            }
+
+            // Más aire lateral en escritorio, ahora que el modal es más
+            // ancho — evita que el contenido quede pegado a los bordes.
+            final double horizontalPadding = isDesktop ? 40.0 : 24.0;
+
             // ── cuerpo del modal ──────────────────────────────────────────
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(modalContext).viewInsets.bottom,
-                top: 24,
+                top: isDesktop ? 32 : 24,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Flexible(
-                    child: Scrollbar(
-                      child: SingleChildScrollView(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // ── Header: título + (si edición) botón de fecha ──
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      hasReview
-                                          ? 'Editar Reseña'
-                                          : 'Añadir Reseña',
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  TextButton.icon(
-                                    icon: const Icon(
-                                      Icons.edit_calendar,
-                                      size: 16,
-                                    ),
-                                    label: Text(() {
-                                      final displayDate =
-                                          reviewDate ?? initialReviewDate;
-                                      return displayDate != null
-                                          ? '${displayDate.day} ${monthAbbr(displayDate.month)} ${displayDate.year}'
-                                          : 'Fecha';
-                                    }(), style: const TextStyle(fontSize: 12)),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                    ),
-                                    onPressed: () async {
-                                      final d = await showDatePicker(
-                                        context: modalContext,
-                                        initialDate:
-                                            reviewDate ??
-                                            initialReviewDate ??
-                                            DateTime.now(),
-                                        firstDate: DateTime(1970),
-                                        lastDate: DateTime.now().add(
-                                          const Duration(days: 1),
-                                        ),
-                                      );
-                                      if (d != null) {
-                                        setModalState(() => reviewDate = d);
-                                      }
-                                    },
-                                  ),
-                                ],
+                  // ── Header: título + (si edición) botón de fecha ──
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            hasReview ? 'Editar Reseña' : 'Añadir Reseña',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          icon: const Icon(Icons.edit_calendar, size: 16),
+                          label: Text(() {
+                            final displayDate = reviewDate ?? initialReviewDate;
+                            return displayDate != null
+                                ? '${displayDate.day} ${monthAbbr(displayDate.month)} ${displayDate.year}'
+                                : 'Fecha';
+                          }(), style: const TextStyle(fontSize: 12)),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                          ),
+                          onPressed: () async {
+                            final d = await showDatePicker(
+                              context: modalContext,
+                              initialDate:
+                                  reviewDate ??
+                                  initialReviewDate ??
+                                  DateTime.now(),
+                              firstDate: DateTime(1970),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 1),
                               ),
-                              const SizedBox(height: 24),
-
-                              // ── Estado ──────────────────────────────────────────
-                              if (!statusStepConfirmed) ...[
-                                Text(
-                                  'Estado',
-                                  style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                statusButton(
-                                  'wishlist',
-                                  'Quiero',
-                                  Icons.favorite,
-                                  '',
-                                  statusColor('wishlist'),
-                                  (v) {
-                                    applyStatusChange(v);
-                                    statusStepConfirmed = true;
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-                                statusButton(
-                                  'playing',
-                                  'Jugando',
-                                  Icons.videogame_asset,
-                                  '',
-                                  statusColor('playing'),
-                                  (v) {
-                                    applyStatusChange(v);
-                                    statusStepConfirmed = true;
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-                                statusButton(
-                                  'beaten',
-                                  'Terminado',
-                                  Icons.check_circle,
-                                  '',
-                                  statusColor('beaten'),
-                                  (v) {
-                                    applyStatusChange(v);
-                                    statusStepConfirmed = true;
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-                                statusButton(
-                                  'abandoned',
-                                  'Abandonado',
-                                  Icons.cancel_outlined,
-                                  '',
-                                  statusColor('abandoned'),
-                                  (v) {
-                                    applyStatusChange(v);
-                                    statusStepConfirmed = true;
-                                  },
-                                ),
-                              ] else ...[
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.arrow_back),
-                                      tooltip: 'Cambiar estado',
-                                      onPressed: () => setModalState(
-                                        () => statusStepConfirmed = false,
-                                      ),
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 36,
-                                        minHeight: 36,
-                                      ),
-                                    ),
-                                    Icon(
-                                      GameStatus.iconForString(reviewStatus),
-                                      size: 20,
-                                      color: statusColor(reviewStatus),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      GameStatus.labelForString(reviewStatus),
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: statusColor(reviewStatus),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              if (statusStepConfirmed) ...[
-                                const SizedBox(height: 16),
-
-                                // ── Tipo de completado / Modo de juego ──────────────
-                                if (reviewStatus == 'beaten') ...[
+                            );
+                            if (d != null) {
+                              setModalState(() => reviewDate = d);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Flexible(
+                    child: PrimaryScrollController(
+                      controller: scrollController,
+                      child: Scrollbar(
+                        controller: scrollController,
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: horizontalPadding,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // ── Estado ──────────────────────────────────────────
+                                if (!statusStepConfirmed) ...[
                                   Text(
-                                    'Tipo de completado',
+                                    'Estado',
                                     style: TextStyle(
                                       color: Theme.of(
                                         context,
@@ -964,345 +1270,467 @@ class ReviewModal {
                                     ),
                                   ),
                                   const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      chip(
-                                        'none',
-                                        'Nada',
-                                        Icons.do_not_disturb_alt,
-                                        reviewCompletionType,
-                                        Theme.of(
-                                          modalContext,
-                                        ).colorScheme.primary,
-                                        (v) => reviewCompletionType = v,
-                                      ),
-                                      chip(
-                                        'story',
-                                        'Historia',
-                                        Icons.auto_stories,
-                                        reviewCompletionType,
-                                        Theme.of(
-                                          modalContext,
-                                        ).colorScheme.primary,
-                                        (v) => reviewCompletionType = v,
-                                      ),
-                                      chip(
-                                        'story_extras',
-                                        'Historia + Extras',
-                                        Icons.extension,
-                                        reviewCompletionType,
-                                        Theme.of(
-                                          modalContext,
-                                        ).colorScheme.primary,
-                                        (v) => reviewCompletionType = v,
-                                      ),
-                                      chip(
-                                        '100_percent',
-                                        'Platino',
-                                        Icons.emoji_events,
-                                        reviewCompletionType,
-                                        Theme.of(
-                                          modalContext,
-                                        ).colorScheme.primary,
-                                        (v) => reviewCompletionType = v,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                ] else if (reviewStatus == 'playing') ...[
-                                  Text(
-                                    'Modo de juego',
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      chip(
-                                        'none',
-                                        'Nada',
-                                        Icons.do_not_disturb_alt,
-                                        reviewCompletionType,
-                                        Theme.of(
-                                          modalContext,
-                                        ).colorScheme.primary,
-                                        (v) => reviewCompletionType = v,
-                                      ),
-                                      chip(
-                                        'endless',
-                                        'Sin Fin',
-                                        Icons.all_inclusive,
-                                        reviewCompletionType,
-                                        Theme.of(
-                                          modalContext,
-                                        ).colorScheme.primary,
-                                        (v) => reviewCompletionType = v,
-                                      ),
-                                      chip(
-                                        'on_hold',
-                                        'En Pausa',
-                                        Icons.pause,
-                                        reviewCompletionType,
-                                        Theme.of(
-                                          modalContext,
-                                        ).colorScheme.primary,
-                                        (v) => reviewCompletionType = v,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                ],
-
-                                // ── Nota y sub-ratings ──────────────────────────────
-                                if (reviewStatus == 'beaten' ||
-                                    reviewStatus == 'abandoned') ...[
-                                  Text(
-                                    'Nota',
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Slider(
-                                          value: reviewRating,
-                                          min: 0,
-                                          max: 10,
-                                          divisions: 100,
-                                          activeColor: Theme.of(
-                                            modalContext,
-                                          ).colorScheme.secondary,
-                                          label: reviewRating > 0
-                                              ? formatRating(reviewRating)
-                                              : '-',
-                                          onChanged: (val) => setModalState(
-                                            () => reviewRating = val,
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        width: 40,
-                                        child: Text(
-                                          reviewRating > 0
-                                              ? formatRating(reviewRating)
-                                              : '-',
-                                          textAlign: TextAlign.right,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            color: Theme.of(
-                                              modalContext,
-                                            ).colorScheme.secondary,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  Theme(
-                                    data: Theme.of(modalContext).copyWith(
-                                      dividerColor: Colors.transparent,
-                                    ),
-                                    child: ExpansionTile(
-                                      tilePadding: EdgeInsets.zero,
-                                      title: const Text(
-                                        'Desglosar nota',
-                                        style: TextStyle(fontSize: 14),
-                                      ),
+                                  // En escritorio los 4 botones caben cómodos
+                                  // en una sola fila; en móvil se mantienen
+                                  // apilados verticalmente, como siempre.
+                                  if (isDesktop)
+                                    Row(
                                       children: [
-                                        buildSubRatingSlider(
-                                          'Gameplay',
-                                          Icons.sports_esports,
-                                          reviewRatingGameplay,
-                                          (val) => setModalState(
-                                            () => reviewRatingGameplay = val,
-                                          ),
-                                        ),
-                                        buildSubRatingSlider(
-                                          'Narrativa',
-                                          Icons.auto_stories,
-                                          reviewRatingNarrative,
-                                          (val) => setModalState(
-                                            () => reviewRatingNarrative = val,
-                                          ),
-                                        ),
-                                        buildSubRatingSlider(
-                                          'Banda Sonora',
-                                          Icons.music_note,
-                                          reviewRatingSoundtrack,
-                                          (val) => setModalState(
-                                            () => reviewRatingSoundtrack = val,
-                                          ),
-                                        ),
-                                        buildSubRatingSlider(
-                                          'Gráficos',
-                                          Icons.brush,
-                                          reviewRatingVisuals,
-                                          (val) => setModalState(
-                                            () => reviewRatingVisuals = val,
-                                          ),
-                                        ),
+                                        for (final entry
+                                            in buildStatusButtons()
+                                                .asMap()
+                                                .entries) ...[
+                                          if (entry.key > 0)
+                                            const SizedBox(width: 12),
+                                          Expanded(child: entry.value),
+                                        ],
+                                      ],
+                                    )
+                                  else
+                                    Column(
+                                      children: [
+                                        for (final entry
+                                            in buildStatusButtons()
+                                                .asMap()
+                                                .entries) ...[
+                                          if (entry.key > 0)
+                                            const SizedBox(height: 8),
+                                          entry.value,
+                                        ],
                                       ],
                                     ),
+                                ] else ...[
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.arrow_back),
+                                        tooltip: 'Cambiar estado',
+                                        onPressed: () => setModalState(
+                                          () => statusStepConfirmed = false,
+                                        ),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 36,
+                                          minHeight: 36,
+                                        ),
+                                      ),
+                                      Icon(
+                                        GameStatus.iconForString(reviewStatus),
+                                        size: 20,
+                                        color: statusColor(reviewStatus),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        GameStatus.labelForString(reviewStatus),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: statusColor(reviewStatus),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-
+                                ],
+                                if (statusStepConfirmed) ...[
                                   const SizedBox(height: 16),
-
-                                  // ── Reseña (comentario) ───────────────────────────
-                                  Text(
-                                    'Reseña',
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: reviewCommentController,
-                                    maxLines: 4,
-                                    minLines: 2,
-                                    textCapitalization:
-                                        TextCapitalization.sentences,
-                                    decoration: const InputDecoration(
-                                      hintText: '¿Qué te pareció el juego?',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-
-                                  // ── Imágenes adjuntas ─────────────────────────────
-                                  if (existingImages.isNotEmpty ||
-                                      newImages.isNotEmpty) ...[
-                                    SizedBox(
-                                      height: 90,
-                                      child: ListView(
-                                        scrollDirection: Axis.horizontal,
+                                  if (!isDesktop) ...[
+                                    // ── Layout móvil (sin cambios) ──────────────────────
+                                    // ── Tipo de completado / Modo de juego ──────────────
+                                    if (reviewStatus == 'beaten') ...[
+                                      Text(
+                                        'Tipo de completado',
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
                                         children: [
-                                          ...existingImages.map(
-                                            (url) => buildRemovableImage(
-                                              imageWidget: CorpusNetworkImage(
-                                                url: url,
-                                                fit: BoxFit.cover,
-                                                width: 80,
-                                                height: 80,
-                                              ),
-                                              onRemove: () => setModalState(
-                                                () =>
-                                                    existingImages.remove(url),
+                                          chip(
+                                            'none',
+                                            'Nada',
+                                            Icons.do_not_disturb_alt,
+                                            reviewCompletionType,
+                                            Theme.of(
+                                              modalContext,
+                                            ).colorScheme.primary,
+                                            (v) => reviewCompletionType = v,
+                                          ),
+                                          chip(
+                                            'story',
+                                            'Historia',
+                                            Icons.auto_stories,
+                                            reviewCompletionType,
+                                            Theme.of(
+                                              modalContext,
+                                            ).colorScheme.primary,
+                                            (v) => reviewCompletionType = v,
+                                          ),
+                                          chip(
+                                            'story_extras',
+                                            'Historia + Extras',
+                                            Icons.extension,
+                                            reviewCompletionType,
+                                            Theme.of(
+                                              modalContext,
+                                            ).colorScheme.primary,
+                                            (v) => reviewCompletionType = v,
+                                          ),
+                                          chip(
+                                            '100_percent',
+                                            'Platino',
+                                            Icons.emoji_events,
+                                            reviewCompletionType,
+                                            Theme.of(
+                                              modalContext,
+                                            ).colorScheme.primary,
+                                            (v) => reviewCompletionType = v,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 24),
+                                    ] else if (reviewStatus == 'playing') ...[
+                                      Text(
+                                        'Modo de juego',
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          chip(
+                                            'none',
+                                            'Nada',
+                                            Icons.do_not_disturb_alt,
+                                            reviewCompletionType,
+                                            Theme.of(
+                                              modalContext,
+                                            ).colorScheme.primary,
+                                            (v) => reviewCompletionType = v,
+                                          ),
+                                          chip(
+                                            'endless',
+                                            'Sin Fin',
+                                            Icons.all_inclusive,
+                                            reviewCompletionType,
+                                            Theme.of(
+                                              modalContext,
+                                            ).colorScheme.primary,
+                                            (v) => reviewCompletionType = v,
+                                          ),
+                                          chip(
+                                            'on_hold',
+                                            'En Pausa',
+                                            Icons.pause,
+                                            reviewCompletionType,
+                                            Theme.of(
+                                              modalContext,
+                                            ).colorScheme.primary,
+                                            (v) => reviewCompletionType = v,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 24),
+                                    ],
+
+                                    // ── Nota y sub-ratings ──────────────────────────────
+                                    if (reviewStatus == 'beaten' ||
+                                        reviewStatus == 'abandoned') ...[
+                                      Text(
+                                        'Nota',
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Slider(
+                                              value: reviewRating,
+                                              min: 0,
+                                              max: 10,
+                                              divisions: 100,
+                                              activeColor: Theme.of(
+                                                modalContext,
+                                              ).colorScheme.secondary,
+                                              label: reviewRating > 0
+                                                  ? formatRating(reviewRating)
+                                                  : '-',
+                                              onChanged: (val) => setModalState(
+                                                () => reviewRating = val,
                                               ),
                                             ),
                                           ),
-                                          ...newImages.map(
-                                            (file) => buildRemovableImage(
-                                              imageWidget: kIsWeb
-                                                  ? CorpusNetworkImage(
-                                                      url: file.path,
-                                                      fit: BoxFit.cover,
-                                                      width: 80,
-                                                      height: 80,
-                                                    )
-                                                  : Image.file(
-                                                      File(file.path),
-                                                      fit: BoxFit.cover,
-                                                      width: 80,
-                                                      height: 80,
-                                                    ),
-                                              onRemove: () => setModalState(
-                                                () => newImages.remove(file),
+                                          SizedBox(
+                                            width: 40,
+                                            child: Text(
+                                              reviewRating > 0
+                                                  ? formatRating(reviewRating)
+                                                  : '-',
+                                              textAlign: TextAlign.right,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                                color: Theme.of(
+                                                  modalContext,
+                                                ).colorScheme.secondary,
                                               ),
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                  ],
-                                  if (existingImages.length + newImages.length <
-                                      3)
-                                    OutlinedButton.icon(
-                                      icon: const Icon(
-                                        Icons.add_photo_alternate,
-                                        size: 18,
-                                      ),
-                                      label: const Text(
-                                        'Adjuntar imagen (máx 3)',
-                                      ),
-                                      onPressed: () async {
-                                        final picker = ImagePicker();
-                                        final pickedFiles = await picker
-                                            .pickMultiImage(
-                                              imageQuality: 70,
-                                              maxWidth: 1080,
-                                            );
-                                        if (pickedFiles.isNotEmpty) {
-                                          setModalState(() {
-                                            final remaining =
-                                                3 -
-                                                existingImages.length -
-                                                newImages.length;
-                                            newImages.addAll(
-                                              pickedFiles.take(remaining),
-                                            );
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  const SizedBox(height: 12),
-                                ],
 
-                                // ── Información extra (plataforma, tiempo, fechas) ─
-                                if (reviewStatus != 'wishlist') ...[
-                                  if (reviewStatus == 'playing') ...[
-                                    Text(
-                                      'Información Extra',
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                  ],
-                                  Theme(
-                                    data: Theme.of(modalContext).copyWith(
-                                      dividerColor: Colors.transparent,
-                                    ),
-                                    child: reviewStatus == 'playing'
-                                        ? buildExtraInfoFields()
-                                        : ExpansionTile(
-                                            tilePadding: EdgeInsets.zero,
-                                            title: const Text(
-                                              'Información Extra',
-                                              style: TextStyle(fontSize: 14),
-                                            ),
-                                            children: [buildExtraInfoFields()],
+                                      Theme(
+                                        data: Theme.of(modalContext).copyWith(
+                                          dividerColor: Colors.transparent,
+                                        ),
+                                        child: ExpansionTile(
+                                          tilePadding: EdgeInsets.zero,
+                                          title: const Text(
+                                            'Desglosar nota',
+                                            style: TextStyle(fontSize: 14),
                                           ),
-                                  ),
-                                ],
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                                          children: [
+                                            buildSubRatingSlider(
+                                              'Gameplay',
+                                              Icons.sports_esports,
+                                              reviewRatingGameplay,
+                                              (val) => setModalState(
+                                                () =>
+                                                    reviewRatingGameplay = val,
+                                              ),
+                                            ),
+                                            buildSubRatingSlider(
+                                              'Narrativa',
+                                              Icons.auto_stories,
+                                              reviewRatingNarrative,
+                                              (val) => setModalState(
+                                                () =>
+                                                    reviewRatingNarrative = val,
+                                              ),
+                                            ),
+                                            buildSubRatingSlider(
+                                              'Banda Sonora',
+                                              Icons.music_note,
+                                              reviewRatingSoundtrack,
+                                              (val) => setModalState(
+                                                () => reviewRatingSoundtrack =
+                                                    val,
+                                              ),
+                                            ),
+                                            buildSubRatingSlider(
+                                              'Gráficos',
+                                              Icons.brush,
+                                              reviewRatingVisuals,
+                                              (val) => setModalState(
+                                                () => reviewRatingVisuals = val,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 16),
+
+                                      // ── Reseña (comentario) ───────────────────────────
+                                      Text(
+                                        'Reseña',
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      TextField(
+                                        controller: reviewCommentController,
+                                        maxLines: 4,
+                                        minLines: 2,
+                                        textCapitalization:
+                                            TextCapitalization.sentences,
+                                        decoration: const InputDecoration(
+                                          hintText: '¿Qué te pareció el juego?',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+
+                                      // ── Imágenes adjuntas ─────────────────────────────
+                                      if (existingImages.isNotEmpty ||
+                                          newImages.isNotEmpty) ...[
+                                        SizedBox(
+                                          height: 90,
+                                          child: ListView(
+                                            scrollDirection: Axis.horizontal,
+                                            children: [
+                                              ...existingImages.map(
+                                                (url) => buildRemovableImage(
+                                                  imageWidget:
+                                                      CorpusNetworkImage(
+                                                        url: url,
+                                                        fit: BoxFit.cover,
+                                                        width: 80,
+                                                        height: 80,
+                                                      ),
+                                                  onRemove: () => setModalState(
+                                                    () => existingImages.remove(
+                                                      url,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              ...newImages.map(
+                                                (file) => buildRemovableImage(
+                                                  imageWidget: kIsWeb
+                                                      ? CorpusNetworkImage(
+                                                          url: file.path,
+                                                          fit: BoxFit.cover,
+                                                          width: 80,
+                                                          height: 80,
+                                                        )
+                                                      : Image.file(
+                                                          File(file.path),
+                                                          fit: BoxFit.cover,
+                                                          width: 80,
+                                                          height: 80,
+                                                        ),
+                                                  onRemove: () => setModalState(
+                                                    () =>
+                                                        newImages.remove(file),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                      ],
+                                      if (existingImages.length +
+                                              newImages.length <
+                                          3)
+                                        OutlinedButton.icon(
+                                          icon: const Icon(
+                                            Icons.add_photo_alternate,
+                                            size: 18,
+                                          ),
+                                          label: const Text(
+                                            'Adjuntar imagen (máx 3)',
+                                          ),
+                                          onPressed: () async {
+                                            final picker = ImagePicker();
+                                            final pickedFiles = await picker
+                                                .pickMultiImage(
+                                                  imageQuality: 70,
+                                                  maxWidth: 1080,
+                                                );
+                                            if (pickedFiles.isNotEmpty) {
+                                              setModalState(() {
+                                                final remaining =
+                                                    3 -
+                                                    existingImages.length -
+                                                    newImages.length;
+                                                newImages.addAll(
+                                                  pickedFiles.take(remaining),
+                                                );
+                                              });
+                                            }
+                                          },
+                                        ),
+                                      const SizedBox(height: 12),
+                                    ],
+
+                                    // ── Información extra (plataforma, tiempo, fechas) ─
+                                    if (reviewStatus != 'wishlist') ...[
+                                      if (reviewStatus == 'playing') ...[
+                                        Text(
+                                          'Información Extra',
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                      ],
+                                      Theme(
+                                        data: Theme.of(modalContext).copyWith(
+                                          dividerColor: Colors.transparent,
+                                        ),
+                                        child: reviewStatus == 'playing'
+                                            ? buildExtraInfoFields()
+                                            : ExpansionTile(
+                                                tilePadding: EdgeInsets.zero,
+                                                title: const Text(
+                                                  'Información Extra',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                children: [
+                                                  buildExtraInfoFields(),
+                                                ],
+                                              ),
+                                      ),
+                                    ], // Cierra if (reviewStatus != 'wishlist')
+                                  ] else ...[
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(
+                                          width: 320,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              buildTipoCompletadoSection(),
+                                              const SizedBox(height: 16),
+                                              buildNotaSection(),
+                                              if (reviewStatus !=
+                                                  'playing') ...[
+                                                const SizedBox(height: 16),
+                                                buildInfoExtraSection(),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 32),
+                                        Expanded(
+                                          child: reviewStatus == 'playing'
+                                              ? buildInfoExtraSection()
+                                              : buildReseniaSection(),
+                                        ),
+                                      ],
+                                    ),
+                                  ], // Cierra else
+                                ], // Cierra if (statusStepConfirmed)
+                              ], // Cierra children
+                            ), // Cierra Column
+                          ), // Cierra Padding
+                        ), // Cierra SingleChildScrollView
+                      ), // Cierra Scrollbar
+                    ), // Cierra PrimaryScrollController
+                  ), // Cierra Flexible
                   if (statusStepConfirmed) ...[
                     // ── Botón guardar ─────────────────────────────────────
                     const SizedBox(height: 24),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                      ),
                       child: SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -1394,6 +1822,7 @@ class ReviewModal {
     ).then((_) {
       reviewCommentController.dispose();
       partnerSearchController.dispose();
+      scrollController.dispose();
     });
   }
 }

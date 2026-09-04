@@ -39,17 +39,14 @@ class ReviewDetailsController extends ChangeNotifier {
   }
 
   Future<void> fetchPartner() async {
-    final userId = currentReviewData['user_id'] as String?;
-    final gameId = (currentReviewData['game_id'] as num?)?.toInt();
-    if (userId == null || gameId == null) return;
-
-    try {
-      partnersData = await _activityRepo.fetchPartners(
-        userId: userId,
-        gameId: gameId,
-      );
+    final partners = currentReviewData['partners'];
+    if (partners is List) {
+      partnersData = List<Map<String, dynamic>>.from(partners);
       _notify();
-    } catch (_) {}
+    } else {
+      partnersData = [];
+      _notify();
+    }
   }
 
   Future<void> fetchInteractions() async {

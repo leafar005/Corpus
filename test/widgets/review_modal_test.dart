@@ -62,7 +62,9 @@ void main() {
                               required List<String> existingImages,
                               required List<String> partnerIds,
                               required DateTime? reviewDate,
-                            }) async {},
+                            }) async {
+                              return true;
+                            },
                       );
                     },
                     child: const Text('Abrir Modal'),
@@ -156,7 +158,9 @@ void main() {
                               required List<String> existingImages,
                               required List<String> partnerIds,
                               required DateTime? reviewDate,
-                            }) async {},
+                            }) async {
+                              return true;
+                            },
                       );
                     },
                     child: const Text('Abrir Modal'),

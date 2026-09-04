@@ -373,7 +373,10 @@ class _ActivityScreenState extends State<ActivityScreen>
     final gameData = activity['games'] as Map<String, dynamic>? ?? {};
     final meta = activity['metadata'] as Map<String, dynamic>? ?? {};
     final review = activity['_review'] as Map<String, dynamic>?;
-    final partners = activity['_partners'] as List<dynamic>? ?? [];
+    final partners =
+        review?['partners'] as List<dynamic>? ??
+        activity['_partners'] as List<dynamic>? ??
+        [];
 
     final displayName =
         userData['display_name'] as String? ??

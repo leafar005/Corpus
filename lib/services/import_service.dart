@@ -428,7 +428,8 @@ class ImportService {
             final int? catId = rawCat is int
                 ? rawCat
                 : int.tryParse(rawCat?.toString() ?? '');
-            final String title = gameData['name'] ?? gameData['title'] ?? row.title;
+            final String title =
+                gameData['name'] ?? gameData['title'] ?? row.title;
             final bool hasParent =
                 gameData['parent_game'] != null ||
                 gameData['version_parent'] != null ||
@@ -479,8 +480,7 @@ class ImportService {
           'rating': cleanRating,
           'comment': row.comment?.isNotEmpty == true ? row.comment : null,
           'status': row.status,
-          'completion_type':
-              row.completionType ?? 'none',
+          'completion_type': row.completionType ?? 'none',
           'platform': row.platform,
           'play_time_hours': (row.playTimeHours ?? 0) > 0
               ? row.playTimeHours

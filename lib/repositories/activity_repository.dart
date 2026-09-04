@@ -518,6 +518,7 @@ class ActivityRepository {
     if (result['users'] == null && fallbackUserData != null) {
       result['users'] = fallbackUserData;
     }
+    await ReviewRepository(client: _client).injectPartners([result]);
     return result;
   }
 
