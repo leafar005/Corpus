@@ -330,7 +330,10 @@ class GameDetailsController extends ChangeNotifier {
         myId: myId,
         gameId: gameId,
       );
-      friendsWithGame = friends;
+      friendsWithGame = friends.where((f) {
+        final status = f['status'] as String?;
+        return status != 'abandoned' && status != 'wishlist';
+      }).toList();
       _notify();
     } catch (e) {
       debugPrint('[GameDetails] Error cargando amigos con el juego: $e');

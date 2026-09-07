@@ -752,7 +752,7 @@ class ReviewRepository {
     final result = await _client
         .from('user_games')
         .select(
-          'status, users!user_games_user_id_fkey(id, username, display_name, avatar_url)',
+          'status, rating, users!user_games_user_id_fkey(id, username, display_name, avatar_url)',
         )
         .eq('game_id', parsedGameId)
         .inFilter('user_id', friendIds);
