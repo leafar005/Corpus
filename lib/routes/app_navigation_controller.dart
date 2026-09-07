@@ -93,6 +93,8 @@ class AppNavigationController {
   }
 
   void onNavigatorPush(int stackIndex, Route<dynamic> route) {
+    if (kIsWeb && route.settings.name == 'loading_dialog') return;
+
     final token = _nextToken++;
     _stacks[stackIndex] = [
       ...(_stacks[stackIndex] ?? []),
@@ -139,14 +141,17 @@ class AppNavigationController {
     );
   }
 
-  void onNavigatorPop(int stackIndex) {
+  void onNavigatorPop(int stackIndex, [Route<dynamic>? route]) {
     if (!kIsWeb) return;
+    if (route != null && route.settings.name == 'loading_dialog') return;
+    
     if (_ignorePopSyncCount > 0) {
       _ignorePopSyncCount--;
       return;
     }
     final frames = _stacks[stackIndex];
     if (frames == null || frames.isEmpty) return; // defensivo
+
     _stacks[stackIndex] = frames.sublist(0, frames.length - 1);
 
     // [OPCIÓN 1]: Sincronizar la URL actual del navegador para que refleje el pop visual.
@@ -207,30 +212,62 @@ class AppNavigationController {
   }
 
   /// Único método que cualquier control de la UI debe llamar para "ir
-  /// atrás" (AppBar, PopScope, gesto de borde).
+  /// atrás" (AppBar, PopScope, gesto de borde). Nunca se debe llamar a
+  /// Navigator.pop(context) directamente para cerrar una pantalla que
+  /// pertenece a una de las 5 pestañas o a la pila raíz.
   ///
-  /// En Web, este método ejecuta un pop local (Navigator.pop) para que la
-  /// navegación contextual dentro de la app sea independiente del historial
-  /// del navegador.
+  /// [forStack]: opcional. Si quien llama no tiene un BuildContext dentro
+  /// del Navigator relevante (p. ej. el gesto de borde, que vive por
+  /// encima de las 5 pestañas), debe indicar explícitamente qué pila
+  /// quiere deshacer.
+  ///
+  /// Devuelve `true` si se iniciará una navegación hacia atrás (el
+  /// resultado real, en web, llega de forma asíncrona vía popstate).
+  /// Devuelve `false` si no hay nada que deshacer en esa pila (ya está en
+  /// su raíz) — quien llama decide qué hacer en ese caso (p. ej. MainScreen
+  /// cambia a la pestaña Inicio, o cierra la app).
   bool requestBack(BuildContext context, {int? forStack}) {
-    final stackIndex = forStack ?? _stackIndexOf(context);
+    if (!kIsWeb) {
+      // Nativo: no hay historial de navegador, no hay nada que sincronizar.
+      final nav = forStack != null
+          ? _navigatorFor(forStack)
+          : Navigator.of(context);
+      if (nav != null && nav.canPop()) {
+        nav.pop();
+        return true;
+      }
+      return false;
+    }
 
+    final stackIndex = forStack ?? _stackIndexOf(context);
+    
     // Si estamos dentro de una pestaña (no un modal global) y estamos en su raíz,
     // devolvemos false para que MainScreen cambie a Inicio o cierre la app.
     if (stackIndex != rootStackIndex) {
       final frames = _stacks[stackIndex] ?? const [];
       if (frames.length <= 1) return false;
     }
-
+    
     final nav = forStack != null
         ? _navigatorFor(forStack)
         : Navigator.of(context);
-
+        
     if (nav != null && nav.canPop()) {
       nav.pop();
       return true;
     }
     return false;
+  }
+
+  /// Debe llamarse Inmediatamente después de hacer un `Navigator.pop(context, result)`
+  /// programático (por ejemplo, al guardar un formulario en un modal) para
+  /// asegurar que la entrada en el historial del navegador que correspondía a ese
+  /// modal también se elimine, evitando un "click muerto" en el botón de volver.
+  void syncBrowserHistoryAfterProgrammaticPop() {
+    if (kIsWeb) {
+      _isProgrammaticBack = true;
+      goBackInBrowserHistory();
+    }
   }
 
   /// Deduce a qué pila pertenece un BuildContext dado, comparando su
@@ -340,8 +377,14 @@ class AppNavigationController {
           }
         }
       } else if (depth == currentDepth && targetFrameStillAlive) {
-        // Nada que hacer (p. ej. el usuario pulsó atrás y adelante muy
-        // rápido y los eventos se superpusieron): ya estamos donde toca.
+        // Nada que hacer visualmente (ya estamos en esta pantalla).
+        // SIN EMBARGO, si esto ha sido provocado por el botón atrás/swipe del navegador,
+        // significa que el usuario ha tropezado con un "click muerto" (una entrada duplicada
+        // generada por el replaceState de onNavigatorPop).
+        // Para que la UI no parezca atascada, ejecutamos el siguiente back automáticamente.
+        if (isNativeBrowserBack) {
+          goBackInBrowserHistory();
+        }
       } else if (depth > currentDepth) {
         // ── CASO: HISTORIAL HUÉRFANO ─────────────────────────────────
         // El historial del navegador pide una ruta hacia adelante que ya

@@ -76,7 +76,8 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      routeSettings: const RouteSettings(name: 'loading_dialog'),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {

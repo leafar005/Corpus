@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:corpus/globals.dart';
 import 'package:corpus/utils/format_utils.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../repositories/review_repository.dart';
@@ -1776,6 +1777,7 @@ class ReviewModal {
                                       final route = ModalRoute.of(modalContext);
                                       if (route != null && route.isCurrent) {
                                         Navigator.of(modalContext).pop();
+                                        AppNavigationController.instance.syncBrowserHistoryAfterProgrammaticPop();
                                       }
                                     } else {
                                       setModalState(

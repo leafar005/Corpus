@@ -25,6 +25,29 @@ void main() async {
   // 1. Asegura que los motores de Flutter están listos
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inyectar un ErrorWidget personalizado para detectar el bug de "pantalla gris"
+  // en producción (que en release suele pintar un Container(color: Color(0xF0C0C0C0))).
+  // Esto nos dirá el origen exacto del fallo en la interfaz visualmente.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      child: Container(
+        color: const Color(0xFF4A0000), // Rojo oscuro muy visible
+        padding: const EdgeInsets.all(16),
+        alignment: Alignment.center,
+        child: SingleChildScrollView(
+          child: Text(
+            'BUG DE RENDERIZADO:\n\n${details.exceptionAsString()}\n\n${details.stack?.toString() ?? ''}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontFamily: 'monospace',
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ),
+    );
+  };
+
   // 2. Valida que todas las variables de entorno necesarias fueron inyectadas.
   //    Falla rápido con un mensaje claro si falta alguna.
   //    Ejecutar con: flutter run --dart-define-from-file=.env.json

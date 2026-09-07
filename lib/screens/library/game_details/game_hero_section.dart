@@ -161,6 +161,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
     showDialog(
       context: context,
       barrierDismissible: false,
+      routeSettings: const RouteSettings(name: 'loading_dialog'),
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
@@ -541,6 +542,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                         TextButton(
                           onPressed: () {
                             Navigator.pop(context);
+                            AppNavigationController.instance.syncBrowserHistoryAfterProgrammaticPop();
                             widget.controller.deleteFromLibrary();
                             libraryUpdateNotifier.value++;
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -790,7 +792,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                       widget.resolvedCategory!,
                       themeSecondary: theme.colorScheme.secondary,
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     widget.categoryLabel ??

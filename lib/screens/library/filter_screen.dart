@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/models/models.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../utils/igdb_constants.dart';
 import '../../widgets/corpus_section_title.dart';
@@ -146,9 +147,12 @@ class _FilterScreenState extends State<FilterScreen> {
             child: const Text('Borrar'),
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: FilledButton(
-              onPressed: () => Navigator.pop(context, _filters),
+              onPressed: () {
+                Navigator.pop(context, _filters);
+                AppNavigationController.instance.syncBrowserHistoryAfterProgrammaticPop();
+              },
               style: FilledButton.styleFrom(
                 shape: RoundedRectangleBorder(borderRadius: ext.radiusMedium),
               ),

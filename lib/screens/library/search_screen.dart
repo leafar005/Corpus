@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/globals.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 import 'dart:async';
 import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
@@ -467,7 +468,10 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
                     userRating: userRating,
                     onReturn: _fetchUserGamesCache,
                     onTap: widget.isSelectionMode
-                        ? (cleanData) => Navigator.pop(context, cleanData)
+                        ? (cleanData) {
+                            Navigator.pop(context, cleanData);
+                            AppNavigationController.instance.syncBrowserHistoryAfterProgrammaticPop();
+                          }
                         : null,
                   );
                 },

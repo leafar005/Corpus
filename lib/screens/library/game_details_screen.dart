@@ -312,7 +312,10 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           showDialog(
             context: context,
             barrierDismissible: false,
-            builder: (_) => const Center(child: CircularProgressIndicator()),
+            routeSettings: const RouteSettings(name: 'loading_dialog'),
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(),
+            ),
           );
           final igdbGame = await IGDBService.getGameById(id);
           if (showingSpinner && mounted) {
