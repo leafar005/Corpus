@@ -185,6 +185,8 @@ class _GameCardState extends State<GameCard> {
                                         title,
                                         hasParentGame:
                                             widget.game.parentGameId != null,
+                                        hasVersionParent:
+                                            widget.game.versionParentId != null,
                                         summary: widget.game.summary,
                                       );
 
@@ -247,8 +249,9 @@ class _GameCardState extends State<GameCard> {
                                       widget.completionType != null &&
                                       widget.completionType != 'none';
 
-                                  if (!hasRating && !hasStatus)
+                                  if (!hasRating && !hasStatus) {
                                     return const SizedBox.shrink();
+                                  }
 
                                   if (hasRating && hasStatus) {
                                     final (
