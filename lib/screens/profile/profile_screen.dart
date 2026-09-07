@@ -879,10 +879,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildNavBar({required bool isDesktop}) {
-    return Container(
-      margin: EdgeInsets.only(
+    final navBar = Container(
+      padding: EdgeInsets.only(
         left: isDesktop ? 380 : 16,
         right: isDesktop ? 40 : 16,
+        bottom: isDesktop ? 1 : 0,
       ),
       decoration: isDesktop
           ? BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor)
@@ -910,6 +911,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+
+    return isDesktop
+        ? Transform.translate(offset: const Offset(0, -1), child: navBar)
+        : navBar;
   }
 
   Widget _buildNavTab(String title, int index, {bool compact = false}) {
