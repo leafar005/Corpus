@@ -23,6 +23,45 @@ void main() {
     );
 
     test(
+      'Detecta Port cuando hay version_parent sin keyword coincidente, sin confundirlo con DLC',
+      () {
+        expect(
+          IgdbConstants.resolveCategory(
+            0,
+            'Ninja Gaiden II Black',
+            hasVersionParent: true,
+          ),
+          11,
+        );
+      },
+    );
+
+    test(
+      'remake/remaster/edición expandida siguen teniendo prioridad sobre hasVersionParent',
+      () {
+        expect(
+          IgdbConstants.resolveCategory(
+            0,
+            'Dark Souls Remastered',
+            hasVersionParent: true,
+          ),
+          9,
+        );
+      },
+    );
+
+    test('hasVersionParent no debe activar el badge de DLC', () {
+      expect(
+        IgdbConstants.resolveCategory(
+          0,
+          'Cualquier Edición',
+          hasVersionParent: true,
+        ),
+        isNot(1),
+      );
+    });
+
+    test(
       'Detecta Remasters por palabras clave o HD cuando category es 0 o null',
       () {
         expect(IgdbConstants.resolveCategory(0, 'Dark Souls Remastered'), 9);
@@ -51,8 +90,7 @@ void main() {
         10,
       );
     });
-
-    test('Detecta DLCs por nombre o por tener parent_game', () {
+    test('Detecta DLCs por nombre', () {
       expect(
         IgdbConstants.resolveCategory(
           0,
@@ -61,22 +99,6 @@ void main() {
         1,
       );
       expect(IgdbConstants.resolveCategory(0, 'Expansion Pass Vol 1'), 1);
-      expect(
-        IgdbConstants.resolveCategory(
-          0,
-          'Misión adicional',
-          hasParentGame: true,
-        ),
-        1,
-      );
-      expect(
-        IgdbConstants.resolveCategory(
-          0,
-          'DLC sin palabra clave',
-          hasParentGame: true,
-        ),
-        1,
-      );
     });
 
     test('Detecta Mods por palabra suelta en título o resumen', () {

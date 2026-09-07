@@ -313,9 +313,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             context: context,
             barrierDismissible: false,
             routeSettings: const RouteSettings(name: 'loading_dialog'),
-            builder: (context) => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            builder: (context) =>
+                const Center(child: CircularProgressIndicator()),
           );
           final igdbGame = await IGDBService.getGameById(id);
           if (showingSpinner && mounted) {
@@ -570,7 +569,15 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     final summary = widget.gameData.summary ?? _enrichedData['summary'];
     final originalGame = _getOriginalGameInfo();
-    final hasParentGame = originalGame != null;
+    // originalGame combina las 4 relaciones (parent_game, version_parent,
+    // remake/remaster) y sigue sirviendo para el link "Basado en X" en la UI.
+    // Para resolveCategory, en cambio, hay que distinguir el tipo de relación:
+    final bool hasParentGame =
+        widget.gameData.parentGameId != null ||
+        _enrichedData['parent_game'] != null;
+    final bool hasVersionParent =
+        widget.gameData.versionParentId != null ||
+        _enrichedData['version_parent'] != null;
 
     final int? categoryId =
         widget.gameData.gameType ??
@@ -581,6 +588,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       categoryId,
       title,
       hasParentGame: hasParentGame,
+      hasVersionParent: hasVersionParent,
       summary:
           widget.gameData.summary?.toString() ??
           _enrichedData['summary']?.toString(),

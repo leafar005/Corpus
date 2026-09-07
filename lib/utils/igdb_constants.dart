@@ -106,7 +106,9 @@ class IgdbConstants {
   static int? resolveCategory(
     int? igdbCategory,
     String title, {
-    bool hasParentGame = false,
+    bool hasParentGame = false, // SOLO parent_game real (DLC/expansión)
+    bool hasVersionParent =
+        false, // version_parent (edición/remaster/remake/port)
     String? summary,
   }) {
     // Si IGDB ya devolvió una categoría no-base, confiar en ella.
@@ -127,7 +129,13 @@ class IgdbConstants {
       return 9;
     }
     if (_expandedKeywords.any((k) => lowerTitle.contains(k))) return 10;
-    if (hasParentGame || _dlcKeywords.any((k) => lowerTitle.contains(k))) {
+
+    // Tiene version_parent pero ninguna keyword de remake/remaster/edición
+    // coincidió con el título. Es una versión de otro juego (probablemente
+    // un Port) — nunca lo etiquetamos como DLC.
+    if (hasVersionParent) return 11;
+
+    if (_dlcKeywords.any((k) => lowerTitle.contains(k))) {
       return 1;
     }
 
