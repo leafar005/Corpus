@@ -204,14 +204,14 @@ class _GameCardState extends State<GameCard> {
 
                                   return Container(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
+                                      horizontal: 8,
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.surface,
-                                      borderRadius: BorderRadius.circular(4),
+                                      borderRadius: BorderRadius.circular(100),
                                       border: Border.all(
                                         color: color.withValues(alpha: 0.5),
                                       ),
@@ -238,40 +238,163 @@ class _GameCardState extends State<GameCard> {
                               ),
                             ),
 
-                            if (widget.isInLibrary && widget.userRating > 0)
-                              Positioned(
-                                top: 6,
-                                right: 6,
-                                child: Container(
-                                  width: 28,
-                                  height: 28,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(
+                            // Top right badges (Rating and/or Substatus)
+                            if (widget.isInLibrary)
+                              Builder(
+                                builder: (context) {
+                                  final hasRating = widget.userRating > 0;
+                                  final hasStatus =
+                                      widget.completionType != null &&
+                                      widget.completionType != 'none';
+
+                                  if (!hasRating && !hasStatus)
+                                    return const SizedBox.shrink();
+
+                                  if (hasRating && hasStatus) {
+                                    final (
+                                      IconData icon,
+                                      Color color,
+                                    ) = _getSubstatusConfig(
                                       context,
-                                    ).colorScheme.onSurface,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Theme.of(context)
-                                            .scaffoldBackgroundColor
-                                            .withValues(alpha: 0.54),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
+                                      widget.completionType!,
+                                    );
+                                    return Positioned(
+                                      top: 6,
+                                      right: 6,
+                                      child: SizedBox(
+                                        width:
+                                            28, // Ancho máximo determinado por la nota
+                                        child: Stack(
+                                          clipBehavior: Clip.none,
+                                          alignment: Alignment.topCenter,
+                                          children: [
+                                            // Fondo de la píldora oscura
+                                            Positioned(
+                                              top: 4,
+                                              bottom: 0,
+                                              child: Container(
+                                                width:
+                                                    22, // Mismo ancho y radio que el badge original
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .surface
+                                                      .withValues(alpha: 0.92),
+                                                  borderRadius:
+                                                      BorderRadius.circular(11),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                            alpha: 0.4,
+                                                          ),
+                                                      blurRadius: 4,
+                                                      offset: const Offset(
+                                                        0,
+                                                        2,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            // Contenido (Nota + Icono)
+                                            Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  alignment: Alignment.center,
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.onSurface,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Text(
+                                                    formatRating(
+                                                      widget.userRating,
+                                                    ),
+                                                    style: TextStyle(
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.surface,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      fontSize: 13,
+                                                      letterSpacing: -0.5,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 3),
+                                                Icon(
+                                                  icon,
+                                                  size: 13,
+                                                  color: color,
+                                                ),
+                                                const SizedBox(
+                                                  height: 5,
+                                                ), // padding inferior
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ],
-                                  ),
-                                  child: Text(
-                                    formatRating(widget.userRating),
-                                    style: TextStyle(
-                                      color: Theme.of(
+                                    );
+                                  }
+
+                                  if (hasRating) {
+                                    return Positioned(
+                                      top: 6,
+                                      right: 6,
+                                      child: Container(
+                                        width: 28,
+                                        height: 28,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Theme.of(context)
+                                                  .scaffoldBackgroundColor
+                                                  .withValues(alpha: 0.54),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          formatRating(widget.userRating),
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.surface,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 13,
+                                            letterSpacing: -0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+
+                                  if (hasStatus) {
+                                    return Positioned(
+                                      top: 6,
+                                      right: 6,
+                                      child: _buildSubstatusBadge(
                                         context,
-                                      ).colorScheme.surface,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
+                                        widget.completionType!,
+                                      ),
+                                    );
+                                  }
+
+                                  return const SizedBox.shrink();
+                                },
                               ),
                             if (widget.game.isSteamOnly)
                               Positioned(
@@ -300,17 +423,6 @@ class _GameCardState extends State<GameCard> {
                                     height: 14,
                                     color: Colors.white,
                                   ),
-                                ),
-                              ),
-                            // ── Badge de subestado (esquina inferior derecha) ──
-                            if (widget.completionType != null &&
-                                widget.completionType != 'none')
-                              Positioned(
-                                bottom: 6,
-                                right: 6,
-                                child: _buildSubstatusBadge(
-                                  context,
-                                  widget.completionType!,
                                 ),
                               ),
                           ],
@@ -360,8 +472,8 @@ class _GameCardState extends State<GameCard> {
     return Colors.red;
   }
 
-  Widget _buildSubstatusBadge(BuildContext context, String type) {
-    final (IconData icon, Color color) = switch (type) {
+  (IconData, Color) _getSubstatusConfig(BuildContext context, String type) {
+    return switch (type) {
       'on_hold' => (Icons.pause_rounded, Colors.orange),
       'endless' => (Icons.all_inclusive_rounded, Colors.teal),
       'story' => (
@@ -372,6 +484,10 @@ class _GameCardState extends State<GameCard> {
       '100_percent' => (Icons.emoji_events_rounded, const Color(0xFFFFD700)),
       _ => (Icons.flag_rounded, Theme.of(context).colorScheme.primary),
     };
+  }
+
+  Widget _buildSubstatusBadge(BuildContext context, String type) {
+    final (IconData icon, Color color) = _getSubstatusConfig(context, type);
 
     return Container(
       width: 22,
