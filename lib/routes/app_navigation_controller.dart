@@ -148,6 +148,45 @@ class AppNavigationController {
     final frames = _stacks[stackIndex];
     if (frames == null || frames.isEmpty) return; // defensivo
     _stacks[stackIndex] = frames.sublist(0, frames.length - 1);
+
+    // [OPCIÓN 1]: Sincronizar la URL actual del navegador para que refleje el pop visual.
+    // Esto desvincula el botón volver interno de la app (que ahora usa nav.pop())
+    // del historial del navegador (que mantendrá su longitud, pero actualizará su URL activa).
+    if (stackIndex == rootStackIndex ||
+        stackIndex == currentTabIndexNotifier.value) {
+      final rootFrames = _stacks[rootStackIndex] ?? const [];
+      if (rootFrames.isNotEmpty) {
+        // Si todavía hay modales en la pila raíz, actualizamos el path al del último modal.
+        final last = rootFrames.last;
+        setWebPath(
+          getWebPathname() ?? '/',
+          replace: true,
+          state: {
+            'tab': rootStackIndex,
+            'depth': rootFrames.length - 1,
+            'token': last.token,
+          },
+        );
+      } else {
+        // No quedan modales (o el pop fue directamente de la pestaña).
+        // Restauramos la URL de la pestaña activa subyacente.
+        final activeTab = currentTabIndexNotifier.value;
+        final activeFrames = _stacks[activeTab] ?? const [];
+        if (activeFrames.isNotEmpty) {
+          final last = activeFrames.last;
+          final subRoute = deepRouteFromRouteSettings(last.settings);
+          setWebPath(
+            publicPathForTabRoute(activeTab, subRoute),
+            replace: true,
+            state: {
+              'tab': activeTab,
+              'depth': activeFrames.length - 1,
+              'token': last.token,
+            },
+          );
+        }
+      }
+    }
   }
 
   void onNavigatorReplace(int stackIndex, {required Route<dynamic> newRoute}) {
@@ -168,40 +207,30 @@ class AppNavigationController {
   }
 
   /// Único método que cualquier control de la UI debe llamar para "ir
-  /// atrás" (AppBar, PopScope, gesto de borde). Nunca se debe llamar a
-  /// Navigator.pop(context) directamente para cerrar una pantalla que
-  /// pertenece a una de las 5 pestañas o a la pila raíz.
+  /// atrás" (AppBar, PopScope, gesto de borde).
   ///
-  /// [forStack]: opcional. Si quien llama no tiene un BuildContext dentro
-  /// del Navigator relevante (p. ej. el gesto de borde, que vive por
-  /// encima de las 5 pestañas), debe indicar explícitamente qué pila
-  /// quiere deshacer.
-  ///
-  /// Devuelve `true` si se iniciará una navegación hacia atrás (el
-  /// resultado real, en web, llega de forma asíncrona vía popstate).
-  /// Devuelve `false` si no hay nada que deshacer en esa pila (ya está en
-  /// su raíz) — quien llama decide qué hacer en ese caso (p. ej. MainScreen
-  /// cambia a la pestaña Inicio, o cierra la app).
+  /// En Web, este método ejecuta un pop local (Navigator.pop) para que la 
+  /// navegación contextual dentro de la app sea independiente del historial
+  /// del navegador.
   bool requestBack(BuildContext context, {int? forStack}) {
-    if (!kIsWeb) {
-      // Nativo: no hay historial de navegador, no hay nada que sincronizar.
-      final nav = forStack != null
-          ? _navigatorFor(forStack)
-          : Navigator.of(context);
-      if (nav != null && nav.canPop()) {
-        nav.pop();
-        return true;
-      }
-      return false;
-    }
-
     final stackIndex = forStack ?? _stackIndexOf(context);
-    final frames = _stacks[stackIndex] ?? const [];
-    if (frames.length <= 1) return false; // ya en la raíz de esta pila
-
-    _isProgrammaticBack = true;
-    goBackInBrowserHistory(); // dispara un popstate real
-    return true;
+    
+    // Si estamos dentro de una pestaña (no un modal global) y estamos en su raíz,
+    // devolvemos false para que MainScreen cambie a Inicio o cierre la app.
+    if (stackIndex != rootStackIndex) {
+      final frames = _stacks[stackIndex] ?? const [];
+      if (frames.length <= 1) return false;
+    }
+    
+    final nav = forStack != null
+        ? _navigatorFor(forStack)
+        : Navigator.of(context);
+        
+    if (nav != null && nav.canPop()) {
+      nav.pop();
+      return true;
+    }
+    return false;
   }
 
   /// Deduce a qué pila pertenece un BuildContext dado, comparando su
