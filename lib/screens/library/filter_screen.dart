@@ -151,7 +151,8 @@ class _FilterScreenState extends State<FilterScreen> {
             child: FilledButton(
               onPressed: () {
                 Navigator.pop(context, _filters);
-                AppNavigationController.instance.syncBrowserHistoryAfterProgrammaticPop();
+                AppNavigationController.instance
+                    .syncBrowserHistoryAfterProgrammaticPop();
               },
               style: FilledButton.styleFrom(
                 shape: RoundedRectangleBorder(borderRadius: ext.radiusMedium),

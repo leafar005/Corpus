@@ -470,7 +470,8 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
                     onTap: widget.isSelectionMode
                         ? (cleanData) {
                             Navigator.pop(context, cleanData);
-                            AppNavigationController.instance.syncBrowserHistoryAfterProgrammaticPop();
+                            AppNavigationController.instance
+                                .syncBrowserHistoryAfterProgrammaticPop();
                           }
                         : null,
                   );

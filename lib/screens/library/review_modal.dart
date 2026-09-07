@@ -1777,7 +1777,8 @@ class ReviewModal {
                                       final route = ModalRoute.of(modalContext);
                                       if (route != null && route.isCurrent) {
                                         Navigator.of(modalContext).pop();
-                                        AppNavigationController.instance.syncBrowserHistoryAfterProgrammaticPop();
+                                        AppNavigationController.instance
+                                            .syncBrowserHistoryAfterProgrammaticPop();
                                       }
                                     } else {
                                       setModalState(

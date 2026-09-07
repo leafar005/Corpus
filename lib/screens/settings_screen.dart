@@ -206,9 +206,8 @@ class SettingsScreen extends StatelessWidget {
                   context: context,
                   barrierDismissible: false,
                   routeSettings: const RouteSettings(name: 'loading_dialog'),
-                  builder: (context) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  builder: (context) =>
+                      const Center(child: CircularProgressIndicator()),
                 );
 
                 try {

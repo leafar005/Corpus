@@ -542,7 +542,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                         TextButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            AppNavigationController.instance.syncBrowserHistoryAfterProgrammaticPop();
+                            AppNavigationController.instance
+                                .syncBrowserHistoryAfterProgrammaticPop();
                             widget.controller.deleteFromLibrary();
                             libraryUpdateNotifier.value++;
                             ScaffoldMessenger.of(context).showSnackBar(

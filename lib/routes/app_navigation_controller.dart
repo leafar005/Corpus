@@ -144,7 +144,7 @@ class AppNavigationController {
   void onNavigatorPop(int stackIndex, [Route<dynamic>? route]) {
     if (!kIsWeb) return;
     if (route != null && route.settings.name == 'loading_dialog') return;
-    
+
     if (_ignorePopSyncCount > 0) {
       _ignorePopSyncCount--;
       return;
@@ -240,18 +240,18 @@ class AppNavigationController {
     }
 
     final stackIndex = forStack ?? _stackIndexOf(context);
-    
+
     // Si estamos dentro de una pestaña (no un modal global) y estamos en su raíz,
     // devolvemos false para que MainScreen cambie a Inicio o cierre la app.
     if (stackIndex != rootStackIndex) {
       final frames = _stacks[stackIndex] ?? const [];
       if (frames.length <= 1) return false;
     }
-    
+
     final nav = forStack != null
         ? _navigatorFor(forStack)
         : Navigator.of(context);
-        
+
     if (nav != null && nav.canPop()) {
       nav.pop();
       return true;
