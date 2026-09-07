@@ -209,23 +209,23 @@ class AppNavigationController {
   /// Único método que cualquier control de la UI debe llamar para "ir
   /// atrás" (AppBar, PopScope, gesto de borde).
   ///
-  /// En Web, este método ejecuta un pop local (Navigator.pop) para que la 
+  /// En Web, este método ejecuta un pop local (Navigator.pop) para que la
   /// navegación contextual dentro de la app sea independiente del historial
   /// del navegador.
   bool requestBack(BuildContext context, {int? forStack}) {
     final stackIndex = forStack ?? _stackIndexOf(context);
-    
+
     // Si estamos dentro de una pestaña (no un modal global) y estamos en su raíz,
     // devolvemos false para que MainScreen cambie a Inicio o cierre la app.
     if (stackIndex != rootStackIndex) {
       final frames = _stacks[stackIndex] ?? const [];
       if (frames.length <= 1) return false;
     }
-    
+
     final nav = forStack != null
         ? _navigatorFor(forStack)
         : Navigator.of(context);
-        
+
     if (nav != null && nav.canPop()) {
       nav.pop();
       return true;

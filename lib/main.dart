@@ -243,8 +243,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     return super.didPopRoute();
   }
 
-
-
   @override
   Future<bool> didPushRouteInformation(
     RouteInformation routeInformation,
