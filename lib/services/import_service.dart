@@ -430,28 +430,37 @@ class ImportService {
                 : int.tryParse(rawCat?.toString() ?? '');
             final String title =
                 gameData['name'] ?? gameData['title'] ?? row.title;
-            final bool hasParent =
-                gameData['parent_game'] != null ||
-                gameData['version_parent'] != null ||
-                gameData['remake_of'] != null ||
-                gameData['remaster_of'] != null;
+            final bool hasParent = gameData['parent_game'] != null;
+            final bool hasVersion = gameData['version_parent'] != null;
             return IgdbConstants.resolveCategory(
                   catId,
                   title,
                   hasParentGame: hasParent,
+                  hasVersionParent: hasVersion,
                   summary: gameData['summary']?.toString(),
                 ) ??
                 0;
           }(),
-          'collection': gameData['collection'] != null
-              ? {
-                  'name':
-                      (gameData['collection'] is Map
-                              ? gameData['collection']['name']
-                              : gameData['collection'])
-                          .toString(),
-                }
-              : null,
+          'parent_game': () {
+            final pg = gameData['parent_game'];
+            if (pg is Map) return pg['id'] ?? pg['igdb_id'];
+            return pg;
+          }(),
+          'version_parent': () {
+            final vp = gameData['version_parent'];
+            if (vp is Map) return vp['id'] ?? vp['igdb_id'];
+            return vp;
+          }(),
+          'collection': () {
+            dynamic col = gameData['collection'];
+            if (col == null &&
+                gameData['collections'] is List &&
+                (gameData['collections'] as List).isNotEmpty) {
+              col = (gameData['collections'] as List).first;
+            }
+            if (col == null) return null;
+            return {'name': (col is Map ? col['name'] : col).toString()};
+          }(),
           'franchises': getNames(gameData['franchises']),
           'game_engines': getNames(gameData['game_engines']),
           if (gameData['metacritic_score'] != null)

@@ -7,6 +7,11 @@ import '../utils/igdb_constants.dart';
 import '../utils/image_compressor.dart';
 import '../models/models.dart';
 
+dynamic _firstOf(dynamic list) {
+  if (list is List && list.isNotEmpty && list.first is Map) return list.first;
+  return null;
+}
+
 /// Resultado de una operación de guardado de reseña.
 /// Separa los datos puros del manejo de UI en el screen.
 class SaveReviewResult {
@@ -248,17 +253,15 @@ class ReviewRepository {
                 final String title = gameData['title'] ?? 'Desconocido';
                 final bool hasParent =
                     gameData['parent_game'] != null ||
-                    enrichedData['parent_game'] != null ||
+                    enrichedData['parent_game'] != null;
+                final bool hasVersion =
                     gameData['version_parent'] != null ||
-                    enrichedData['version_parent'] != null ||
-                    gameData['remake_of'] != null ||
-                    enrichedData['remake_of'] != null ||
-                    gameData['remaster_of'] != null ||
-                    enrichedData['remaster_of'] != null;
+                    enrichedData['version_parent'] != null;
                 return IgdbConstants.resolveCategory(
                       catId,
                       title,
                       hasParentGame: hasParent,
+                      hasVersionParent: hasVersion,
                       summary:
                           gameData['summary']?.toString() ??
                           enrichedData['summary']?.toString(),
@@ -267,16 +270,16 @@ class ReviewRepository {
               }(),
               'parent_game': () {
                 final pg =
-                    gameData['parent_game'] ??
-                    enrichedData['parent_game'] ??
-                    gameData['version_parent'] ??
-                    enrichedData['version_parent'] ??
-                    gameData['remake_of'] ??
-                    enrichedData['remake_of'] ??
-                    gameData['remaster_of'] ??
-                    enrichedData['remaster_of'];
+                    gameData['parent_game'] ?? enrichedData['parent_game'];
                 if (pg is Map) return pg['id'] ?? pg['igdb_id'];
                 return pg;
+              }(),
+              'version_parent': () {
+                final vp =
+                    gameData['version_parent'] ??
+                    enrichedData['version_parent'];
+                if (vp is Map) return vp['id'] ?? vp['igdb_id'];
+                return vp;
               }(),
               'themes': gameData['themes'] ?? enrichedData['themes'],
               'game_modes':
@@ -296,8 +299,13 @@ class ReviewRepository {
                 return enrichedData['developer'];
               }(),
               'collection': () {
-                final col =
+                dynamic col =
                     gameData['collection'] ?? enrichedData['collection'];
+                // Fallback al sistema nuevo de IGDB (collections, plural) si
+                // el campo legacy 'collection' viene vacío.
+                col ??=
+                    _firstOf(gameData['collections']) ??
+                    _firstOf(enrichedData['collections']);
                 if (col is Map && col['id'] != null) return col;
                 if (col is String && col != 'null' && col.isNotEmpty) {
                   return {'name': col};

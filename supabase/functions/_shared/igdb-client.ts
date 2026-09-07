@@ -113,7 +113,7 @@ export async function igdbApiRequest(endpoint: string, query: string): Promise<I
  * funciones antes de la consolidación — ningún campo ha cambiado.
  */
 export const IGDB_FIELDS =
-  'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, total_rating_count, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.id, collection.name, franchises.id, franchises.name, game_engines.name, external_games.uid, external_games.category;';
+  'fields name, cover.image_id, first_release_date, summary, category, game_type, parent_game, total_rating_count, genres.name, themes.name, game_modes.name, player_perspectives.name, platforms.name, involved_companies.developer, involved_companies.company.name, screenshots.image_id, artworks.image_id, videos.video_id, collection.id, collection.name, collections.id, collections.name, franchises.id, franchises.name, game_engines.name, external_games.uid, external_games.category;';
 
 /**
  * Wrapper de compatibilidad para sync-bundles y steam-library-import: mismo

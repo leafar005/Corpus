@@ -478,11 +478,15 @@ class GameDetailsController extends ChangeNotifier {
                     )
                     .toList()
               : [],
-          if (game['collection'] != null)
-            'collection': {
-              'id': game['collection']['id'],
-              'name': game['collection']['name'],
-            },
+          if (game['collection'] != null ||
+              (game['collections'] is List &&
+                  (game['collections'] as List).isNotEmpty))
+            'collection': () {
+              final Map col = game['collection'] != null
+                  ? game['collection'] as Map
+                  : (game['collections'] as List).first as Map;
+              return {'id': col['id'], 'name': col['name']};
+            }(),
           'franchises': game['franchises'] != null
               ? (game['franchises'] as List)
                     .map((f) => {'id': f['id'], 'name': f['name']})

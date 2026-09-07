@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
             themes: raw.themes?.map((t: any) => t.name) || [],
             game_modes: raw.game_modes?.map((m: any) => m.name) || [],
             player_perspectives: raw.player_perspectives?.map((p: any) => p.name) || [],
-            collection: raw.collection?.name || null,
+            collection: raw.collection?.name || raw.collections?.[0]?.name || null,
             franchises: raw.franchises?.map((f: any) => f.name) || [],
             game_engines: raw.game_engines?.map((e: any) => e.name) || [],
           };
