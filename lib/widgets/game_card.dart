@@ -211,7 +211,7 @@ class _GameCardState extends State<GameCard> {
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.surface,
-                                      borderRadius: BorderRadius.circular(4),
+                                      borderRadius: BorderRadius.circular(16),
                                       border: Border.all(
                                         color: color.withValues(alpha: 0.5),
                                       ),
@@ -238,41 +238,66 @@ class _GameCardState extends State<GameCard> {
                               ),
                             ),
 
-                            if (widget.isInLibrary && widget.userRating > 0)
-                              Positioned(
-                                top: 6,
-                                right: 6,
-                                child: Container(
-                                  width: 28,
-                                  height: 28,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Theme.of(context)
-                                            .scaffoldBackgroundColor
-                                            .withValues(alpha: 0.54),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                alignment: Alignment.centerRight,
+                                children: [
+                                  if (widget.completionType != null &&
+                                      widget.completionType != 'none')
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        right:
+                                            (widget.isInLibrary &&
+                                                widget.userRating > 0)
+                                            ? 12.0
+                                            : 0,
                                       ),
-                                    ],
-                                  ),
-                                  child: Text(
-                                    formatRating(widget.userRating),
-                                    style: TextStyle(
-                                      color: Theme.of(
+                                      child: _buildSubstatusBadge(
                                         context,
-                                      ).colorScheme.surface,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                        widget.completionType!,
+                                        isPill:
+                                            widget.isInLibrary &&
+                                            widget.userRating > 0,
+                                      ),
                                     ),
-                                  ),
-                                ),
+                                  if (widget.isInLibrary &&
+                                      widget.userRating > 0)
+                                    Container(
+                                      width: 28,
+                                      height: 28,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Theme.of(context)
+                                                .scaffoldBackgroundColor
+                                                .withValues(alpha: 0.54),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        formatRating(widget.userRating),
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surface,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
+                            ),
                             if (widget.game.isSteamOnly)
                               Positioned(
                                 top: 6,
@@ -302,17 +327,7 @@ class _GameCardState extends State<GameCard> {
                                   ),
                                 ),
                               ),
-                            // ── Badge de subestado (esquina inferior derecha) ──
-                            if (widget.completionType != null &&
-                                widget.completionType != 'none')
-                              Positioned(
-                                bottom: 6,
-                                right: 6,
-                                child: _buildSubstatusBadge(
-                                  context,
-                                  widget.completionType!,
-                                ),
-                              ),
+                            // Substatus badge has been moved to the top right.
                           ],
                         );
                       },
@@ -360,7 +375,11 @@ class _GameCardState extends State<GameCard> {
     return Colors.red;
   }
 
-  Widget _buildSubstatusBadge(BuildContext context, String type) {
+  Widget _buildSubstatusBadge(
+    BuildContext context,
+    String type, {
+    bool isPill = false,
+  }) {
     final (IconData icon, Color color) = switch (type) {
       'on_hold' => (Icons.pause_rounded, Colors.orange),
       'endless' => (Icons.all_inclusive_rounded, Colors.teal),
@@ -374,11 +393,13 @@ class _GameCardState extends State<GameCard> {
     };
 
     return Container(
-      width: 22,
-      height: 22,
+      width: isPill ? 40 : 24,
+      height: 24,
+      alignment: isPill ? Alignment.centerLeft : Alignment.center,
+      padding: isPill ? const EdgeInsets.only(left: 6) : null,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.4),
@@ -387,7 +408,7 @@ class _GameCardState extends State<GameCard> {
           ),
         ],
       ),
-      child: Icon(icon, size: 13, color: color),
+      child: Icon(icon, size: 14, color: color),
     );
   }
 }

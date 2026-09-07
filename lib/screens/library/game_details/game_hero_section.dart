@@ -790,7 +790,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                       widget.resolvedCategory!,
                       themeSecondary: theme.colorScheme.secondary,
                     ),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
                     widget.categoryLabel ??
