@@ -1117,10 +1117,10 @@ class ReviewModal {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  if (existingImages.length + newImages.length < 3)
+                  if (existingImages.length + newImages.length < 4)
                     OutlinedButton.icon(
                       icon: const Icon(Icons.add_photo_alternate, size: 18),
-                      label: const Text('Adjuntar imagen (máx 3)'),
+                      label: const Text('Adjuntar imagen (máx 4)'),
                       onPressed: () async {
                         final picker = ImagePicker();
                         final pickedFiles = await picker.pickMultiImage(
@@ -1130,7 +1130,7 @@ class ReviewModal {
                         if (pickedFiles.isNotEmpty) {
                           setModalState(() {
                             final remaining =
-                                3 - existingImages.length - newImages.length;
+                                4 - existingImages.length - newImages.length;
                             newImages.addAll(pickedFiles.take(remaining));
                           });
                         }
@@ -1571,63 +1571,61 @@ class ReviewModal {
                                       // ── Imágenes adjuntas ─────────────────────────────
                                       if (existingImages.isNotEmpty ||
                                           newImages.isNotEmpty) ...[
-                                        SizedBox(
-                                          height: 90,
-                                          child: ListView(
-                                            scrollDirection: Axis.horizontal,
-                                            children: [
-                                              ...existingImages.map(
-                                                (url) => buildRemovableImage(
-                                                  imageWidget:
-                                                      CorpusNetworkImage(
-                                                        url: url,
+                                        GridView.count(
+                                          shrinkWrap: true,
+                                          physics: const NeverScrollableScrollPhysics(),
+                                          crossAxisCount: 2,
+                                          mainAxisSpacing: 0,
+                                          crossAxisSpacing: 0,
+                                          childAspectRatio: 16 / 9,
+                                          children: [
+                                            ...existingImages.map(
+                                              (url) => buildRemovableImage(
+                                                imageWidget: CorpusNetworkImage(
+                                                  url: url,
+                                                  fit: BoxFit.cover,
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                ),
+                                                onRemove: () => setModalState(
+                                                  () => existingImages.remove(url),
+                                                ),
+                                              ),
+                                            ),
+                                            ...newImages.map(
+                                              (file) => buildRemovableImage(
+                                                imageWidget: kIsWeb
+                                                    ? CorpusNetworkImage(
+                                                        url: file.path,
                                                         fit: BoxFit.cover,
-                                                        width: 80,
-                                                        height: 80,
+                                                        width: double.infinity,
+                                                        height: double.infinity,
+                                                      )
+                                                    : Image.file(
+                                                        File(file.path),
+                                                        fit: BoxFit.cover,
+                                                        width: double.infinity,
+                                                        height: double.infinity,
                                                       ),
-                                                  onRemove: () => setModalState(
-                                                    () => existingImages.remove(
-                                                      url,
-                                                    ),
-                                                  ),
+                                                onRemove: () => setModalState(
+                                                  () => newImages.remove(file),
                                                 ),
                                               ),
-                                              ...newImages.map(
-                                                (file) => buildRemovableImage(
-                                                  imageWidget: kIsWeb
-                                                      ? CorpusNetworkImage(
-                                                          url: file.path,
-                                                          fit: BoxFit.cover,
-                                                          width: 80,
-                                                          height: 80,
-                                                        )
-                                                      : Image.file(
-                                                          File(file.path),
-                                                          fit: BoxFit.cover,
-                                                          width: 80,
-                                                          height: 80,
-                                                        ),
-                                                  onRemove: () => setModalState(
-                                                    () =>
-                                                        newImages.remove(file),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
                                         const SizedBox(height: 12),
                                       ],
                                       if (existingImages.length +
                                               newImages.length <
-                                          3)
+                                          4)
                                         OutlinedButton.icon(
                                           icon: const Icon(
                                             Icons.add_photo_alternate,
                                             size: 18,
                                           ),
                                           label: const Text(
-                                            'Adjuntar imagen (máx 3)',
+                                            'Adjuntar imagen (máx 4)',
                                           ),
                                           onPressed: () async {
                                             final picker = ImagePicker();
@@ -1639,7 +1637,7 @@ class ReviewModal {
                                             if (pickedFiles.isNotEmpty) {
                                               setModalState(() {
                                                 final remaining =
-                                                    3 -
+                                                    4 -
                                                     existingImages.length -
                                                     newImages.length;
                                                 newImages.addAll(

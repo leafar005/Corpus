@@ -886,44 +886,84 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
                               if (imageUrls.isNotEmpty) ...[
                                 const SizedBox(height: 16),
-                                SizedBox(
-                                  height: 140,
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
+                                if (isDesktop)
+                                  SizedBox(
+                                    height: 140,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: imageUrls.length,
+                                      itemBuilder: (context, idx) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              final strUrls = imageUrls
+                                                  .map((e) => e.toString())
+                                                  .toList();
+                                              showFullScreenGallery(
+                                                context,
+                                                strUrls,
+                                                idx,
+                                              );
+                                            },
+                                            child: ClipRRect(
+                                              borderRadius: Theme.of(context)
+                                                  .extension<
+                                                    CorpusThemeExtension
+                                                  >()!
+                                                  .radiusSmall,
+                                              child: CorpusNetworkImage(
+                                                url: imageUrls[idx],
+                                                height: isDesktop ? 280 : 140,
+                                                fit: BoxFit.fitHeight,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  )
+                                else
+                                  GridView.builder(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      crossAxisSpacing: 8,
+                                      mainAxisSpacing: 8,
+                                      childAspectRatio: 16 / 9,
+                                    ),
                                     itemCount: imageUrls.length,
                                     itemBuilder: (context, idx) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 8,
-                                        ),
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            final strUrls = imageUrls
-                                                .map((e) => e.toString())
-                                                .toList();
-                                            showFullScreenGallery(
-                                              context,
-                                              strUrls,
-                                              idx,
-                                            );
-                                          },
-                                          child: ClipRRect(
-                                            borderRadius: Theme.of(context)
-                                                .extension<
-                                                  CorpusThemeExtension
-                                                >()!
-                                                .radiusSmall,
-                                            child: CorpusNetworkImage(
-                                              url: imageUrls[idx],
-                                              height: isDesktop ? 280 : 140,
-                                              fit: BoxFit.fitHeight,
-                                            ),
+                                      return GestureDetector(
+                                        onTap: () {
+                                          final strUrls = imageUrls
+                                              .map((e) => e.toString())
+                                              .toList();
+                                          showFullScreenGallery(
+                                            context,
+                                            strUrls,
+                                            idx,
+                                          );
+                                        },
+                                        child: ClipRRect(
+                                          borderRadius: Theme.of(context)
+                                              .extension<
+                                                CorpusThemeExtension
+                                              >()!
+                                              .radiusSmall,
+                                          child: CorpusNetworkImage(
+                                            url: imageUrls[idx],
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: double.infinity,
                                           ),
                                         ),
                                       );
                                     },
                                   ),
-                                ),
                               ],
 
                               // Extra info

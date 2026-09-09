@@ -742,36 +742,70 @@ class _ActivityScreenState extends State<ActivityScreen>
             // ── Imágenes adjuntas ──
             if (imageUrls.isNotEmpty) ...[
               const SizedBox(height: 16),
-              SizedBox(
-                height: 120,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
+              if (MediaQuery.of(context).size.width > 600)
+                SizedBox(
+                  height: 120,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: imageUrls.length,
+                    itemBuilder: (context, idx) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () {
+                            final strUrls = imageUrls
+                                .map((e) => e.toString())
+                                .toList();
+                            showFullScreenGallery(context, strUrls, idx);
+                          },
+                          child: ClipRRect(
+                            borderRadius: Theme.of(
+                              context,
+                            ).extension<CorpusThemeExtension>()!.radiusSmall,
+                            child: CorpusNetworkImage(
+                              url: imageUrls[idx] as String,
+                              height: 120,
+                              fit: BoxFit.fitHeight,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
+              else
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 16 / 9,
+                  ),
                   itemCount: imageUrls.length,
                   itemBuilder: (context, idx) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () {
-                          final strUrls = imageUrls
-                              .map((e) => e.toString())
-                              .toList();
-                          showFullScreenGallery(context, strUrls, idx);
-                        },
-                        child: ClipRRect(
-                          borderRadius: Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()!.radiusSmall,
-                          child: CorpusNetworkImage(
-                            url: imageUrls[idx] as String,
-                            height: 120,
-                            fit: BoxFit.fitHeight,
-                          ),
+                    return GestureDetector(
+                      onTap: () {
+                        final strUrls = imageUrls
+                            .map((e) => e.toString())
+                            .toList();
+                        showFullScreenGallery(context, strUrls, idx);
+                      },
+                      child: ClipRRect(
+                        borderRadius: Theme.of(
+                          context,
+                        ).extension<CorpusThemeExtension>()!.radiusSmall,
+                        child: CorpusNetworkImage(
+                          url: imageUrls[idx] as String,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
                         ),
                       ),
                     );
                   },
                 ),
-              ),
             ],
 
             // ── Acciones (likes / comentarios) solo en reseñas ──
