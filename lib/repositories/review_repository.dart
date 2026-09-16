@@ -1013,4 +1013,125 @@ class ReviewRepository {
       return [];
     }
   }
+
+  // ── Backfill ──────────────────────────────────────────────────────────────
+
+  /// Persiste campos enriquecidos (cover_url, summary, developer) en la tabla
+  /// `games` para que listas y carruseles dejen de mostrar placeholders.
+  ///
+  /// Solo actualiza si la fila actual carece de `cover_url`.
+  /// See: audit hallazgo C-02 (Fase 2).
+  Future<void> backfillCoverUrl({
+    required int igdbId,
+    required Map<String, dynamic> enrichedData,
+    required String? currentCoverUrl,
+  }) async {
+    final missingCover = currentCoverUrl == null || currentCoverUrl.isEmpty;
+    if (!missingCover || enrichedData['cover_url'] == null) return;
+
+    try {
+      await _client
+          .from('games')
+          .update({
+            'cover_url': enrichedData['cover_url'],
+            if (enrichedData['summary'] != null)
+              'summary': enrichedData['summary'],
+            if (enrichedData['developer'] != null)
+              'developer': enrichedData['developer'],
+          })
+          .eq('igdb_id', igdbId);
+    } catch (e) {
+      debugPrint('[ReviewRepository] Error en backfill de cover_url: $e');
+    }
+  }
+
+  // ── Profile tab queries ────────────────────────────────────────────────────
+
+  /// Fetches a page of reviews with written comments for the profile Reviews tab.
+  /// Returns reviews that have a non-empty comment, ordered by created_at desc.
+  Future<List<Map<String, dynamic>>> fetchProfileReviewsPage({
+    required String userId,
+    required int from,
+    required int to,
+    String searchQuery = '',
+  }) async {
+    var query = _client
+        .from('reviews')
+        .select('*, games!inner(*), review_likes(user_id), review_comments(id)')
+        .eq('user_id', userId)
+        .not('comment', 'is', null)
+        .neq('comment', '');
+
+    if (searchQuery.isNotEmpty) {
+      query = query.ilike('games.title', '%$searchQuery%');
+    }
+
+    final res = await query
+        .order('created_at', ascending: false)
+        .range(from, to);
+
+    return List<Map<String, dynamic>>.from(res)
+        .where((r) => r['games'] != null)
+        .toList();
+  }
+
+  /// Fetches a page of journal entries (playing/beaten/completed) for the Journal tab.
+  Future<List<Map<String, dynamic>>> fetchJournalPage({
+    required String userId,
+    required String orderColumn,
+    required int from,
+    required int to,
+    String searchQuery = '',
+    int? year,
+  }) async {
+    var query = _client
+        .from('reviews')
+        .select('*, games!inner(*)')
+        .eq('user_id', userId)
+        .inFilter('status', ['playing', 'beaten', 'completed']);
+
+    if (searchQuery.isNotEmpty) {
+      query = query.ilike('games.title', '%$searchQuery%');
+    }
+
+    if (year != null) {
+      query = query
+          .gte(orderColumn, '$year-01-01T00:00:00.000Z')
+          .lte(orderColumn, '$year-12-31T23:59:59.999Z');
+    }
+
+    final res = await query
+        .order(orderColumn, ascending: false)
+        .range(from, to);
+
+    return List<Map<String, dynamic>>.from(res)
+        .where((r) => r['games'] != null)
+        .toList();
+  }
+
+  /// Fetches available years from journal entries for the year filter.
+  Future<List<int>> fetchJournalYears({
+    required String userId,
+    required String orderColumn,
+  }) async {
+    final res = await _client
+        .from('reviews')
+        .select(orderColumn)
+        .eq('user_id', userId)
+        .inFilter('status', ['playing', 'beaten', 'completed']);
+
+    final Set<int> years = {};
+    for (final r in res) {
+      final dateStr = r[orderColumn];
+      if (dateStr != null) {
+        try {
+          final date = DateTime.parse(dateStr.toString());
+          years.add(date.year);
+        } catch (_) {}
+      }
+    }
+
+    final sorted = years.toList()..sort((a, b) => b.compareTo(a));
+    return sorted;
+  }
 }
