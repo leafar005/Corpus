@@ -58,12 +58,6 @@ typedef OnSaveReview =
 class ReviewModal {
   ReviewModal._();
 
-  /// Delega en [ReviewRepository.fetchFriendsForCoopPicker] para obtener
-  /// los amigos del usuario actual. La lógica (v_friend_pairs + fallback)
-  /// vive en el repositorio — no la duplicamos aquí.
-  static Future<List<UserProfile>> _fetchFriends() =>
-      ReviewRepository().fetchFriendsForCoopPicker();
-
   static void show({
     required BuildContext context,
     required Map<String, dynamic> gameData,
@@ -77,90 +71,10 @@ class ReviewModal {
     required double currentRatingSoundtrack,
     required double currentRatingVisuals,
     required String currentStatus,
-
-    /// Texto inicial del campo de comentario.
-    /// Reemplaza el antiguo `commentController` externo — el modal gestiona
-    /// su propio [TextEditingController] internamente y lo disposa al cerrarse.
     String initialComment = '',
     required OnSaveReview onSave,
     bool inLibrary = false,
   }) {
-    final hasReview = existingReview != null;
-    final r = existingReview;
-
-    // Inicializar estado del formulario desde la reseña existente o el estado actual
-    double reviewRating = hasReview ? (r!.rating ?? 0) : currentRating;
-    double reviewRatingGameplay = hasReview
-        ? (r!.ratingGameplay ?? 0)
-        : currentRatingGameplay;
-    double reviewRatingNarrative = hasReview
-        ? (r!.ratingNarrative ?? 0)
-        : currentRatingNarrative;
-    double reviewRatingSoundtrack = hasReview
-        ? (r!.ratingSoundtrack ?? 0)
-        : currentRatingSoundtrack;
-    double reviewRatingVisuals = hasReview
-        ? (r!.ratingVisuals ?? 0)
-        : currentRatingVisuals;
-    String reviewStatus = hasReview ? r!.status.dbValue : currentStatus;
-    String reviewCompletionType = hasReview
-        ? (r!.completionType ?? 'story')
-        : 'story';
-    bool reviewIsReplay = hasReview && r!.isReplay;
-    // Preserva el número de rejugada real al editar (no se resetea a 1).
-    int reviewReplayNumber = (hasReview ? r!.replayNumber : null) ?? 1;
-    String? reviewPlatform = hasReview ? r!.platform : null;
-    String playTimeText = hasReview && r!.playTimeHours != null
-        ? r.playTimeHours.toString()
-        : '';
-    DateTime? reviewPlayedFrom = hasReview ? r!.playedFrom : null;
-    DateTime? reviewPlayedUntil = hasReview ? r!.playedUntil : null;
-    int reviewProgressPercent = hasReview ? (r!.progressPercent ?? 0) : 0;
-    // Fecha de publicación de la reseña (editable solo al editar)
-    DateTime? reviewDate = hasReview ? r!.createdAt : null;
-    // Snapshot inmutable de la fecha original, para restaurarla si el usuario
-    // cambia de estado por error durante la edición (ver applyStatusChange).
-    final DateTime? initialReviewDate = reviewDate;
-    final String initialReviewStatus = reviewStatus;
-
-    /// Aplica un cambio de estado desde los chips de "Estado".
-    /// Actualiza la fecha a hoy siempre que el estado cambie, pero si
-    /// se vuelve al estado original, se restaura la fecha original.
-    void applyStatusChange(String v) {
-      if (v == initialReviewStatus) {
-        reviewDate = initialReviewDate;
-      } else if (reviewStatus != v) {
-        reviewDate = DateTime.now();
-      }
-      reviewStatus = v;
-      reviewCompletionType = 'none';
-    }
-
-    // El controller de comentario vive dentro del modal y se disposa al cerrarse.
-    final reviewCommentController = TextEditingController(
-      text: hasReview ? (r!.comment ?? '') : initialComment,
-    );
-    final String? reviewId = hasReview ? r!.id : null;
-    final TextEditingController partnerSearchController =
-        TextEditingController();
-    List<String> reviewPartnerIds = List<String>.from(currentPartnerIds ?? []);
-    final Future<List<UserProfile>> friendsFuture = _fetchFriends();
-
-    List<XFile> newImages = [];
-    List<String> existingImages = hasReview
-        ? List<String>.from(r!.imageUrls)
-        : [];
-
-    final List<dynamic> platforms =
-        (gameData['platforms'] as List?)?.isNotEmpty == true
-        ? gameData['platforms']
-        : (enrichedData['platforms'] as List? ?? []);
-
-    // Paso 1: elegir estado. Paso 2: rellenar datos.
-    bool statusStepConfirmed = hasReview || inLibrary;
-    bool isLocalSaving = false;
-    final ScrollController scrollController = ScrollController();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -168,23 +82,190 @@ class ReviewModal {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      // En escritorio ampliamos el ancho máximo del modal (Material 3 lo
-      // limita a 640 por defecto) para aprovechar mejor el espacio
-      // horizontal disponible. En móvil la pantalla siempre mide menos de
-      // 640, así que el comportamiento no cambia.
       constraints: BoxConstraints(
         maxWidth: MediaQuery.of(context).size.width > kDesktopBreakpoint
             ? 880
             : 640,
       ),
-      builder: (modalContext) {
-        return StatefulBuilder(
-          builder: (modalContext, setModalState) {
-            // Determina si el modal debe usar el layout de escritorio
-            // (columnas) o el móvil (apilado), reevaluado en cada rebuild.
-            final bool isDesktop =
-                MediaQuery.of(modalContext).size.width > kDesktopBreakpoint;
-            // ── helpers locales ───────────────────────────────────────────
+      builder: (_) => _ReviewModalContent(
+        gameData: gameData,
+        enrichedData: enrichedData,
+        existingReview: existingReview,
+        currentPartnerIds: currentPartnerIds,
+        isSaving: isSaving,
+        currentRating: currentRating,
+        currentRatingGameplay: currentRatingGameplay,
+        currentRatingNarrative: currentRatingNarrative,
+        currentRatingSoundtrack: currentRatingSoundtrack,
+        currentRatingVisuals: currentRatingVisuals,
+        currentStatus: currentStatus,
+        initialComment: initialComment,
+        onSave: onSave,
+        inLibrary: inLibrary,
+      ),
+    );
+  }
+}
+
+class _ReviewModalContent extends StatefulWidget {
+  final Map<String, dynamic> gameData;
+  final Map<String, dynamic> enrichedData;
+  final Review? existingReview;
+  final List<String>? currentPartnerIds;
+  final bool isSaving;
+  final double currentRating;
+  final double currentRatingGameplay;
+  final double currentRatingNarrative;
+  final double currentRatingSoundtrack;
+  final double currentRatingVisuals;
+  final String currentStatus;
+  final String initialComment;
+  final OnSaveReview onSave;
+  final bool inLibrary;
+
+  const _ReviewModalContent({
+    required this.gameData,
+    required this.enrichedData,
+    this.existingReview,
+    this.currentPartnerIds,
+    required this.isSaving,
+    required this.currentRating,
+    required this.currentRatingGameplay,
+    required this.currentRatingNarrative,
+    required this.currentRatingSoundtrack,
+    required this.currentRatingVisuals,
+    required this.currentStatus,
+    this.initialComment = '',
+    required this.onSave,
+    this.inLibrary = false,
+  });
+
+  @override
+  State<_ReviewModalContent> createState() => _ReviewModalContentState();
+}
+
+class _ReviewModalContentState extends State<_ReviewModalContent> {
+  /// Delega en [ReviewRepository.fetchFriendsForCoopPicker] para obtener
+  /// los amigos del usuario actual.
+  Future<List<UserProfile>> _fetchFriends() =>
+      ReviewRepository().fetchFriendsForCoopPicker();
+
+  // ── Estado del formulario ─────────────────────────────────────────────
+  late double reviewRating;
+  late double reviewRatingGameplay;
+  late double reviewRatingNarrative;
+  late double reviewRatingSoundtrack;
+  late double reviewRatingVisuals;
+  late String reviewStatus;
+  late String reviewCompletionType;
+  late bool reviewIsReplay;
+  late int reviewReplayNumber;
+  String? reviewPlatform;
+  late String playTimeText;
+  DateTime? reviewPlayedFrom;
+  DateTime? reviewPlayedUntil;
+  late int reviewProgressPercent;
+  DateTime? reviewDate;
+  late final DateTime? initialReviewDate;
+  late final String initialReviewStatus;
+
+  late final TextEditingController reviewCommentController;
+  late final TextEditingController partnerSearchController;
+  late final ScrollController scrollController;
+  late List<String> reviewPartnerIds;
+  late final Future<List<UserProfile>> friendsFuture;
+  late List<XFile> newImages;
+  late List<String> existingImages;
+  late final List<dynamic> platforms;
+  late bool statusStepConfirmed;
+  bool isLocalSaving = false;
+  late final String? reviewId;
+
+  @override
+  void initState() {
+    super.initState();
+    final hasReview = widget.existingReview != null;
+    final r = widget.existingReview;
+
+    reviewRating = hasReview ? (r!.rating ?? 0) : widget.currentRating;
+    reviewRatingGameplay = hasReview
+        ? (r!.ratingGameplay ?? 0)
+        : widget.currentRatingGameplay;
+    reviewRatingNarrative = hasReview
+        ? (r!.ratingNarrative ?? 0)
+        : widget.currentRatingNarrative;
+    reviewRatingSoundtrack = hasReview
+        ? (r!.ratingSoundtrack ?? 0)
+        : widget.currentRatingSoundtrack;
+    reviewRatingVisuals = hasReview
+        ? (r!.ratingVisuals ?? 0)
+        : widget.currentRatingVisuals;
+    reviewStatus = hasReview ? r!.status.dbValue : widget.currentStatus;
+    reviewCompletionType = hasReview
+        ? (r!.completionType ?? 'story')
+        : 'story';
+    reviewIsReplay = hasReview && r!.isReplay;
+    reviewReplayNumber = (hasReview ? r!.replayNumber : null) ?? 1;
+    reviewPlatform = hasReview ? r!.platform : null;
+    playTimeText = hasReview && r!.playTimeHours != null
+        ? r.playTimeHours.toString()
+        : '';
+    reviewPlayedFrom = hasReview ? r!.playedFrom : null;
+    reviewPlayedUntil = hasReview ? r!.playedUntil : null;
+    reviewProgressPercent = hasReview ? (r!.progressPercent ?? 0) : 0;
+    reviewDate = hasReview ? r!.createdAt : null;
+    initialReviewDate = reviewDate;
+    initialReviewStatus = reviewStatus;
+
+    reviewCommentController = TextEditingController(
+      text: hasReview ? (r!.comment ?? '') : widget.initialComment,
+    );
+    reviewId = hasReview ? r!.id : null;
+    partnerSearchController = TextEditingController();
+    reviewPartnerIds = List<String>.from(widget.currentPartnerIds ?? []);
+    friendsFuture = _fetchFriends();
+
+    newImages = [];
+    existingImages = hasReview
+        ? List<String>.from(r!.imageUrls)
+        : [];
+
+    platforms =
+        (widget.gameData['platforms'] as List?)?.isNotEmpty == true
+        ? widget.gameData['platforms']
+        : (widget.enrichedData['platforms'] as List? ?? []);
+
+    statusStepConfirmed = hasReview || widget.inLibrary;
+    scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    reviewCommentController.dispose();
+    partnerSearchController.dispose();
+    scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Aplica un cambio de estado desde los chips de "Estado".
+  void applyStatusChange(String v) {
+    if (v == initialReviewStatus) {
+      reviewDate = initialReviewDate;
+    } else if (reviewStatus != v) {
+      reviewDate = DateTime.now();
+    }
+    reviewStatus = v;
+    reviewCompletionType = 'none';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasReview = widget.existingReview != null;
+    // Determina si el modal debe usar el layout de escritorio
+    // (columnas) o el móvil (apilado), reevaluado en cada rebuild.
+    final bool isDesktop =
+        MediaQuery.of(context).size.width > kDesktopBreakpoint;
+    // ── helpers locales ───────────────────────────────────────────
             Widget chip(
               String value,
               String label,
@@ -195,8 +276,8 @@ class ReviewModal {
             ) {
               final sel = current == value;
               final tc = sel
-                  ? (color == Theme.of(modalContext).colorScheme.secondary
-                        ? Theme.of(modalContext).scaffoldBackgroundColor
+                  ? (color == Theme.of(context).colorScheme.secondary
+                        ? Theme.of(context).scaffoldBackgroundColor
                         : Colors.white)
                   : Theme.of(
                       context,
@@ -217,9 +298,9 @@ class ReviewModal {
                   ],
                 ),
                 selected: sel,
-                onSelected: (_) => setModalState(() => onSelect(value)),
+                onSelected: (_) => setState(() => onSelect(value)),
                 selectedColor: color,
-                backgroundColor: Theme.of(modalContext).colorScheme.surface,
+                backgroundColor: Theme.of(context).colorScheme.surface,
                 labelStyle: TextStyle(
                   color: tc,
                   fontWeight: sel ? FontWeight.bold : FontWeight.normal,
@@ -267,14 +348,14 @@ class ReviewModal {
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () => setModalState(() => onSelect(value)),
+                    onTap: () => setState(() => onSelect(value)),
                     borderRadius: radius,
                     child: Ink(
                       decoration: BoxDecoration(
                         color: sel
                             ? color
                             : Theme.of(
-                                modalContext,
+                                context,
                               ).colorScheme.surfaceContainerHighest,
                         borderRadius: radius,
                         border: Border.all(
@@ -455,9 +536,9 @@ class ReviewModal {
                       Switch(
                         value: reviewIsReplay,
                         onChanged: (val) =>
-                            setModalState(() => reviewIsReplay = val),
+                            setState(() => reviewIsReplay = val),
                         activeThumbColor: Theme.of(
-                          modalContext,
+                          context,
                         ).colorScheme.primary,
                       ),
                     ],
@@ -494,7 +575,7 @@ class ReviewModal {
                               onChanged: (val) {
                                 final n = int.tryParse(val);
                                 if (n != null) {
-                                  setModalState(() => reviewReplayNumber = n);
+                                  setState(() => reviewReplayNumber = n);
                                 }
                               },
                             ),
@@ -561,7 +642,7 @@ class ReviewModal {
                                     .toList(),
                                 onSelected: (selectedId) {
                                   if (selectedId != null) {
-                                    setModalState(() {
+                                    setState(() {
                                       reviewPartnerIds.add(selectedId);
                                       partnerSearchController.clear();
                                     });
@@ -607,7 +688,7 @@ class ReviewModal {
                                         color: Colors.redAccent,
                                       ),
                                       onPressed: () {
-                                        setModalState(() {
+                                        setState(() {
                                           reviewPartnerIds.remove(id);
                                         });
                                       },
@@ -641,7 +722,7 @@ class ReviewModal {
                         ),
                       ),
                       dropdownColor: Theme.of(
-                        modalContext,
+                        context,
                       ).colorScheme.surfaceContainerHighest,
                       items: platforms
                           .map(
@@ -655,7 +736,7 @@ class ReviewModal {
                           )
                           .toList(),
                       onChanged: (val) =>
-                          setModalState(() => reviewPlatform = val),
+                          setState(() => reviewPlatform = val),
                       hint: const Text('Seleccionar plataforma'),
                     ),
                     const SizedBox(height: 16),
@@ -680,7 +761,7 @@ class ReviewModal {
                         vertical: 8,
                       ),
                     ),
-                    onChanged: (val) => setModalState(() => playTimeText = val),
+                    onChanged: (val) => setState(() => playTimeText = val),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -704,7 +785,7 @@ class ReviewModal {
                           ),
                           onPressed: () async {
                             final d = await showDatePicker(
-                              context: modalContext,
+                              context: context,
                               initialDate: reviewPlayedFrom ?? DateTime.now(),
                               firstDate: DateTime(2000),
                               lastDate: DateTime.now().add(
@@ -712,7 +793,7 @@ class ReviewModal {
                               ),
                             );
                             if (d != null) {
-                              setModalState(() => reviewPlayedFrom = d);
+                              setState(() => reviewPlayedFrom = d);
                             }
                           },
                         ),
@@ -739,7 +820,7 @@ class ReviewModal {
                           ),
                           onPressed: () async {
                             final d = await showDatePicker(
-                              context: modalContext,
+                              context: context,
                               initialDate: reviewPlayedUntil ?? DateTime.now(),
                               firstDate: DateTime(2000),
                               lastDate: DateTime.now().add(
@@ -747,7 +828,7 @@ class ReviewModal {
                               ),
                             );
                             if (d != null) {
-                              setModalState(() => reviewPlayedUntil = d);
+                              setState(() => reviewPlayedUntil = d);
                             }
                           },
                         ),
@@ -771,10 +852,10 @@ class ReviewModal {
                           max: 100,
                           divisions: 100,
                           activeColor: Theme.of(
-                            modalContext,
+                            context,
                           ).colorScheme.primary,
                           label: '$reviewProgressPercent%',
-                          onChanged: (val) => setModalState(
+                          onChanged: (val) => setState(
                             () => reviewProgressPercent = val.round(),
                           ),
                         ),
@@ -787,7 +868,7 @@ class ReviewModal {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: Theme.of(modalContext).colorScheme.primary,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ),
@@ -876,7 +957,7 @@ class ReviewModal {
                           'Nada',
                           Icons.do_not_disturb_alt,
                           reviewCompletionType,
-                          Theme.of(modalContext).colorScheme.primary,
+                          Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
                         ),
                         chip(
@@ -884,7 +965,7 @@ class ReviewModal {
                           'Historia',
                           Icons.auto_stories,
                           reviewCompletionType,
-                          Theme.of(modalContext).colorScheme.primary,
+                          Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
                         ),
                         chip(
@@ -892,7 +973,7 @@ class ReviewModal {
                           'Historia + Extras',
                           Icons.extension,
                           reviewCompletionType,
-                          Theme.of(modalContext).colorScheme.primary,
+                          Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
                         ),
                         chip(
@@ -900,7 +981,7 @@ class ReviewModal {
                           'Platino',
                           Icons.emoji_events,
                           reviewCompletionType,
-                          Theme.of(modalContext).colorScheme.primary,
+                          Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
                         ),
                       ],
@@ -927,7 +1008,7 @@ class ReviewModal {
                           'Nada',
                           Icons.do_not_disturb_alt,
                           reviewCompletionType,
-                          Theme.of(modalContext).colorScheme.primary,
+                          Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
                         ),
                         chip(
@@ -935,7 +1016,7 @@ class ReviewModal {
                           'Sin Fin',
                           Icons.all_inclusive,
                           reviewCompletionType,
-                          Theme.of(modalContext).colorScheme.primary,
+                          Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
                         ),
                         chip(
@@ -943,7 +1024,7 @@ class ReviewModal {
                           'En Pausa',
                           Icons.pause,
                           reviewCompletionType,
-                          Theme.of(modalContext).colorScheme.primary,
+                          Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
                         ),
                       ],
@@ -978,13 +1059,13 @@ class ReviewModal {
                           max: 10,
                           divisions: 100,
                           activeColor: Theme.of(
-                            modalContext,
+                            context,
                           ).colorScheme.secondary,
                           label: reviewRating > 0
                               ? formatRating(reviewRating)
                               : '-',
                           onChanged: (val) =>
-                              setModalState(() => reviewRating = val),
+                              setState(() => reviewRating = val),
                         ),
                       ),
                       SizedBox(
@@ -995,7 +1076,7 @@ class ReviewModal {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
-                            color: Theme.of(modalContext).colorScheme.secondary,
+                            color: Theme.of(context).colorScheme.secondary,
                           ),
                         ),
                       ),
@@ -1003,7 +1084,7 @@ class ReviewModal {
                   ),
                   Theme(
                     data: Theme.of(
-                      modalContext,
+                      context,
                     ).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
                       tilePadding: EdgeInsets.zero,
@@ -1017,28 +1098,28 @@ class ReviewModal {
                           Icons.sports_esports,
                           reviewRatingGameplay,
                           (val) =>
-                              setModalState(() => reviewRatingGameplay = val),
+                              setState(() => reviewRatingGameplay = val),
                         ),
                         buildSubRatingSlider(
                           'Narrativa',
                           Icons.auto_stories,
                           reviewRatingNarrative,
                           (val) =>
-                              setModalState(() => reviewRatingNarrative = val),
+                              setState(() => reviewRatingNarrative = val),
                         ),
                         buildSubRatingSlider(
                           'Banda Sonora',
                           Icons.music_note,
                           reviewRatingSoundtrack,
                           (val) =>
-                              setModalState(() => reviewRatingSoundtrack = val),
+                              setState(() => reviewRatingSoundtrack = val),
                         ),
                         buildSubRatingSlider(
                           'Gráficos',
                           Icons.brush,
                           reviewRatingVisuals,
                           (val) =>
-                              setModalState(() => reviewRatingVisuals = val),
+                              setState(() => reviewRatingVisuals = val),
                         ),
                       ],
                     ),
@@ -1088,7 +1169,7 @@ class ReviewModal {
                                 width: 80,
                                 height: 80,
                               ),
-                              onRemove: () => setModalState(
+                              onRemove: () => setState(
                                 () => existingImages.remove(url),
                               ),
                             ),
@@ -1109,7 +1190,7 @@ class ReviewModal {
                                       height: 80,
                                     ),
                               onRemove: () =>
-                                  setModalState(() => newImages.remove(file)),
+                                  setState(() => newImages.remove(file)),
                             ),
                           ),
                         ],
@@ -1128,7 +1209,7 @@ class ReviewModal {
                           maxWidth: 1080,
                         );
                         if (pickedFiles.isNotEmpty) {
-                          setModalState(() {
+                          setState(() {
                             final remaining =
                                 4 - existingImages.length - newImages.length;
                             newImages.addAll(pickedFiles.take(remaining));
@@ -1161,7 +1242,7 @@ class ReviewModal {
                   ],
                   Theme(
                     data: Theme.of(
-                      modalContext,
+                      context,
                     ).copyWith(dividerColor: Colors.transparent),
                     child: reviewStatus == 'playing'
                         ? buildExtraInfoFields()
@@ -1185,7 +1266,7 @@ class ReviewModal {
             // ── cuerpo del modal ──────────────────────────────────────────
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(modalContext).viewInsets.bottom,
+                bottom: MediaQuery.of(context).viewInsets.bottom,
                 top: isDesktop ? 32 : 24,
               ),
               child: Column(
@@ -1226,7 +1307,7 @@ class ReviewModal {
                           ),
                           onPressed: () async {
                             final d = await showDatePicker(
-                              context: modalContext,
+                              context: context,
                               initialDate:
                                   reviewDate ??
                                   initialReviewDate ??
@@ -1237,7 +1318,7 @@ class ReviewModal {
                               ),
                             );
                             if (d != null) {
-                              setModalState(() => reviewDate = d);
+                              setState(() => reviewDate = d);
                             }
                           },
                         ),
@@ -1306,7 +1387,7 @@ class ReviewModal {
                                       IconButton(
                                         icon: const Icon(Icons.arrow_back),
                                         tooltip: 'Cambiar estado',
-                                        onPressed: () => setModalState(
+                                        onPressed: () => setState(
                                           () => statusStepConfirmed = false,
                                         ),
                                         visualDensity: VisualDensity.compact,
@@ -1358,7 +1439,7 @@ class ReviewModal {
                                             Icons.do_not_disturb_alt,
                                             reviewCompletionType,
                                             Theme.of(
-                                              modalContext,
+                                              context,
                                             ).colorScheme.primary,
                                             (v) => reviewCompletionType = v,
                                           ),
@@ -1368,7 +1449,7 @@ class ReviewModal {
                                             Icons.auto_stories,
                                             reviewCompletionType,
                                             Theme.of(
-                                              modalContext,
+                                              context,
                                             ).colorScheme.primary,
                                             (v) => reviewCompletionType = v,
                                           ),
@@ -1378,7 +1459,7 @@ class ReviewModal {
                                             Icons.extension,
                                             reviewCompletionType,
                                             Theme.of(
-                                              modalContext,
+                                              context,
                                             ).colorScheme.primary,
                                             (v) => reviewCompletionType = v,
                                           ),
@@ -1388,7 +1469,7 @@ class ReviewModal {
                                             Icons.emoji_events,
                                             reviewCompletionType,
                                             Theme.of(
-                                              modalContext,
+                                              context,
                                             ).colorScheme.primary,
                                             (v) => reviewCompletionType = v,
                                           ),
@@ -1415,7 +1496,7 @@ class ReviewModal {
                                             Icons.do_not_disturb_alt,
                                             reviewCompletionType,
                                             Theme.of(
-                                              modalContext,
+                                              context,
                                             ).colorScheme.primary,
                                             (v) => reviewCompletionType = v,
                                           ),
@@ -1425,7 +1506,7 @@ class ReviewModal {
                                             Icons.all_inclusive,
                                             reviewCompletionType,
                                             Theme.of(
-                                              modalContext,
+                                              context,
                                             ).colorScheme.primary,
                                             (v) => reviewCompletionType = v,
                                           ),
@@ -1435,7 +1516,7 @@ class ReviewModal {
                                             Icons.pause,
                                             reviewCompletionType,
                                             Theme.of(
-                                              modalContext,
+                                              context,
                                             ).colorScheme.primary,
                                             (v) => reviewCompletionType = v,
                                           ),
@@ -1464,12 +1545,12 @@ class ReviewModal {
                                               max: 10,
                                               divisions: 100,
                                               activeColor: Theme.of(
-                                                modalContext,
+                                                context,
                                               ).colorScheme.secondary,
                                               label: reviewRating > 0
                                                   ? formatRating(reviewRating)
                                                   : '-',
-                                              onChanged: (val) => setModalState(
+                                              onChanged: (val) => setState(
                                                 () => reviewRating = val,
                                               ),
                                             ),
@@ -1485,7 +1566,7 @@ class ReviewModal {
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 18,
                                                 color: Theme.of(
-                                                  modalContext,
+                                                  context,
                                                 ).colorScheme.secondary,
                                               ),
                                             ),
@@ -1494,7 +1575,7 @@ class ReviewModal {
                                       ),
 
                                       Theme(
-                                        data: Theme.of(modalContext).copyWith(
+                                        data: Theme.of(context).copyWith(
                                           dividerColor: Colors.transparent,
                                         ),
                                         child: ExpansionTile(
@@ -1508,7 +1589,7 @@ class ReviewModal {
                                               'Gameplay',
                                               Icons.sports_esports,
                                               reviewRatingGameplay,
-                                              (val) => setModalState(
+                                              (val) => setState(
                                                 () =>
                                                     reviewRatingGameplay = val,
                                               ),
@@ -1517,7 +1598,7 @@ class ReviewModal {
                                               'Narrativa',
                                               Icons.auto_stories,
                                               reviewRatingNarrative,
-                                              (val) => setModalState(
+                                              (val) => setState(
                                                 () =>
                                                     reviewRatingNarrative = val,
                                               ),
@@ -1526,7 +1607,7 @@ class ReviewModal {
                                               'Banda Sonora',
                                               Icons.music_note,
                                               reviewRatingSoundtrack,
-                                              (val) => setModalState(
+                                              (val) => setState(
                                                 () => reviewRatingSoundtrack =
                                                     val,
                                               ),
@@ -1535,7 +1616,7 @@ class ReviewModal {
                                               'Gráficos',
                                               Icons.brush,
                                               reviewRatingVisuals,
-                                              (val) => setModalState(
+                                              (val) => setState(
                                                 () => reviewRatingVisuals = val,
                                               ),
                                             ),
@@ -1587,7 +1668,7 @@ class ReviewModal {
                                                   width: double.infinity,
                                                   height: double.infinity,
                                                 ),
-                                                onRemove: () => setModalState(
+                                                onRemove: () => setState(
                                                   () => existingImages.remove(url),
                                                 ),
                                               ),
@@ -1607,7 +1688,7 @@ class ReviewModal {
                                                         width: double.infinity,
                                                         height: double.infinity,
                                                       ),
-                                                onRemove: () => setModalState(
+                                                onRemove: () => setState(
                                                   () => newImages.remove(file),
                                                 ),
                                               ),
@@ -1635,7 +1716,7 @@ class ReviewModal {
                                                   maxWidth: 1080,
                                                 );
                                             if (pickedFiles.isNotEmpty) {
-                                              setModalState(() {
+                                              setState(() {
                                                 final remaining =
                                                     4 -
                                                     existingImages.length -
@@ -1665,7 +1746,7 @@ class ReviewModal {
                                         const SizedBox(height: 12),
                                       ],
                                       Theme(
-                                        data: Theme.of(modalContext).copyWith(
+                                        data: Theme.of(context).copyWith(
                                           dividerColor: Colors.transparent,
                                         ),
                                         child: reviewStatus == 'playing'
@@ -1737,8 +1818,8 @@ class ReviewModal {
                           onPressed: isLocalSaving
                               ? null
                               : () async {
-                                  setModalState(() => isLocalSaving = true);
-                                  final success = await onSave(
+                                  setState(() => isLocalSaving = true);
+                                  final success = await widget.onSave(
                                     reviewId: reviewId,
                                     rating: reviewRating,
                                     ratingGameplay: reviewRatingGameplay,
@@ -1770,16 +1851,16 @@ class ReviewModal {
                                     existingImages: existingImages,
                                     partnerIds: reviewPartnerIds,
                                   );
-                                  if (modalContext.mounted) {
+                                  if (context.mounted) {
                                     if (success) {
-                                      final route = ModalRoute.of(modalContext);
+                                      final route = ModalRoute.of(context);
                                       if (route != null && route.isCurrent) {
-                                        Navigator.of(modalContext).pop();
+                                        Navigator.of(context).pop();
                                         AppNavigationController.instance
                                             .syncBrowserHistoryAfterProgrammaticPop();
                                       }
                                     } else {
-                                      setModalState(
+                                      setState(
                                         () => isLocalSaving = false,
                                       );
                                     }
@@ -1787,16 +1868,16 @@ class ReviewModal {
                                 },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(
-                              modalContext,
+                              context,
                             ).colorScheme.secondary,
                             foregroundColor: Theme.of(
-                              modalContext,
+                              context,
                             ).scaffoldBackgroundColor,
                           ),
                           child: isLocalSaving
                               ? CircularProgressIndicator(
                                   color: Theme.of(
-                                    modalContext,
+                                    context,
                                   ).scaffoldBackgroundColor,
                                 )
                               : Text(
@@ -1813,17 +1894,9 @@ class ReviewModal {
                       ),
                     ),
                   ],
-                  SizedBox(height: getBottomSpacer(modalContext)),
+                  SizedBox(height: getBottomSpacer(context)),
                 ],
               ),
             );
-          },
-        );
-      },
-    ).then((_) {
-      reviewCommentController.dispose();
-      partnerSearchController.dispose();
-      scrollController.dispose();
-    });
   }
 }

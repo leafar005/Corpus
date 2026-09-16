@@ -1,4 +1,4 @@
-import 'dart:async';
+import '../../utils/debouncer.dart';
 import '../../models/models.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,7 +25,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
   String? _error;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  Timer? _debounce;
+  final _debouncer = Debouncer();
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -60,7 +60,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
   void dispose() {
     BundlesNavigation.targetQuery.removeListener(_onExternalSearch);
     tabScrollToTopNotifiers[3].removeListener(_onScrollToTop);
-    _debounce?.cancel();
+    _debouncer.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -195,8 +195,7 @@ class _BundlesScreenState extends State<BundlesScreen> {
                 ).colorScheme.surfaceContainerHighest,
               ),
               onChanged: (value) {
-                if (_debounce?.isActive ?? false) _debounce!.cancel();
-                _debounce = Timer(const Duration(milliseconds: 500), () {
+                _debouncer.run(() {
                   setState(() {
                     _searchQuery = value.trim();
                   });

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/igdb_service.dart';
+import '../../../utils/safe_change_notifier.dart';
 
 // ─── Modelos de datos por fase ──────────────────────────────────────────────
 
@@ -53,11 +54,10 @@ class HomePhaseTwoData {
 /// Expone las dos fases como [phaseOneFuture] (para el FutureBuilder existente)
 /// y las propiedades [phaseTwoData] / [phaseTwoLoaded] que se actualizan con
 /// `notifyListeners` cuando la fase 2 termina.
-class HomeController extends ChangeNotifier {
+class HomeController extends SafeChangeNotifier {
   HomeController();
 
   final _client = Supabase.instance.client;
-  bool _disposed = false;
 
   // ── Estado público ─────────────────────────────────────────────────────────
 
@@ -69,15 +69,6 @@ class HomeController extends ChangeNotifier {
 
   bool get isGuest => _client.auth.currentUser == null;
 
-  void _notify() {
-    if (!_disposed) notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
 
   // ── Ciclo de carga ─────────────────────────────────────────────────────────
 
@@ -89,13 +80,13 @@ class HomeController extends ChangeNotifier {
 
     // La Fase 2 se lanza en paralelo; cuando termina, notifica a la UI.
     _fetchPhaseTwo().then((data) {
-      if (_disposed) return;
+      if (isDisposed) return;
       phaseTwoData = data;
       phaseTwoLoaded = true;
-      _notify();
+      notify();
     });
 
-    _notify();
+    notify();
   }
 
   // ── FASE 1 ─────────────────────────────────────────────────────────────────

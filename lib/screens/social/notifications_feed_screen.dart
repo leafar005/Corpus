@@ -9,7 +9,6 @@
 // página, no en el estado real ya actualizado en servidor.
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/models.dart';
 
 import 'package:corpus/globals.dart';
@@ -34,14 +33,13 @@ class NotificationsFeedScreen extends StatefulWidget {
 class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
     with PaginatedScrollMixin {
   final _repo = NotificationsRepository();
-  final _supabase = Supabase.instance.client;
 
   List<Map<String, dynamic>> _notifications = [];
   final Set<String> _unreadAtOpen = {};
   bool _isLoading = true;
   int _offset = 0;
 
-  bool get _isGuest => _supabase.auth.currentUser == null;
+  bool get _isGuest => _repo.isGuest;
 
   @override
   void initState() {

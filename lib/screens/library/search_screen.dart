@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
-import 'dart:async';
+import '../../utils/debouncer.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
 import 'filter_screen.dart';
@@ -26,7 +26,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   final TextEditingController _searchController = TextEditingController();
-  Timer? _debounce;
+  final _debouncer = Debouncer();
 
   bool _isInitialSearchLoading = false;
   List<dynamic> _results = [];
@@ -76,7 +76,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
     }
     disposePagination();
     _searchController.dispose();
-    _debounce?.cancel();
+    _debouncer.dispose();
     super.dispose();
   }
 
@@ -174,10 +174,8 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   }
 
   void _onSearchChanged(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-
     // Esperamos 500ms después de que el usuario deje de escribir
-    _debounce = Timer(const Duration(milliseconds: 500), () {
+    _debouncer.run(() {
       if (query.trim().isEmpty && !_filters.hasFilters) {
         setState(() {
           _results = [];

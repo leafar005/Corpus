@@ -14,6 +14,21 @@ import 'package:corpus/routes/corpus_router.dart';
 import '../library/game_details_screen.dart';
 import '../../widgets/corpus_network_image.dart';
 
+/// Duración del crossfade de fondo cuando el cambio es AUTOMÁTICO (lo dispara
+/// el Timer periódico). Antes este tiempo salía de aplicar un
+/// Interval(0.0, 0.2) sobre `_panController` (duración = switchDuration,
+/// 10s/15s), resultando en un crossfade de 2-3s, percibido como lento.
+/// Ahora es una duración fija e independiente del tiempo que el juego lleva
+/// en pantalla.
+const Duration kHeroAutoCrossFadeDuration = Duration(milliseconds: 500);
+
+/// Duración del crossfade cuando el cambio lo dispara el USUARIO (tap en la
+/// mitad izquierda/derecha del carrusel). Debe ser mucho más corta que la
+/// automática: el usuario ya está mirando el carrusel y espera respuesta
+/// inmediata. Si en dispositivo se sigue viendo raro, bajar a
+/// `Duration.zero` para un corte seco sin crossfade.
+const Duration kHeroManualCrossFadeDuration = Duration(milliseconds: 120);
+
 class HeroShowcase extends StatefulWidget {
   final List<Map<String, dynamic>> playingGames;
   final String userName;
@@ -49,6 +64,7 @@ class _HeroShowcaseState extends State<HeroShowcase>
   final Random _random = Random();
 
   late AnimationController _panController;
+  late AnimationController _crossFadeController;
   late Animation<double> _fadeAnimation;
   late AnimationController _initialFadeController;
 
@@ -71,17 +87,22 @@ class _HeroShowcaseState extends State<HeroShowcase>
       duration: widget.switchDuration,
     );
 
+    // Controla ÚNICAMENTE el crossfade entre capturas. Antes dependía de
+    // _panController (duración = switchDuration); ahora es independiente para
+    // poder ser rápido en automático y casi instantáneo en manual.
+    _crossFadeController = AnimationController(
+      vsync: this,
+      duration: kHeroAutoCrossFadeDuration,
+    );
+
     _initialFadeController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _panController,
-        // Crossfade during the first 20% of the duration (2 seconds)
-        curve: const Interval(0.0, 0.2, curve: Curves.easeInOut),
-      ),
+    _fadeAnimation = CurvedAnimation(
+      parent: _crossFadeController,
+      curve: Curves.easeOut,
     );
 
     if (widget.playingGames.isNotEmpty) {
@@ -113,6 +134,14 @@ class _HeroShowcaseState extends State<HeroShowcase>
       }
     }
 
+    // Si había un crossfade en curso (el usuario ha tocado varias veces
+    // seguidas antes de que terminara el anterior), lo completamos
+    // instantáneamente ANTES de tomar el snapshot de "previous". Así el
+    // snapshot que queda debajo siempre es una imagen ya resuelta al 100% de
+    // opacidad, nunca una a medio desvanecer. Esto es lo que arregla el bug
+    // de "se ve la captura antigua antes de pasar a la nueva".
+    _crossFadeController.value = 1.0;
+
     final nextGame = widget.playingGames[_currentGameIndex];
     final nextScreenshotUrl = _getRandomScreenshot(nextGame);
 
@@ -127,6 +156,13 @@ class _HeroShowcaseState extends State<HeroShowcase>
 
     _currentGameIndex = (_currentGameIndex + 1) % widget.playingGames.length;
     _panController.forward(from: 0.0);
+
+    // Velocidad del crossfade: rápida si es automático, casi instantánea si
+    // lo ha disparado el usuario tocando el carrusel.
+    _crossFadeController.duration = manual
+        ? kHeroManualCrossFadeDuration
+        : kHeroAutoCrossFadeDuration;
+    _crossFadeController.forward(from: 0.0);
   }
 
   void _pickPreviousGame() {
@@ -138,6 +174,10 @@ class _HeroShowcaseState extends State<HeroShowcase>
         _pickNextGame();
       });
     }
+
+    // Ver explicación detallada en _pickNextGame: completamos cualquier
+    // crossfade en curso antes de capturar el snapshot "previous".
+    _crossFadeController.value = 1.0;
 
     // The current playing index is (_currentGameIndex - 1)
     // The one before that is (_currentGameIndex - 2)
@@ -166,12 +206,17 @@ class _HeroShowcaseState extends State<HeroShowcase>
     // Update _currentGameIndex so the NEXT one points to the one after the previousPlayingIndex, which is currentPlayingIndex.
     _currentGameIndex = currentPlayingIndex;
     _panController.forward(from: 0.0);
+
+    // _pickPreviousGame solo se dispara desde el tap manual de "anterior".
+    _crossFadeController.duration = kHeroManualCrossFadeDuration;
+    _crossFadeController.forward(from: 0.0);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _panController.dispose();
+    _crossFadeController.dispose();
     _initialFadeController.dispose();
     super.dispose();
   }
@@ -333,7 +378,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
     return FadeTransition(
       opacity: _initialFadeController,
       child: AnimatedBuilder(
-        animation: _panController,
+        // Escucha ambos controllers: _panController (paneo + barra de
+        // progreso) y _crossFadeController (opacidad del crossfade).
+        animation: Listenable.merge([_panController, _crossFadeController]),
         // child NO se reconstruye en cada frame: contiene el overlay estático
         child: staticOverlay,
         builder: (context, child) {
@@ -691,6 +738,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
   final Random _random = Random();
 
   late AnimationController _panController;
+  late AnimationController _crossFadeController;
   late AnimationController _initialFadeController;
   late Animation<double> _fadeAnimation;
 
@@ -701,15 +749,17 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
       vsync: this,
       duration: widget.switchDuration,
     );
+    _crossFadeController = AnimationController(
+      vsync: this,
+      duration: kHeroAutoCrossFadeDuration,
+    );
     _initialFadeController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _panController,
-        curve: const Interval(0.0, 0.2, curve: Curves.easeInOut),
-      ),
+    _fadeAnimation = CurvedAnimation(
+      parent: _crossFadeController,
+      curve: Curves.easeOut,
     );
     _loadShowcaseScreenshots();
   }
@@ -723,6 +773,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
 
     _initialFadeController.forward();
     _panController.forward(from: 0.0);
+    _crossFadeController.forward(from: 0.0);
 
     if (!kDisableCarouselForTests) {
       _timer = Timer.periodic(widget.switchDuration, (timer) {
@@ -734,6 +785,8 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
   void _pickNextScreenshot() {
     if (_hardcodedImages.isEmpty) return;
 
+    _crossFadeController.value = 1.0;
+
     setState(() {
       _previousScreenshotUrl = _currentScreenshotUrl;
       _previousPanValue = _panController.value;
@@ -742,12 +795,15 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
 
     _nextIndex = (_nextIndex + 1) % _hardcodedImages.length;
     _panController.forward(from: 0.0);
+    _crossFadeController.duration = kHeroAutoCrossFadeDuration;
+    _crossFadeController.forward(from: 0.0);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _panController.dispose();
+    _crossFadeController.dispose();
     _initialFadeController.dispose();
     super.dispose();
   }
@@ -764,7 +820,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
 
           if (_currentScreenshotUrl != null)
             AnimatedBuilder(
-              animation: _panController,
+              animation: Listenable.merge([_panController, _crossFadeController]),
               builder: (context, child) {
                 final sw = MediaQuery.sizeOf(context).width;
                 return Stack(
@@ -1040,6 +1096,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
   final Random _random = Random();
 
   late AnimationController _panController;
+  late AnimationController _crossFadeController;
   late Animation<double> _fadeAnimation;
 
   @override
@@ -1049,17 +1106,20 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
       vsync: this,
       duration: widget.switchDuration,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _panController,
-        curve: const Interval(0.0, 0.2, curve: Curves.easeInOut),
-      ),
+    _crossFadeController = AnimationController(
+      vsync: this,
+      duration: kHeroAutoCrossFadeDuration,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _crossFadeController,
+      curve: Curves.easeOut,
     );
 
     final startIndex = _random.nextInt(_hardcodedImages.length);
     _currentScreenshotUrl = _hardcodedImages[startIndex];
     _nextIndex = (startIndex + 1) % _hardcodedImages.length;
     _panController.forward(from: 0.0);
+    _crossFadeController.forward(from: 0.0);
 
     if (!kDisableCarouselForTests) {
       _timer = Timer.periodic(widget.switchDuration, (_) => _pickNext());
@@ -1067,6 +1127,10 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
   }
 
   void _pickNext() {
+    // Completa cualquier crossfade en curso antes de tomar el snapshot
+    // "previous" (misma razón que en HeroShowcase._pickNextGame).
+    _crossFadeController.value = 1.0;
+
     setState(() {
       _previousScreenshotUrl = _currentScreenshotUrl;
       _previousPanValue = _panController.value;
@@ -1074,12 +1138,15 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
     });
     _nextIndex = (_nextIndex + 1) % _hardcodedImages.length;
     _panController.forward(from: 0.0);
+    _crossFadeController.duration = kHeroAutoCrossFadeDuration;
+    _crossFadeController.forward(from: 0.0);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _panController.dispose();
+    _crossFadeController.dispose();
     super.dispose();
   }
 
@@ -1091,7 +1158,7 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
         Container(color: Colors.black),
         if (_currentScreenshotUrl != null)
           AnimatedBuilder(
-            animation: _panController,
+            animation: Listenable.merge([_panController, _crossFadeController]),
             builder: (context, child) {
               final sw = MediaQuery.sizeOf(context).width;
               return Stack(
