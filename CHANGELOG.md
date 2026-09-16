@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.4] - 2026-09-17
+
+### Añadido
+- **Arquitectura de Controllers:** Creados `ActivityController` y `SafeChangeNotifier` como base para desacoplar la lógica de negocio de los widgets. El feed de actividad (realtime, likes, stories, paginación) ahora se gestiona desde un controller independiente.
+- **Repositorios centralizados:** Nuevo `SocialRepository` para queries de amigos y solicitudes. Migración de `ReviewDetailsController` a `ReviewRepository`. Centralización de queries inline de logros, journal y reseñas.
+- **Utilidades:** `Debouncer` genérico con tests unitarios, `formatRating()` centralizado en `format_utils.dart`.
+- **Game Card rediseñado:** Pill vertical con rating y badges de cápsula para el estado del juego.
+- **Review images:** Grid de 2 columnas en móvil con ratio 16:9 y máximo 4 imágenes.
+- **Friend badge mejorado:** Muestra rating del amigo y filtra wishlist/abandoned.
+- **Datos IGDB:** Nuevas columnas `version_parent` y `game_type` en tabla `games`, mapeo del campo plural `collections` v2.
+
+### Cambiado
+- **ProfileScreen descompuesto (1861 → 1156 líneas):** Extraídos 5 widgets: `ProfileHallOfFame`, `ProfileRatingsHistogram`, `ProfileGiantStats`, `ProfileGamesOverview` y `ProfileSidebarInfo`.
+- **ReviewModal migrado:** De `StatefulBuilder` a `StatefulWidget` propio (`_ReviewModalContent`), eliminando 32 llamadas a `setModalState`.
+- **Carousel de screenshots** movido de `GameDetailsScreen` a `GameDetailsController`.
+- **Dependencias actualizadas:** 42 paquetes minor/patch (incluyendo Supabase 2.16→2.17.2, sqflite, cache manager). Eliminadas `jwt_decode` y `retry` obsoletas.
+- **Logo de navegación** ahora funciona como botón Home.
+- **Category badges** redondeados y layout de profile navbar corregido.
+
+### Arreglado
+- **Navegación Web:** Desacoplamiento completo del routing de Flutter del `history.state` del navegador. Fixes de doble-pop, ghost modal entries, dead clicks, clicks rápidos de atrás y crashes en Firefox (JSON parsing, offstage ticker).
+- **Activity Feed:** Backfill de `review_id` en eventos de status_change, backdate de entries históricas, sincronización de estado global tras updates de reviews.
+- **IGDB:** Parse correcto de JSON stringificado en `collection`, separación de `parent_game`/`version_parent` en heurísticas de categoría.
+- **Reviews:** Asignación correcta de partners en game details.
+
 ## [1.2.3] - 2026-09-03
 
 ### Añadido
