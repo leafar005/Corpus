@@ -1,9 +1,9 @@
-import 'dart:async';
+import '../../utils/debouncer.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/models.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/routes/corpus_router.dart';
+import '../../repositories/review_repository.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../utils/igdb_constants.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -47,6 +47,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
   static const int _pageSize = 25;
   static const String _orderColumn =
       'created_at'; // Changed from effective_date as it requires SQL updates
+  final _repo = ReviewRepository();
 
   final List<Map<String, dynamic>> _reviews = [];
   int _page = 0;
@@ -55,7 +56,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  Timer? _debounce;
+  final _debouncer = Debouncer();
   int? _selectedYear;
   List<int> _availableYears = [];
 
@@ -84,24 +85,10 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
   Future<void> _fetchAvailableYears() async {
     try {
-      final res = await Supabase.instance.client
-          .from('reviews')
-          .select(_orderColumn)
-          .eq('user_id', widget.userId)
-          .inFilter('status', ['playing', 'beaten', 'completed']);
-
-      final Set<int> years = {};
-      for (final r in res) {
-        final dateStr = r[_orderColumn];
-        if (dateStr != null) {
-          try {
-            final date = DateTime.parse(dateStr.toString());
-            years.add(date.year);
-          } catch (_) {}
-        }
-      }
-
-      final sortedYears = years.toList()..sort((a, b) => b.compareTo(a));
+      final sortedYears = await _repo.fetchJournalYears(
+        userId: widget.userId,
+        orderColumn: _orderColumn,
+      );
       if (mounted) {
         setState(() {
           _availableYears = sortedYears;
@@ -114,7 +101,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _debouncer.dispose();
     _searchController.dispose();
     disposePagination();
     super.dispose();
@@ -134,24 +121,6 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     }
   }
 
-  PostgrestFilterBuilder<List<Map<String, dynamic>>> _buildQuery() {
-    var query = Supabase.instance.client
-        .from('reviews')
-        .select('*, games!inner(*)')
-        .eq('user_id', widget.userId)
-        .inFilter('status', ['playing', 'beaten', 'completed']);
-
-    if (_searchQuery.isNotEmpty) {
-      query = query.ilike('games.title', '%$_searchQuery%');
-    }
-
-    if (_selectedYear != null) {
-      query = query
-          .gte(_orderColumn, '$_selectedYear-01-01T00:00:00.000Z')
-          .lte(_orderColumn, '$_selectedYear-12-31T23:59:59.999Z');
-    }
-    return query;
-  }
 
   @override
   Future<void> loadMore() async {
@@ -162,13 +131,14 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       final from = _page * _pageSize;
       final to = from + _pageSize - 1;
 
-      final res = await _buildQuery()
-          .order(_orderColumn, ascending: false)
-          .range(from, to);
-
-      final newItems = List<Map<String, dynamic>>.from(
-        res,
-      ).where((r) => r['games'] != null).toList();
+      final newItems = await _repo.fetchJournalPage(
+        userId: widget.userId,
+        orderColumn: _orderColumn,
+        from: from,
+        to: to,
+        searchQuery: _searchQuery,
+        year: _selectedYear,
+      );
 
       if (mounted) {
         setState(() {
@@ -212,12 +182,14 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       return;
     }
     try {
-      final res = await _buildQuery()
-          .order(_orderColumn, ascending: false)
-          .range(0, _reviews.length - 1);
-      final newItems = List<Map<String, dynamic>>.from(
-        res,
-      ).where((r) => r['games'] != null).toList();
+      final newItems = await _repo.fetchJournalPage(
+        userId: widget.userId,
+        orderColumn: _orderColumn,
+        from: 0,
+        to: _reviews.length - 1,
+        searchQuery: _searchQuery,
+        year: _selectedYear,
+      );
       if (mounted && newItems.isNotEmpty) {
         setState(() {
           _reviews
@@ -332,8 +304,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
               fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
             onChanged: (value) {
-              if (_debounce?.isActive ?? false) _debounce!.cancel();
-              _debounce = Timer(const Duration(milliseconds: 500), () {
+              _debouncer.run(() {
                 setState(() => _searchQuery = value.trim());
                 _refresh();
               });

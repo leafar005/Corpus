@@ -205,7 +205,14 @@ class _TypewriterTextState extends State<TypewriterText>
       }
     } else {
       // El texto es idéntico, pero los estilos pueden haber cambiado.
-      _currentSpans = widget.spans;
+      // IMPORTANTE: si _currentPlainText != _plainText, significa que estamos
+      // en medio de un borrado (desvaneciendo el texto anterior). En ese caso
+      // NO debemos sobreescribir _currentSpans con el nuevo widget.spans,
+      // porque _currentSpans aún contiene el texto viejo que se está borrando.
+      if (_currentPlainText == _plainText || widget.instant) {
+        _currentSpans = widget.spans;
+      }
+      
       if (widget.instant && _visibleChars != _totalChars) {
         _visibleChars = _totalChars;
         _finished = true;

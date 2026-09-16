@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../repositories/profile_repository.dart';
 import '../../../repositories/activity_repository.dart';
+import '../../../utils/safe_change_notifier.dart';
 
 import 'package:corpus/globals.dart';
 
-class ProfileController extends ChangeNotifier {
+class ProfileController extends SafeChangeNotifier {
   ProfileController({this.userId})
     : _repo = ProfileRepository(),
       _activityRepo = ActivityRepository() {
@@ -17,8 +17,7 @@ class ProfileController extends ChangeNotifier {
   final ProfileRepository _repo;
   final ActivityRepository _activityRepo;
 
-  bool _disposed = false;
-  StreamSubscription<AuthState>? _authSub;
+  StreamSubscription<dynamic>? _authSub;
 
   bool isLoading = true;
   bool hasError = false;
@@ -39,52 +38,49 @@ class ProfileController extends ChangeNotifier {
   List<Map<String, dynamic>> stories = [];
 
   bool get isOwnProfile {
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final currentUserId = _repo.currentUserId;
     return userId == null || userId == currentUserId;
   }
 
   bool get isGuestProfile =>
-      userId == null && Supabase.instance.client.auth.currentUser == null;
+      userId == null && _repo.currentUserId == null;
 
-  void _notify() {
-    if (!_disposed) notifyListeners();
-  }
+
 
   void _init() {
     if (isGuestProfile) {
       isLoading = false;
-      _notify();
+      notify();
     } else {
       fetchProfileData();
     }
 
-    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-      if (_disposed || userId != null) return;
-      final loggedInNow = Supabase.instance.client.auth.currentUser != null;
+    _authSub = _repo.onAuthStateChange.listen((_) {
+      if (isDisposed || userId != null) return;
+      final loggedInNow = _repo.currentUserId != null;
       if (loggedInNow && userProfile == null) {
         isLoading = true;
-        _notify();
+        notify();
         fetchProfileData();
       } else {
         userProfile = null;
-        _notify();
+        notify();
       }
     });
   }
 
   @override
   void dispose() {
-    _disposed = true;
     _authSub?.cancel();
     super.dispose();
   }
 
   Future<void> fetchProfileData() async {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    final targetUserId = userId ?? currentUser?.id;
+    final currentUserId = _repo.currentUserId;
+    final targetUserId = userId ?? currentUserId;
     if (targetUserId == null) {
       isLoading = false;
-      _notify();
+      notify();
       return;
     }
 
@@ -108,7 +104,6 @@ class ProfileController extends ChangeNotifier {
       hasError = false;
       errorMessage = null;
 
-      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
       if (currentUserId != null) {
         final recentStoriesMap = await _activityRepo.fetchRecentStoriesForUsers(
           [targetUserId],
@@ -133,7 +128,7 @@ class ProfileController extends ChangeNotifier {
       errorMessage = e.toString();
     } finally {
       isLoading = false;
-      _notify();
+      notify();
     }
   }
 }

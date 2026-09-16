@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import '../../widgets/guest_login_prompt.dart';
 import '../../widgets/corpus_network_image.dart';
 import '../../widgets/friendship_button.dart';
-import '../library/game_details_screen.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import '../../widgets/level_progress_bar.dart';
-import '../../widgets/game_card.dart';
-import '../../models/models.dart';
 import 'widgets/profile_mobile_header.dart';
 import '../../widgets/activity_story_ring.dart';
 import '../activity/activity_story_viewer.dart';
@@ -21,13 +17,15 @@ import 'profile_journal_tab.dart';
 import 'profile_reviews_tab.dart';
 import 'profile_games_grid_tab.dart';
 import 'currently_playing_badge.dart';
-import '../../theme/corpus_theme_extension.dart';
-import '../../utils/format_utils.dart';
-import '../../widgets/profile_stat_icon.dart';
 
 import 'profile_controller.dart';
 import '../../widgets/genre_radar_section.dart';
 import '../social/user_friends_screen.dart';
+import 'widgets/profile_hall_of_fame.dart';
+import 'widgets/profile_ratings_histogram.dart';
+import 'widgets/profile_giant_stats.dart';
+import 'widgets/profile_games_overview.dart';
+import 'widgets/profile_sidebar_info.dart';
 
 class ProfileScreen extends StatefulWidget {
   /// Si se proporciona, muestra el perfil de ese usuario. Si no, el propio.
@@ -264,7 +262,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
-                                    children: [_buildSidebarInfo()],
+                                    children: [ProfileSidebarInfo(
+                      userProfile: _userProfile,
+                      ratings: _ratings,
+                      resolvedUserId: _userProfile?['id'] as String? ?? widget.userId ?? Supabase.instance.client.auth.currentUser?.id,
+                    )],
                                   ),
                                 ),
                               ),
@@ -972,20 +974,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (isMobile) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildSidebarInfo(isMobile: true),
+                child: ProfileSidebarInfo(
+                userProfile: _userProfile,
+                ratings: _ratings,
+                resolvedUserId: _userProfile?['id'] as String? ?? widget.userId ?? Supabase.instance.client.auth.currentUser?.id,
+                isMobile: true,
+              ),
               ),
               const SizedBox(height: 24),
             ],
-            _buildHallOfFame(),
+            ProfileHallOfFame(
+              hallOfFame: _hallOfFame,
+              controller: _controller,
+            ),
             const SizedBox(height: 32),
-            _buildGiantStatsRow(isMobile: isMobile),
+            ProfileGiantStats(
+              beatenCount: _controller.beatenCount,
+              platinumCount: _controller.platinumCount,
+              playingCount: _controller.playingCount,
+              wishlistCount: _controller.wishlistCount,
+              isMobile: isMobile,
+              onStatTapped: (status) {
+                setState(() {
+                  _juegosStatusFilter = status;
+                  _selectedTab = 1;
+                });
+                _scrollToTabs();
+              },
+            ),
             const SizedBox(height: 32),
-            _buildGamesTab(),
+            ProfileGamesOverview(
+              wishlistGames: _wishlistGames,
+              playingGames: _playingGames,
+              beatenGames: _beatenGames,
+              platinumGames: _platinumGames,
+              wishlistCount: _controller.wishlistCount,
+              playingCount: _controller.playingCount,
+              beatenCount: _controller.beatenCount,
+              platinumCount: _controller.platinumCount,
+              onSeeAll: (status) {
+                setState(() {
+                  _juegosStatusFilter = status;
+                  _selectedTab = 1;
+                });
+                _scrollToTabs();
+              },
+              onReturn: _controller.fetchProfileData,
+            ),
             if (isMobile) ...[
               const SizedBox(height: 32),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildRatingsHistogram(),
+                child: ProfileRatingsHistogram(ratings: _ratings),
               ),
               const SizedBox(height: 32),
               Padding(
@@ -1036,160 +1076,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
     return const SizedBox.shrink();
-  }
-
-  Widget _buildSidebarInfo({bool isMobile = false}) {
-    final bio = _userProfile?['bio'];
-    final platforms = List<String>.from(_userProfile?['platforms'] ?? []);
-    final resolvedUserId =
-        _userProfile?['id'] as String? ??
-        widget.userId ??
-        Supabase.instance.client.auth.currentUser?.id;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (bio != null && bio.isNotEmpty) ...[
-          Text(
-            'Bio',
-            style: TextStyle(
-              fontSize: 18,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(bio, style: const TextStyle(fontSize: 14, height: 1.5)),
-          const SizedBox(height: 24),
-        ],
-        if (!isMobile) _buildRatingsHistogram(),
-        if (platforms.isNotEmpty) ...[
-          Text(
-            'Plataformas',
-            style: TextStyle(
-              fontSize: 18,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: platforms.map((p) => _buildPlatformIcon(p)).toList(),
-          ),
-          const SizedBox(height: 24),
-        ],
-        if (!isMobile && resolvedUserId != null)
-          GenreRadarSection(userId: resolvedUserId),
-      ],
-    );
-  }
-
-  Widget _buildRatingsHistogram() {
-    final ratings = _ratings.where((r) => r > 0).toList();
-
-    if (ratings.isEmpty) return const SizedBox.shrink();
-
-    final List<int> buckets = List.filled(10, 0);
-    double sum = 0;
-    for (var r in ratings) {
-      sum += r;
-      int bucketIndex = (r.floor() - 1).clamp(0, 9);
-      buckets[bucketIndex]++;
-    }
-
-    final maxCount = buckets.reduce((a, b) => a > b ? a : b);
-    if (maxCount == 0) return const SizedBox.shrink();
-
-    final avgRating = sum / ratings.length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              'Calificaciones',
-              style: TextStyle(
-                fontSize: 18,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                '${ratings.length} | ${formatRating(avgRating)} ★ Media',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 80,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(10, (index) {
-              final count = buckets[index];
-              final heightRatio = maxCount > 0 ? count / maxCount : 0.0;
-              final barHeight = 80 * heightRatio;
-
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                  child: Tooltip(
-                    message: 'Nota ${index + 1}: $count juegos',
-                    child: Container(
-                      height: barHeight > 0
-                          ? (barHeight < 4 ? 4 : barHeight)
-                          : 0,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(4),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '1★',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 12,
-              ),
-            ),
-            Text(
-              '10★',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
   }
 
   Widget _buildFriendsCountLink({
@@ -1264,544 +1150,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildGiantStatsRow({bool isMobile = false}) {
-    final stats = [
-      _buildGiantStat(
-        _controller.beatenCount.toString().padLeft(3, '0'),
-        'Completados',
-        ProfileStatIconType.beaten,
-        () {
-          setState(() {
-            _juegosStatusFilter = 'beaten';
-            _selectedTab = 1;
-          });
-          _scrollToTabs();
-        },
-      ),
-      _buildGiantStat(
-        _controller.platinumCount.toString().padLeft(3, '0'),
-        'Platinos',
-        ProfileStatIconType.platinum,
-        () {
-          setState(() {
-            _juegosStatusFilter = 'completed';
-            _selectedTab = 1;
-          });
-          _scrollToTabs();
-        },
-      ),
-      _buildGiantStat(
-        _controller.playingCount.toString().padLeft(3, '0'),
-        'Jugando',
-        ProfileStatIconType.playing,
-        () {
-          setState(() {
-            _juegosStatusFilter = 'playing';
-            _selectedTab = 1;
-          });
-          _scrollToTabs();
-        },
-      ),
-      _buildGiantStat(
-        _controller.wishlistCount.toString().padLeft(3, '0'),
-        'En Wishlist',
-        ProfileStatIconType.wishlist,
-        () {
-          if (_controller.wishlistCount > 0) {
-            setState(() {
-              _juegosStatusFilter = 'wishlist';
-              _selectedTab = 1;
-            });
-            _scrollToTabs();
-          }
-        },
-      ),
-    ];
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0),
-      child: isMobile
-          ? Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: Center(child: stats[0])),
-                    Expanded(child: Center(child: stats[1])),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(child: Center(child: stats[2])),
-                    Expanded(child: Center(child: stats[3])),
-                  ],
-                ),
-              ],
-            )
-          : Row(
-              children: stats
-                  .map((stat) => Expanded(child: Center(child: stat)))
-                  .toList(),
-            ),
-    );
-  }
-
-  Widget _buildGiantStat(
-    String number,
-    String label,
-    ProfileStatIconType iconType,
-    VoidCallback onTap,
-  ) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: Center(child: ProfileStatIcon(type: iconType, size: 32)),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  number,
-                  style: const TextStyle(
-                    fontSize: 42,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                    height: 1,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHallOfFame() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Text(
-            'Hall of Fame',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 18),
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(5, (index) {
-                  final game = _hallOfFame[index];
-                  final isNumberOne = index == 2;
-
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: AspectRatio(
-                        aspectRatio: IgdbConstants.coverAspectRatio,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            if (isNumberOne)
-                              Positioned(
-                                top: -4,
-                                bottom: -4,
-                                left: -4,
-                                right: -4,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: Colors.amber,
-                                      width: 3,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            Positioned.fill(
-                              child: MouseRegion(
-                                cursor: SystemMouseCursors.click,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    if (game != null) {
-                                      final isDesktop =
-                                          MediaQuery.of(context).size.width >
-                                          800;
-                                      if (isDesktop) {
-                                        context
-                                            .pushGameDetails(Game.fromMap(game))
-                                            .then(
-                                              (_) => _controller
-                                                  .fetchProfileData(),
-                                            );
-                                      } else {
-                                        showModalBottomSheet(
-                                          context: context,
-                                          isScrollControlled: true,
-                                          useSafeArea: false,
-                                          enableDrag: true,
-                                          builder: (context) =>
-                                              DraggableScrollableSheet(
-                                                initialChildSize: 1.0,
-                                                minChildSize: 0.5,
-                                                maxChildSize: 1.0,
-                                                expand: false,
-                                                snap: true,
-                                                builder:
-                                                    (
-                                                      context,
-                                                      scrollController,
-                                                    ) {
-                                                      return GameDetailsScreen(
-                                                        gameData: Game.fromMap(
-                                                          game,
-                                                        ),
-                                                        scrollController:
-                                                            scrollController,
-                                                      );
-                                                    },
-                                              ),
-                                        ).then(
-                                          (_) => _controller.fetchProfileData(),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceContainerHighest,
-                                      borderRadius: BorderRadius.circular(7),
-                                    ),
-                                    child:
-                                        game != null &&
-                                            game['cover_url'] != null
-                                        ? ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              7,
-                                            ),
-                                            child: CorpusNetworkImage(
-                                              url: game['cover_url'].replaceAll(
-                                                't_cover_big',
-                                                't_1080p',
-                                              ),
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                            ),
-                                          )
-                                        : const SizedBox.shrink(),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (isNumberOne)
-                              Positioned(
-                                top: -18,
-                                left: 0,
-                                right: 0,
-                                child: Icon(
-                                  Icons.star,
-                                  color: Colors.amber,
-                                  size: 26,
-                                  shadows: [
-                                    Shadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                      offset: const Offset(0, 2),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(
-    String title,
-    int count,
-    String? status, {
-    ProfileStatIconType? iconType,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _juegosStatusFilter = status;
-                  _selectedTab = 1;
-                });
-                _scrollToTabs();
-              },
-              child: Row(
-                children: [
-                  if (iconType != null) ...[
-                    ProfileStatIcon(type: iconType, size: 22),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$count',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _juegosStatusFilter = status;
-                  _selectedTab = 1;
-                });
-                _scrollToTabs();
-              },
-              child: Text(
-                'Ver todo',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCarousel(List<Map<String, dynamic>> games) {
-    return SizedBox(
-      height: 190,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 15.0),
-        clipBehavior: Clip.none,
-        scrollDirection: Axis.horizontal,
-        itemCount: games.length,
-        itemBuilder: (context, index) {
-          final game = games[index];
-          return Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: AspectRatio(
-              aspectRatio: IgdbConstants.coverAspectRatio,
-              child: _buildGameCard(game),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildGameCard(Map<String, dynamic> game) {
-    final userRating = (game['user_rating'] ?? 0).toDouble();
-    final completionType = game['completion_type'] as String?;
-    return GameCard(
-      game: Game.fromMap(game),
-      isInLibrary: true,
-      userRating: userRating,
-      completionType: completionType,
-      onReturn: _controller.fetchProfileData,
-    );
-  }
-
-  Widget _buildPlatformIcon(String platform) {
-    String? imagePath;
-    IconData? icon;
-    Color color;
-    switch (platform) {
-      case 'pc':
-        icon = Icons.computer;
-        color = Theme.of(context).colorScheme.onSurfaceVariant;
-        break;
-      case 'linux':
-        imagePath = 'assets/images/linux.png';
-        color = Colors.orangeAccent.shade700;
-        break;
-      case 'playstation':
-        imagePath = 'assets/images/playstation.png';
-        color = Colors.blue;
-        break;
-      case 'xbox':
-        imagePath = 'assets/images/xbox.png';
-        color = Colors.green;
-        break;
-      case 'switch':
-        imagePath = 'assets/images/switch.png';
-        color = Colors.red;
-        break;
-      case 'switch2':
-        imagePath = 'assets/images/switch2.png';
-        color = Colors.red;
-        break;
-      case 'wii':
-        imagePath = 'assets/images/wii.png';
-        color = Theme.of(context).colorScheme.onSurfaceVariant;
-        break;
-      case 'wiiu':
-        imagePath = 'assets/images/wiiu.png';
-        color = const Color(0xFF009AC7);
-        break;
-      case '3ds':
-        imagePath = 'assets/images/3ds.png';
-        color = const Color(0xFFCE181E);
-        break;
-      case 'ds':
-        imagePath = 'assets/images/ds.png';
-        color = Theme.of(context).colorScheme.onSurfaceVariant;
-        break;
-      case 'mac':
-        imagePath = 'assets/images/mac.png';
-        color = Theme.of(context).colorScheme.onSurfaceVariant;
-        break;
-      case 'android':
-        imagePath = 'assets/images/android.png';
-        color = const Color(0xFF3DDC84);
-        break;
-      case 'vr':
-        imagePath = 'assets/images/vr.png';
-        color = Theme.of(context).colorScheme.onSurfaceVariant;
-        break;
-      case 'firetv':
-        icon = Icons.tv;
-        color = Theme.of(context).colorScheme.onSurfaceVariant;
-        break;
-      case 'nintendo':
-        imagePath = 'assets/images/switch.png';
-        color = Colors.red;
-        break; // Fallback para datos antiguos
-      default:
-        icon = Icons.device_unknown;
-        color = Theme.of(context).colorScheme.onSurfaceVariant;
-        break;
-    }
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusSmall,
-      ),
-      child: imagePath != null
-          ? Image.asset(imagePath, width: 24, height: 24, color: color)
-          : Icon(icon, color: color, size: 24),
-    );
-  }
-
-  Widget _buildGamesTab() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_wishlistGames.isNotEmpty) ...[
-          _buildSectionTitle(
-            'Quiero',
-            _controller.wishlistCount,
-            'wishlist',
-            iconType: ProfileStatIconType.wishlist,
-          ),
-          _buildCarousel(_wishlistGames),
-          const SizedBox(height: 24),
-        ],
-        if (_playingGames.isNotEmpty) ...[
-          _buildSectionTitle(
-            'Jugando',
-            _controller.playingCount,
-            'playing',
-            iconType: ProfileStatIconType.playing,
-          ),
-          _buildCarousel(_playingGames),
-          const SizedBox(height: 24),
-        ],
-        if (_beatenGames.isNotEmpty) ...[
-          _buildSectionTitle(
-            'Completados',
-            _controller.beatenCount,
-            'beaten',
-            iconType: ProfileStatIconType.beaten,
-          ),
-          _buildCarousel(_beatenGames),
-          const SizedBox(height: 24),
-        ],
-        if (_platinumGames.isNotEmpty) ...[
-          _buildSectionTitle(
-            'Platinos',
-            _controller.platinumCount,
-            'completed',
-            iconType: ProfileStatIconType.platinum,
-          ),
-          _buildCarousel(_platinumGames),
-          const SizedBox(height: 24),
-        ],
-        if (_beatenGames.isEmpty &&
-            _platinumGames.isEmpty &&
-            _playingGames.isEmpty &&
-            _wishlistGames.isEmpty) ...[
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Text(
-                'Aún no tienes juegos en tu biblioteca.',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
 }
 
 // Boton eliminado para un conteo centralizado
