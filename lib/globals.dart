@@ -59,7 +59,7 @@ final List<ValueNotifier<int>> tabScrollToTopNotifiers = List.generate(
 
 // Utilidad global para obtener el espaciado inferior en listas (móvil vs escritorio)
 double getBottomSpacer(BuildContext context) {
-  final isDesktop = MediaQuery.of(context).size.width > 800;
+  final isDesktop = MediaQuery.sizeOf(context).width > kDesktopBreakpoint;
   return isDesktop ? 32.0 : 120.0;
 }
 
