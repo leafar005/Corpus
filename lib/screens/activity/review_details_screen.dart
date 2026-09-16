@@ -1829,6 +1829,6 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
   // _showImageFullScreen removed in favor of full_screen_gallery.dart
 
-  /// Formatea la fecha de un comentario en formato corto, por ejemplo "1 Sep. 2026".
-  String _formatCommentDate(String? isoString) => formatDateShort(isoString);
+  /// Formatea la fecha de un comentario en formato relativo, por ejemplo "hace 2 horas".
+  String _formatCommentDate(String? isoString) => formatDateRelative(isoString);
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'activity_controller.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/globals.dart';
@@ -31,50 +31,17 @@ class ActivityScreen extends StatefulWidget {
 
 class _ActivityScreenState extends State<ActivityScreen>
     with PaginatedScrollMixin {
-  final _supabase = Supabase.instance.client;
-  final _repo = ActivityRepository();
-
-  List<Map<String, dynamic>> _activities = [];
-  bool _isLoading = true;
-  int _offset = 0;
-  RealtimeChannel? _realtimeChannel;
-  StreamSubscription<AuthState>? _authSub;
-
-  // Franja de amigos (estilo "historias") en la parte superior.
-  List<Map<String, dynamic>> _friendsStrip = [];
-  Map<String, List<Map<String, dynamic>>> _userStories = {};
-  bool _isLoadingFriendsStrip = true;
-  int _pendingRequestsCount = 0;
-
-  bool get _isGuest => _supabase.auth.currentUser == null;
+  late final ActivityController _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = ActivityController();
     initPagination();
-    if (_isGuest) {
-      // Invitado: nada de feed ni de suscripción realtime (sin sesión no
-      // hay "actividad de tus amigos" que mostrar, y así evitamos abrir
-      // un canal realtime y consultas que no llevan a ningún sitio).
-      _isLoading = false;
-    } else {
-      _fetchActivity(isRefresh: true);
-      _fetchFriendsStrip();
-      _subscribeRealtime();
+    if (!_controller.isGuest) {
       libraryUpdateNotifier.addListener(_onLibraryUpdated);
     }
-
-    // Si el invitado inicia sesión desde el botón de esta pantalla,
-    // cargamos el feed real y activamos el realtime en ese momento.
-    _authSub = _supabase.auth.onAuthStateChange.listen((_) {
-      if (!mounted || _supabase.auth.currentUser == null) return;
-      if (_realtimeChannel != null) return; // Ya activo tras un login anterior.
-      setState(() => _isLoading = true);
-      _fetchActivity(isRefresh: true);
-      _fetchFriendsStrip();
-      _subscribeRealtime();
-      libraryUpdateNotifier.addListener(_onLibraryUpdated);
-    });
+    _controller.init();
     tabScrollToTopNotifiers[2].addListener(_onScrollToTop);
   }
 
@@ -82,9 +49,8 @@ class _ActivityScreenState extends State<ActivityScreen>
   void dispose() {
     disposePagination();
     tabScrollToTopNotifiers[2].removeListener(_onScrollToTop);
-    _realtimeChannel?.unsubscribe();
     libraryUpdateNotifier.removeListener(_onLibraryUpdated);
-    _authSub?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -100,52 +66,15 @@ class _ActivityScreenState extends State<ActivityScreen>
   }
 
   void _onLibraryUpdated() {
-    if (mounted) _fetchActivity(isRefresh: true, silent: true);
+    if (mounted) _controller.fetchActivity(isRefresh: true, silent: true);
   }
 
-  Future<void> _fetchFriendsStrip() async {
-    try {
-      final myId = _supabase.auth.currentUser?.id;
-      if (myId == null) return;
-
-      final result = await _repo.fetchFriendsStrip(myId);
-      final friendIds = result.friends
-          .map((f) => f['id'] as String?)
-          .whereType<String>()
-          .toList();
-
-      final stories = friendIds.isNotEmpty
-          ? await _repo.fetchRecentStoriesForUsers(friendIds)
-          : <String, List<Map<String, dynamic>>>{};
-
-      final allActivityIds = stories.values
-          .expand((list) => list)
-          .map((a) => a['id'] as String?)
-          .whereType<String>()
-          .toList();
-
-      final viewed = allActivityIds.isNotEmpty
-          ? await _repo.fetchViewedStoryIds(
-              userId: myId,
-              activityIds: allActivityIds,
-            )
-          : <String>{};
-
-      if (mounted) {
-        setState(() {
-          _friendsStrip = result.friends;
-          _userStories = stories;
-          _pendingRequestsCount = result.pendingCount;
-          _isLoadingFriendsStrip = false;
-        });
-        viewedStoryIdsNotifier.value = {
-          ...viewedStoryIdsNotifier.value,
-          ...viewed,
-        };
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingFriendsStrip = false);
-    }
+  @override
+  Future<void> loadMore() async {
+    final stillHasMore = await _controller.fetchActivity(isRefresh: false);
+    hasMore = stillHasMore;
+    isLoadingMore = _controller.isLoadingMore;
+    if (hasMore) triggerScrollCheck();
   }
 
   void _openUserStory(
@@ -154,7 +83,7 @@ class _ActivityScreenState extends State<ActivityScreen>
   ) {
     final storyFriends = orderedFriends.where((f) {
       final id = f['id'] as String?;
-      return id != null && (_userStories[id]?.isNotEmpty ?? false);
+      return id != null && (_controller.userStories[id]?.isNotEmpty ?? false);
     }).toList();
 
     final tappedId = orderedFriends[tappedIndex]['id'] as String?;
@@ -169,7 +98,7 @@ class _ActivityScreenState extends State<ActivityScreen>
     }
 
     final groups = storyFriends
-        .map((f) => StoryGroup(userData: f, activities: _userStories[f['id']]!))
+        .map((f) => StoryGroup(userData: f, activities: _controller.userStories[f['id']]!))
         .toList();
 
     final viewedIds = viewedStoryIdsNotifier.value;
@@ -196,144 +125,22 @@ class _ActivityScreenState extends State<ActivityScreen>
   Future<void> _openFriendsScreen() async {
     await context.pushFriends();
     // Al volver, refrescamos por si se aceptaron/enviaron solicitudes.
-    if (mounted) _fetchFriendsStrip();
-  }
-
-  @override
-  Future<void> loadMore() async {
-    await _fetchActivity(isRefresh: false);
-  }
-
-  // ──────────────────────────────────────────
-  // DATOS
-  // ──────────────────────────────────────────
-
-  Future<void> _fetchActivity({
-    bool isRefresh = false,
-    bool silent = false,
-  }) async {
-    if (isRefresh) {
-      _offset = 0;
-      hasMore = true;
-      if (!silent && _activities.isEmpty) {
-        setState(() => _isLoading = true);
-      }
-    } else {
-      if (isLoadingMore || !hasMore) return;
-      setState(() => isLoadingMore = true);
-    }
-
-    try {
-      final result = await _repo.fetchActivityPage(_offset);
-
-      if (mounted) {
-        setState(() {
-          if (isRefresh) {
-            _activities = result.mergedActivities;
-          } else {
-            _activities.addAll(result.mergedActivities);
-          }
-          _offset = result.nextOffset;
-          hasMore = result.hasMore;
-          _isLoading = false;
-          isLoadingMore = false;
-        });
-        if (hasMore) triggerScrollCheck();
-      }
-    } catch (e) {
-      debugPrint('[ActivityScreen] Error cargando actividad: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          isLoadingMore = false;
-          hasMore = false;
-        });
-      }
+    if (mounted) {
+      final viewed = await _controller.fetchFriendsStripWithViewed();
+      viewedStoryIdsNotifier.value = {
+        ...viewedStoryIdsNotifier.value,
+        ...viewed,
+      };
     }
   }
 
-  Future<void> _refreshInPlace() async {
-    if (_activities.isEmpty) {
-      _fetchActivity(isRefresh: true, silent: true);
-      return;
-    }
-    try {
-      final result = await _repo.fetchActivityPage(0, limit: _offset);
-      if (mounted) {
-        setState(() {
-          _activities = result.mergedActivities;
-        });
-      }
-    } catch (e) {
-      debugPrint('[ActivityScreen] Error en refreshInPlace: $e');
-    }
-  }
-
-  /// Suscripción Realtime: cuando llega un nuevo evento al feed, recargamos.
-  void _subscribeRealtime() {
-    _realtimeChannel = _supabase
-        .channel('activity_feed_changes')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'activity_feed',
-          callback: (payload) {
-            if (!mounted) return;
-            // El badge lo gestiona MainScreen desde el inicio (sin lazy-load).
-            _fetchActivity(isRefresh: true, silent: true);
-            _fetchFriendsStrip();
-          },
-        )
-        .subscribe();
-  }
-
-  // ──────────────────────────────────────────
-  // LIKES
-  // ──────────────────────────────────────────
-
-  Future<void> _toggleLike(int index) async {
-    final activity = _activities[index];
-    final review = activity['_review'] as Map<String, dynamic>?;
-    if (review == null) return;
-
-    final currentUserId = _supabase.auth.currentUser?.id;
-    if (currentUserId == null) return;
-    final reviewId = review['id'];
-
-    final likes = List<Map<String, dynamic>>.from(review['review_likes'] ?? []);
-    final hasLiked = likes.any((l) => l['user_id'] == currentUserId);
-
-    setState(() {
-      if (hasLiked) {
-        likes.removeWhere((l) => l['user_id'] == currentUserId);
-      } else {
-        likes.add({'user_id': currentUserId});
-      }
-      _activities[index]['_review']['review_likes'] = likes;
-    });
-
-    try {
-      if (!hasLiked) {
-        await _supabase.from('review_likes').insert({
-          'user_id': currentUserId,
-          'review_id': reviewId,
-        });
-      } else {
-        await _supabase.from('review_likes').delete().match({
-          'user_id': currentUserId,
-          'review_id': reviewId,
-        });
-      }
-    } catch (_) {
-      // Revertir
-      setState(() {
-        if (!hasLiked) {
-          likes.removeWhere((l) => l['user_id'] == currentUserId);
-        } else {
-          likes.add({'user_id': currentUserId});
-        }
-        _activities[index]['_review']['review_likes'] = likes;
-      });
+  Future<void> _fetchFriendsStrip() async {
+    final viewed = await _controller.fetchFriendsStripWithViewed();
+    if (mounted) {
+      viewedStoryIdsNotifier.value = {
+        ...viewedStoryIdsNotifier.value,
+        ...viewed,
+      };
     }
   }
 
@@ -397,7 +204,7 @@ class _ActivityScreenState extends State<ActivityScreen>
         : meta['status'] as String?;
     final dateStr = _formatDate(activity['created_at'] as String? ?? '');
 
-    final myId = _supabase.auth.currentUser?.id;
+    final myId = Supabase.instance.client.auth.currentUser?.id;
     final activityUserId = userData['id'] as String?;
     final isOwnActivity = myId == activityUserId;
 
@@ -428,7 +235,7 @@ class _ActivityScreenState extends State<ActivityScreen>
       if (review == null) return;
       context
           .pushReviewDetails(Game.fromMap(gameData), userData, review)
-          .then((_) => _refreshInPlace());
+          .then((_) => _controller.refreshInPlace());
     }
 
     void openReviewComments() {
@@ -440,7 +247,7 @@ class _ActivityScreenState extends State<ActivityScreen>
             review,
             focusComment: true,
           )
-          .then((_) => _refreshInPlace());
+          .then((_) => _controller.refreshInPlace());
     }
 
     void openGameDetails() {
@@ -448,7 +255,7 @@ class _ActivityScreenState extends State<ActivityScreen>
       if (isDesktop) {
         context
             .pushGameDetails(Game.fromMap(gameData))
-            .then((_) => _refreshInPlace());
+            .then((_) => _controller.refreshInPlace());
       } else {
         showModalBottomSheet(
           context: context,
@@ -466,7 +273,7 @@ class _ActivityScreenState extends State<ActivityScreen>
               scrollController: scrollController,
             ),
           ),
-        ).then((_) => _refreshInPlace());
+        ).then((_) => _controller.refreshInPlace());
       }
     }
 
@@ -475,14 +282,14 @@ class _ActivityScreenState extends State<ActivityScreen>
       final internalGameId = activity['game_id'] as int?;
 
       if (uId != null && internalGameId != null) {
-        final review = await _repo.fetchLatestReviewForUserAndGame(
+        final review = await ActivityRepository().fetchLatestReviewForUserAndGame(
           uId,
           internalGameId,
         );
         if (review != null && mounted) {
           context
               .pushReviewDetails(Game.fromMap(gameData), userData, review)
-              .then((_) => _refreshInPlace());
+              .then((_) => _controller.refreshInPlace());
           return;
         }
       }
@@ -814,7 +621,7 @@ class _ActivityScreenState extends State<ActivityScreen>
               Row(
                 children: [
                   InkWell(
-                    onTap: () => _toggleLike(index),
+                    onTap: () => _controller.toggleLike(index),
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -944,7 +751,7 @@ class _ActivityScreenState extends State<ActivityScreen>
           ),
         ),
       ),
-      child: _isLoadingFriendsStrip
+      child: _controller.isLoadingFriendsStrip
           ? const Center(
               child: SizedBox(
                 width: 20,
@@ -952,7 +759,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          : _friendsStrip.isEmpty
+          : _controller.friendsStrip.isEmpty
           ? Center(
               child: TextButton.icon(
                 onPressed: _openFriendsScreen,
@@ -969,8 +776,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                 final onlineUsers = onlineUsersNotifier.value;
                 final viewedIds = viewedStoryIdsNotifier.value;
                 final sortedFriends = ActivityRepository.sortFriendsStrip(
-                  friends: _friendsStrip,
-                  userStories: _userStories,
+                  friends: _controller.friendsStrip,
+                  userStories: _controller.userStories,
                   onlineUserIds: onlineUsers,
                   viewedStoryIds: viewedIds,
                 );
@@ -1001,7 +808,7 @@ class _ActivityScreenState extends State<ActivityScreen>
 
                     final hasStory =
                         friendId != null &&
-                        (_userStories[friendId]?.isNotEmpty ?? false);
+                        (_controller.userStories[friendId]?.isNotEmpty ?? false);
 
                     final playingColor = Colors.greenAccent[400]!;
                     const onlineColor = Colors.blueAccent;
@@ -1030,7 +837,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                                   hasUnseenStory:
                                       hasStory &&
                                       ActivityRepository.groupHasUnseenStory(
-                                        _userStories[friendId]!,
+                                        _controller.userStories[friendId]!,
                                         viewedIds,
                                       ),
                                   avatarUrl: avatarUrl,
@@ -1111,7 +918,10 @@ class _ActivityScreenState extends State<ActivityScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_isGuest) {
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+    if (_controller.isGuest) {
       return Scaffold(
         appBar: AppBar(title: const CorpusScreenTitle('Actividad')),
         body: const Center(
@@ -1141,8 +951,8 @@ class _ActivityScreenState extends State<ActivityScreen>
           ),
           IconButton(
             icon: Badge(
-              isLabelVisible: _pendingRequestsCount > 0,
-              label: Text(_pendingRequestsCount.toString()),
+              isLabelVisible: _controller.pendingRequestsCount > 0,
+              label: Text(_controller.pendingRequestsCount.toString()),
               child: const Icon(Icons.people_rounded),
             ),
             tooltip: 'Amigos',
@@ -1150,14 +960,14 @@ class _ActivityScreenState extends State<ActivityScreen>
           ),
         ],
       ),
-      body: _isLoading
+      body: _controller.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () async {
-                await _fetchActivity(isRefresh: true);
+                await _controller.fetchActivity(isRefresh: true);
                 await _fetchFriendsStrip();
               },
-              child: _activities.isEmpty
+              child: _controller.activities.isEmpty
                   ? ListView(
                       controller: scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -1177,13 +987,13 @@ class _ActivityScreenState extends State<ActivityScreen>
                         bottom: getBottomSpacer(context),
                       ),
 
-                      itemCount: _activities.length + 1 + (hasMore ? 1 : 0),
+                      itemCount: _controller.activities.length + 1 + (hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
                         if (index == 0) {
                           return _buildFriendsHeaderSection();
                         }
                         final activityIndex = index - 1;
-                        if (activityIndex >= _activities.length) {
+                        if (activityIndex >= _controller.activities.length) {
                           return const Center(
                             child: Padding(
                               padding: EdgeInsets.all(16.0),
@@ -1192,12 +1002,14 @@ class _ActivityScreenState extends State<ActivityScreen>
                           );
                         }
                         return _buildActivityCard(
-                          _activities[activityIndex],
+                          _controller.activities[activityIndex],
                           activityIndex,
                         );
                       },
                     ),
             ),
+    );
+      },
     );
   }
 }
