@@ -210,6 +210,36 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ── Auth check (Auditoría H-05) ──────────────────────────────────────
+    // Esta función solo debe ser invocada por otras Edge Functions o triggers
+    // internos que usan la service_role key. Un usuario con solo la anon key
+    // NO debe poder enviar push a tokens arbitrarios.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verificar que el JWT pertenece al service_role (no a un usuario anónimo)
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const token = authHeader.replace("Bearer ", "");
+
+    // Si el token es la propia service_role key, se acepta directamente
+    // (las Edge Functions internas pasan la key como Bearer token).
+    // Si NO coincide, intentamos decodificar el JWT para verificar el rol.
+    if (token !== SUPABASE_SERVICE_ROLE_KEY) {
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      // Si el token es de un usuario normal (no service_role), rechazar
+      if (user || authError) {
+        return new Response(
+          JSON.stringify({ error: "This function requires service_role access" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const { tokens, title, body, data } = await req.json();
 
     if (!Array.isArray(tokens) || !title || !body) {
