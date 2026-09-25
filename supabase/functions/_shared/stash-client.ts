@@ -1,9 +1,7 @@
 // supabase/functions/_shared/stash-client.ts
 
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Re-exportar CORS centralizado (Auditoría H-01: single source of truth)
+export { corsHeaders, corsHeadersForRequest, handleCorsPreflight } from './cors.ts';
 
 export const USER_AGENTS = [
   'Stash/2.6.8 (io.stash.team.games.tracker.StashApp; build:1; iOS 26.5.2) Alamofire/5.4.4',
