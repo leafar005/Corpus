@@ -13,18 +13,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Esta acción instala Flutter en el servidor de GitHub
+      # Instalar Flutter con caché de pub (Auditoría K-02)
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
 
       - name: Instalar dependencias
         run: flutter pub get
 
-
       - name: Analizar código
         run: flutter analyze
 
-      # Si tienes pruebas unitarias en tu carpeta /test, esto las ejecutará
       - name: Ejecutar pruebas
         run: flutter test
