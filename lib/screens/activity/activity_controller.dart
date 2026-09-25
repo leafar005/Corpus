@@ -256,7 +256,8 @@ class ActivityController extends SafeChangeNotifier {
         userId: currentUserId,
         currentlyLiked: hasLiked,
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ActivityController] toggleLike failed: $e');
       // Revert
       if (!hasLiked) {
         likes.removeWhere((l) => l['user_id'] == currentUserId);

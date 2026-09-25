@@ -144,7 +144,8 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         _likesCount = result.likesCount;
         _hasLiked = result.hasLiked;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ActivityStoryViewer] fetchInteractions failed: $e');
     } finally {}
   }
 
@@ -280,7 +281,8 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         userId: userId,
         currentlyLiked: wasLiked,
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ActivityStoryViewer] toggleLike failed: $e');
       if (mounted) {
         setState(() {
           _hasLiked = wasLiked;

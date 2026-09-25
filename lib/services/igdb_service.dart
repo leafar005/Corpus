@@ -336,7 +336,7 @@ class IGDBService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('[IGDB ERROR] Fallo al convertir SteamID $steamAppId: $e');
+        debugPrint('[IGDB ERROR] Fallo al convertir SteamID $steamAppId: $e');
       }
       return null;
     }
@@ -390,7 +390,7 @@ class IGDBService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('Error fetching time to beat: $e');
+        debugPrint('Error fetching time to beat: $e');
       }
       return null;
     }
@@ -699,9 +699,9 @@ class IGDBService {
       final response = await _postQuery('games', body);
 
       if (kDebugMode) {
-        print('[IGDB BATCH getGamesByIdsFull] status=${response.statusCode}');
+        debugPrint('[IGDB BATCH getGamesByIdsFull] status=${response.statusCode}');
         if (response.statusCode != 200) {
-          print(
+          debugPrint(
             '[IGDB BATCH getGamesByIdsFull] Error response: ${response.body}',
           );
         }

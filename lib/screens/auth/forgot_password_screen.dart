@@ -44,7 +44,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ForgotPasswordScreen] Unexpected error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

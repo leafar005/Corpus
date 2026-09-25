@@ -1183,7 +1183,9 @@ class _FriendsBadgeButtonState extends State<_FriendsBadgeButton> {
       if (mounted) {
         setState(() => _pendingCount = (data as List).length);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ProfileScreen] Error fetching pending friend requests: $e');
+    }
   }
 
   @override

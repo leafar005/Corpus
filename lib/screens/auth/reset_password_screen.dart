@@ -30,8 +30,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       _showError('Rellena ambos campos.');
       return;
     }
-    if (password.length < 6) {
-      _showError('La contraseña debe tener al menos 6 caracteres.');
+    if (password.length < 8) {
+      _showError('La contraseña debe tener al menos 8 caracteres.');
       return;
     }
     if (password != confirm) {
@@ -57,7 +57,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       }
     } on AuthException catch (e) {
       if (mounted) _showError(e.message);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ResetPasswordScreen] Unexpected error: $e');
       if (mounted) _showError('Error inesperado. Inténtalo de nuevo.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -123,7 +124,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     border: OutlineInputBorder(borderRadius: ext.radiusMedium),
-                    helperText: 'Mínimo 6 caracteres',
+                    helperText: 'Mínimo 8 caracteres',
                   ),
                 ),
                 const SizedBox(height: 16),

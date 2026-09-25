@@ -115,7 +115,9 @@ class NotificationService {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             DeepLinkService.handle(data);
           });
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[NotificationService] Error parsing notification payload: $e');
+        }
       }
     }
 
@@ -230,8 +232,8 @@ class NotificationService {
           'message': e.toString(),
           'platform': kIsWeb ? 'web' : Platform.operatingSystem,
         });
-      } catch (_) {
-        // Ignorar si falla el guardado del log
+      } catch (logError) {
+        debugPrint('[NotificationService] Error saving error log: $logError');
       }
     }
   }

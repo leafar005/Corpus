@@ -357,8 +357,8 @@ class GameDetailsController extends SafeChangeNotifier {
     try {
       final results = await IGDBService.getRelatedGames(igdbId);
       relatedGames = results;
-    } catch (_) {
-      // Silenciar error — los relacionados son opcionales
+    } catch (e) {
+      debugPrint('[GameDetailsController] fetchRelatedGames failed: $e');
     } finally {
       isLoadingRelated = false;
       notify();

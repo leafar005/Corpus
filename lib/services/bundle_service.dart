@@ -188,7 +188,7 @@ class BundleService {
 
       if (response.statusCode != 200) {
         if (kDebugMode) {
-          print('[BUNDLE SERVICE] Error HTTP: ${response.statusCode}');
+          debugPrint('[BUNDLE SERVICE] Error HTTP: ${response.statusCode}');
         }
         return [];
       }
@@ -252,7 +252,7 @@ class BundleService {
             }
           } catch (e) {
             if (kDebugMode) {
-              print('[BundleService] Error parseando timestamp "$endRaw": $e');
+              debugPrint('[BundleService] Error parseando timestamp "$endRaw": $e');
             }
           }
         }
@@ -342,17 +342,17 @@ class BundleService {
         final jsonList = activeBundles.map((b) => b.toJson()).toList();
         await prefs.setString(_cacheKey, json.encode(jsonList));
       } catch (e) {
-        if (kDebugMode) print('[BUNDLE SERVICE] Error guardando caché: $e');
+        if (kDebugMode) debugPrint('[BUNDLE SERVICE] Error guardando caché: $e');
       }
 
       if (kDebugMode) {
-        print(
+        debugPrint(
           '[BUNDLE SERVICE] Encontrados ${activeBundles.length} bundles activos.',
         );
       }
       return activeBundles;
     } catch (e) {
-      if (kDebugMode) print('[BUNDLE SERVICE ERROR CRÍTICO]: $e');
+      if (kDebugMode) debugPrint('[BUNDLE SERVICE ERROR CRÍTICO]: $e');
       return [];
     }
   }
