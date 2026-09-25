@@ -165,13 +165,19 @@ class StylePackRegistry {
     await dir.create(recursive: true);
 
     for (final file in archive.files) {
-      if (file.isFile && !_isSafeArchivePath(file.name)) {
+      // Rechazar symlinks: podrían apuntar fuera del installDir (Auditoría I-02)
+      if (_isSymlink(file)) {
+        throw const FormatException(
+          'El paquete contiene enlaces simbólicos, que no están permitidos',
+        );
+      }
+      if (file.isFile && !isSafeArchivePath(file.name)) {
         throw const FormatException('Ruta no segura en el paquete');
       }
     }
 
     for (final file in archive.files) {
-      if (!file.isFile || !_isSafeArchivePath(file.name)) continue;
+      if (!file.isFile || !isSafeArchivePath(file.name)) continue;
       final outPath = p.join(installDir, file.name);
       await File(outPath).create(recursive: true);
       await File(outPath).writeAsBytes(file.content as List<int>);
@@ -232,12 +238,67 @@ class StylePackRegistry {
     return p.join(base.path, 'style_packs', packId);
   }
 
-  static bool _isSafeArchivePath(String name) {
-    final normalized = p.normalize(name);
-    if (normalized.startsWith('..') || p.isAbsolute(normalized)) {
+  /// Nombres reservados de Windows que no se pueden usar como nombres de
+  /// archivo/directorio (sin extensión). Un archivo llamado "CON.txt" en
+  /// Windows abre el dispositivo de consola en vez del archivo real.
+  static const _windowsReservedNames = {
+    'CON', 'PRN', 'AUX', 'NUL',
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+  };
+
+  /// Valida que una ruta de archivo dentro de un archivo .corpuspack/.zip sea
+  /// segura para extraer en el directorio de instalación.
+  ///
+  /// Protege contra:
+  /// - Directory traversal (`../`, `..\\`)
+  /// - Rutas absolutas
+  /// - Archivos ocultos (`.ssh/`, `.env`)
+  /// - Nombres reservados de Windows (`CON`, `PRN`, `NUL`, etc.)
+  /// - Null bytes en la ruta
+  /// - Separadores mixtos (`\` y `/`)
+  ///
+  /// (Auditoría I-02)
+  @visibleForTesting
+  static bool isSafeArchivePath(String name) {
+    if (name.isEmpty) return false;
+
+    // Rechazar null bytes (podrían truncar la ruta en APIs C subyacentes)
+    if (name.contains('\x00')) return false;
+
+    // Normalizar separadores mixtos antes de validar
+    final cleaned = name.replaceAll('\\', '/');
+    final normalized = p.normalize(cleaned);
+
+    // Rechazar rutas absolutas
+    if (p.isAbsolute(normalized)) return false;
+
+    // Rechazar cualquier forma de traversal (../ al inicio, /../ en medio, o \..\ en medio)
+    if (normalized.startsWith('..') ||
+        normalized.contains('/../') ||
+        normalized.contains('\\..\\') ||
+        normalized == '..') {
       return false;
     }
+
+    // Rechazar archivos/directorios ocultos (empiezan con .)
+    for (final segment in p.split(normalized)) {
+      if (segment.startsWith('.')) return false;
+    }
+
+    // Rechazar nombres reservados de Windows (sin extensión)
+    final baseName = p.basenameWithoutExtension(normalized).toUpperCase();
+    if (_windowsReservedNames.contains(baseName)) return false;
+
     return true;
+  }
+
+  /// Verifica que un [ArchiveFile] extraído NO sea un symlink.
+  /// Las librerías de zip pueden contener symlinks que apuntan fuera del
+  /// directorio de instalación, evadiendo `_isSafeArchivePath`.
+  /// (Auditoría I-02)
+  static bool _isSymlink(ArchiveFile file) {
+    return file.isSymbolicLink;
   }
 
   /// Persist imported packs to local storage.
