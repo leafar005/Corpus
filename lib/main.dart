@@ -25,10 +25,34 @@ void main() async {
   // 1. Asegura que los motores de Flutter están listos
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inyectar un ErrorWidget personalizado para detectar el bug de "pantalla gris"
-  // en producción (que en release suele pintar un Container(color: Color(0xF0C0C0C0))).
-  // Esto nos dirá el origen exacto del fallo en la interfaz visualmente.
+  // ErrorWidget personalizado: en debug muestra el detalle completo para
+  // diagnosticar el bug; en release muestra un mensaje genérico para no
+  // filtrar información interna (nombres de archivo, stack traces, etc.)
+  // al usuario final. (Auditoría I-01)
   ErrorWidget.builder = (FlutterErrorDetails details) {
+    // En release: UI genérica sin datos internos.
+    if (kReleaseMode) {
+      return const Material(
+        child: ColoredBox(
+          color: Color(0xFF1A1A1A),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Ha ocurrido un error de renderizado.\nReinicia la aplicación.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // En debug: detalle completo para diagnosticar.
     return Material(
       child: Container(
         color: const Color(0xFF4A0000), // Rojo oscuro muy visible
