@@ -1,6 +1,30 @@
 import 'package:flutter/widgets.dart';
-import 'package:tabler_icons_next/tabler_icons_next.dart' as tabler;
+import 'tabler_icons.dart' as tabler;
 import 'corpus_icon_kind.dart';
+
+/// Filled "users" composite — Tabler has no official `users-filled` icon.
+Widget _usersFilled(double s) {
+  final person = s * 0.56;
+  return SizedBox(
+    width: s,
+    height: s,
+    child: Stack(
+      clipBehavior: Clip.hardEdge,
+      children: [
+        Positioned(
+          left: 0,
+          bottom: 0,
+          child: tabler.UserFilled(width: person, height: person),
+        ),
+        Positioned(
+          right: 0,
+          top: s * 0.04,
+          child: tabler.UserFilled(width: person, height: person),
+        ),
+      ],
+    ),
+  );
+}
 
 /// Raw Tabler SVG widgets (no tinting — [CorpusTablerIcon] applies color).
 Widget buildTablerSvg(CorpusIconKind kind, double size) {
@@ -64,17 +88,17 @@ Widget buildTablerSvg(CorpusIconKind kind, double size) {
     CorpusIconKind.Computer => tabler.DeviceDesktop(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.DarkMode => tabler.MoonFilled(width: s, height: s),
     CorpusIconKind.DashboardCustomizeOutlined => tabler.LayoutDashboard(width: s, height: s, strokeWidth: sw),
-    CorpusIconKind.Delete => tabler.TrashXFilled(width: s, height: s),
-    CorpusIconKind.DeleteOutline => tabler.Trash(width: s, height: s, strokeWidth: sw),
+    CorpusIconKind.Delete => tabler.TrashFilled(width: s, height: s),
+    CorpusIconKind.DeleteOutline => tabler.TrashFilled(width: s, height: s),
     CorpusIconKind.DescriptionOutlined => tabler.FileDescription(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.DeviceUnknown => tabler.DeviceUnknown(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.Devices => tabler.Devices(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.DoNotDisturbAlt => tabler.BellOff(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.Done => tabler.Check(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.DragHandle => tabler.GripVertical(width: s, height: s, strokeWidth: sw),
-    CorpusIconKind.Edit => tabler.Edit(width: s, height: s, strokeWidth: sw),
+    CorpusIconKind.Edit => tabler.PencilFilled(width: s, height: s),
     CorpusIconKind.EditCalendar => tabler.CalendarCog(width: s, height: s, strokeWidth: sw),
-    CorpusIconKind.EditOutlined => tabler.Edit(width: s, height: s, strokeWidth: sw),
+    CorpusIconKind.EditOutlined => tabler.PencilFilled(width: s, height: s),
     CorpusIconKind.Email => tabler.Mail(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.EmailOutlined => tabler.Mail(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.EmailRounded => tabler.Mail(width: s, height: s, strokeWidth: sw),
@@ -209,7 +233,7 @@ Widget buildTablerSvg(CorpusIconKind kind, double size) {
     CorpusIconKind.Tune => tabler.AdjustmentsFilled(width: s, height: s),
     CorpusIconKind.Tv => tabler.DeviceTv(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.UserFilled => tabler.UserFilled(width: s, height: s),
-    CorpusIconKind.Users => tabler.Users(width: s, height: s, strokeWidth: sw),
+    CorpusIconKind.Users => _usersFilled(s),
     CorpusIconKind.VideoLibrary => tabler.Video(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.VideogameAsset => tabler.DeviceGamepadFilled(width: s, height: s),
     CorpusIconKind.VideogameAssetOff => tabler.DeviceGamepad(width: s, height: s, strokeWidth: sw),

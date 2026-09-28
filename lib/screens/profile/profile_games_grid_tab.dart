@@ -21,6 +21,7 @@ import '../../theme/corpus_theme_extension.dart';
 class ProfileGamesGridTab extends StatefulWidget {
   final String userId;
   final String? status; // null para todos, o 'beaten', 'playing', 'wishlist'
+  final bool hideStatusChips;
   final VoidCallback onReturn;
   final ScrollController scrollController;
 
@@ -28,6 +29,7 @@ class ProfileGamesGridTab extends StatefulWidget {
     super.key,
     required this.userId,
     this.status,
+    this.hideStatusChips = false,
     required this.onReturn,
     required this.scrollController,
   });
@@ -305,8 +307,10 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildStatusChips(),
-                const SizedBox(height: 12),
+                if (!widget.hideStatusChips) ...[
+                  _buildStatusChips(),
+                  const SizedBox(height: 12),
+                ],
                 _buildSearchBar(),
               ],
             ),
@@ -389,7 +393,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   CorpusIconKind _getIconForStatus(GameStatus status) => status.icon;
 
   Widget _buildStatusChips() {
-    final validStatuses = GameStatus.values.where(
+    final validStatuses = GameStatus.pickerOrder.where(
       (s) => s != GameStatus.onHold,
     );
     return SingleChildScrollView(

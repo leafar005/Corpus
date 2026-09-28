@@ -180,7 +180,10 @@ class GameReviewsCard extends StatelessWidget {
             statusText = 'En Pausa';
             break;
           case 'wishlist':
-            statusText = 'Quiero';
+            statusText = GameStatus.wishlist.shortLabel;
+            break;
+          case 'to_play':
+            statusText = GameStatus.toPlay.shortLabel;
             break;
           default:
             statusText = 'Desconocido';

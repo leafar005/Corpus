@@ -6,7 +6,7 @@ import 'home/home_screen.dart';
 import 'library/search_screen.dart';
 import 'activity/activity_screen.dart';
 import 'profile/profile_screen.dart';
-import 'bundles/bundles_screen.dart';
+import 'my_games/my_games_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import '../theme/corpus_theme_extension.dart';
@@ -69,14 +69,14 @@ class _MainScreenState extends State<MainScreen>
       _screens[index] = switch (index) {
         0 => HomeScreen(
           onNavigateToSearch: () => _onTabTapped(1),
-          onNavigateToBundles: (query) {
-            BundlesNavigation.targetQuery.value = query;
-            _onTabTapped(3);
+          onNavigateToExplore: (query) {
+            ExploreNavigation.targetQuery.value = query;
+            _onTabTapped(1);
           },
         ),
         1 => const SearchScreen(),
         2 => const ActivityScreen(),
-        3 => const BundlesScreen(),
+        3 => const MyGamesScreen(),
         4 => const ProfileScreen(),
         _ => const SizedBox.shrink(),
       };
@@ -335,7 +335,7 @@ class _MainScreenState extends State<MainScreen>
                 0 => AppRoutes.tabHome,
                 1 => AppRoutes.tabSearch,
                 2 => AppRoutes.tabActivity,
-                3 => AppRoutes.tabBundles,
+                3 => AppRoutes.tabMyGames,
                 4 => AppRoutes.tabProfile,
                 _ => AppRoutes.tabHome,
               };
@@ -406,7 +406,7 @@ class _MainScreenState extends State<MainScreen>
           const SizedBox(width: 16),
           _buildTopNavItem(2, 'Actividad'),
           const SizedBox(width: 16),
-          _buildTopNavItem(3, 'Bundles'),
+          _buildTopNavItem(3, 'Mis juegos'),
           const SizedBox(width: 16),
           _buildTopNavItem(4, 'Perfil'),
         ],
@@ -447,7 +447,7 @@ class _MainScreenState extends State<MainScreen>
                   const SizedBox(width: 16),
                   _buildPersona5RoyalTopNavItem(2, 'Actividad'),
                   const SizedBox(width: 16),
-                  _buildPersona5RoyalTopNavItem(3, 'Bundles'),
+                  _buildPersona5RoyalTopNavItem(3, 'Mis juegos'),
                   const SizedBox(width: 16),
                   _buildPersona5RoyalTopNavItem(4, 'Perfil'),
                 ],
@@ -574,7 +574,7 @@ class _MainScreenState extends State<MainScreen>
                       corpusNavTabItem(0, 'Inicio'),
                       corpusNavTabItem(1, 'Explorar'),
                       corpusNavTabItem(2, 'Actividad'),
-                      corpusNavTabItem(3, 'Bundles'),
+                      corpusNavTabItem(3, 'Mis juegos'),
                       corpusNavTabItem(4, 'Perfil'),
                     ],
                     selectedIndex: _currentIndex,
@@ -640,7 +640,7 @@ class _MainScreenState extends State<MainScreen>
   }
 
   Widget _buildPersona5RoyalNavBar(BuildContext context) {
-    const labels = ['Inicio', 'Explorar', 'Actividad', 'Bundles', 'Perfil'];
+    const labels = ['Inicio', 'Explorar', 'Actividad', 'Mis juegos', 'Perfil'];
 
     return SafeArea(
       top: false,
@@ -769,7 +769,7 @@ class _MainScreenState extends State<MainScreen>
               _solidNavItem(0, 'Inicio'),
               _solidNavItem(1, 'Explorar'),
               _solidNavItem(2, 'Actividad', badge: true),
-              _solidNavItem(3, 'Bundles'),
+              _solidNavItem(3, 'Mis juegos'),
               _solidNavItem(4, 'Perfil', badge: true),
             ],
           );
@@ -829,7 +829,7 @@ class _MainScreenState extends State<MainScreen>
                         _solidNavItem(0, 'Inicio'),
                         _solidNavItem(1, 'Explorar'),
                         _solidNavItem(2, 'Actividad', badge: true),
-                        _solidNavItem(3, 'Bundles'),
+                        _solidNavItem(3, 'Mis juegos'),
                         _solidNavItem(4, 'Perfil', badge: true),
                       ],
                     ),

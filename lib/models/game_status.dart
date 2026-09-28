@@ -11,11 +11,32 @@ import 'package:corpus/widgets/corpus_icon_kind.dart';
 /// Refleja el enum `public.game_status` de Supabase.
 enum GameStatus {
   wishlist,
+  toPlay,
   playing,
   beaten,
   completed,
   abandoned,
   onHold;
+
+  /// Orden en el selector de reseñas y chips de perfil.
+  static const List<GameStatus> pickerOrder = [
+    wishlist,
+    toPlay,
+    playing,
+    beaten,
+    completed,
+    abandoned,
+    onHold,
+  ];
+
+  /// Orden de secciones en el perfil (sin on_hold).
+  static const List<GameStatus> profileSectionOrder = [
+    playing,
+    toPlay,
+    beaten,
+    wishlist,
+    completed,
+  ];
 
   /// Convierte el string de la BD al enum de Dart.
   /// Lanza [ArgumentError] si el valor es desconocido.
@@ -25,8 +46,13 @@ enum GameStatus {
       case 'wishlist':
       case 'want':
       case 'quiero':
-      case 'backlog':
         return GameStatus.wishlist;
+      case 'to_play':
+      case 'por jugar':
+      case 'toplay':
+        return GameStatus.toPlay;
+      case 'backlog':
+        return GameStatus.toPlay;
       case 'playing':
       case 'jugando':
       case 'in progress':
@@ -88,6 +114,7 @@ enum GameStatus {
   /// Representación para enviar a Supabase (coincide con el valor del enum en BD).
   String get dbValue => switch (this) {
     GameStatus.wishlist => 'wishlist',
+    GameStatus.toPlay => 'to_play',
     GameStatus.playing => 'playing',
     GameStatus.beaten => 'beaten',
     GameStatus.completed => 'completed',
@@ -103,7 +130,8 @@ enum GameStatus {
 
   /// Etiqueta legible para mostrar en UI.
   String get label => switch (this) {
-    GameStatus.wishlist => 'Quiero jugarlo',
+    GameStatus.wishlist => 'Wishlist',
+    GameStatus.toPlay => 'Por jugar',
     GameStatus.playing => 'Jugando',
     GameStatus.beaten => 'Terminado',
     GameStatus.completed => 'Platino',
@@ -113,7 +141,8 @@ enum GameStatus {
 
   /// Etiqueta corta para botones/chips.
   String get shortLabel => switch (this) {
-    GameStatus.wishlist => 'Quiero',
+    GameStatus.wishlist => 'Wishlist',
+    GameStatus.toPlay => 'Por jugar',
     GameStatus.playing => 'Jugando',
     GameStatus.beaten => 'Terminado',
     GameStatus.completed => 'Platino',
@@ -124,6 +153,7 @@ enum GameStatus {
   /// Icono representativo para UI.
   CorpusIconKind get icon => switch (this) {
     GameStatus.wishlist => CorpusIconKind.Favorite,
+    GameStatus.toPlay => CorpusIconKind.Bookmark,
     GameStatus.playing => CorpusIconKind.VideogameAsset,
     GameStatus.beaten => CorpusIconKind.CheckCircle,
     GameStatus.completed => CorpusIconKind.EmojiEvents,
@@ -134,6 +164,7 @@ enum GameStatus {
   /// Color del estado contextual al tema de Flutter.
   Color color(BuildContext context) => switch (this) {
     GameStatus.wishlist => Theme.of(context).colorScheme.primary,
+    GameStatus.toPlay => Colors.green,
     GameStatus.playing => Colors.blueAccent,
     GameStatus.beaten => Theme.of(context).colorScheme.secondary,
     GameStatus.completed => Colors.amber,
@@ -143,7 +174,8 @@ enum GameStatus {
 
   /// Icono emoji representativo para UI compacta.
   String get emoji => switch (this) {
-    GameStatus.wishlist => '🎮',
+    GameStatus.wishlist => '💜',
+    GameStatus.toPlay => '📋',
     GameStatus.playing => '▶️',
     GameStatus.beaten => '✅',
     GameStatus.completed => '🏆',

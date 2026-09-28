@@ -31,6 +31,9 @@ class CorpusTablerIcon extends StatelessWidget {
   const CorpusTablerIcon.tag({super.key, this.size, this.color})
       : kind = CorpusIconKind.Tag;
 
+  const CorpusTablerIcon.gamepad({super.key, this.size, this.color})
+      : kind = CorpusIconKind.Gamepad;
+
   const CorpusTablerIcon.user({super.key, this.size, this.color})
       : kind = CorpusIconKind.Person;
 
@@ -104,15 +107,32 @@ class CorpusTablerIcon extends StatelessWidget {
     final resolvedColor =
         color ?? theme.color ?? Theme.of(context).colorScheme.onSurfaceVariant;
 
-    return SizedBox(
-      width: resolvedSize,
-      height: resolvedSize,
-      child: ColorFiltered(
-        colorFilter: ColorFilter.mode(resolvedColor, BlendMode.srcIn),
-        child: buildTablerSvg(kind, resolvedSize),
+    return ClipRect(
+      child: SizedBox(
+        width: resolvedSize,
+        height: resolvedSize,
+        child: Center(
+          child: ColorFiltered(
+            colorFilter: ColorFilter.mode(resolvedColor, BlendMode.srcIn),
+            child: buildTablerSvg(kind, resolvedSize),
+          ),
+        ),
       ),
     );
   }
+}
+
+/// Prefix icon for [InputDecoration] — prevents the default 48×48 slot from
+/// stretching custom SVG icons on web.
+Widget corpusInputPrefixIcon(
+  CorpusIconKind kind, {
+  double size = 20,
+  Color? color,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(left: 12, right: 4),
+    child: CorpusTablerIcon(kind, size: size, color: color),
+  );
 }
 
 /// Shorthand for [CorpusTablerIcon].

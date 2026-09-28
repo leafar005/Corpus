@@ -14,6 +14,10 @@ import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_tabler_icon.dart';
 
+class ExploreNavigation {
+  static final targetQuery = ValueNotifier<String?>(null);
+}
+
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
   final bool isSelectionMode;
@@ -55,17 +59,32 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
     super.initState();
     initPagination();
     _fetchUserGamesCache();
-    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+
+    final externalQuery = ExploreNavigation.targetQuery.value;
+    if (externalQuery != null && externalQuery.isNotEmpty) {
+      _searchController.text = externalQuery;
+      ExploreNavigation.targetQuery.value = null;
+      _performSearch(isInitial: true);
+    } else if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
       _searchController.text = widget.initialQuery!;
       _performSearch(isInitial: true);
     } else {
       _fetchPopularGames(isInitial: true);
       _fetchBundles();
     }
+    ExploreNavigation.targetQuery.addListener(_onExternalSearch);
     // Solo la instancia raíz del tab Explorar escucha la señal de scroll-al-inicio.
     if (widget.initialQuery == null && !widget.isSelectionMode) {
       tabScrollToTopNotifiers[1].addListener(_onScrollToTop);
     }
+  }
+
+  void _onExternalSearch() {
+    final query = ExploreNavigation.targetQuery.value;
+    if (query == null || query.isEmpty) return;
+    _searchController.text = query;
+    ExploreNavigation.targetQuery.value = null;
+    _performSearch(isInitial: true);
   }
 
   @override
@@ -79,6 +98,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
 
   @override
   void dispose() {
+    ExploreNavigation.targetQuery.removeListener(_onExternalSearch);
     if (widget.initialQuery == null && !widget.isSelectionMode) {
       tabScrollToTopNotifiers[1].removeListener(_onScrollToTop);
     }

@@ -124,6 +124,9 @@ class ReviewModal {
     final DateTime? initialReviewDate = reviewDate;
     final String initialReviewStatus = reviewStatus;
 
+    bool isCollectionOnlyStatus(String s) =>
+        s == GameStatus.wishlist.dbValue || s == GameStatus.toPlay.dbValue;
+
     /// Aplica un cambio de estado desde los chips de "Estado".
     /// Actualiza la fecha a hoy siempre que el estado cambie, pero si
     /// se vuelve al estado original, se restaura la fecha original.
@@ -868,7 +871,7 @@ class ReviewModal {
                                 const SizedBox(height: 12),
                                 statusButton(
                                   'wishlist',
-                                  'Quiero',
+                                  GameStatus.wishlist.shortLabel,
                                   CorpusIconKind.Favorite,
                                   '',
                                   statusColor('wishlist'),
@@ -879,8 +882,20 @@ class ReviewModal {
                                 ),
                                 const SizedBox(height: 8),
                                 statusButton(
+                                  'to_play',
+                                  GameStatus.toPlay.shortLabel,
+                                  CorpusIconKind.Bookmark,
+                                  '',
+                                  statusColor('to_play'),
+                                  (v) {
+                                    applyStatusChange(v);
+                                    statusStepConfirmed = true;
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                statusButton(
                                   'playing',
-                                  'Jugando',
+                                  GameStatus.playing.shortLabel,
                                   CorpusIconKind.VideogameAsset,
                                   '',
                                   statusColor('playing'),
@@ -892,7 +907,7 @@ class ReviewModal {
                                 const SizedBox(height: 8),
                                 statusButton(
                                   'beaten',
-                                  'Terminado',
+                                  GameStatus.beaten.shortLabel,
                                   CorpusIconKind.CheckCircle,
                                   '',
                                   statusColor('beaten'),
@@ -904,7 +919,7 @@ class ReviewModal {
                                 const SizedBox(height: 8),
                                 statusButton(
                                   'abandoned',
-                                  'Abandonado',
+                                  GameStatus.abandoned.shortLabel,
                                   CorpusIconKind.CancelOutlined,
                                   '',
                                   statusColor('abandoned'),
@@ -1256,7 +1271,7 @@ class ReviewModal {
                                 ],
 
                                 // ── Información extra (plataforma, tiempo, fechas) ─
-                                if (reviewStatus != 'wishlist') ...[
+                                if (!isCollectionOnlyStatus(reviewStatus)) ...[
                                   if (reviewStatus == 'playing') ...[
                                     Text(
                                       'Información Extra',
@@ -1314,11 +1329,13 @@ class ReviewModal {
                                     ratingVisuals: reviewRatingVisuals,
                                     comment: reviewCommentController.text,
                                     status: reviewStatus,
-                                    completionType: reviewStatus == 'wishlist'
+                                    completionType: isCollectionOnlyStatus(
+                                          reviewStatus,
+                                        )
                                         ? 'none'
                                         : reviewCompletionType,
                                     isReplay:
-                                        !(reviewStatus == 'wishlist') &&
+                                        !isCollectionOnlyStatus(reviewStatus) &&
                                         reviewIsReplay,
                                     replayNumber: reviewIsReplay
                                         ? reviewReplayNumber
@@ -1365,7 +1382,7 @@ class ReviewModal {
                                   ).scaffoldBackgroundColor,
                                 )
                               : Text(
-                                  reviewStatus == 'wishlist' ||
+                                  isCollectionOnlyStatus(reviewStatus) ||
                                           reviewStatus == 'playing'
                                       ? 'Guardar'
                                       : 'Guardar Reseña',

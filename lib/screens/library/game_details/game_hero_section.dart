@@ -202,6 +202,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
         return Colors.blueAccent;
       case 'wishlist':
         return Theme.of(context).colorScheme.primary;
+      case 'to_play':
+        return Colors.green;
       default:
         return Theme.of(context).colorScheme.onSurfaceVariant;
     }
@@ -214,6 +216,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       case 'playing':
         return CorpusIconKind.SportsEsports;
       case 'wishlist':
+        return CorpusIconKind.Bookmark;
+      case 'to_play':
         return CorpusIconKind.Bookmark;
       case 'abandoned':
         return CorpusIconKind.Cancel;
@@ -232,6 +236,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
         return 'Jugando';
       case 'wishlist':
         return 'Lo quiere';
+      case 'to_play':
+        return 'Por jugar';
       case 'abandoned':
         return 'Abandonado';
       case 'on_hold':
@@ -344,8 +350,11 @@ class _GameHeroSectionState extends State<GameHeroSection> {
         case 'playing':
           btnText = 'Jugando';
           break;
+        case 'to_play':
+          btnText = 'Por jugar';
+          break;
         case 'wishlist':
-          btnText = 'Quiero';
+          btnText = GameStatus.wishlist.shortLabel;
           break;
         case 'abandoned':
           btnText = 'Abandonado';
@@ -381,10 +390,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                           ratingNarrative: 0,
                           ratingSoundtrack: 0,
                           ratingVisuals: 0,
-                          status: GameStatus.values.firstWhere(
-                            (e) => e.name == widget.status,
-                            orElse: () => GameStatus.wishlist,
-                          ),
+                          status: GameStatus.fromStringOrDefault(widget.status),
                           completionType: '',
                           isReplay: false,
                           createdAt: DateTime.now(),
@@ -475,10 +481,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                     ratingNarrative: 0,
                     ratingSoundtrack: 0,
                     ratingVisuals: 0,
-                    status: GameStatus.values.firstWhere(
-                      (e) => e.name == widget.status,
-                      orElse: () => GameStatus.wishlist,
-                    ),
+                    status: GameStatus.fromStringOrDefault(widget.status),
                     completionType: '',
                     isReplay: false,
                     createdAt: DateTime.now(),

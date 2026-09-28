@@ -170,41 +170,51 @@ class _BundlesScreenState extends State<BundlesScreen> {
           preferredSize: const Size.fromHeight(60.0),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Buscar bundle o juego...',
-                prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const CorpusTablerIcon(CorpusIconKind.Clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                          _refresh();
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: ext.radiusMedium,
-                  borderSide: BorderSide.none,
+            child: SizedBox(
+              height: 44,
+              child: TextField(
+                controller: _searchController,
+                textAlignVertical: TextAlignVertical.center,
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'Buscar bundle o juego...',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  prefixIconConstraints: const BoxConstraints(),
+                  prefixIcon: corpusInputPrefixIcon(CorpusIconKind.Search),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const CorpusTablerIcon(
+                            CorpusIconKind.Clear,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                            _refresh();
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: ext.radiusMedium,
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
                 ),
-                filled: true,
-                fillColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest,
-              ),
-              onChanged: (value) {
-                if (_debounce?.isActive ?? false) _debounce!.cancel();
-                _debounce = Timer(const Duration(milliseconds: 500), () {
-                  setState(() {
-                    _searchQuery = value.trim();
+                onChanged: (value) {
+                  if (_debounce?.isActive ?? false) _debounce!.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 500), () {
+                    setState(() {
+                      _searchQuery = value.trim();
+                    });
+                    _refresh();
                   });
-                  _refresh();
-                });
-              },
+                },
+              ),
             ),
           ),
         ),

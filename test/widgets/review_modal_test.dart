@@ -24,7 +24,7 @@ void main() {
 
   group('ReviewModal Widget Tests (Prioridad 4 - Modal de Reseñas)', () {
     testWidgets(
-      'Al pulsar el chip "Quiero" (wishlist), los sliders de nota, tiempo jugadas y fechas desaparecen al instante',
+      'Al pulsar el chip "Wishlist", los sliders de nota, tiempo jugadas y fechas desaparecen al instante',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -68,7 +68,7 @@ void main() {
                               required List<String> existingImages,
                               required List<String> partnerIds,
                               required DateTime? reviewDate,
-                            }) async {},
+                            }) async => true,
                       );
                     },
                     child: const Text('Abrir Modal'),
@@ -90,10 +90,10 @@ void main() {
         expect(find.text('Desglosar nota'), findsOneWidget);
         expect(find.text('Información Extra'), findsOneWidget);
 
-        // 2. Volver al selector y pulsar "Quiero" (wishlist)
+        // 2. Volver al selector y pulsar "Wishlist"
         await tester.tap(findCorpusIcon(CorpusIconKind.ArrowBack));
         await tester.pump();
-        await tester.tap(find.text('Quiero'));
+        await tester.tap(find.text('Wishlist'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
 
@@ -103,7 +103,7 @@ void main() {
         expect(find.text('Información Extra'), findsNothing);
 
         // El estado seleccionado y el botón de guardar siguen presentes
-        expect(find.text('Quiero'), findsOneWidget);
+        expect(find.text('Wishlist'), findsOneWidget);
         expect(find.text('Guardar'), findsOneWidget);
 
         // 4. Cambiar a "Terminado" y verificar que reaparecen
@@ -162,7 +162,7 @@ void main() {
                               required List<String> existingImages,
                               required List<String> partnerIds,
                               required DateTime? reviewDate,
-                            }) async {},
+                            }) async => true,
                       );
                     },
                     child: const Text('Abrir Modal'),

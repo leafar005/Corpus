@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../routes/deep_route_resolver.dart';
+import '../screens/library/search_screen.dart';
 import '../screens/activity/review_details_screen.dart';
-import '../screens/bundles/bundles_screen.dart';
 import '../screens/library/game_details_screen.dart';
 
 /// Navegación global para deep links (notificaciones push), independiente
@@ -16,8 +16,7 @@ class DeepLinkService {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
-  /// Pestaña pendiente de abrir en MainScreen (3 = Bundles).
-  /// Mismo patrón que BundlesNavigation.targetQuery.
+  /// Pestaña pendiente de abrir en MainScreen (1 = Explorar para bundles).
   static final ValueNotifier<int?> pendingTab = ValueNotifier<int?>(null);
 
   /// Punto de entrada único: recibe el `data` de un RemoteMessage FCM
@@ -107,8 +106,8 @@ class DeepLinkService {
 
   static void _openBundles(String? bundleTitle) {
     if (bundleTitle != null && bundleTitle.isNotEmpty) {
-      BundlesNavigation.targetQuery.value = bundleTitle;
+      ExploreNavigation.targetQuery.value = bundleTitle;
     }
-    pendingTab.value = 3;
+    pendingTab.value = 1;
   }
 }

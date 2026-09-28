@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
-enum ProfileStatIconType { beaten, platinum, playing, wishlist }
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
+enum ProfileStatIconType { beaten, platinum, playing, toPlay, wishlist }
 
 class ProfileStatIcon extends StatelessWidget {
   const ProfileStatIcon({
@@ -32,8 +33,15 @@ class ProfileStatIcon extends StatelessWidget {
         color ??
         Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
 
-    return SvgPicture.string(
-      '''
+    if (type == ProfileStatIconType.toPlay) {
+      return CorpusTablerIcon(
+        CorpusIconKind.Bookmark,
+        size: size,
+        color: iconColor,
+      );
+    }
+
+    return SvgPicture.string(      '''
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
   <path d="${_paths[type]!}" />
 </svg>

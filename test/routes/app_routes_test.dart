@@ -10,7 +10,8 @@ void main() {
       expect(AppRoutes.tabIndexFromPublicPath('/inicio'), 0);
       expect(AppRoutes.tabIndexFromPublicPath('/buscar'), 1);
       expect(AppRoutes.tabIndexFromPublicPath('/actividad'), 2);
-      expect(AppRoutes.tabIndexFromPublicPath('/bundles'), 3);
+      expect(AppRoutes.tabIndexFromPublicPath('/mis-juegos'), 3);
+      expect(AppRoutes.tabIndexFromPublicPath('/bundles'), 1);
       expect(AppRoutes.tabIndexFromPublicPath('/perfil'), 4);
     });
 

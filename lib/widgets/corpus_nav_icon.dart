@@ -22,7 +22,7 @@ class CorpusNavIcon extends StatelessWidget {
     1 when exploreAsSearch => CorpusTablerIcon.search(size: size, color: color),
     1 => CorpusTablerIcon.compass(size: size, color: color),
     2 => CorpusTablerIcon.users(size: size, color: color),
-    3 => CorpusTablerIcon.tag(size: size, color: color),
+    3 => CorpusTablerIcon.gamepad(size: size, color: color),
     4 => CorpusTablerIcon.userFilled(size: size, color: color),
     _ => CorpusTablerIcon.info(size: size, color: color),
   };

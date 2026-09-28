@@ -22,12 +22,12 @@ import 'controller/home_controller.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSearch;
-  final Function(String)? onNavigateToBundles;
+  final Function(String)? onNavigateToExplore;
 
   const HomeScreen({
     super.key,
     this.onNavigateToSearch,
-    this.onNavigateToBundles,
+    this.onNavigateToExplore,
   });
 
   @override

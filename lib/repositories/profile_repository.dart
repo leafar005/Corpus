@@ -9,6 +9,8 @@ class ProfileData {
     required this.wishlistCount,
     required this.playingGames,
     required this.playingCount,
+    required this.toPlayGames,
+    required this.toPlayCount,
     required this.beatenGames,
     required this.beatenCount,
     required this.platinumGames,
@@ -23,6 +25,8 @@ class ProfileData {
   final int wishlistCount;
   final List<Map<String, dynamic>> playingGames;
   final int playingCount;
+  final List<Map<String, dynamic>> toPlayGames;
+  final int toPlayCount;
   final List<Map<String, dynamic>> beatenGames;
   final int beatenCount;
   final List<Map<String, dynamic>> platinumGames;
@@ -41,6 +45,8 @@ class ProfileData {
     int? wishlistCount,
     List<Map<String, dynamic>>? playingGames,
     int? playingCount,
+    List<Map<String, dynamic>>? toPlayGames,
+    int? toPlayCount,
     List<Map<String, dynamic>>? beatenGames,
     int? beatenCount,
     List<Map<String, dynamic>>? platinumGames,
@@ -55,6 +61,8 @@ class ProfileData {
       wishlistCount: wishlistCount ?? this.wishlistCount,
       playingGames: playingGames ?? this.playingGames,
       playingCount: playingCount ?? this.playingCount,
+      toPlayGames: toPlayGames ?? this.toPlayGames,
+      toPlayCount: toPlayCount ?? this.toPlayCount,
       beatenGames: beatenGames ?? this.beatenGames,
       beatenCount: beatenCount ?? this.beatenCount,
       platinumGames: platinumGames ?? this.platinumGames,
@@ -153,6 +161,18 @@ class ProfileRepository {
           .from('user_games')
           .select('*, games!inner(*)')
           .eq('user_id', userId)
+          .eq('status', 'to_play')
+          .order('updated_at', ascending: false)
+          .limit(20),
+      _client
+          .from('user_games')
+          .select('user_id')
+          .eq('user_id', userId)
+          .eq('status', 'to_play'),
+      _client
+          .from('user_games')
+          .select('*, games!inner(*)')
+          .eq('user_id', userId)
           .eq('status', 'beaten')
           .order('last_played_at', ascending: false, nullsFirst: false)
           .limit(20),
@@ -205,14 +225,16 @@ class ProfileRepository {
     final wishlistCountRes = results[1] as List<dynamic>;
     final playingRes = results[2] as List<dynamic>;
     final playingCountRes = results[3] as List<dynamic>;
-    final beatenRes = results[4] as List<dynamic>;
-    final beatenCountRes = results[5] as List<dynamic>;
-    final platinumRes = results[6] as List<dynamic>;
-    final platinumCountRes = results[7] as List<dynamic>;
-    final rawHallOfFame = results[8] as List<dynamic>;
-    final ratingsRes = results[9] as List<dynamic>;
-    final friendshipsRes = results[10] as List<dynamic>;
-    final completionTypesRes = results[11] as List<dynamic>;
+    final toPlayRes = results[4] as List<dynamic>;
+    final toPlayCountRes = results[5] as List<dynamic>;
+    final beatenRes = results[6] as List<dynamic>;
+    final beatenCountRes = results[7] as List<dynamic>;
+    final platinumRes = results[8] as List<dynamic>;
+    final platinumCountRes = results[9] as List<dynamic>;
+    final rawHallOfFame = results[10] as List<dynamic>;
+    final ratingsRes = results[11] as List<dynamic>;
+    final friendshipsRes = results[12] as List<dynamic>;
+    final completionTypesRes = results[13] as List<dynamic>;
 
     // Mapa de game_id → completion_type para enriquecer las listas
     final completionTypeMap = <int, String>{};
@@ -236,6 +258,11 @@ class ProfileRepository {
         completionTypeMap: completionTypeMap,
       ),
       playingCount: playingCountRes.length,
+      toPlayGames: _enrichList(
+        toPlayRes,
+        completionTypeMap: completionTypeMap,
+      ),
+      toPlayCount: toPlayCountRes.length,
       beatenGames: _enrichList(
         beatenRes,
         useLastPlayed: true,

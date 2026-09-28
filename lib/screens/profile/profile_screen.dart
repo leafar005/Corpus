@@ -50,6 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? get _userProfile => _controller.userProfile;
   List<Map<String, dynamic>> get _wishlistGames => _controller.wishlistGames;
   List<Map<String, dynamic>> get _playingGames => _controller.playingGames;
+  List<Map<String, dynamic>> get _toPlayGames => _controller.toPlayGames;
   List<Map<String, dynamic>> get _beatenGames => _controller.beatenGames;
   List<Map<String, dynamic>> get _platinumGames => _controller.platinumGames;
   List<double> get _ratings => _controller.ratings;
@@ -1191,6 +1192,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildGiantStatsRow({bool isMobile = false}) {
     final stats = [
       _buildGiantStat(
+        _controller.playingCount.toString().padLeft(3, '0'),
+        'Jugando',
+        ProfileStatIconType.playing,
+        () {
+          setState(() {
+            _juegosStatusFilter = 'playing';
+            _selectedTab = 1;
+          });
+          _scrollToTabs();
+        },
+      ),
+      _buildGiantStat(
         _controller.beatenCount.toString().padLeft(3, '0'),
         'Completados',
         ProfileStatIconType.beaten,
@@ -1200,6 +1213,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _selectedTab = 1;
           });
           _scrollToTabs();
+        },
+      ),
+      _buildGiantStat(
+        _controller.wishlistCount.toString().padLeft(3, '0'),
+        'Wishlist',
+        ProfileStatIconType.wishlist,
+        () {
+          if (_controller.wishlistCount > 0) {
+            setState(() {
+              _juegosStatusFilter = 'wishlist';
+              _selectedTab = 1;
+            });
+            _scrollToTabs();
+          }
         },
       ),
       _buildGiantStat(
@@ -1214,59 +1241,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _scrollToTabs();
         },
       ),
-      _buildGiantStat(
-        _controller.playingCount.toString().padLeft(3, '0'),
-        'Jugando',
-        ProfileStatIconType.playing,
-        () {
-          setState(() {
-            _juegosStatusFilter = 'playing';
-            _selectedTab = 1;
-          });
-          _scrollToTabs();
-        },
-      ),
-      _buildGiantStat(
-        _controller.wishlistCount.toString().padLeft(3, '0'),
-        'En Wishlist',
-        ProfileStatIconType.wishlist,
-        () {
-          if (_controller.wishlistCount > 0) {
-            setState(() {
-              _juegosStatusFilter = 'wishlist';
-              _selectedTab = 1;
-            });
-            _scrollToTabs();
-          }
-        },
-      ),
     ];
 
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0),
-      child: isMobile
-          ? Column(
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(child: Center(child: stats[0])),
-                    Expanded(child: Center(child: stats[1])),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(child: Center(child: stats[2])),
-                    Expanded(child: Center(child: stats[3])),
-                  ],
-                ),
+                Expanded(child: Center(child: stats[0])),
+                Expanded(child: Center(child: stats[1])),
               ],
-            )
-          : Row(
-              children: stats
-                  .map((stat) => Expanded(child: Center(child: stat)))
-                  .toList(),
             ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(child: Center(child: stats[2])),
+                Expanded(child: Center(child: stats[3])),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.zero,
+      child: Row(
+        children: stats
+            .map((stat) => Expanded(child: Center(child: stat)))
+            .toList(),
+      ),
     );
   }
 
@@ -1658,16 +1664,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_wishlistGames.isNotEmpty) ...[
-          _buildSectionTitle(
-            'Quiero',
-            _controller.wishlistCount,
-            'wishlist',
-            iconType: ProfileStatIconType.wishlist,
-          ),
-          _buildCarousel(_wishlistGames),
-          const SizedBox(height: 24),
-        ],
         if (_playingGames.isNotEmpty) ...[
           _buildSectionTitle(
             'Jugando',
@@ -1678,6 +1674,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildCarousel(_playingGames),
           const SizedBox(height: 24),
         ],
+        if (_toPlayGames.isNotEmpty) ...[
+          _buildSectionTitle(
+            'Por jugar',
+            _controller.toPlayCount,
+            'to_play',
+            iconType: ProfileStatIconType.toPlay,
+          ),
+          _buildCarousel(_toPlayGames),
+          const SizedBox(height: 24),
+        ],
         if (_beatenGames.isNotEmpty) ...[
           _buildSectionTitle(
             'Completados',
@@ -1686,6 +1692,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             iconType: ProfileStatIconType.beaten,
           ),
           _buildCarousel(_beatenGames),
+          const SizedBox(height: 24),
+        ],
+        if (_wishlistGames.isNotEmpty) ...[
+          _buildSectionTitle(
+            'Wishlist',
+            _controller.wishlistCount,
+            'wishlist',
+            iconType: ProfileStatIconType.wishlist,
+          ),
+          _buildCarousel(_wishlistGames),
           const SizedBox(height: 24),
         ],
         if (_platinumGames.isNotEmpty) ...[
@@ -1701,6 +1717,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (_beatenGames.isEmpty &&
             _platinumGames.isEmpty &&
             _playingGames.isEmpty &&
+            _toPlayGames.isEmpty &&
             _wishlistGames.isEmpty) ...[
           Center(
             child: Padding(

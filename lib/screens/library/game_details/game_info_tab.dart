@@ -311,7 +311,7 @@ class GameInfoTab extends StatelessWidget {
               statCard(
                 CorpusIconKind.Favorite,
                 want.toString(),
-                'Quiero',
+                GameStatus.wishlist.shortLabel,
                 Theme.of(context).colorScheme.primary,
               ),
             if (playing != null)

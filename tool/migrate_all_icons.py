@@ -276,7 +276,7 @@ def generate_builders(icons: list[str]) -> str:
 
     body = "\n".join(cases) if cases else "    _ => tabler.InfoCircle(width: s, height: s, strokeWidth: sw),"
     return f"""import 'package:flutter/widgets.dart';
-import 'package:tabler_icons_next/tabler_icons_next.dart' as tabler;
+import 'tabler_icons.dart' as tabler;
 import 'corpus_icon_kind.dart';
 
 /// Raw Tabler SVG widgets (no tinting — [CorpusTablerIcon] applies color).
@@ -288,6 +288,33 @@ Widget buildTablerSvg(CorpusIconKind kind, double size) {{
   }};
 }}
 """
+
+
+def _tabler_class_names() -> list[str]:
+    names = set(re.findall(r"tabler\.([A-Z][A-Za-z0-9]*)", "\n".join(TABLER_MAP.values())))
+    names.update(re.findall(r"tabler\.([A-Z][A-Za-z0-9]*)", DEFAULT_TABLER))
+    return sorted(names)
+
+
+def _pascal_to_snake(name: str) -> str:
+    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+    s = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s)
+    return s.lower()
+
+
+def generate_tabler_barrel() -> str:
+    lines = [
+        "// Local barrel: import only the Tabler icons Corpus uses.",
+        "//",
+        "// Do NOT import package:tabler_icons_next/tabler_icons_next.dart — that",
+        "// barrel re-exports ~6000 icon libraries. Flutter web debug (DDC) loads",
+        "// each as a separate JS module and Chrome hits ERR_INSUFFICIENT_RESOURCES.",
+        "// ignore_for_file: implementation_imports",
+        "",
+    ]
+    for name in _tabler_class_names():
+        lines.append(f"export 'package:tabler_icons_next/src/{_pascal_to_snake(name)}.dart';")
+    return "\n".join(lines) + "\n"
 
 
 def generate_corpus_tabler_icon() -> str:
@@ -499,6 +526,7 @@ def main() -> int:
     (WIDGETS / "corpus_icon_kind.dart").write_text(generate_kind_enum(all_icons), encoding="utf-8")
     (WIDGETS / "corpus_tabler_icon_builders.dart").write_text(generate_builders(all_icons), encoding="utf-8")
     (WIDGETS / "corpus_tabler_icon.dart").write_text(generate_corpus_tabler_icon(), encoding="utf-8")
+    (WIDGETS / "tabler_icons.dart").write_text(generate_tabler_barrel(), encoding="utf-8")
 
     changed = 0
     for path in sorted(LIB.rglob("*.dart")):
