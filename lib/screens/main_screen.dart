@@ -352,20 +352,27 @@ class _MainScreenState extends State<MainScreen>
 
   String _getDynamicLogoFullPath(BuildContext context) {
     final color = themeNotifier.seedColor;
-    if (color.value == Colors.orange.value)
+    if (color == Colors.orange) {
       return 'assets/images/logo_full/logo_full_orange.png';
-    if (color.value == Colors.amber.value)
+    }
+    if (color == Colors.amber) {
       return 'assets/images/logo_full/logo_full_amber.png';
-    if (color.value == Colors.green.value)
+    }
+    if (color == Colors.green) {
       return 'assets/images/logo_full/logo_full_green.png';
-    if (color.value == Colors.teal.value)
+    }
+    if (color == Colors.teal) {
       return 'assets/images/logo_full/logo_full_teal.png';
-    if (color.value == Colors.blueAccent.value)
+    }
+    if (color == Colors.blueAccent) {
       return 'assets/images/logo_full/logo_full_blueAccent.png';
-    if (color.value == Colors.redAccent.value)
+    }
+    if (color == Colors.redAccent) {
       return 'assets/images/logo_full/logo_full_redAccent.png';
-    if (color.value == Colors.pinkAccent.value)
+    }
+    if (color == Colors.pinkAccent) {
       return 'assets/images/logo_full/logo_full_pinkAccent.png';
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return isDark
@@ -393,11 +400,17 @@ class _MainScreenState extends State<MainScreen>
       ),
       child: Row(
         children: [
-          Image.asset(
-            _getDynamicLogoFullPath(context),
-            height: 60,
-            filterQuality: FilterQuality.high,
-            isAntiAlias: true,
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => _onTabTapped(0),
+              child: Image.asset(
+                _getDynamicLogoFullPath(context),
+                height: 60,
+                filterQuality: FilterQuality.high,
+                isAntiAlias: true,
+              ),
+            ),
           ),
           const Spacer(),
           _buildTopNavItem(0, 'Inicio'),
@@ -434,11 +447,17 @@ class _MainScreenState extends State<MainScreen>
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Row(
                 children: [
-                  Image.asset(
-                    _getDynamicLogoFullPath(context),
-                    height: 24,
-                    filterQuality: FilterQuality.high,
-                    isAntiAlias: true,
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () => _onTabTapped(0),
+                      child: Image.asset(
+                        _getDynamicLogoFullPath(context),
+                        height: 24,
+                        filterQuality: FilterQuality.high,
+                        isAntiAlias: true,
+                      ),
+                    ),
                   ),
                   const Spacer(),
                   _buildPersona5RoyalTopNavItem(0, 'Inicio'),

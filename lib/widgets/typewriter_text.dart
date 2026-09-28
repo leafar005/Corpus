@@ -178,6 +178,7 @@ class _TypewriterTextState extends State<TypewriterText>
 
         if (_visibleChars <= commonPrefixLen) {
           // No hace falta borrar, el texto visible coincide con el nuevo
+          // IMPORTANTE: Actualizar _currentSpans de todas formas para que tome nuevos estilos (ej: color)
           _currentSpans = widget.spans;
           _totalChars = _plainText.length;
           _finished = false;
@@ -202,10 +203,21 @@ class _TypewriterTextState extends State<TypewriterText>
           _scheduleNext();
         }
       }
-    } else if (widget.instant && _visibleChars != _totalChars) {
-      _visibleChars = _totalChars;
-      _finished = true;
-      _cursorController.stop();
+    } else {
+      // El texto es idéntico, pero los estilos pueden haber cambiado.
+      // IMPORTANTE: si _currentPlainText != _plainText, significa que estamos
+      // en medio de un borrado (desvaneciendo el texto anterior). En ese caso
+      // NO debemos sobreescribir _currentSpans con el nuevo widget.spans,
+      // porque _currentSpans aún contiene el texto viejo que se está borrando.
+      if (_currentPlainText == _plainText || widget.instant) {
+        _currentSpans = widget.spans;
+      }
+      
+      if (widget.instant && _visibleChars != _totalChars) {
+        _visibleChars = _totalChars;
+        _finished = true;
+        _cursorController.stop();
+      }
     }
   }
 

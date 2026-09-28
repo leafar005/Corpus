@@ -163,6 +163,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
     showDialog(
       context: context,
       barrierDismissible: false,
+      routeSettings: const RouteSettings(name: 'loading_dialog'),
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
@@ -278,6 +279,16 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                     user['username'] as String? ??
                     '?';
                 final status = f['status'] as String? ?? 'wishlist';
+                final rating = f['rating'] != null
+                    ? double.tryParse(f['rating'].toString())
+                    : null;
+                String formattedRating = '';
+                if (rating != null) {
+                  formattedRating = rating == rating.truncateToDouble()
+                      ? rating.toInt().toString()
+                      : rating.toStringAsFixed(1);
+                }
+
                 final statusColor = _friendStatusColor(status);
                 final statusIcon = _friendStatusIcon(status);
                 return GestureDetector(
@@ -302,17 +313,44 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                         Positioned(
                           bottom: -2,
                           right: -2,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: statusColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: CorpusTablerIcon(statusIcon,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child:
+                              (status == 'beaten' || status == 'completed') &&
+                                  rating != null
+                              ? Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFF2EAE9,
+                                    ),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.black12,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    formattedRating,
+                                    style: const TextStyle(
+                                      color: Colors.black87,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: CorpusTablerIcon(
+                                    statusIcon,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ],
                     ),
@@ -507,6 +545,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                         TextButton(
                           onPressed: () {
                             Navigator.pop(context);
+                            AppNavigationController.instance
+                                .syncBrowserHistoryAfterProgrammaticPop();
                             widget.controller.deleteFromLibrary();
                             libraryUpdateNotifier.value++;
                             ScaffoldMessenger.of(context).showSnackBar(

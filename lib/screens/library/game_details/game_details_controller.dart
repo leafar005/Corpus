@@ -8,6 +8,7 @@
 // `notifyListeners()` al final del método (no una por campo).
 
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -17,14 +18,13 @@ import 'package:corpus/models/models.dart';
 import '../../../repositories/review_repository.dart';
 import '../../../services/igdb_service.dart';
 import '../../../services/duracionde_service.dart';
-
-class GameDetailsController extends ChangeNotifier {
+import '../../../utils/safe_change_notifier.dart';
+import 'package:corpus/globals.dart';
+class GameDetailsController extends SafeChangeNotifier {
   GameDetailsController(this.game) : _repo = ReviewRepository();
 
   final Game game;
   final ReviewRepository _repo;
-
-  bool _disposed = false;
 
   bool get isGuest => _repo.client.auth.currentUser == null;
   String? get currentUserId => _repo.client.auth.currentUser?.id;
@@ -75,6 +75,7 @@ class GameDetailsController extends ChangeNotifier {
   // ---- Preferencias del tab Info --------------------------------------------
   bool localizeLinks = true;
   List<String> infoTabOrder = const [
+    'franchise',
     'genres_themes',
     'platforms',
     'metacritic',
@@ -87,10 +88,10 @@ class GameDetailsController extends ChangeNotifier {
 
   StreamSubscription<AuthState>? _authSub;
 
-  /// Llamada segura a notifyListeners que no explota si el controller ya fue disposed.
-  void _notify() {
-    if (!_disposed) notifyListeners();
-  }
+  // ---- Carousel de screenshots ------------------------------------------
+  String? selectedScreenshotUrl;
+  Timer? _carouselTimer;
+  bool get hasCarouselStarted => _carouselTimer != null;
 
   /// Sustituye a la lógica repartida en initState (líneas 131-180).
   /// Dispara todos los fetch iniciales y escucha cambios de sesión.
@@ -126,19 +127,19 @@ class GameDetailsController extends ChangeNotifier {
       isLoadingUserData = false;
       isLoadingStashReviews = false;
       isLoadingStashStats = false;
-      _notify();
+      notify();
     } else {
       _fetchUserBatch(onUserDataLoaded: onUserDataLoaded);
     }
 
     // ── Listener de cambios de sesión ──────────────────────────────────────
     _authSub = _repo.client.auth.onAuthStateChange.listen((_) {
-      if (_disposed || _repo.client.auth.currentUser == null) return;
+      if (isDisposed || _repo.client.auth.currentUser == null) return;
       if (isLoadingUserData || userData != null) return;
       isLoadingUserData = true;
       isLoadingStashReviews = true;
       isLoadingStashStats = true;
-      _notify();
+      notify();
       _fetchUserBatch(onUserDataLoaded: onUserDataLoaded);
     });
   }
@@ -154,16 +155,65 @@ class GameDetailsController extends ChangeNotifier {
     ]);
     // StashStats después: el Edge Function de Stash es sensible a la carga
     // simultánea y conviene darle un respiro mínimo.
-    if (!_disposed) {
+    if (!isDisposed) {
       await Future.delayed(const Duration(milliseconds: 400));
-      if (!_disposed) fetchStashStats();
+      if (!isDisposed) fetchStashStats();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Carousel de screenshots
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Selecciona una screenshot aleatoria y arranca el timer de rotación.
+  ///
+  /// [forceInitialSwap]: si true, selecciona inmediatamente una screenshot
+  /// aleatoria antes de arrancar el timer.
+  void startCarousel(dynamic screenshotsData, {bool forceInitialSwap = true}) {
+    if (screenshotsData == null ||
+        screenshotsData is! List ||
+        screenshotsData.isEmpty) {
+      return;
+    }
+
+    if (forceInitialSwap) {
+      _selectRandomScreenshot(screenshotsData);
+    }
+
+    if (kDisableCarouselForTests) return;
+
+    if (screenshotsData.length > 1) {
+      _carouselTimer?.cancel();
+      _carouselTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+        if (isDisposed) {
+          timer.cancel();
+          return;
+        }
+        _selectRandomScreenshot(screenshotsData);
+      });
+    }
+  }
+
+  void _selectRandomScreenshot(List screenshotsData) {
+    if (screenshotsData.isEmpty) return;
+    final randomItem = screenshotsData[Random().nextInt(screenshotsData.length)];
+    String imageId = '';
+    if (randomItem is Map) {
+      imageId = randomItem['image_id']?.toString() ?? '';
+    } else {
+      imageId = randomItem.toString();
+    }
+
+    if (imageId.isNotEmpty) {
+      selectedScreenshotUrl = IGDBService.getScreenshotUrl(imageId);
+      notify();
     }
   }
 
   @override
   void dispose() {
-    _disposed = true;
     _authSub?.cancel();
+    _carouselTimer?.cancel();
     super.dispose();
   }
 
@@ -179,7 +229,7 @@ class GameDetailsController extends ChangeNotifier {
       metacriticScore = gameModel.metacriticScore;
       metacriticUrl = gameModel.metacriticUrl;
       metacriticUserScore = gameModel.metacriticUserScore;
-      _notify();
+      notify();
       return;
     }
 
@@ -190,7 +240,7 @@ class GameDetailsController extends ChangeNotifier {
     final cachedSlug = game.metacriticSlug ?? enrichedData['metacritic_slug'];
 
     isLoadingMetacritic = true;
-    _notify();
+    notify();
 
     try {
       final payload = <String, dynamic>{'gameTitle': title.toString()};
@@ -206,13 +256,9 @@ class GameDetailsController extends ChangeNotifier {
         final data = response.data as Map<String, dynamic>;
         metacriticScore = data['metascore'] as int?;
         metacriticUrl = data['url'] as String?;
-        double? uScore = data['user_score'] != null
+        metacriticUserScore = data['user_score'] != null
             ? (data['user_score'] as num).toDouble()
             : null;
-        if (uScore != null && uScore > 10) {
-          uScore = uScore / 10;
-        }
-        metacriticUserScore = uScore;
         metacriticCriticCount = data['critic_review_count'] as int?;
         metacriticUserRatingCount = data['user_rating_count'] as int?;
       } else {
@@ -222,7 +268,7 @@ class GameDetailsController extends ChangeNotifier {
       debugPrint('[Metacritic] Excepción: $e');
     } finally {
       isLoadingMetacritic = false;
-      _notify();
+      notify();
     }
   }
 
@@ -263,7 +309,7 @@ class GameDetailsController extends ChangeNotifier {
     localizeLinks = newLocalize;
     infoTabOrder = loadedOrder;
     infoTabHidden = newHidden;
-    _notify();
+    notify();
   }
 
   /// Origen: _fetchTimeToBeat, líneas 298-334.
@@ -301,7 +347,7 @@ class GameDetailsController extends ChangeNotifier {
 
     if (ttb != null) {
       timeToBeat = ttb;
-      _notify();
+      notify();
     }
   }
 
@@ -315,7 +361,7 @@ class GameDetailsController extends ChangeNotifier {
       // Silenciar error — los relacionados son opcionales
     } finally {
       isLoadingRelated = false;
-      _notify();
+      notify();
     }
   }
 
@@ -330,8 +376,11 @@ class GameDetailsController extends ChangeNotifier {
         myId: myId,
         gameId: gameId,
       );
-      friendsWithGame = friends;
-      _notify();
+      friendsWithGame = friends.where((f) {
+        final status = f['status'] as String?;
+        return status != 'abandoned' && status != 'wishlist';
+      }).toList();
+      notify();
     } catch (e) {
       debugPrint('[GameDetails] Error cargando amigos con el juego: $e');
     }
@@ -368,7 +417,7 @@ class GameDetailsController extends ChangeNotifier {
         hasCollection &&
         hasFranchises) {
       isEnriching = false;
-      _notify();
+      notify();
       return;
     }
 
@@ -376,7 +425,7 @@ class GameDetailsController extends ChangeNotifier {
 
     try {
       final game = await IGDBService.getGameById(igdbId);
-      if (game != null && !_disposed) {
+      if (game != null && !isDisposed) {
         // Extraer desarrollador
         String? developer;
         int? developerId;
@@ -390,19 +439,23 @@ class GameDetailsController extends ChangeNotifier {
             final dev = companies.firstWhere((c) => c['developer'] == true);
             developer = dev['company']['name'];
             developerId = dev['company']['id'];
-          } catch (_) {
+          } catch (e, st) {
+            debugPrint('[IGDB] No explicit developer found, using first company: $e\n$st');
             try {
               developer = companies[0]['company']['name'];
               developerId = companies[0]['company']['id'];
-            } catch (_) {}
+            } catch (e2, st2) {
+              debugPrint('[IGDB] Error extracting fallback developer: $e2\n$st2');
+            }
           }
           try {
             final pub = companies.firstWhere((c) => c['publisher'] == true);
             publisher = pub['company']['name'];
             publisherId = pub['company']['id'];
-          } catch (_) {
+          } catch (e, st) {
             // No hay publisher marcado explícitamente: lo dejamos vacío en
             // lugar de asumir uno, para no mostrar datos incorrectos.
+            debugPrint('[IGDB] No explicit publisher found: $e\n$st');
           }
           // Si el publisher coincide con el developer, no lo mostramos aparte
           // (evita duplicar "Nintendo · Nintendo" en la UI).
@@ -475,11 +528,15 @@ class GameDetailsController extends ChangeNotifier {
                     )
                     .toList()
               : [],
-          if (game['collection'] != null)
-            'collection': {
-              'id': game['collection']['id'],
-              'name': game['collection']['name'],
-            },
+          if (game['collection'] != null ||
+              (game['collections'] is List &&
+                  (game['collections'] as List).isNotEmpty))
+            'collection': () {
+              final Map col = game['collection'] != null
+                  ? game['collection'] as Map
+                  : (game['collections'] as List).first as Map;
+              return {'id': col['id'], 'name': col['name']};
+            }(),
           'franchises': game['franchises'] != null
               ? (game['franchises'] as List)
                     .map((f) => {'id': f['id'], 'name': f['name']})
@@ -489,30 +546,16 @@ class GameDetailsController extends ChangeNotifier {
               ? (game['game_engines'] as List).map((e) => e['name']).toList()
               : [],
         };
-        _notify();
+        notify();
 
         // Backfill perezoso: si la fila de `games` no tenía cover_url (u otros
         // campos clave) y ahora los hemos resuelto vía IGDB, los persistimos
         // para que listas y carruseles dejen de mostrar el placeholder.
-        final bool missingCoverInDb =
-            this.game.coverUrl == null || this.game.coverUrl!.isEmpty;
-
-        if (missingCoverInDb && enrichedData['cover_url'] != null) {
-          try {
-            await Supabase.instance.client
-                .from('games')
-                .update({
-                  'cover_url': enrichedData['cover_url'],
-                  if (enrichedData['summary'] != null)
-                    'summary': enrichedData['summary'],
-                  if (enrichedData['developer'] != null)
-                    'developer': enrichedData['developer'],
-                })
-                .eq('igdb_id', igdbId);
-          } catch (e) {
-            debugPrint('[CORPUS DEBUG] Error en backfill de cover_url: $e');
-          }
-        }
+        await _repo.backfillCoverUrl(
+          igdbId: igdbId,
+          enrichedData: enrichedData,
+          currentCoverUrl: this.game.coverUrl,
+        );
 
         // Notificar al screen para que maneje el carrusel de screenshots
         final List enrichedScreenshots = enrichedData['screenshots'] ?? [];
@@ -524,7 +567,7 @@ class GameDetailsController extends ChangeNotifier {
       debugPrint('[CORPUS DEBUG] Error enriching game data: $e');
     } finally {
       isEnriching = false;
-      _notify();
+      notify();
     }
   }
 
@@ -545,7 +588,7 @@ class GameDetailsController extends ChangeNotifier {
         gameId: igdbId,
       );
 
-      if (response != null && !_disposed) {
+      if (response != null && !isDisposed) {
         inLibrary = true;
         status = response['status'] ?? 'wishlist';
         rating = (response['rating'] ?? 0).toDouble();
@@ -562,7 +605,7 @@ class GameDetailsController extends ChangeNotifier {
               .map((p) => UserProfile.fromMap(p))
               .toList();
         }
-      } else if (!_disposed) {
+      } else if (!isDisposed) {
         final userResp = await _repo.fetchUserProfile(userId);
         userData = userResp;
       }
@@ -570,7 +613,7 @@ class GameDetailsController extends ChangeNotifier {
       debugPrint('[CORPUS] ERROR en fetchUserData: $e');
     } finally {
       isLoadingUserData = false;
-      _notify();
+      notify();
     }
   }
 
@@ -583,7 +626,7 @@ class GameDetailsController extends ChangeNotifier {
     try {
       final result = await _repo.fetchReviews(userId: userId, gameId: igdbId);
       reviews = result;
-      _notify();
+      notify();
     } catch (e) {
       debugPrint('[CORPUS] Error fetching reviews: $e');
     }
@@ -597,18 +640,18 @@ class GameDetailsController extends ChangeNotifier {
       final local = await _repo.fetchStashReviewsLocal(igdbId);
       stashReviews = local.reviews;
       isLoadingStashReviews = local.needsFetch;
-      _notify();
+      notify();
 
       if (local.needsFetch) {
         final updated = await _repo.refreshStashReviews(igdbId);
         if (updated != null) stashReviews = updated;
         isLoadingStashReviews = false;
-        _notify();
+        notify();
       }
     } catch (e) {
       debugPrint('[CORPUS DEBUG] Error fetching stash reviews: $e');
       isLoadingStashReviews = false;
-      _notify();
+      notify();
     }
   }
 
@@ -620,18 +663,18 @@ class GameDetailsController extends ChangeNotifier {
       final local = await _repo.fetchStashStatsLocal(igdbId);
       stashStats = local.stats;
       isLoadingStashStats = local.needsFetch;
-      _notify();
+      notify();
 
       if (local.needsFetch) {
         final updated = await _repo.refreshStashStats(igdbId);
         if (updated != null) stashStats = updated;
         isLoadingStashStats = false;
-        _notify();
+        notify();
       }
     } catch (e) {
       debugPrint('[CORPUS DEBUG] Error fetching stash stats: $e');
       isLoadingStashStats = false;
-      _notify();
+      notify();
     }
   }
 
@@ -668,12 +711,12 @@ class GameDetailsController extends ChangeNotifier {
   }) async {
     if (isSaving) throw Exception('Already saving');
     isSaving = true;
-    _notify();
+    notify();
 
     final userId = currentUserId;
     if (userId == null) {
       isSaving = false;
-      _notify();
+      notify();
       throw Exception('Not logged in');
     }
     final igdbId = game.igdbId;
@@ -714,13 +757,14 @@ class GameDetailsController extends ChangeNotifier {
       this.ratingSoundtrack = ratingSoundtrack;
       this.ratingVisuals = ratingVisuals;
 
-      // Fetch reviews without awaiting, as in the screen logic
+      // Fetch reviews and user data (to update partners) without awaiting
       fetchReviews();
+      fetchUserData();
 
       return result;
     } finally {
       isSaving = false;
-      _notify();
+      notify();
     }
   }
 
@@ -739,7 +783,8 @@ class GameDetailsController extends ChangeNotifier {
     ratingNarrative = 0;
     ratingSoundtrack = 0;
     ratingVisuals = 0;
-    _notify();
+    partnersData.clear();
+    notify();
   }
 
   Future<bool> deleteReview(Review review) async {
@@ -751,8 +796,13 @@ class GameDetailsController extends ChangeNotifier {
     );
 
     reviews.removeWhere((r) => r.id == review.id);
-    if (removedFromLibrary) inLibrary = false;
-    _notify();
+    if (removedFromLibrary) {
+      inLibrary = false;
+      partnersData.clear();
+    } else {
+      fetchUserData(); // Refresh global partners
+    }
+    notify();
     return removedFromLibrary;
   }
 
@@ -763,7 +813,7 @@ class GameDetailsController extends ChangeNotifier {
   /// Reordena las secciones del tab Info y persiste el orden.
   Future<void> reorderInfoTab(List<String> newOrder) async {
     infoTabOrder = newOrder;
-    _notify();
+    notify();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('info_tab_order', newOrder);
     UserSettingsService().push({'info_tab_order': newOrder});
@@ -772,7 +822,7 @@ class GameDetailsController extends ChangeNotifier {
   /// Alterna la visibilidad de una sección del tab Info y persiste.
   Future<void> toggleInfoSection(String key) async {
     if (!infoTabHidden.add(key)) infoTabHidden.remove(key);
-    _notify();
+    notify();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('info_tab_hidden', infoTabHidden.toList());
     UserSettingsService().push({'info_tab_hidden': infoTabHidden.toList()});

@@ -65,6 +65,39 @@ String formatDateShort(String? isoString) {
   }
 }
 
+/// Formato relativo: "hace 5 minutos", "hace 2 horas", etc.
+/// Si ha pasado un mes (30 días) o más, devuelve la fecha.
+String formatDateRelative(String? isoString) {
+  if (isoString == null) return '';
+  try {
+    final date = DateTime.parse(isoString).toLocal();
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    // En lugar de inDays (que trunca a bloques exactos de 24h),
+    // calculamos los días redondeando para evitar que un comentario de hace
+    // 14 días menos 1 hora se calcule como 13 días (y por tanto 1 semana).
+    final int days = (difference.inHours / 24).round();
+
+    if (days >= 30) {
+      return formatDateShort(isoString);
+    } else if (days >= 7) {
+      final int weeks = days ~/ 7;
+      return weeks == 1 ? 'hace 1 semana' : 'hace $weeks semanas';
+    } else if (days >= 1) {
+      return days == 1 ? 'hace 1 día' : 'hace $days días';
+    } else if (difference.inHours >= 1) {
+      return difference.inHours == 1 ? 'hace 1 hora' : 'hace ${difference.inHours} horas';
+    } else if (difference.inMinutes >= 1) {
+      return difference.inMinutes == 1 ? 'hace 1 minuto' : 'hace ${difference.inMinutes} minutos';
+    } else {
+      return 'hace un momento';
+    }
+  } catch (_) {
+    return '';
+  }
+}
+
 /// Rango de fechas minimal: "5 ene - 20 feb 2026" (mismo año)
 /// o "5 ene 2025 - 20 feb 2026" (años distintos).
 /// Si [until] es null devuelve sólo la fecha de inicio.

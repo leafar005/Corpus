@@ -97,12 +97,12 @@ class TabUrlSyncObserver extends NavigatorObserver {
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    AppNavigationController.instance.onNavigatorPop(stackIndex);
+    AppNavigationController.instance.onNavigatorPop(stackIndex, route);
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    AppNavigationController.instance.onNavigatorPop(stackIndex);
+    AppNavigationController.instance.onNavigatorPop(stackIndex, route);
   }
 
   @override

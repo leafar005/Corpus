@@ -7,6 +7,11 @@ import '../utils/igdb_constants.dart';
 import '../utils/image_compressor.dart';
 import '../models/models.dart';
 
+dynamic _firstOf(dynamic list) {
+  if (list is List && list.isNotEmpty && list.first is Map) return list.first;
+  return null;
+}
+
 /// Resultado de una operación de guardado de reseña.
 /// Separa los datos puros del manejo de UI en el screen.
 class SaveReviewResult {
@@ -196,8 +201,10 @@ class ReviewRepository {
       'partner_ids': isWishlist ? [] : partnerIds,
       // Fecha de finalización: solo se incluye cuando el usuario la elige o al
       // marcar como terminado (el trigger sincroniza last_played_at desde aquí).
-      if (reviewDate != null)
+      if (reviewDate != null) ...{
         'created_at': reviewDate.toUtc().toIso8601String(),
+        'updated_at': reviewDate.toUtc().toIso8601String(),
+      },
     };
   }
 
@@ -246,17 +253,15 @@ class ReviewRepository {
                 final String title = gameData['title'] ?? 'Desconocido';
                 final bool hasParent =
                     gameData['parent_game'] != null ||
-                    enrichedData['parent_game'] != null ||
+                    enrichedData['parent_game'] != null;
+                final bool hasVersion =
                     gameData['version_parent'] != null ||
-                    enrichedData['version_parent'] != null ||
-                    gameData['remake_of'] != null ||
-                    enrichedData['remake_of'] != null ||
-                    gameData['remaster_of'] != null ||
-                    enrichedData['remaster_of'] != null;
+                    enrichedData['version_parent'] != null;
                 return IgdbConstants.resolveCategory(
                       catId,
                       title,
                       hasParentGame: hasParent,
+                      hasVersionParent: hasVersion,
                       summary:
                           gameData['summary']?.toString() ??
                           enrichedData['summary']?.toString(),
@@ -265,16 +270,16 @@ class ReviewRepository {
               }(),
               'parent_game': () {
                 final pg =
-                    gameData['parent_game'] ??
-                    enrichedData['parent_game'] ??
-                    gameData['version_parent'] ??
-                    enrichedData['version_parent'] ??
-                    gameData['remake_of'] ??
-                    enrichedData['remake_of'] ??
-                    gameData['remaster_of'] ??
-                    enrichedData['remaster_of'];
+                    gameData['parent_game'] ?? enrichedData['parent_game'];
                 if (pg is Map) return pg['id'] ?? pg['igdb_id'];
                 return pg;
+              }(),
+              'version_parent': () {
+                final vp =
+                    gameData['version_parent'] ??
+                    enrichedData['version_parent'];
+                if (vp is Map) return vp['id'] ?? vp['igdb_id'];
+                return vp;
               }(),
               'themes': gameData['themes'] ?? enrichedData['themes'],
               'game_modes':
@@ -294,8 +299,13 @@ class ReviewRepository {
                 return enrichedData['developer'];
               }(),
               'collection': () {
-                final col =
+                dynamic col =
                     gameData['collection'] ?? enrichedData['collection'];
+                // Fallback al sistema nuevo de IGDB (collections, plural) si
+                // el campo legacy 'collection' viene vacío.
+                col ??=
+                    _firstOf(gameData['collections']) ??
+                    _firstOf(enrichedData['collections']);
                 if (col is Map && col['id'] != null) return col;
                 if (col is String && col != 'null' && col.isNotEmpty) {
                   return {'name': col};
@@ -750,7 +760,7 @@ class ReviewRepository {
     final result = await _client
         .from('user_games')
         .select(
-          'status, users!user_games_user_id_fkey(id, username, display_name, avatar_url)',
+          'status, rating, users!user_games_user_id_fkey(id, username, display_name, avatar_url)',
         )
         .eq('game_id', parsedGameId)
         .inFilter('user_id', friendIds);
@@ -1002,5 +1012,126 @@ class ReviewRepository {
       debugPrint('[ReviewRepository] fetchFriendsForCoopPicker error: $e');
       return [];
     }
+  }
+
+  // ── Backfill ──────────────────────────────────────────────────────────────
+
+  /// Persiste campos enriquecidos (cover_url, summary, developer) en la tabla
+  /// `games` para que listas y carruseles dejen de mostrar placeholders.
+  ///
+  /// Solo actualiza si la fila actual carece de `cover_url`.
+  /// See: audit hallazgo C-02 (Fase 2).
+  Future<void> backfillCoverUrl({
+    required int igdbId,
+    required Map<String, dynamic> enrichedData,
+    required String? currentCoverUrl,
+  }) async {
+    final missingCover = currentCoverUrl == null || currentCoverUrl.isEmpty;
+    if (!missingCover || enrichedData['cover_url'] == null) return;
+
+    try {
+      await _client
+          .from('games')
+          .update({
+            'cover_url': enrichedData['cover_url'],
+            if (enrichedData['summary'] != null)
+              'summary': enrichedData['summary'],
+            if (enrichedData['developer'] != null)
+              'developer': enrichedData['developer'],
+          })
+          .eq('igdb_id', igdbId);
+    } catch (e) {
+      debugPrint('[ReviewRepository] Error en backfill de cover_url: $e');
+    }
+  }
+
+  // ── Profile tab queries ────────────────────────────────────────────────────
+
+  /// Fetches a page of reviews with written comments for the profile Reviews tab.
+  /// Returns reviews that have a non-empty comment, ordered by created_at desc.
+  Future<List<Map<String, dynamic>>> fetchProfileReviewsPage({
+    required String userId,
+    required int from,
+    required int to,
+    String searchQuery = '',
+  }) async {
+    var query = _client
+        .from('reviews')
+        .select('*, games!inner(*), review_likes(user_id), review_comments(id)')
+        .eq('user_id', userId)
+        .not('comment', 'is', null)
+        .neq('comment', '');
+
+    if (searchQuery.isNotEmpty) {
+      query = query.ilike('games.title', '%$searchQuery%');
+    }
+
+    final res = await query
+        .order('created_at', ascending: false)
+        .range(from, to);
+
+    return List<Map<String, dynamic>>.from(res)
+        .where((r) => r['games'] != null)
+        .toList();
+  }
+
+  /// Fetches a page of journal entries (playing/beaten/completed) for the Journal tab.
+  Future<List<Map<String, dynamic>>> fetchJournalPage({
+    required String userId,
+    required String orderColumn,
+    required int from,
+    required int to,
+    String searchQuery = '',
+    int? year,
+  }) async {
+    var query = _client
+        .from('reviews')
+        .select('*, games!inner(*)')
+        .eq('user_id', userId)
+        .inFilter('status', ['playing', 'beaten', 'completed']);
+
+    if (searchQuery.isNotEmpty) {
+      query = query.ilike('games.title', '%$searchQuery%');
+    }
+
+    if (year != null) {
+      query = query
+          .gte(orderColumn, '$year-01-01T00:00:00.000Z')
+          .lte(orderColumn, '$year-12-31T23:59:59.999Z');
+    }
+
+    final res = await query
+        .order(orderColumn, ascending: false)
+        .range(from, to);
+
+    return List<Map<String, dynamic>>.from(res)
+        .where((r) => r['games'] != null)
+        .toList();
+  }
+
+  /// Fetches available years from journal entries for the year filter.
+  Future<List<int>> fetchJournalYears({
+    required String userId,
+    required String orderColumn,
+  }) async {
+    final res = await _client
+        .from('reviews')
+        .select(orderColumn)
+        .eq('user_id', userId)
+        .inFilter('status', ['playing', 'beaten', 'completed']);
+
+    final Set<int> years = {};
+    for (final r in res) {
+      final dateStr = r[orderColumn];
+      if (dateStr != null) {
+        try {
+          final date = DateTime.parse(dateStr.toString());
+          years.add(date.year);
+        } catch (_) {}
+      }
+    }
+
+    final sorted = years.toList()..sort((a, b) => b.compareTo(a));
+    return sorted;
   }
 }

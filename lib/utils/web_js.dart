@@ -30,12 +30,12 @@
 //        ↓
 // Actualiza la navegación interna (removeRoute o pop)
 //
-// No queremos que el router interno nativo de Flutter Web interprete 
-// simultáneamente ese mismo historial como una navegación propia independiente, 
-// lo cual provocaría dos acciones de navegación (doble pop) por una sola 
-// pulsación del usuario. 
+// No queremos que el router interno nativo de Flutter Web interprete
+// simultáneamente ese mismo historial como una navegación propia independiente,
+// lo cual provocaría dos acciones de navegación (doble pop) por una sola
+// pulsación del usuario.
 //
-// `goBackInBrowserHistory()` es el mecanismo utilizado para delegar el 
+// `goBackInBrowserHistory()` es el mecanismo utilizado para delegar el
 // retroceso al historial del navegador.
 // ============================================================================
 //
@@ -149,12 +149,12 @@ Map<String, Object?>? readWebHistoryState(Object? rawState) {
   return null;
 }
 
-/// Escucha `window.onPopState`, que representa el evento back/forward del 
+/// Escucha `window.onPopState`, que representa el evento back/forward del
 /// historial del navegador.
 ///
 /// Este stream es una pieza crítica de la comunicación entre Browser History
-/// y `AppNavigationController`. Duplicar listeners aquí o añadir otro 
-/// consumidor que también haga `pop()` sobre el Navigator de Flutter provocará 
+/// y `AppNavigationController`. Duplicar listeners aquí o añadir otro
+/// consumidor que también haga `pop()` sobre el Navigator de Flutter provocará
 /// una doble navegación errónea.
 Stream<Map<String, Object?>?> webPopStateStream() {
   if (!kIsWeb) return const Stream.empty();
@@ -167,7 +167,7 @@ Stream<Map<String, Object?>?> webPopStateStream() {
 ///
 /// Esto provoca de forma asíncrona que el navegador dispare un evento `popstate`.
 /// NO debe combinarse NUNCA con un `Navigator.pop()` adicional para la misma
-/// acción del usuario, ya que el evento asíncrono cerrará la pantalla de 
+/// acción del usuario, ya que el evento asíncrono cerrará la pantalla de
 /// todas formas. Hacer ambos causaría un doble pop.
 void goBackInBrowserHistory() {
   if (!kIsWeb) return;

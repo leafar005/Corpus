@@ -6,8 +6,6 @@ import 'game_details/game_media_tab.dart';
 import 'game_details/game_stash_tab.dart';
 import 'game_details/game_info_tab.dart';
 import 'game_details/game_hero_section.dart';
-import 'dart:async';
-import 'dart:math';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:corpus/globals.dart';
@@ -39,13 +37,11 @@ class GameDetailsScreen extends StatefulWidget {
 class _GameDetailsScreenState extends State<GameDetailsScreen> {
   late final GameDetailsController _controller;
   bool _isSaving = false;
-  String? _selectedScreenshotUrl;
   int _selectedMainTabIndex = 0;
 
   final TextEditingController _commentController = TextEditingController();
   final TextEditingController _ratingController = TextEditingController();
 
-  Timer? _carouselTimer;
   late final ScrollController _scrollController;
   double _scrollOffset = 0.0;
 
@@ -112,15 +108,15 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       },
       onScreenshotsEnriched: (screenshots, forceSwap) {
         if (!mounted) return;
-        if (_selectedScreenshotUrl == null || _carouselTimer == null) {
-          _startCarousel(screenshots, forceInitialSwap: forceSwap);
+        if (_controller.selectedScreenshotUrl == null || !_controller.hasCarouselStarted) {
+          _controller.startCarousel(screenshots, forceInitialSwap: forceSwap);
         } else if (screenshots.length > 1) {
-          _startCarousel(screenshots, forceInitialSwap: false);
+          _controller.startCarousel(screenshots, forceInitialSwap: false);
         }
       },
     );
 
-    _startCarousel(widget.gameData.screenshots);
+    _controller.startCarousel(widget.gameData.screenshots);
   }
 
   @override
@@ -130,57 +126,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     if (widget.scrollController == null) {
       _scrollController.dispose();
     }
-    _carouselTimer?.cancel();
     _commentController.dispose();
     _ratingController.dispose();
     super.dispose();
   }
 
-  // Widget "¿Quién lo tiene?" — avatares de amigos que tienen este juego
 
-  /// Muestra una screenshot aleatoria cada vez que se entra a la ventana del juego
-  void _selectRandomScreenshot(dynamic screenshotsData) {
-    if (screenshotsData != null &&
-        screenshotsData is List &&
-        screenshotsData.isNotEmpty) {
-      final randomItem =
-          screenshotsData[Random().nextInt(screenshotsData.length)];
-      String imageId = '';
-      if (randomItem is Map) {
-        imageId = randomItem['image_id']?.toString() ?? '';
-      } else {
-        imageId = randomItem.toString();
-      }
-
-      if (imageId.isNotEmpty) {
-        final url = IGDBService.getScreenshotUrl(imageId);
-        if (mounted) {
-          setState(() {
-            _selectedScreenshotUrl = url;
-          });
-        }
-      }
-    }
-  }
-
-  void _startCarousel(dynamic screenshotsData, {bool forceInitialSwap = true}) {
-    if (screenshotsData != null &&
-        screenshotsData is List &&
-        screenshotsData.isNotEmpty) {
-      if (forceInitialSwap) {
-        _selectRandomScreenshot(screenshotsData);
-      }
-      if (kDisableCarouselForTests) {
-        return; // Evitar que pumpAndSettle quede esperando frames infinitos
-      }
-      if (screenshotsData.length > 1) {
-        _carouselTimer?.cancel();
-        _carouselTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-          _selectRandomScreenshot(screenshotsData);
-        });
-      }
-    }
-  }
 
   ({int id, String? name})? _getOriginalGameInfo() {
     final candidates = [
@@ -312,7 +263,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           showDialog(
             context: context,
             barrierDismissible: false,
-            builder: (_) => const Center(child: CircularProgressIndicator()),
+            routeSettings: const RouteSettings(name: 'loading_dialog'),
+            builder: (context) =>
+                const Center(child: CircularProgressIndicator()),
           );
           final igdbGame = await IGDBService.getGameById(id);
           if (showingSpinner && mounted) {
@@ -390,7 +343,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       gameData: widget.gameData.toMap(),
       enrichedData: widget.gameData.toMap(),
       existingReview: existingReview,
-      currentPartnerIds: _partnersData.map((e) => e.id).toList(),
+      currentPartnerIds:
+          existingReview?.partnerIds ?? _partnersData.map((e) => e.id).toList(),
       isSaving: _isSaving,
       currentRating: _rating,
       currentRatingGameplay: _ratingGameplay,
@@ -566,7 +520,15 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     final summary = widget.gameData.summary ?? _enrichedData['summary'];
     final originalGame = _getOriginalGameInfo();
-    final hasParentGame = originalGame != null;
+    // originalGame combina las 4 relaciones (parent_game, version_parent,
+    // remake/remaster) y sigue sirviendo para el link "Basado en X" en la UI.
+    // Para resolveCategory, en cambio, hay que distinguir el tipo de relación:
+    final bool hasParentGame =
+        widget.gameData.parentGameId != null ||
+        _enrichedData['parent_game'] != null;
+    final bool hasVersionParent =
+        widget.gameData.versionParentId != null ||
+        _enrichedData['version_parent'] != null;
 
     final int? categoryId =
         widget.gameData.gameType ??
@@ -577,6 +539,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       categoryId,
       title,
       hasParentGame: hasParentGame,
+      hasVersionParent: hasVersionParent,
       summary:
           widget.gameData.summary?.toString() ??
           _enrichedData['summary']?.toString(),

@@ -1,4 +1,4 @@
-import 'dart:async';
+import '../../utils/debouncer.dart';
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
@@ -50,7 +50,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   String? _currentStatus;
   Map<int, String> _completionTypeMap = {};
   final TextEditingController _searchController = TextEditingController();
-  Timer? _debounce;
+  final _debouncer = Debouncer();
   GameFilters _filters = const GameFilters(
     sortBy: 'last_played_at',
     sortAscending: false,
@@ -75,7 +75,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _debouncer.dispose();
     _searchController.dispose();
     disposePagination();
     super.dispose();
@@ -351,8 +351,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
               fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
             onChanged: (value) {
-              if (_debounce?.isActive ?? false) _debounce!.cancel();
-              _debounce = Timer(const Duration(milliseconds: 500), () {
+              _debouncer.run(() {
                 setState(() => _searchQuery = value.trim());
                 _refresh();
               });

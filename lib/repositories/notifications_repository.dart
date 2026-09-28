@@ -45,6 +45,9 @@ class NotificationsRepository {
 
   final SupabaseClient _client;
 
+  /// Whether the current user is a guest (not logged in).
+  bool get isGuest => _client.auth.currentUser == null;
+
   /// Página de notificaciones del usuario actual, más reciente primero,
   /// con los datos del autor (actor) embebidos.
   Future<NotificationsPageResult> fetchNotificationsPage(

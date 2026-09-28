@@ -4,6 +4,7 @@ import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../profile/profile_screen.dart';
 import '../../widgets/friendship_button.dart';
+import '../../repositories/social_repository.dart';
 
 class UserFriendsScreen extends StatefulWidget {
   final String userId;
@@ -20,13 +21,11 @@ class UserFriendsScreen extends StatefulWidget {
 }
 
 class _UserFriendsScreenState extends State<UserFriendsScreen> {
-  final _supabase = Supabase.instance.client;
+  final _repo = SocialRepository();
 
   List<Map<String, dynamic>> _friends = [];
 
   bool _isLoading = true;
-
-  String get _myId => _supabase.auth.currentUser?.id ?? '';
 
   @override
   void initState() {
@@ -37,27 +36,7 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Amigos del usuario
-      final asSender = await _supabase
-          .from('friendships')
-          .select(
-            '*, friend:addressee_id(id, username, avatar_url, display_name)',
-          )
-          .eq('requester_id', widget.userId)
-          .eq('status', 'accepted');
-
-      final asReceiver = await _supabase
-          .from('friendships')
-          .select(
-            '*, friend:requester_id(id, username, avatar_url, display_name)',
-          )
-          .eq('addressee_id', widget.userId)
-          .eq('status', 'accepted');
-
-      final userFriends = [
-        ...List<Map<String, dynamic>>.from(asSender),
-        ...List<Map<String, dynamic>>.from(asReceiver),
-      ];
+      final userFriends = await _repo.fetchFriendsOf(widget.userId);
 
       if (mounted) {
         setState(() {
@@ -109,7 +88,7 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
                     friend['username'] as String? ??
                     'Usuario';
 
-                final isMe = friendId == _myId;
+                final isMe = friendId == _repo.currentUserId;
 
                 Widget? trailing;
                 if (isMe) {

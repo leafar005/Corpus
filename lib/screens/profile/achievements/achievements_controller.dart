@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../repositories/achievements_repository.dart';
+import '../../../utils/safe_change_notifier.dart';
 
 /// Controller para [AchievementsScreen].
 ///
@@ -8,14 +9,13 @@ import '../../../repositories/achievements_repository.dart';
 /// en "sagas", ordenación y cálculo de progreso por saga.
 ///
 /// La pantalla solo llama a [load()] y reacciona a [addListener].
-class AchievementsController extends ChangeNotifier {
+class AchievementsController extends SafeChangeNotifier {
   AchievementsController({required this.userId, required this.initialXp});
 
   final String userId;
   int initialXp;
 
   final _repo = AchievementsRepository();
-  bool _disposed = false;
 
   // ── Estado público ─────────────────────────────────────────────────────────
 
@@ -26,15 +26,7 @@ class AchievementsController extends ChangeNotifier {
   Map<String, int> sagaProgress = {};
   Map<String, List<Map<String, dynamic>>> sagaMilestones = {};
 
-  void _notify() {
-    if (!_disposed) notifyListeners();
-  }
 
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
 
   // ── Carga de datos ─────────────────────────────────────────────────────────
 
@@ -42,7 +34,7 @@ class AchievementsController extends ChangeNotifier {
   Future<void> load() async {
     isLoading = true;
     currentXp = initialXp;
-    _notify();
+    notify();
 
     try {
       final data = await _repo.fetchAll(userId);
@@ -193,7 +185,7 @@ class AchievementsController extends ChangeNotifier {
       isLoading = false;
     }
 
-    _notify();
+    notify();
   }
 
   // ── Lógica pura (testeable) ────────────────────────────────────────────────

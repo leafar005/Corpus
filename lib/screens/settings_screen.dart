@@ -50,7 +50,9 @@ class SettingsScreen extends StatelessWidget {
             title: 'Apariencia',
             subtitle: 'Modo, color principal',
             onTap: () {
-              context.pushAppearance();
+              context.pushAppearance().then((_) {
+                libraryUpdateNotifier.value++;
+              });
             },
           ),
           _buildSettingsTile(
@@ -204,7 +206,8 @@ class SettingsScreen extends StatelessWidget {
                 showDialog(
                   context: context,
                   barrierDismissible: false,
-                  builder: (_) =>
+                  routeSettings: const RouteSettings(name: 'loading_dialog'),
+                  builder: (context) =>
                       const Center(child: CircularProgressIndicator()),
                 );
 

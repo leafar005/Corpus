@@ -7,6 +7,7 @@ import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
+import '../../repositories/social_repository.dart';
 
 /// Pantalla de gestión de amigos: buscar por username, ver solicitudes,
 /// ver amigos aceptados y eliminar amistades.
@@ -21,7 +22,7 @@ class FriendsScreen extends StatefulWidget {
 class _FriendsScreenState extends State<FriendsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  final _supabase = Supabase.instance.client;
+  final _repo = SocialRepository();
 
   // Estado de la pestaña "Buscar"
   final TextEditingController _searchController = TextEditingController();
@@ -62,39 +63,24 @@ class _FriendsScreenState extends State<FriendsScreen>
     super.dispose();
   }
 
-  String get _myId => _supabase.auth.currentUser?.id ?? '';
-
   // ──────────────────────────────────────────
   // CARGA DE DATOS
   // ──────────────────────────────────────────
 
   Future<void> _loadRequests() async {
-    if (_myId.isEmpty) {
+    if (_repo.currentUserId == null) {
       if (mounted) setState(() => _isLoadingRequests = false);
       return;
     }
     setState(() => _isLoadingRequests = true);
     try {
-      final receivedData = await _supabase
-          .from('friendships')
-          .select(
-            '*, requester:requester_id(id, username, avatar_url, display_name)',
-          )
-          .eq('addressee_id', _myId)
-          .eq('status', 'pending');
-
-      final sentData = await _supabase
-          .from('friendships')
-          .select(
-            '*, addressee:addressee_id(id, username, avatar_url, display_name)',
-          )
-          .eq('requester_id', _myId)
-          .eq('status', 'pending');
+      final received = await _repo.fetchReceivedRequests();
+      final sent = await _repo.fetchSentRequests();
 
       if (mounted) {
         setState(() {
-          _receivedRequests = List<Map<String, dynamic>>.from(receivedData);
-          _sentRequests = List<Map<String, dynamic>>.from(sentData);
+          _receivedRequests = received;
+          _sentRequests = sent;
           _isLoadingRequests = false;
         });
       }
@@ -104,55 +90,18 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 
   Future<void> _loadFriends() async {
-    if (_myId.isEmpty) {
+    if (_repo.currentUserId == null) {
       if (mounted) setState(() => _isLoadingFriends = false);
       return;
     }
     setState(() => _isLoadingFriends = true);
     try {
-      // Los amigos pueden estar en cualquiera de los dos campos
-      final asSender = await _supabase
-          .from('friendships')
-          .select(
-            '*, friend:addressee_id(id, username, avatar_url, display_name)',
-          )
-          .eq('requester_id', _myId)
-          .eq('status', 'accepted');
-
-      final asReceiver = await _supabase
-          .from('friendships')
-          .select(
-            '*, friend:requester_id(id, username, avatar_url, display_name)',
-          )
-          .eq('addressee_id', _myId)
-          .eq('status', 'accepted');
-
-      final all = [
-        ...List<Map<String, dynamic>>.from(asSender),
-        ...List<Map<String, dynamic>>.from(asReceiver),
-      ];
-
-      final sentOrAcceptedIds = <String>{};
-      for (final f in all) {
-        final fid = f['friend']['id'] as String?;
-        if (fid != null) sentOrAcceptedIds.add(fid);
-      }
-
-      // También añadir los que están pendientes (enviados por mí)
-      final pendingSent = await _supabase
-          .from('friendships')
-          .select('addressee_id')
-          .eq('requester_id', _myId)
-          .eq('status', 'pending');
-
-      for (final p in List<Map<String, dynamic>>.from(pendingSent)) {
-        final id = p['addressee_id'] as String?;
-        if (id != null) sentOrAcceptedIds.add(id);
-      }
+      final friends = await _repo.fetchMyFriends();
+      final sentOrAcceptedIds = await _repo.fetchSentOrAcceptedIds();
 
       if (mounted) {
         setState(() {
-          _friends = all;
+          _friends = friends;
           _sentOrAccepted = sentOrAcceptedIds;
           _isLoadingFriends = false;
         });
@@ -179,15 +128,10 @@ class _FriendsScreenState extends State<FriendsScreen>
       _searchError = null;
     });
     try {
-      final data = await _supabase
-          .from('users')
-          .select('id, username, avatar_url, display_name')
-          .ilike('username', '%${query.trim()}%')
-          .neq('id', _myId)
-          .limit(20);
+      final results = await _repo.searchUsers(query);
       if (mounted) {
         setState(() {
-          _searchResults = List<Map<String, dynamic>>.from(data);
+          _searchResults = results;
           _isSearching = false;
         });
       }
@@ -203,11 +147,7 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   Future<void> _sendRequest(String targetId) async {
     try {
-      await _supabase.from('friendships').insert({
-        'requester_id': _myId,
-        'addressee_id': targetId,
-        'status': 'pending',
-      });
+      await _repo.sendFriendRequest(targetId);
       if (mounted) {
         setState(() => _sentOrAccepted.add(targetId));
         _showSnack('Solicitud enviada ✓');
@@ -219,11 +159,7 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   Future<void> _acceptRequest(String requesterId) async {
     try {
-      await _supabase
-          .from('friendships')
-          .update({'status': 'accepted'})
-          .eq('requester_id', requesterId)
-          .eq('addressee_id', _myId);
+      await _repo.acceptFriendRequest(requesterId);
       _showSnack('¡Ahora sois amigos!');
       await _loadRequests();
       await _loadFriends();
@@ -234,11 +170,7 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   Future<void> _rejectRequest(String requesterId) async {
     try {
-      await _supabase
-          .from('friendships')
-          .delete()
-          .eq('requester_id', requesterId)
-          .eq('addressee_id', _myId);
+      await _repo.rejectFriendRequest(requesterId);
       _showSnack('Solicitud rechazada');
       await _loadRequests();
     } catch (e) {
@@ -270,17 +202,32 @@ class _FriendsScreenState extends State<FriendsScreen>
 
     try {
       final friendId = friendship['friend']['id'] as String;
-      // Borramos en ambas direcciones
-      await _supabase
-          .from('friendships')
-          .delete()
-          .or(
-            'and(requester_id.eq.$_myId,addressee_id.eq.$friendId),and(requester_id.eq.$friendId,addressee_id.eq.$_myId)',
-          );
+      await _repo.removeFriend(friendId);
       _showSnack('Amigo eliminado');
       await _loadFriends();
     } catch (e) {
       _showSnack('Error al eliminar amigo');
+    }
+  }
+
+  Future<void> _cancelSentRequest(String addresseeId) async {
+    try {
+      await _repo.cancelSentRequest(addresseeId);
+      if (mounted) {
+        setState(() {
+          _sentRequests.removeWhere((r) => r['addressee_id'] == addresseeId);
+          _sentOrAccepted.remove(addresseeId);
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Solicitud cancelada')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cancelar la solicitud')),
+        );
+      }
     }
   }
 
@@ -532,30 +479,6 @@ class _FriendsScreenState extends State<FriendsScreen>
         ],
       ),
     );
-  }
-
-  Future<void> _cancelSentRequest(String addresseeId) async {
-    try {
-      await _supabase.from('friendships').delete().match({
-        'requester_id': _myId,
-        'addressee_id': addresseeId,
-      });
-      if (mounted) {
-        setState(() {
-          _sentRequests.removeWhere((r) => r['addressee_id'] == addresseeId);
-          _sentOrAccepted.remove(addresseeId);
-        });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Solicitud cancelada')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al cancelar la solicitud')),
-        );
-      }
-    }
   }
 
   Widget _buildFriendsTab() {

@@ -313,6 +313,9 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                                       showDialog(
                                         context: context,
                                         barrierDismissible: false,
+                                        routeSettings: const RouteSettings(
+                                          name: 'loading_dialog',
+                                        ),
                                         builder: (context) {
                                           return AlertDialog(
                                             title: const Text(

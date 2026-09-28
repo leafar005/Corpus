@@ -3,6 +3,8 @@
 // Modelo tipado para un juego del catálogo de Corpus.
 // Consolida los campos de IGDB + los campos propios de la tabla `games`.
 // No reemplaza GameDetailsScreen de golpe — este modelo se adopta
+
+import 'dart:convert';
 // progresivamente: primero en repositorios, luego en pantallas.
 
 import 'package:flutter/foundation.dart';
@@ -238,8 +240,16 @@ class Game {
   static String? _parseCollectionName(dynamic raw) {
     if (raw == null) return null;
     if (raw is Map) return raw['name']?.toString();
-    if (raw is String) return raw.isNotEmpty ? raw : null;
-    return null;
+    if (raw is String) {
+      if (raw.trim().startsWith('{')) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is Map) return decoded['name']?.toString();
+        } catch (_) {}
+      }
+      return raw.isNotEmpty ? raw : null;
+    }
+    return raw.toString();
   }
 
   @override

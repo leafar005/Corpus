@@ -80,6 +80,13 @@ class ProfileRepository {
 
   final SupabaseClient _client;
 
+  /// ID del usuario autenticado, o `null` si es guest.
+  String? get currentUserId => _client.auth.currentUser?.id;
+
+  /// Stream de cambios de autenticación. El controller lo usa para
+  /// recargar datos cuando el usuario inicia/cierra sesión.
+  Stream<AuthState> get onAuthStateChange => _client.auth.onAuthStateChange;
+
   Future<Map<String, dynamic>?> fetchUserProfile(
     String userId, {
     bool isOwnProfile = false,

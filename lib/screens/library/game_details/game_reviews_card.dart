@@ -315,13 +315,13 @@ class GameReviewsCard extends StatelessWidget {
                   ],
                 ),
                 const Divider(height: 24),
-                if (partnersData.isNotEmpty) ...[
+                if (review.partners.isNotEmpty) ...[
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: partnersData.map((partner) {
+                      children: review.partners.map((partner) {
                         return CoopBadge(
                           username: partner.effectiveName,
                           avatarUrl: partner.avatarUrl,
@@ -382,35 +382,68 @@ class GameReviewsCard extends StatelessWidget {
                   ),
                 if (imageUrls.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
+                  if (isDesktop)
+                    SizedBox(
+                      height: 100,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: imageUrls.length,
+                        itemBuilder: (context, idx) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: GestureDetector(
+                              onTap: () => onShowFullScreenGallery?.call(
+                                context,
+                                List<String>.from(imageUrls),
+                                idx,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: Theme.of(
+                                  context,
+                                ).extension<CorpusThemeExtension>()!.radiusSmall,
+                                child: CorpusNetworkImage(
+                                  url: imageUrls[idx],
+                                  height: 100,
+                                  fit: BoxFit.fitHeight,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  else
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                        childAspectRatio: 16 / 9,
+                      ),
                       itemCount: imageUrls.length,
                       itemBuilder: (context, idx) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: GestureDetector(
-                            onTap: () => onShowFullScreenGallery?.call(
+                        return GestureDetector(
+                          onTap: () => onShowFullScreenGallery?.call(
+                            context,
+                            List<String>.from(imageUrls),
+                            idx,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: Theme.of(
                               context,
-                              List<String>.from(imageUrls),
-                              idx,
-                            ),
-                            child: ClipRRect(
-                              borderRadius: Theme.of(
-                                context,
-                              ).extension<CorpusThemeExtension>()!.radiusSmall,
-                              child: CorpusNetworkImage(
-                                url: imageUrls[idx],
-                                height: 100,
-                                fit: BoxFit.fitHeight,
-                              ),
+                            ).extension<CorpusThemeExtension>()!.radiusSmall,
+                            child: CorpusNetworkImage(
+                              url: imageUrls[idx],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
                             ),
                           ),
                         );
                       },
                     ),
-                  ),
                 ],
                 if (playTime > 0 || playedFrom != null || progress != null) ...[
                   const SizedBox(height: 12),

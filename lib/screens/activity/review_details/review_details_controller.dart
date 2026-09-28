@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../repositories/activity_repository.dart';
 import '../../../repositories/review_repository.dart';
 import '../../../models/models.dart';
+import '../../../utils/safe_change_notifier.dart';
 
-class ReviewDetailsController extends ChangeNotifier {
+class ReviewDetailsController extends SafeChangeNotifier {
   ReviewDetailsController({
     required Map<String, dynamic> initialReviewData,
     required this.game,
@@ -18,7 +18,8 @@ class ReviewDetailsController extends ChangeNotifier {
   final ActivityRepository _activityRepo;
   final ReviewRepository _reviewRepo;
 
-  bool _disposed = false;
+  /// ID del usuario actual, obtenido vía el repo (evita acoplar a Supabase).
+  String? get _currentUserId => _reviewRepo.client.auth.currentUser?.id;
 
   Map<String, dynamic> currentReviewData;
   bool isLoading = true;
@@ -28,37 +29,26 @@ class ReviewDetailsController extends ChangeNotifier {
   bool isSubmitting = false;
   List<Map<String, dynamic>> partnersData = [];
 
-  void _notify() {
-    if (!_disposed) notifyListeners();
-  }
 
-  @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
-  }
 
   Future<void> fetchPartner() async {
-    final userId = currentReviewData['user_id'] as String?;
-    final gameId = (currentReviewData['game_id'] as num?)?.toInt();
-    if (userId == null || gameId == null) return;
-
-    try {
-      partnersData = await _activityRepo.fetchPartners(
-        userId: userId,
-        gameId: gameId,
-      );
-      _notify();
-    } catch (_) {}
+    final partners = currentReviewData['partners'];
+    if (partners is List) {
+      partnersData = List<Map<String, dynamic>>.from(partners);
+      notify();
+    } else {
+      partnersData = [];
+      notify();
+    }
   }
 
   Future<void> fetchInteractions() async {
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final currentUserId = _currentUserId;
     final reviewId = currentReviewData['id'] as String?;
 
     if (currentUserId == null || reviewId == null) {
       isLoading = false;
-      _notify();
+      notify();
       return;
     }
 
@@ -74,12 +64,12 @@ class ReviewDetailsController extends ChangeNotifier {
       debugPrint('[ReviewDetailsController] Error fetching interactions: $e');
     } finally {
       isLoading = false;
-      _notify();
+      notify();
     }
   }
 
   Future<void> toggleLike() async {
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final currentUserId = _currentUserId;
     if (currentUserId == null) return;
     final reviewId = currentReviewData['id'] as String?;
     if (reviewId == null) return;
@@ -87,7 +77,7 @@ class ReviewDetailsController extends ChangeNotifier {
     // Optimistic UI update
     hasLiked = !hasLiked;
     likesCount += hasLiked ? 1 : -1;
-    _notify();
+    notify();
 
     try {
       await _activityRepo.toggleLike(
@@ -99,7 +89,7 @@ class ReviewDetailsController extends ChangeNotifier {
       // Revert on error
       hasLiked = !hasLiked;
       likesCount += hasLiked ? 1 : -1;
-      _notify();
+      notify();
       debugPrint('[ReviewDetailsController] Error toggling like: $e');
     }
   }
@@ -112,13 +102,13 @@ class ReviewDetailsController extends ChangeNotifier {
   }) async {
     if (content.isEmpty && commentImage == null && attachedGame == null) return;
 
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final currentUserId = _currentUserId;
     if (currentUserId == null) return;
     final reviewId = currentReviewData['id'] as String?;
     if (reviewId == null) return;
 
     isSubmitting = true;
-    _notify();
+    notify();
 
     try {
       await _activityRepo.submitComment(
@@ -132,7 +122,7 @@ class ReviewDetailsController extends ChangeNotifier {
       await fetchInteractions();
     } finally {
       isSubmitting = false;
-      _notify();
+      notify();
     }
   }
 
@@ -146,12 +136,12 @@ class ReviewDetailsController extends ChangeNotifier {
       imageUrl: comment['image_url'] as String?,
     );
     comments.removeWhere((c) => c['id'] == commentId);
-    _notify();
+    notify();
   }
 
   Future<void> deleteReview(String reviewId) async {
     final gameId = game.igdbId;
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final currentUserId = _currentUserId;
 
     if (currentUserId == null) return;
 
@@ -186,12 +176,12 @@ class ReviewDetailsController extends ChangeNotifier {
   }) async {
     if (isSubmitting) throw Exception('Already submitting');
     isSubmitting = true;
-    _notify();
+    notify();
 
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null) {
       isSubmitting = false;
-      _notify();
+      notify();
       throw Exception('Not logged in');
     }
 
@@ -202,7 +192,11 @@ class ReviewDetailsController extends ChangeNotifier {
         userId: userId,
         igdbId: igdbId,
         gameData: game.toMap(),
-        enrichedData: game.toMap(),
+        // FIX (3.2): Antes pasaba game.toMap() como enrichedData, duplicando
+        // los mismos datos. El ReviewDetailsScreen no ejecuta enrichGameData,
+        // así que no tiene datos IGDB adicionales. Pasar mapa vacío para que
+        // upsertGame use solo los campos de gameData.
+        enrichedData: const <String, dynamic>{},
         reviewId: reviewId ?? currentReviewData['id'],
         rating: rating,
         ratingGameplay: ratingGameplay,
@@ -239,7 +233,7 @@ class ReviewDetailsController extends ChangeNotifier {
       return result;
     } finally {
       isSubmitting = false;
-      _notify();
+      notify();
     }
   }
 }

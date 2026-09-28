@@ -1,4 +1,4 @@
-import 'dart:async';
+import '../../utils/debouncer.dart';
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
@@ -7,6 +7,7 @@ import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/models/models.dart';
+import '../../repositories/review_repository.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
 
@@ -41,6 +42,7 @@ class ProfileReviewsTab extends StatefulWidget {
 class _ProfileReviewsTabState extends State<ProfileReviewsTab>
     with PaginatedScrollMixin {
   static const int _pageSize = 15;
+  final _repo = ReviewRepository();
 
   final List<Map<String, dynamic>> _reviews = [];
   int _page = 0;
@@ -48,7 +50,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
   String? _error;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  Timer? _debounce;
+  final _debouncer = Debouncer();
 
   @override
   void initState() {
@@ -59,24 +61,10 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _debouncer.dispose();
     _searchController.dispose();
     disposePagination();
     super.dispose();
-  }
-
-  PostgrestFilterBuilder<List<Map<String, dynamic>>> _buildQuery() {
-    var query = Supabase.instance.client
-        .from('reviews')
-        .select('*, games!inner(*), review_likes(user_id), review_comments(id)')
-        .eq('user_id', widget.userId)
-        .not('comment', 'is', null)
-        .neq('comment', '');
-
-    if (_searchQuery.isNotEmpty) {
-      query = query.ilike('games.title', '%$_searchQuery%');
-    }
-    return query;
   }
 
   @override
@@ -88,13 +76,12 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       final from = _page * _pageSize;
       final to = from + _pageSize - 1;
 
-      final res = await _buildQuery()
-          .order('created_at', ascending: false)
-          .range(from, to);
-
-      final newItems = List<Map<String, dynamic>>.from(
-        res,
-      ).where((r) => r['games'] != null).toList();
+      final newItems = await _repo.fetchProfileReviewsPage(
+        userId: widget.userId,
+        from: from,
+        to: to,
+        searchQuery: _searchQuery,
+      );
 
       if (mounted) {
         setState(() {
@@ -138,12 +125,12 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       return;
     }
     try {
-      final res = await _buildQuery()
-          .order('created_at', ascending: false)
-          .range(0, _reviews.length - 1);
-      final newItems = List<Map<String, dynamic>>.from(
-        res,
-      ).where((r) => r['games'] != null).toList();
+      final newItems = await _repo.fetchProfileReviewsPage(
+        userId: widget.userId,
+        from: 0,
+        to: _reviews.length - 1,
+        searchQuery: _searchQuery,
+      );
       if (mounted && newItems.isNotEmpty) {
         setState(() {
           _reviews
@@ -207,8 +194,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
         fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
       onChanged: (value) {
-        if (_debounce?.isActive ?? false) _debounce!.cancel();
-        _debounce = Timer(const Duration(milliseconds: 500), () {
+        _debouncer.run(() {
           setState(() => _searchQuery = value.trim());
           _refresh();
         });

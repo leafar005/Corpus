@@ -93,6 +93,8 @@ class AppNavigationController {
   }
 
   void onNavigatorPush(int stackIndex, Route<dynamic> route) {
+    if (kIsWeb && route.settings.name == 'loading_dialog') return;
+
     final token = _nextToken++;
     _stacks[stackIndex] = [
       ...(_stacks[stackIndex] ?? []),
@@ -139,15 +141,57 @@ class AppNavigationController {
     );
   }
 
-  void onNavigatorPop(int stackIndex) {
+  void onNavigatorPop(int stackIndex, [Route<dynamic>? route]) {
     if (!kIsWeb) return;
+    if (route != null && route.settings.name == 'loading_dialog') return;
+
     if (_ignorePopSyncCount > 0) {
       _ignorePopSyncCount--;
       return;
     }
     final frames = _stacks[stackIndex];
     if (frames == null || frames.isEmpty) return; // defensivo
+
     _stacks[stackIndex] = frames.sublist(0, frames.length - 1);
+
+    // [OPCIÓN 1]: Sincronizar la URL actual del navegador para que refleje el pop visual.
+    // Esto desvincula el botón volver interno de la app (que ahora usa nav.pop())
+    // del historial del navegador (que mantendrá su longitud, pero actualizará su URL activa).
+    if (stackIndex == rootStackIndex ||
+        stackIndex == currentTabIndexNotifier.value) {
+      final rootFrames = _stacks[rootStackIndex] ?? const [];
+      if (rootFrames.isNotEmpty) {
+        // Si todavía hay modales en la pila raíz, actualizamos el path al del último modal.
+        final last = rootFrames.last;
+        setWebPath(
+          getWebPathname() ?? '/',
+          replace: true,
+          state: {
+            'tab': rootStackIndex,
+            'depth': rootFrames.length - 1,
+            'token': last.token,
+          },
+        );
+      } else {
+        // No quedan modales (o el pop fue directamente de la pestaña).
+        // Restauramos la URL de la pestaña activa subyacente.
+        final activeTab = currentTabIndexNotifier.value;
+        final activeFrames = _stacks[activeTab] ?? const [];
+        if (activeFrames.isNotEmpty) {
+          final last = activeFrames.last;
+          final subRoute = deepRouteFromRouteSettings(last.settings);
+          setWebPath(
+            publicPathForTabRoute(activeTab, subRoute),
+            replace: true,
+            state: {
+              'tab': activeTab,
+              'depth': activeFrames.length - 1,
+              'token': last.token,
+            },
+          );
+        }
+      }
+    }
   }
 
   void onNavigatorReplace(int stackIndex, {required Route<dynamic> newRoute}) {
@@ -196,12 +240,34 @@ class AppNavigationController {
     }
 
     final stackIndex = forStack ?? _stackIndexOf(context);
-    final frames = _stacks[stackIndex] ?? const [];
-    if (frames.length <= 1) return false; // ya en la raíz de esta pila
 
-    _isProgrammaticBack = true;
-    goBackInBrowserHistory(); // dispara un popstate real
-    return true;
+    // Si estamos dentro de una pestaña (no un modal global) y estamos en su raíz,
+    // devolvemos false para que MainScreen cambie a Inicio o cierre la app.
+    if (stackIndex != rootStackIndex) {
+      final frames = _stacks[stackIndex] ?? const [];
+      if (frames.length <= 1) return false;
+    }
+
+    final nav = forStack != null
+        ? _navigatorFor(forStack)
+        : Navigator.of(context);
+
+    if (nav != null && nav.canPop()) {
+      nav.pop();
+      return true;
+    }
+    return false;
+  }
+
+  /// Debe llamarse Inmediatamente después de hacer un `Navigator.pop(context, result)`
+  /// programático (por ejemplo, al guardar un formulario en un modal) para
+  /// asegurar que la entrada en el historial del navegador que correspondía a ese
+  /// modal también se elimine, evitando un "click muerto" en el botón de volver.
+  void syncBrowserHistoryAfterProgrammaticPop() {
+    if (kIsWeb) {
+      _isProgrammaticBack = true;
+      goBackInBrowserHistory();
+    }
   }
 
   /// Deduce a qué pila pertenece un BuildContext dado, comparando su
@@ -231,9 +297,15 @@ class AppNavigationController {
       final depthObj = state?['depth'];
 
       if (tokenObj != null && tabObj != null && depthObj != null) {
-        final tabInt = tabObj is num ? tabObj.toInt() : int.tryParse(tabObj.toString());
-        final depthInt = depthObj is num ? depthObj.toInt() : int.tryParse(depthObj.toString());
-        final tokenInt = tokenObj is num ? tokenObj.toInt() : int.tryParse(tokenObj.toString());
+        final tabInt = tabObj is num
+            ? tabObj.toInt()
+            : int.tryParse(tabObj.toString());
+        final depthInt = depthObj is num
+            ? depthObj.toInt()
+            : int.tryParse(depthObj.toString());
+        final tokenInt = tokenObj is num
+            ? tokenObj.toInt()
+            : int.tryParse(tokenObj.toString());
 
         if (tabInt != null && depthInt != null && tokenInt != null) {
           await _handleTypedPopState(
@@ -246,7 +318,7 @@ class AppNavigationController {
           return;
         }
       }
-      
+
       await _handleLegacyPopState(pathname);
     } catch (e, st) {
       debugPrint('[AppNavigationController] Error parsing popstate: $e\n$st');
@@ -276,10 +348,12 @@ class AppNavigationController {
       final frames = _stacks[tab] ?? const [];
       final currentDepth = frames.length - 1;
 
-      // Relajamos el token check para no destruir la pila de Flutter solo porque 
+      // Relajamos el token check para no destruir la pila de Flutter solo porque
       // el navegador haya modificado el history.state. Si vamos hacia atrás (depth < currentDepth),
       // nos basta con que el depth exista en nuestra pila.
-      final targetFrameStillAlive = depth >= 0 && depth < frames.length && 
+      final targetFrameStillAlive =
+          depth >= 0 &&
+          depth < frames.length &&
           (depth < currentDepth || frames[depth].token == token);
 
       if (depth < currentDepth && targetFrameStillAlive) {
@@ -288,12 +362,12 @@ class AppNavigationController {
         // falta desapilar. Cero peticiones de red, cero spinners.
         final navigator = _navigatorFor(tab);
         final steps = currentDepth - depth;
-        
-        // Actualizamos sincrónicamente para evitar condiciones de carrera en 
+
+        // Actualizamos sincrónicamente para evitar condiciones de carrera en
         // clics rápidos donde didPop/didRemove tardan en actualizar el estado.
         _stacks[tab] = frames.sublist(0, frames.length - steps);
         _ignorePopSyncCount += steps;
-        
+
         for (var i = 0; i < steps; i++) {
           final topFrame = frames[currentDepth - i];
           if (isNativeBrowserBack && topFrame.route != null) {
@@ -303,8 +377,14 @@ class AppNavigationController {
           }
         }
       } else if (depth == currentDepth && targetFrameStillAlive) {
-        // Nada que hacer (p. ej. el usuario pulsó atrás y adelante muy
-        // rápido y los eventos se superpusieron): ya estamos donde toca.
+        // Nada que hacer visualmente (ya estamos en esta pantalla).
+        // SIN EMBARGO, si esto ha sido provocado por el botón atrás/swipe del navegador,
+        // significa que el usuario ha tropezado con un "click muerto" (una entrada duplicada
+        // generada por el replaceState de onNavigatorPop).
+        // Para que la UI no parezca atascada, ejecutamos el siguiente back automáticamente.
+        if (isNativeBrowserBack) {
+          goBackInBrowserHistory();
+        }
       } else if (depth > currentDepth) {
         // ── CASO: HISTORIAL HUÉRFANO ─────────────────────────────────
         // El historial del navegador pide una ruta hacia adelante que ya
@@ -400,19 +480,19 @@ class AppNavigationController {
 
   Future<void> _handleLegacyPopState(String pathname) async {
     final tab = AppRoutes.tabIndexFromPublicPath(pathname) ?? 0;
-    
+
     final frames = _stacks[tab] ?? const [];
     if (frames.isNotEmpty) {
-      // 1. Verificamos si la ruta actual en Flutter ya coincide con la URL 
+      // 1. Verificamos si la ruta actual en Flutter ya coincide con la URL
       final last = frames.last;
       final subRoute = deepRouteFromRouteSettings(last.settings);
       final currentPath = publicPathForTabRoute(tab, subRoute);
       if (currentPath == pathname) {
-        setWebPath(pathname, replace: true, state: {
-          'tab': tab,
-          'depth': frames.length - 1,
-          'token': last.token
-        });
+        setWebPath(
+          pathname,
+          replace: true,
+          state: {'tab': tab, 'depth': frames.length - 1, 'token': last.token},
+        );
         return;
       }
 
@@ -424,7 +504,7 @@ class AppNavigationController {
         if (framePath == pathname) {
           final navigator = _navigatorFor(tab);
           final stepsToPop = frames.length - 1 - i;
-          
+
           _stacks[tab] = frames.sublist(0, frames.length - stepsToPop);
           _ignorePopSyncCount += stepsToPop;
 
@@ -432,12 +512,12 @@ class AppNavigationController {
           for (int j = 0; j < stepsToPop; j++) {
             navigator?.pop();
           }
-          
-          setWebPath(pathname, replace: true, state: {
-            'tab': tab,
-            'depth': i,
-            'token': frames[i].token
-          });
+
+          setWebPath(
+            pathname,
+            replace: true,
+            state: {'tab': tab, 'depth': i, 'token': frames[i].token},
+          );
           return;
         }
       }
