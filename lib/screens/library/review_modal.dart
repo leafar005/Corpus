@@ -11,6 +11,7 @@ import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_network_image.dart';
+import 'review_modal_widgets.dart';
 
 /// Callback invocado cuando el usuario pulsa "Guardar/Publicar Reseña".
 /// Firma idéntica a [_GameDetailsScreenState._saveReview].
@@ -407,102 +408,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
               );
             }
 
-            Widget buildRemovableImage({
-              required Widget imageWidget,
-              required VoidCallback onRemove,
-            }) {
-              return Stack(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(right: 8, top: 8),
-                    decoration: BoxDecoration(
-                      borderRadius:
-                          Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()?.radiusSmall ??
-                          BorderRadius.circular(8),
-                    ),
-                    clipBehavior: Clip.hardEdge,
-                    child: imageWidget,
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: onRemove,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const CorpusTablerIcon(
-                          CorpusIconKind.Close,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
 
-            Widget buildSubRatingSlider(
-              String label,
-              CorpusIconKind icon,
-              double value,
-              Function(double) onChange,
-            ) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CorpusTablerIcon(icon,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: value,
-                          min: 0,
-                          max: 10,
-                          divisions: 100,
-                          activeColor: Theme.of(context).colorScheme.primary,
-                          label: value > 0 ? formatRating(value) : '-',
-                          onChanged: onChange,
-                        ),
-                      ),
-                      SizedBox(
-                        width: 32,
-                        child: Text(
-                          value > 0 ? formatRating(value) : '-',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            }
 
             String monthAbbr(int m) {
               const months = [
@@ -1107,32 +1013,36 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         style: TextStyle(fontSize: 14),
                       ),
                       children: [
-                        buildSubRatingSlider(
-                          'Gameplay',
-                          CorpusIconKind.SportsEsports,
-                          reviewRatingGameplay,
-                          (val) =>
+                        ReviewSubRatingSlider(
+                          label: 'Gameplay',
+                          icon: CorpusIconKind.SportsEsports,
+                          value: reviewRatingGameplay,
+                          formatRating: formatRating,
+                          onChanged: (val) =>
                               setState(() => reviewRatingGameplay = val),
                         ),
-                        buildSubRatingSlider(
-                          'Narrativa',
-                          CorpusIconKind.AutoStories,
-                          reviewRatingNarrative,
-                          (val) =>
+                        ReviewSubRatingSlider(
+                          label: 'Narrativa',
+                          icon: CorpusIconKind.AutoStories,
+                          value: reviewRatingNarrative,
+                          formatRating: formatRating,
+                          onChanged: (val) =>
                               setState(() => reviewRatingNarrative = val),
                         ),
-                        buildSubRatingSlider(
-                          'Banda Sonora',
-                          CorpusIconKind.MusicNote,
-                          reviewRatingSoundtrack,
-                          (val) =>
+                        ReviewSubRatingSlider(
+                          label: 'Banda Sonora',
+                          icon: CorpusIconKind.MusicNote,
+                          value: reviewRatingSoundtrack,
+                          formatRating: formatRating,
+                          onChanged: (val) =>
                               setState(() => reviewRatingSoundtrack = val),
                         ),
-                        buildSubRatingSlider(
-                          'Gráficos',
-                          CorpusIconKind.Brush,
-                          reviewRatingVisuals,
-                          (val) =>
+                        ReviewSubRatingSlider(
+                          label: 'Gráficos',
+                          icon: CorpusIconKind.Brush,
+                          value: reviewRatingVisuals,
+                          formatRating: formatRating,
+                          onChanged: (val) =>
                               setState(() => reviewRatingVisuals = val),
                         ),
                       ],
@@ -1176,7 +1086,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         scrollDirection: Axis.horizontal,
                         children: [
                           ...existingImages.map(
-                            (url) => buildRemovableImage(
+                            (url) => RemovableImageCard(
                               imageWidget: CorpusNetworkImage(
                                 url: url,
                                 fit: BoxFit.cover,
@@ -1189,7 +1099,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                             ),
                           ),
                           ...newImages.map(
-                            (file) => buildRemovableImage(
+                            (file) => RemovableImageCard(
                               imageWidget: kIsWeb
                                   ? CorpusNetworkImage(
                                       url: file.path,
@@ -1599,38 +1509,42 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                             style: TextStyle(fontSize: 14),
                                           ),
                                           children: [
-                                            buildSubRatingSlider(
-                                              'Gameplay',
-                                              CorpusIconKind.SportsEsports,
-                                              reviewRatingGameplay,
-                                              (val) => setState(
+                                            ReviewSubRatingSlider(
+                                              label: 'Gameplay',
+                                              icon: CorpusIconKind.SportsEsports,
+                                              value: reviewRatingGameplay,
+                                              formatRating: formatRating,
+                                              onChanged: (val) => setState(
                                                 () =>
                                                     reviewRatingGameplay = val,
                                               ),
                                             ),
-                                            buildSubRatingSlider(
-                                              'Narrativa',
-                                              CorpusIconKind.AutoStories,
-                                              reviewRatingNarrative,
-                                              (val) => setState(
+                                            ReviewSubRatingSlider(
+                                              label: 'Narrativa',
+                                              icon: CorpusIconKind.AutoStories,
+                                              value: reviewRatingNarrative,
+                                              formatRating: formatRating,
+                                              onChanged: (val) => setState(
                                                 () =>
                                                     reviewRatingNarrative = val,
                                               ),
                                             ),
-                                            buildSubRatingSlider(
-                                              'Banda Sonora',
-                                              CorpusIconKind.MusicNote,
-                                              reviewRatingSoundtrack,
-                                              (val) => setState(
+                                            ReviewSubRatingSlider(
+                                              label: 'Banda Sonora',
+                                              icon: CorpusIconKind.MusicNote,
+                                              value: reviewRatingSoundtrack,
+                                              formatRating: formatRating,
+                                              onChanged: (val) => setState(
                                                 () => reviewRatingSoundtrack =
                                                     val,
                                               ),
                                             ),
-                                            buildSubRatingSlider(
-                                              'Gráficos',
-                                              CorpusIconKind.Brush,
-                                              reviewRatingVisuals,
-                                              (val) => setState(
+                                            ReviewSubRatingSlider(
+                                              label: 'Gráficos',
+                                              icon: CorpusIconKind.Brush,
+                                              value: reviewRatingVisuals,
+                                              formatRating: formatRating,
+                                              onChanged: (val) => setState(
                                                 () => reviewRatingVisuals = val,
                                               ),
                                             ),
@@ -1675,7 +1589,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           childAspectRatio: 16 / 9,
                                           children: [
                                             ...existingImages.map(
-                                              (url) => buildRemovableImage(
+                                              (url) => RemovableImageCard(
                                                 imageWidget: CorpusNetworkImage(
                                                   url: url,
                                                   fit: BoxFit.cover,
@@ -1688,7 +1602,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                               ),
                                             ),
                                             ...newImages.map(
-                                              (file) => buildRemovableImage(
+                                              (file) => RemovableImageCard(
                                                 imageWidget: kIsWeb
                                                     ? CorpusNetworkImage(
                                                         url: file.path,
