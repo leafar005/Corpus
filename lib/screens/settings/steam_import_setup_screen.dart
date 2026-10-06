@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/routes/corpus_router.dart';
 
@@ -47,7 +49,7 @@ class _SteamImportSetupScreenState extends State<SteamImportSetupScreen> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const CorpusTablerIcon(CorpusIconKind.Close),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],

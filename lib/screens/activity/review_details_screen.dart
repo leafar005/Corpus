@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -351,7 +353,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
   String _getStatusText(String status) => GameStatus.labelForString(status);
 
-  IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
+  CorpusIconKind _getStatusIcon(String status) => GameStatus.iconForString(status);
 
   String _getCompletionTypeText(String type) {
     switch (type) {
@@ -370,26 +372,26 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     }
   }
 
-  IconData _getCompletionTypeIcon(String type) {
+  CorpusIconKind _getCompletionTypeIcon(String type) {
     switch (type) {
       case 'story':
-        return Icons.auto_stories;
+        return CorpusIconKind.AutoStories;
       case 'story_extras':
-        return Icons.extension;
+        return CorpusIconKind.Extension;
       case '100_percent':
-        return Icons.emoji_events;
+        return CorpusIconKind.EmojiEvents;
       case 'endless':
-        return Icons.all_inclusive;
+        return CorpusIconKind.AllInclusive;
       case 'on_hold':
-        return Icons.pause;
+        return CorpusIconKind.Pause;
       default:
-        return Icons.flag;
+        return CorpusIconKind.Flag;
     }
   }
 
   Widget _buildInfoBadge(
     String label,
-    IconData icon,
+    CorpusIconKind icon,
     Color color, {
     Widget? customIcon,
   }) {
@@ -405,7 +407,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          customIcon ?? Icon(icon, size: 14, color: color),
+          customIcon ?? CorpusTablerIcon(icon, size: 14, color: color),
           const SizedBox(width: 4),
           Text(
             label,
@@ -420,7 +422,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     );
   }
 
-  Widget _buildSubRatingBadge(String label, double rating, IconData icon) {
+  Widget _buildSubRatingBadge(String label, double rating, CorpusIconKind icon) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -432,8 +434,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
+          CorpusTablerIcon(icon,
             size: 14,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -501,7 +502,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
               onPressed: () =>
                   AppNavigationController.instance.requestBack(context),
             ),
@@ -515,7 +516,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
             elevation: 0,
             actions: [
               IconButton(
-                icon: const Icon(Icons.share),
+                icon: const CorpusTablerIcon(CorpusIconKind.Share),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Compartir próximamente')),
@@ -554,7 +555,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                           ? NetworkImage(avatarUrl)
                                           : null,
                                       child: avatarUrl == null
-                                          ? const Icon(Icons.person)
+                                          ? const CorpusTablerIcon(CorpusIconKind.Person)
                                           : null,
                                     ),
                                     const SizedBox(width: 12),
@@ -592,8 +593,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           IconButton(
-                                            icon: Icon(
-                                              Icons.edit_outlined,
+                                            icon: CorpusTablerIcon(CorpusIconKind.EditOutlined,
                                               color: Theme.of(
                                                 context,
                                               ).colorScheme.onSurfaceVariant,
@@ -602,8 +602,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             onPressed: _editReview,
                                           ),
                                           IconButton(
-                                            icon: Icon(
-                                              Icons.delete_outline,
+                                            icon: CorpusTablerIcon(CorpusIconKind.DeleteOutline,
                                               color: Theme.of(
                                                 context,
                                               ).colorScheme.onSurfaceVariant,
@@ -634,7 +633,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                   if (isReplay)
                                     _buildInfoBadge(
                                       'Rejugada${replayNumber != null ? ' #$replayNumber' : ''}',
-                                      Icons.replay,
+                                      CorpusIconKind.Replay,
                                       Colors.orangeAccent,
                                     ),
                                   if (platform != null)
@@ -649,8 +648,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             Colors.blueGrey;
                                         final iconPath =
                                             pStyle['icon'] as String?;
-                                        final materialIcon =
-                                            pStyle['materialIcon'] as IconData?;
+                                        final fallbackIcon =
+                                            pStyle['fallbackIcon'] as CorpusIconKind?;
 
                                         Widget? customIcon;
                                         if (iconPath != null) {
@@ -660,9 +659,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             height: 14,
                                             color: pColor,
                                           );
-                                        } else if (materialIcon != null) {
-                                          customIcon = Icon(
-                                            materialIcon,
+                                        } else if (fallbackIcon != null) {
+                                          customIcon = CorpusTablerIcon(fallbackIcon,
                                             size: 14,
                                             color: pColor,
                                           );
@@ -670,7 +668,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
                                         return _buildInfoBadge(
                                           platform,
-                                          Icons.devices,
+                                          CorpusIconKind.Devices,
                                           pColor,
                                           customIcon: customIcon,
                                         );
@@ -746,8 +744,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         ),
                                         child: coverUrl.isEmpty
                                             ? Center(
-                                                child: Icon(
-                                                  Icons.videogame_asset,
+                                                child: CorpusTablerIcon(CorpusIconKind.VideogameAsset,
                                                   color: Theme.of(context)
                                                       .colorScheme
                                                       .onSurface
@@ -769,8 +766,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         if (rating > 0) ...[
                                           Row(
                                             children: [
-                                              Icon(
-                                                Icons.star,
+                                              CorpusTablerIcon(CorpusIconKind.Star,
                                                 color: Theme.of(
                                                   context,
                                                 ).colorScheme.secondary,
@@ -801,25 +797,25 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                 _buildSubRatingBadge(
                                                   'Gameplay',
                                                   ratingGameplay,
-                                                  Icons.sports_esports,
+                                                  CorpusIconKind.SportsEsports,
                                                 ),
                                               if (ratingNarrative > 0)
                                                 _buildSubRatingBadge(
                                                   'Narrativa',
                                                   ratingNarrative,
-                                                  Icons.auto_stories,
+                                                  CorpusIconKind.AutoStories,
                                                 ),
                                               if (ratingSoundtrack > 0)
                                                 _buildSubRatingBadge(
                                                   'Banda Sonora',
                                                   ratingSoundtrack,
-                                                  Icons.music_note,
+                                                  CorpusIconKind.MusicNote,
                                                 ),
                                               if (ratingVisuals > 0)
                                                 _buildSubRatingBadge(
                                                   'Visuales',
                                                   ratingVisuals,
-                                                  Icons.brush,
+                                                  CorpusIconKind.Brush,
                                                 ),
                                             ],
                                           ),
@@ -827,8 +823,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         ],
                                         Row(
                                           children: [
-                                            Icon(
-                                              _getStatusIcon(status),
+                                            CorpusTablerIcon(_getStatusIcon(status),
                                               size: 18,
                                               color: Theme.of(
                                                 context,
@@ -991,8 +986,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                           ),
                                           child: Row(
                                             children: [
-                                              Icon(
-                                                Icons.access_time,
+                                              CorpusTablerIcon(CorpusIconKind.AccessTime,
                                                 size: 16,
                                                 color: Theme.of(
                                                   context,
@@ -1017,8 +1011,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                           ),
                                           child: Row(
                                             children: [
-                                              Icon(
-                                                Icons.calendar_today,
+                                              CorpusTablerIcon(CorpusIconKind.CalendarToday,
                                                 size: 16,
                                                 color: Theme.of(
                                                   context,
@@ -1042,8 +1035,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                       if (progressPercent != null)
                                         Row(
                                           children: [
-                                            Icon(
-                                              Icons.pie_chart,
+                                            CorpusTablerIcon(CorpusIconKind.PieChart,
                                               size: 16,
                                               color: Theme.of(
                                                 context,
@@ -1092,10 +1084,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                 children: [
                                   OutlinedButton.icon(
                                     onPressed: _toggleLike,
-                                    icon: Icon(
-                                      _hasLiked
-                                          ? Icons.thumb_up
-                                          : Icons.thumb_up_alt_outlined,
+                                    icon: CorpusTablerIcon(_hasLiked
+                                          ? CorpusIconKind.ThumbUp
+                                          : CorpusIconKind.ThumbUpAltOutlined,
                                       size: 18,
                                       color: _hasLiked
                                           ? Theme.of(
@@ -1148,8 +1139,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     onPressed: () {
                                       // TODO: Focus on text field
                                     },
-                                    icon: const Icon(
-                                      Icons.chat_bubble_outline,
+                                    icon: const CorpusTablerIcon(CorpusIconKind.ChatBubbleOutline,
                                       size: 18,
                                     ),
                                     label: Text(_comments.length.toString()),
@@ -1237,8 +1227,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                     )
                                                   : null,
                                               child: user?['avatar_url'] == null
-                                                  ? const Icon(
-                                                      Icons.person,
+                                                  ? const CorpusTablerIcon(CorpusIconKind.Person,
                                                       size: 16,
                                                     )
                                                   : null,
@@ -1301,8 +1290,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                     ),
                                                     // Botones de responder / eliminar
                                                     IconButton(
-                                                      icon: Icon(
-                                                        Icons.reply,
+                                                      icon: CorpusTablerIcon(CorpusIconKind.Reply,
                                                         size: 18,
                                                         color: Theme.of(context)
                                                             .colorScheme
@@ -1319,8 +1307,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                     ),
                                                     if (isMyComment)
                                                       IconButton(
-                                                        icon: Icon(
-                                                          Icons.delete_outline,
+                                                        icon: CorpusTablerIcon(CorpusIconKind.DeleteOutline,
                                                           size: 18,
                                                           color: Theme.of(
                                                             context,
@@ -1477,9 +1464,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                                 comment['attached_game']['cover'] ==
                                                                     null)
                                                             ? Center(
-                                                                child: Icon(
-                                                                  Icons
-                                                                      .videogame_asset,
+                                                                child: CorpusTablerIcon(
+                                                                  CorpusIconKind.VideogameAsset,
                                                                   color:
                                                                       Theme.of(
                                                                         context,
@@ -1546,7 +1532,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.close, size: 18),
+                                      icon: const CorpusTablerIcon(CorpusIconKind.Close, size: 18),
                                       onPressed: _clearReplyTarget,
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
@@ -1596,8 +1582,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                               color: Colors.red,
                                               shape: BoxShape.circle,
                                             ),
-                                            child: const Icon(
-                                              Icons.close,
+                                            child: const CorpusTablerIcon(CorpusIconKind.Close,
                                               color: Colors.white,
                                               size: 16,
                                             ),
@@ -1653,8 +1638,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                 _selectedGameForComment!['cover'] ==
                                                     null)
                                             ? Center(
-                                                child: Icon(
-                                                  Icons.videogame_asset,
+                                                child: CorpusTablerIcon(CorpusIconKind.VideogameAsset,
                                                   color: Theme.of(context)
                                                       .colorScheme
                                                       .onSurface
@@ -1677,8 +1661,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                               color: Colors.red,
                                               shape: BoxShape.circle,
                                             ),
-                                            child: const Icon(
-                                              Icons.close,
+                                            child: const CorpusTablerIcon(CorpusIconKind.Close,
                                               color: Colors.white,
                                               size: 16,
                                             ),
@@ -1703,8 +1686,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                               child: Row(
                                 children: [
                                   IconButton(
-                                    icon: Icon(
-                                      Icons.add_photo_alternate,
+                                    icon: CorpusTablerIcon(CorpusIconKind.AddPhotoAlternate,
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.onSurfaceVariant,
@@ -1725,8 +1707,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                   ),
                                   const SizedBox(width: 0),
                                   IconButton(
-                                    icon: Icon(
-                                      Icons.videogame_asset,
+                                    icon: CorpusTablerIcon(CorpusIconKind.VideogameAsset,
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.onSurfaceVariant,
@@ -1806,8 +1787,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                     )
                                   else
                                     IconButton(
-                                      icon: Icon(
-                                        Icons.send,
+                                      icon: CorpusTablerIcon(CorpusIconKind.Send,
                                         color: Theme.of(
                                           context,
                                         ).colorScheme.primary,

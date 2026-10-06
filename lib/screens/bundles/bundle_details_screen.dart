@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/utils/url_utils.dart';
@@ -75,7 +77,7 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
           onPressed: () =>
               AppNavigationController.instance.requestBack(context),
         ),
@@ -89,7 +91,7 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: TextButton.icon(
-                icon: const Icon(Icons.open_in_new, size: 18),
+                icon: const CorpusTablerIcon(CorpusIconKind.OpenInNew, size: 18),
                 label: const Text('Tienda'),
                 onPressed: () => openUrl(url),
               ),
@@ -148,8 +150,7 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
-                                Icons.warning_amber_rounded,
+                              const CorpusTablerIcon(CorpusIconKind.WarningAmberRounded,
                                 color: Colors.amber,
                                 size: 18,
                               ),

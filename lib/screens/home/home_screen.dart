@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../utils/igdb_constants.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -20,12 +22,12 @@ import 'controller/home_controller.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSearch;
-  final Function(String)? onNavigateToBundles;
+  final Function(String)? onNavigateToExplore;
 
   const HomeScreen({
     super.key,
     this.onNavigateToSearch,
-    this.onNavigateToBundles,
+    this.onNavigateToExplore,
   });
 
   @override
@@ -383,8 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 48,
                       );
                     } else {
-                      storeIcon = Icon(
-                        Icons.local_offer,
+                      storeIcon = CorpusTablerIcon(CorpusIconKind.LocalOffer,
                         size: 48,
                         color: Theme.of(context).colorScheme.primary,
                       );
@@ -569,7 +570,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (context, canScroll, child) {
                           if (!canScroll) return const SizedBox.shrink();
                           return IconButton(
-                            icon: const Icon(Icons.chevron_left, size: 24),
+                            icon: const CorpusTablerIcon(CorpusIconKind.ChevronLeft, size: 24),
                             style: IconButton.styleFrom(
                               backgroundColor: Colors.black.withValues(
                                 alpha: 0.5,
@@ -598,7 +599,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (context, canScroll, child) {
                           if (!canScroll) return const SizedBox.shrink();
                           return IconButton(
-                            icon: const Icon(Icons.chevron_right, size: 24),
+                            icon: const CorpusTablerIcon(CorpusIconKind.ChevronRight, size: 24),
                             style: IconButton.styleFrom(
                               backgroundColor: Colors.black.withValues(
                                 alpha: 0.5,
@@ -733,7 +734,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               width: 44,
                               height: 56,
                               fit: BoxFit.cover,
-                              placeholder: const Icon(Icons.videogame_asset),
+                              placeholder: const CorpusTablerIcon(CorpusIconKind.VideogameAsset),
                             ),
                           ),
                         ),
@@ -763,7 +764,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     onBackgroundImageError: (_, _) {},
                                   )
                                 else
-                                  const Icon(Icons.person, size: 18),
+                                  const CorpusTablerIcon(CorpusIconKind.Person, size: 18),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
@@ -788,8 +789,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.star,
+                            const CorpusTablerIcon(CorpusIconKind.Star,
                               size: 16,
                               color: Colors.amber,
                             ),
@@ -926,8 +926,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       (_, _) {},
                                                 )
                                               else
-                                                const Icon(
-                                                  Icons.person,
+                                                const CorpusTablerIcon(CorpusIconKind.Person,
                                                   size: 16,
                                                 ),
                                               const SizedBox(width: 4),
@@ -955,8 +954,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(
-                                            Icons.star,
+                                          const CorpusTablerIcon(CorpusIconKind.Star,
                                             size: 14,
                                             color: Colors.amber,
                                           ),
@@ -1018,8 +1016,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
-                            icon: const Icon(
-                              Icons.chevron_left,
+                            icon: const CorpusTablerIcon(CorpusIconKind.ChevronLeft,
                               color: Colors.white,
                             ),
                             onPressed: () {
@@ -1052,8 +1049,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
-                            icon: const Icon(
-                              Icons.chevron_right,
+                            icon: const CorpusTablerIcon(CorpusIconKind.ChevronRight,
                               color: Colors.white,
                             ),
                             onPressed: () {

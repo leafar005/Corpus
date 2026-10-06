@@ -1,3 +1,4 @@
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'activity_controller.dart';
@@ -17,6 +18,7 @@ import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../../widgets/activity_story_ring.dart';
+import '../../widgets/corpus_tabler_icon.dart';
 
 /// Feed de actividad social en tiempo real.
 /// Muestra la actividad del usuario actual y la de sus amigos aceptados.
@@ -153,7 +155,7 @@ class _ActivityScreenState extends State<ActivityScreen>
 
   String _getStatusText(String status) => GameStatus.labelForString(status);
 
-  IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
+  CorpusIconKind _getStatusIcon(String status) => GameStatus.iconForString(status);
 
   String _getActionText(
     String actionType,
@@ -165,7 +167,7 @@ class _ActivityScreenState extends State<ActivityScreen>
     isOwnActivity: isOwnActivity,
   );
 
-  IconData _getActionIcon(String actionType, String? status) =>
+  CorpusIconKind _getActionIcon(String actionType, String? status) =>
       ActivityFormatters.actionIcon(actionType, status);
 
   Color _getActionColor(String actionType, String? status, BuildContext ctx) =>
@@ -331,7 +333,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                             ? NetworkImage(avatarUrl)
                             : null,
                         child: avatarUrl == null
-                            ? const Icon(Icons.person, size: 24)
+                            ? CorpusTablerIcon.user(size: 24)
                             : null,
                       ),
                       const SizedBox(width: 12),
@@ -369,7 +371,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(actionIcon, size: 16, color: actionColor),
+                CorpusTablerIcon(actionIcon, size: 16, color: actionColor),
                 const SizedBox(width: 4),
                 Text(
                   dateStr,
@@ -431,8 +433,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                           effectiveStatus != 'achievement')
                         Row(
                           children: [
-                            Icon(
-                              _getStatusIcon(effectiveStatus),
+                            CorpusTablerIcon(_getStatusIcon(effectiveStatus),
                               size: 18,
                               color: Theme.of(
                                 context,
@@ -457,10 +458,9 @@ class _ActivityScreenState extends State<ActivityScreen>
                         Row(
                           children: [
                             if (rating != null && rating > 0) ...[
-                              Icon(
-                                Icons.star,
-                                color: Theme.of(context).colorScheme.secondary,
+                              CorpusTablerIcon.star(
                                 size: 18,
+                                color: Theme.of(context).colorScheme.secondary,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -473,12 +473,11 @@ class _ActivityScreenState extends State<ActivityScreen>
                               const SizedBox(width: 16),
                             ],
                             if ((review?['play_time_hours'] ?? 0) > 0) ...[
-                              Icon(
-                                Icons.access_time,
+                              CorpusTablerIcon.timer(
+                                size: 18,
                                 color: Theme.of(
                                   context,
                                 ).colorScheme.onSurfaceVariant,
-                                size: 18,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -493,8 +492,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                             ],
                             if (replayCount > 0) ...[
                               const SizedBox(width: 12),
-                              Icon(
-                                Icons.replay,
+                              CorpusTablerIcon.repeat(
                                 size: 16,
                                 color: Theme.of(context).colorScheme.secondary,
                               ),
@@ -630,17 +628,17 @@ class _ActivityScreenState extends State<ActivityScreen>
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            hasLiked
-                                ? Icons.thumb_up
-                                : Icons.thumb_up_alt_outlined,
-                            size: 20,
-                            color: hasLiked
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(
+                          hasLiked
+                              ? CorpusTablerIcon.thumbUp(
+                                  size: 20,
+                                  color: Theme.of(context).colorScheme.primary,
+                                )
+                              : CorpusTablerIcon.thumbUpOff(
+                                  size: 20,
+                                  color: Theme.of(
                                     context,
                                   ).colorScheme.onSurfaceVariant,
-                          ),
+                                ),
                           const SizedBox(width: 6),
                           Text(
                             likes.length.toString(),
@@ -671,8 +669,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
+                          CorpusTablerIcon.message(
                             size: 20,
                             color: Theme.of(
                               context,
@@ -707,8 +704,7 @@ class _ActivityScreenState extends State<ActivityScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.people_outline_rounded,
+          CorpusTablerIcon.users(
             size: 72,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -763,7 +759,7 @@ class _ActivityScreenState extends State<ActivityScreen>
           ? Center(
               child: TextButton.icon(
                 onPressed: _openFriendsScreen,
-                icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                icon: const CorpusTablerIcon.userPlus(size: 18),
                 label: const Text('Añade amigos para ver su actividad'),
               ),
             )
@@ -924,9 +920,14 @@ class _ActivityScreenState extends State<ActivityScreen>
     if (_controller.isGuest) {
       return Scaffold(
         appBar: AppBar(title: const CorpusScreenTitle('Actividad')),
-        body: const Center(
+        body: Center(
           child: GuestLoginPrompt(
-            icon: Icons.people_outline_rounded,
+            iconWidget: CorpusTablerIcon.users(
+              size: 56,
+              color: Theme.of(context).colorScheme.primary.withValues(
+                alpha: 0.6,
+              ),
+            ),
             message: 'Inicia sesión para ver la actividad de tus amigos.',
           ),
         ),
@@ -943,7 +944,7 @@ class _ActivityScreenState extends State<ActivityScreen>
               builder: (context, count, _) => Badge(
                 isLabelVisible: count > 0,
                 label: Text(count.toString()),
-                child: const Icon(Icons.notifications_rounded),
+                child: const CorpusTablerIcon.bell(),
               ),
             ),
             tooltip: 'Notificaciones',
@@ -953,7 +954,7 @@ class _ActivityScreenState extends State<ActivityScreen>
             icon: Badge(
               isLabelVisible: _controller.pendingRequestsCount > 0,
               label: Text(_controller.pendingRequestsCount.toString()),
-              child: const Icon(Icons.people_rounded),
+              child: const CorpusTablerIcon.users(),
             ),
             tooltip: 'Amigos',
             onPressed: _openFriendsScreen,

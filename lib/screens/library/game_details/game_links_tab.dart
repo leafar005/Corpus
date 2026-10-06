@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../../theme/corpus_theme_extension.dart';
 import '../../../utils/url_utils.dart';
 import '../../../widgets/corpus_network_image.dart';
@@ -143,14 +145,14 @@ class GameLinksTab extends StatelessWidget {
         )
         .toList();
 
-    Widget buildLinkSection(String title, List links, IconData icon) {
+    Widget buildLinkSection(String title, List links, CorpusIconKind icon) {
       if (links.isEmpty) return const SizedBox.shrink();
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: Theme.of(context).colorScheme.primary),
+              CorpusTablerIcon(icon, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -164,91 +166,91 @@ class GameLinksTab extends StatelessWidget {
           const SizedBox(height: 12),
           ...links.map((link) {
             String name = 'Enlace';
-            IconData itemIcon = Icons.link;
+            CorpusIconKind itemIcon = CorpusIconKind.Link;
             final cat = getCategory(link);
             switch (cat) {
               case 1:
                 name = 'Sitio Oficial';
-                itemIcon = Icons.language;
+                itemIcon = CorpusIconKind.Language;
                 break;
               case 2:
                 name = 'Wikia';
-                itemIcon = Icons.menu_book;
+                itemIcon = CorpusIconKind.MenuBook;
                 break;
               case 3:
                 name = 'Wikipedia';
-                itemIcon = Icons.menu_book;
+                itemIcon = CorpusIconKind.MenuBook;
                 break;
               case 4:
                 name = 'Facebook';
-                itemIcon = Icons.facebook;
+                itemIcon = CorpusIconKind.Facebook;
                 break;
               case 5:
                 name = 'Twitter';
-                itemIcon = Icons.alternate_email;
+                itemIcon = CorpusIconKind.AlternateEmail;
                 break;
               case 6:
                 name = 'Twitch';
-                itemIcon = Icons.live_tv;
+                itemIcon = CorpusIconKind.LiveTv;
                 break;
               case 8:
                 name = 'Instagram';
-                itemIcon = Icons.camera_alt;
+                itemIcon = CorpusIconKind.CameraAlt;
                 break;
               case 9:
                 name = 'YouTube';
-                itemIcon = Icons.video_library;
+                itemIcon = CorpusIconKind.VideoLibrary;
                 break;
               case 10:
                 name = 'iPhone';
-                itemIcon = Icons.phone_iphone;
+                itemIcon = CorpusIconKind.PhoneIphone;
                 break;
               case 11:
                 name = 'iPad';
-                itemIcon = Icons.tablet_mac;
+                itemIcon = CorpusIconKind.TabletMac;
                 break;
               case 12:
                 name = 'Android';
-                itemIcon = Icons.phone_android;
+                itemIcon = CorpusIconKind.PhoneAndroid;
                 break;
               case 13:
                 name = 'Steam';
-                itemIcon = Icons.computer;
+                itemIcon = CorpusIconKind.Computer;
                 break;
               case 14:
                 name = 'Reddit';
-                itemIcon = Icons.forum;
+                itemIcon = CorpusIconKind.Forum;
                 break;
               case 15:
                 name = 'Itch.io';
-                itemIcon = Icons.gamepad;
+                itemIcon = CorpusIconKind.Gamepad;
                 break;
               case 16:
                 name = 'Epic Games';
-                itemIcon = Icons.computer;
+                itemIcon = CorpusIconKind.Computer;
                 break;
               case 17:
                 name = 'GOG';
-                itemIcon = Icons.computer;
+                itemIcon = CorpusIconKind.Computer;
                 break;
               case 18:
                 name = 'Discord';
-                itemIcon = Icons.chat;
+                itemIcon = CorpusIconKind.Chat;
                 break;
               default:
                 final urlString = link['url'].toString().toLowerCase();
                 if (urlString.contains('playstation.com')) {
                   name = 'PlayStation Store';
-                  itemIcon = Icons.gamepad;
+                  itemIcon = CorpusIconKind.Gamepad;
                 } else if (urlString.contains('xbox.com')) {
                   name = 'Xbox Store';
-                  itemIcon = Icons.sports_esports;
+                  itemIcon = CorpusIconKind.SportsEsports;
                 } else if (urlString.contains('nintendo.com')) {
                   name = 'Nintendo eShop';
-                  itemIcon = Icons.videogame_asset;
+                  itemIcon = CorpusIconKind.VideogameAsset;
                 } else if (urlString.contains('igdb.com')) {
                   name = 'IGDB';
-                  itemIcon = Icons.storage;
+                  itemIcon = CorpusIconKind.Storage;
                 } else {
                   try {
                     final uri = Uri.parse(link['url'].toString());
@@ -313,7 +315,7 @@ class GameLinksTab extends StatelessWidget {
                         url:
                             'https://images.weserv.nl/?url=${Uri.encodeComponent('https://www.google.com/s2/favicons?domain=$domain&sz=64')}',
                         fit: BoxFit.contain,
-                        placeholder: Icon(itemIcon, size: 18),
+                        placeholder: CorpusTablerIcon(itemIcon, size: 18),
                       ),
                     ),
                   ),
@@ -323,7 +325,7 @@ class GameLinksTab extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: const Icon(Icons.open_in_new, size: 16),
+                  trailing: const CorpusTablerIcon(CorpusIconKind.OpenInNew, size: 16),
                   onTap: () =>
                       openUrl(_localizeUrlToSpain(link['url'].toString())),
                 ),
@@ -338,11 +340,11 @@ class GameLinksTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        buildLinkSection('Tiendas', stores, Icons.store),
-        buildLinkSection('Sociales y Comunidad', socials, Icons.people),
-        buildLinkSection('Información Oficial', official, Icons.info),
-        buildLinkSection('Móvil', mobile, Icons.smartphone),
-        buildLinkSection('Otros', others, Icons.link),
+        buildLinkSection('Tiendas', stores, CorpusIconKind.Store),
+        buildLinkSection('Sociales y Comunidad', socials, CorpusIconKind.People),
+        buildLinkSection('Información Oficial', official, CorpusIconKind.Info),
+        buildLinkSection('Móvil', mobile, CorpusIconKind.Smartphone),
+        buildLinkSection('Otros', others, CorpusIconKind.Link),
       ],
     );
   }

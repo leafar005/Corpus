@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:corpus/screens/library/review_modal.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:cross_file/cross_file.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+Finder findCorpusIcon(CorpusIconKind kind) => find.byWidgetPredicate(
+  (w) => w is CorpusTablerIcon && w.kind == kind,
+);
 
 void main() {
   setUpAll(() async {
@@ -18,7 +24,7 @@ void main() {
 
   group('ReviewModal Widget Tests (Prioridad 4 - Modal de Reseñas)', () {
     testWidgets(
-      'Al pulsar el chip "Quiero" (wishlist), los sliders de nota, tiempo jugadas y fechas desaparecen al instante',
+      'Al pulsar el chip "Wishlist", los sliders de nota, tiempo jugadas y fechas desaparecen al instante',
       (WidgetTester tester) async {
         await tester.pumpWidget(
           MaterialApp(
@@ -62,9 +68,7 @@ void main() {
                               required List<String> existingImages,
                               required List<String> partnerIds,
                               required DateTime? reviewDate,
-                            }) async {
-                              return true;
-                            },
+                            }) async => true,
                       );
                     },
                     child: const Text('Abrir Modal'),
@@ -86,10 +90,10 @@ void main() {
         expect(find.text('Desglosar nota'), findsOneWidget);
         expect(find.text('Información Extra'), findsOneWidget);
 
-        // 2. Volver al selector y pulsar "Quiero" (wishlist)
-        await tester.tap(find.byIcon(Icons.arrow_back));
+        // 2. Volver al selector y pulsar "Wishlist"
+        await tester.tap(findCorpusIcon(CorpusIconKind.ArrowBack));
         await tester.pump();
-        await tester.tap(find.text('Quiero'));
+        await tester.tap(find.text('Wishlist'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
 
@@ -99,11 +103,11 @@ void main() {
         expect(find.text('Información Extra'), findsNothing);
 
         // El estado seleccionado y el botón de guardar siguen presentes
-        expect(find.text('Quiero'), findsOneWidget);
+        expect(find.text('Wishlist'), findsOneWidget);
         expect(find.text('Guardar'), findsOneWidget);
 
         // 4. Cambiar a "Terminado" y verificar que reaparecen
-        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.tap(findCorpusIcon(CorpusIconKind.ArrowBack));
         await tester.pump();
         await tester.tap(find.text('Terminado'));
         await tester.pump();
@@ -158,9 +162,7 @@ void main() {
                               required List<String> existingImages,
                               required List<String> partnerIds,
                               required DateTime? reviewDate,
-                            }) async {
-                              return true;
-                            },
+                            }) async => true,
                       );
                     },
                     child: const Text('Abrir Modal'),
@@ -175,7 +177,7 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
 
-        await tester.tap(find.byIcon(Icons.arrow_back));
+        await tester.tap(findCorpusIcon(CorpusIconKind.ArrowBack));
         await tester.pump();
         await tester.tap(find.text('Jugando'));
         await tester.pump();

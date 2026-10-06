@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
@@ -18,7 +20,7 @@ class AchievementGamesScreen extends StatefulWidget {
   final int? collectionId2;
   final int? franchiseId2;
   final List<Map<String, dynamic>> milestones;
-  final IconData? achievementIcon;
+  final CorpusIconKind? achievementIcon;
   final Color? achievementColor;
 
   const AchievementGamesScreen({
@@ -600,7 +602,7 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
           onPressed: () =>
               AppNavigationController.instance.requestBack(context),
         ),
@@ -696,8 +698,7 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
             children: [
               Row(
                 children: [
-                  Icon(
-                    widget.achievementIcon ?? Icons.emoji_events,
+                  CorpusTablerIcon(widget.achievementIcon ?? CorpusIconKind.EmojiEvents,
                     color:
                         widget.achievementColor ??
                         Theme.of(context).colorScheme.primary,

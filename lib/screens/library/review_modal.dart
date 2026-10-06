@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:corpus/globals.dart';
 import 'package:corpus/utils/format_utils.dart';
@@ -9,6 +11,7 @@ import '../../repositories/review_repository.dart';
 import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_network_image.dart';
+import 'review_modal_widgets.dart';
 
 /// Callback invocado cuando el usuario pulsa "Guardar/Publicar Reseña".
 /// Firma idéntica a [_GameDetailsScreenState._saveReview].
@@ -248,6 +251,9 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
   }
 
   /// Aplica un cambio de estado desde los chips de "Estado".
+  bool isCollectionOnlyStatus(String s) =>
+      s == GameStatus.wishlist.dbValue || s == GameStatus.toPlay.dbValue;
+
   void applyStatusChange(String v) {
     if (v == initialReviewStatus) {
       reviewDate = initialReviewDate;
@@ -269,7 +275,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
             Widget chip(
               String value,
               String label,
-              IconData icon,
+              CorpusIconKind icon,
               String current,
               Color color,
               Function(String) onSelect,
@@ -286,8 +292,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                 label: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      icon,
+                    CorpusTablerIcon(icon,
                       size: 18,
                       color: sel
                           ? tc
@@ -324,7 +329,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
             Widget statusButton(
               String value,
               String label,
-              IconData icon,
+              CorpusIconKind icon,
               String current,
               Color color,
               Function(String) onSelect,
@@ -382,7 +387,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(icon, size: 22, color: labelColor),
+                            CorpusTablerIcon(icon, size: 22, color: labelColor),
                             const SizedBox(width: 10),
                             Text(
                               label,
@@ -403,103 +408,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
               );
             }
 
-            Widget buildRemovableImage({
-              required Widget imageWidget,
-              required VoidCallback onRemove,
-            }) {
-              return Stack(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(right: 8, top: 8),
-                    decoration: BoxDecoration(
-                      borderRadius:
-                          Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()?.radiusSmall ??
-                          BorderRadius.circular(8),
-                    ),
-                    clipBehavior: Clip.hardEdge,
-                    child: imageWidget,
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: onRemove,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
 
-            Widget buildSubRatingSlider(
-              String label,
-              IconData icon,
-              double value,
-              Function(double) onChange,
-            ) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        icon,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: value,
-                          min: 0,
-                          max: 10,
-                          divisions: 100,
-                          activeColor: Theme.of(context).colorScheme.primary,
-                          label: value > 0 ? formatRating(value) : '-',
-                          onChanged: onChange,
-                        ),
-                      ),
-                      SizedBox(
-                        width: 32,
-                        child: Text(
-                          value > 0 ? formatRating(value) : '-',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            }
 
             String monthAbbr(int m) {
               const months = [
@@ -631,8 +540,8 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                               ? NetworkImage(f.avatarUrl!)
                                               : null,
                                           child: f.avatarUrl == null
-                                              ? const Icon(
-                                                  Icons.person,
+                                              ? const CorpusTablerIcon(
+                                                  CorpusIconKind.Person,
                                                   size: 16,
                                                 )
                                               : null,
@@ -678,13 +587,13 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           ? NetworkImage(friend.avatarUrl!)
                                           : null,
                                       child: friend.avatarUrl == null
-                                          ? const Icon(Icons.person, size: 16)
+                                          ? const CorpusTablerIcon(CorpusIconKind.Person, size: 16)
                                           : null,
                                     ),
                                     title: Text(friend.effectiveName),
                                     trailing: IconButton(
-                                      icon: const Icon(
-                                        Icons.remove_circle_outline,
+                                      icon: const CorpusTablerIcon(
+                                        CorpusIconKind.RemoveCircleOutline,
                                         color: Colors.redAccent,
                                       ),
                                       onPressed: () {
@@ -776,7 +685,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.calendar_today, size: 16),
+                          icon: const CorpusTablerIcon(CorpusIconKind.CalendarToday, size: 16),
                           label: Text(
                             reviewPlayedFrom != null
                                 ? '${reviewPlayedFrom!.day} ${monthAbbr(reviewPlayedFrom!.month)} ${reviewPlayedFrom!.year}'
@@ -811,7 +720,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                       ),
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.calendar_today, size: 16),
+                          icon: const CorpusTablerIcon(CorpusIconKind.CalendarToday, size: 16),
                           label: Text(
                             reviewPlayedUntil != null
                                 ? '${reviewPlayedUntil!.day} ${monthAbbr(reviewPlayedUntil!.month)} ${reviewPlayedUntil!.year}'
@@ -888,8 +797,8 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
               return [
                 statusButton(
                   'wishlist',
-                  'Quiero',
-                  Icons.favorite,
+                  GameStatus.wishlist.shortLabel,
+                  CorpusIconKind.Favorite,
                   '',
                   statusColor('wishlist'),
                   (v) {
@@ -898,9 +807,20 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                   },
                 ),
                 statusButton(
+                  'to_play',
+                  GameStatus.toPlay.shortLabel,
+                  CorpusIconKind.Bookmark,
+                  '',
+                  statusColor('to_play'),
+                  (v) {
+                    applyStatusChange(v);
+                    statusStepConfirmed = true;
+                  },
+                ),
+                statusButton(
                   'playing',
-                  'Jugando',
-                  Icons.videogame_asset,
+                  GameStatus.playing.shortLabel,
+                  CorpusIconKind.VideogameAsset,
                   '',
                   statusColor('playing'),
                   (v) {
@@ -910,8 +830,8 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                 ),
                 statusButton(
                   'beaten',
-                  'Terminado',
-                  Icons.check_circle,
+                  GameStatus.beaten.shortLabel,
+                  CorpusIconKind.CheckCircle,
                   '',
                   statusColor('beaten'),
                   (v) {
@@ -921,8 +841,8 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                 ),
                 statusButton(
                   'abandoned',
-                  'Abandonado',
-                  Icons.cancel_outlined,
+                  GameStatus.abandoned.shortLabel,
+                  CorpusIconKind.CancelOutlined,
                   '',
                   statusColor('abandoned'),
                   (v) {
@@ -955,7 +875,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         chip(
                           'none',
                           'Nada',
-                          Icons.do_not_disturb_alt,
+                          CorpusIconKind.DoNotDisturbAlt,
                           reviewCompletionType,
                           Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
@@ -963,7 +883,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         chip(
                           'story',
                           'Historia',
-                          Icons.auto_stories,
+                          CorpusIconKind.AutoStories,
                           reviewCompletionType,
                           Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
@@ -971,7 +891,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         chip(
                           'story_extras',
                           'Historia + Extras',
-                          Icons.extension,
+                          CorpusIconKind.Extension,
                           reviewCompletionType,
                           Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
@@ -979,7 +899,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         chip(
                           '100_percent',
                           'Platino',
-                          Icons.emoji_events,
+                          CorpusIconKind.EmojiEvents,
                           reviewCompletionType,
                           Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
@@ -1006,7 +926,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         chip(
                           'none',
                           'Nada',
-                          Icons.do_not_disturb_alt,
+                          CorpusIconKind.DoNotDisturbAlt,
                           reviewCompletionType,
                           Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
@@ -1014,7 +934,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         chip(
                           'endless',
                           'Sin Fin',
-                          Icons.all_inclusive,
+                          CorpusIconKind.AllInclusive,
                           reviewCompletionType,
                           Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
@@ -1022,7 +942,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         chip(
                           'on_hold',
                           'En Pausa',
-                          Icons.pause,
+                          CorpusIconKind.Pause,
                           reviewCompletionType,
                           Theme.of(context).colorScheme.primary,
                           (v) => reviewCompletionType = v,
@@ -1093,32 +1013,36 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         style: TextStyle(fontSize: 14),
                       ),
                       children: [
-                        buildSubRatingSlider(
-                          'Gameplay',
-                          Icons.sports_esports,
-                          reviewRatingGameplay,
-                          (val) =>
+                        ReviewSubRatingSlider(
+                          label: 'Gameplay',
+                          icon: CorpusIconKind.SportsEsports,
+                          value: reviewRatingGameplay,
+                          formatRating: formatRating,
+                          onChanged: (val) =>
                               setState(() => reviewRatingGameplay = val),
                         ),
-                        buildSubRatingSlider(
-                          'Narrativa',
-                          Icons.auto_stories,
-                          reviewRatingNarrative,
-                          (val) =>
+                        ReviewSubRatingSlider(
+                          label: 'Narrativa',
+                          icon: CorpusIconKind.AutoStories,
+                          value: reviewRatingNarrative,
+                          formatRating: formatRating,
+                          onChanged: (val) =>
                               setState(() => reviewRatingNarrative = val),
                         ),
-                        buildSubRatingSlider(
-                          'Banda Sonora',
-                          Icons.music_note,
-                          reviewRatingSoundtrack,
-                          (val) =>
+                        ReviewSubRatingSlider(
+                          label: 'Banda Sonora',
+                          icon: CorpusIconKind.MusicNote,
+                          value: reviewRatingSoundtrack,
+                          formatRating: formatRating,
+                          onChanged: (val) =>
                               setState(() => reviewRatingSoundtrack = val),
                         ),
-                        buildSubRatingSlider(
-                          'Gráficos',
-                          Icons.brush,
-                          reviewRatingVisuals,
-                          (val) =>
+                        ReviewSubRatingSlider(
+                          label: 'Gráficos',
+                          icon: CorpusIconKind.Brush,
+                          value: reviewRatingVisuals,
+                          formatRating: formatRating,
+                          onChanged: (val) =>
                               setState(() => reviewRatingVisuals = val),
                         ),
                       ],
@@ -1162,7 +1086,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         scrollDirection: Axis.horizontal,
                         children: [
                           ...existingImages.map(
-                            (url) => buildRemovableImage(
+                            (url) => RemovableImageCard(
                               imageWidget: CorpusNetworkImage(
                                 url: url,
                                 fit: BoxFit.cover,
@@ -1175,7 +1099,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                             ),
                           ),
                           ...newImages.map(
-                            (file) => buildRemovableImage(
+                            (file) => RemovableImageCard(
                               imageWidget: kIsWeb
                                   ? CorpusNetworkImage(
                                       url: file.path,
@@ -1200,7 +1124,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                   ],
                   if (existingImages.length + newImages.length < 4)
                     OutlinedButton.icon(
-                      icon: const Icon(Icons.add_photo_alternate, size: 18),
+                      icon: const CorpusTablerIcon(CorpusIconKind.AddPhotoAlternate, size: 18),
                       label: const Text('Adjuntar imagen (máx 4)'),
                       onPressed: () async {
                         final picker = ImagePicker();
@@ -1224,7 +1148,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
             /// Sección "Información Extra" (plataforma, tiempo jugado,
             /// fechas, progreso, rejugada, compañero de cooperativo).
             Widget buildInfoExtraSection() {
-              if (reviewStatus == 'wishlist') {
+              if (isCollectionOnlyStatus(reviewStatus)) {
                 return const SizedBox.shrink();
               }
               return Column(
@@ -1289,7 +1213,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                           ),
                         ),
                         TextButton.icon(
-                          icon: const Icon(Icons.edit_calendar, size: 16),
+                          icon: const CorpusTablerIcon(CorpusIconKind.EditCalendar, size: 16),
                           label: Text(() {
                             final displayDate = reviewDate ?? initialReviewDate;
                             return displayDate != null
@@ -1385,7 +1309,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                   Row(
                                     children: [
                                       IconButton(
-                                        icon: const Icon(Icons.arrow_back),
+                                        icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
                                         tooltip: 'Cambiar estado',
                                         onPressed: () => setState(
                                           () => statusStepConfirmed = false,
@@ -1397,7 +1321,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           minHeight: 36,
                                         ),
                                       ),
-                                      Icon(
+                                      CorpusTablerIcon(
                                         GameStatus.iconForString(reviewStatus),
                                         size: 20,
                                         color: statusColor(reviewStatus),
@@ -1436,7 +1360,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           chip(
                                             'none',
                                             'Nada',
-                                            Icons.do_not_disturb_alt,
+                                            CorpusIconKind.DoNotDisturbAlt,
                                             reviewCompletionType,
                                             Theme.of(
                                               context,
@@ -1446,7 +1370,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           chip(
                                             'story',
                                             'Historia',
-                                            Icons.auto_stories,
+                                            CorpusIconKind.AutoStories,
                                             reviewCompletionType,
                                             Theme.of(
                                               context,
@@ -1456,7 +1380,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           chip(
                                             'story_extras',
                                             'Historia + Extras',
-                                            Icons.extension,
+                                            CorpusIconKind.Extension,
                                             reviewCompletionType,
                                             Theme.of(
                                               context,
@@ -1466,7 +1390,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           chip(
                                             '100_percent',
                                             'Platino',
-                                            Icons.emoji_events,
+                                            CorpusIconKind.EmojiEvents,
                                             reviewCompletionType,
                                             Theme.of(
                                               context,
@@ -1493,7 +1417,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           chip(
                                             'none',
                                             'Nada',
-                                            Icons.do_not_disturb_alt,
+                                            CorpusIconKind.DoNotDisturbAlt,
                                             reviewCompletionType,
                                             Theme.of(
                                               context,
@@ -1503,7 +1427,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           chip(
                                             'endless',
                                             'Sin Fin',
-                                            Icons.all_inclusive,
+                                            CorpusIconKind.AllInclusive,
                                             reviewCompletionType,
                                             Theme.of(
                                               context,
@@ -1513,7 +1437,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           chip(
                                             'on_hold',
                                             'En Pausa',
-                                            Icons.pause,
+                                            CorpusIconKind.Pause,
                                             reviewCompletionType,
                                             Theme.of(
                                               context,
@@ -1585,38 +1509,42 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                             style: TextStyle(fontSize: 14),
                                           ),
                                           children: [
-                                            buildSubRatingSlider(
-                                              'Gameplay',
-                                              Icons.sports_esports,
-                                              reviewRatingGameplay,
-                                              (val) => setState(
+                                            ReviewSubRatingSlider(
+                                              label: 'Gameplay',
+                                              icon: CorpusIconKind.SportsEsports,
+                                              value: reviewRatingGameplay,
+                                              formatRating: formatRating,
+                                              onChanged: (val) => setState(
                                                 () =>
                                                     reviewRatingGameplay = val,
                                               ),
                                             ),
-                                            buildSubRatingSlider(
-                                              'Narrativa',
-                                              Icons.auto_stories,
-                                              reviewRatingNarrative,
-                                              (val) => setState(
+                                            ReviewSubRatingSlider(
+                                              label: 'Narrativa',
+                                              icon: CorpusIconKind.AutoStories,
+                                              value: reviewRatingNarrative,
+                                              formatRating: formatRating,
+                                              onChanged: (val) => setState(
                                                 () =>
                                                     reviewRatingNarrative = val,
                                               ),
                                             ),
-                                            buildSubRatingSlider(
-                                              'Banda Sonora',
-                                              Icons.music_note,
-                                              reviewRatingSoundtrack,
-                                              (val) => setState(
+                                            ReviewSubRatingSlider(
+                                              label: 'Banda Sonora',
+                                              icon: CorpusIconKind.MusicNote,
+                                              value: reviewRatingSoundtrack,
+                                              formatRating: formatRating,
+                                              onChanged: (val) => setState(
                                                 () => reviewRatingSoundtrack =
                                                     val,
                                               ),
                                             ),
-                                            buildSubRatingSlider(
-                                              'Gráficos',
-                                              Icons.brush,
-                                              reviewRatingVisuals,
-                                              (val) => setState(
+                                            ReviewSubRatingSlider(
+                                              label: 'Gráficos',
+                                              icon: CorpusIconKind.Brush,
+                                              value: reviewRatingVisuals,
+                                              formatRating: formatRating,
+                                              onChanged: (val) => setState(
                                                 () => reviewRatingVisuals = val,
                                               ),
                                             ),
@@ -1661,7 +1589,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           childAspectRatio: 16 / 9,
                                           children: [
                                             ...existingImages.map(
-                                              (url) => buildRemovableImage(
+                                              (url) => RemovableImageCard(
                                                 imageWidget: CorpusNetworkImage(
                                                   url: url,
                                                   fit: BoxFit.cover,
@@ -1674,7 +1602,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                               ),
                                             ),
                                             ...newImages.map(
-                                              (file) => buildRemovableImage(
+                                              (file) => RemovableImageCard(
                                                 imageWidget: kIsWeb
                                                     ? CorpusNetworkImage(
                                                         url: file.path,
@@ -1701,8 +1629,8 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                               newImages.length <
                                           4)
                                         OutlinedButton.icon(
-                                          icon: const Icon(
-                                            Icons.add_photo_alternate,
+                                          icon: const CorpusTablerIcon(
+                                            CorpusIconKind.AddPhotoAlternate,
                                             size: 18,
                                           ),
                                           label: const Text(
@@ -1732,7 +1660,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                     ],
 
                                     // ── Información extra (plataforma, tiempo, fechas) ─
-                                    if (reviewStatus != 'wishlist') ...[
+                                    if (!isCollectionOnlyStatus(reviewStatus)) ...[
                                       if (reviewStatus == 'playing') ...[
                                         Text(
                                           'Información Extra',
@@ -1828,11 +1756,11 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                     ratingVisuals: reviewRatingVisuals,
                                     comment: reviewCommentController.text,
                                     status: reviewStatus,
-                                    completionType: reviewStatus == 'wishlist'
+                                    completionType: isCollectionOnlyStatus(reviewStatus)
                                         ? 'none'
                                         : reviewCompletionType,
                                     isReplay:
-                                        !(reviewStatus == 'wishlist') &&
+                                        !isCollectionOnlyStatus(reviewStatus) &&
                                         reviewIsReplay,
                                     replayNumber: reviewIsReplay
                                         ? reviewReplayNumber
@@ -1881,7 +1809,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                   ).scaffoldBackgroundColor,
                                 )
                               : Text(
-                                  reviewStatus == 'wishlist' ||
+                                  isCollectionOnlyStatus(reviewStatus) ||
                                           reviewStatus == 'playing'
                                       ? 'Guardar'
                                       : 'Guardar Reseña',
@@ -1894,7 +1822,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                       ),
                     ),
                   ],
-                  SizedBox(height: getBottomSpacer(context)),
+                  const SizedBox(height: 16),
                 ],
               ),
             );

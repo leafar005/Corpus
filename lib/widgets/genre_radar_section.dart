@@ -1,6 +1,8 @@
 // lib/widgets/genre_radar_section.dart
 
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../models/models.dart';
 import '../repositories/profile_repository.dart';
 import '../utils/genre_radar_calculator.dart';
@@ -91,7 +93,7 @@ class _GenreRadarSectionState extends State<GenreRadarSection> {
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: _fetch,
-                icon: const Icon(Icons.refresh),
+                icon: const CorpusTablerIcon(CorpusIconKind.Refresh),
                 label: const Text('Reintentar'),
               ),
             ],

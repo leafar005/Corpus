@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'steam_import_setup_screen.dart';
@@ -197,8 +199,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Icon(
-                                    Icons.check_circle,
+                                  const CorpusTablerIcon(CorpusIconKind.CheckCircle,
                                     color: Colors.green,
                                     size: 20,
                                   ),
@@ -228,7 +229,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                               SizedBox(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
-                                  icon: const Icon(Icons.cloud_download),
+                                  icon: const CorpusTablerIcon(CorpusIconKind.CloudDownload),
                                   label: const Text(
                                     'Importar biblioteca de Steam',
                                   ),
@@ -258,7 +259,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                         ),
                       ),
                       TextButton.icon(
-                        icon: const Icon(Icons.help_outline, size: 18),
+                        icon: const CorpusTablerIcon(CorpusIconKind.HelpOutline, size: 18),
                         label: const Text('¿Cómo hacerlo?'),
                         onPressed: () => _showStashMigrationHelp(context),
                       ),
@@ -287,7 +288,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
-                            icon: const Icon(Icons.file_upload_outlined),
+                            icon: const CorpusTablerIcon(CorpusIconKind.FileUploadOutlined),
                             label: const Text('Importar desde Stash'),
                             onPressed: () async {
                               try {
@@ -453,8 +454,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.info_outline,
+                        const CorpusTablerIcon(CorpusIconKind.InfoOutline,
                           color: Colors.amber,
                           size: 22,
                         ),
@@ -518,8 +518,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
+                        CorpusTablerIcon(CorpusIconKind.Inventory2Outlined,
                           size: 32,
                           color: Theme.of(context).colorScheme.primary,
                         ),

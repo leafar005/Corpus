@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import '../../services/notification_service.dart';
@@ -161,7 +163,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 // ── Amigos ────────────────────────────────────────────────
                 _buildSectionHeader('Amigos'),
                 _buildNotifTile(
-                  icon: Icons.sports_esports_outlined,
+                  icon: CorpusIconKind.SportsEsportsOutlined,
                   iconColor: colorScheme.primary,
                   title: 'Amigo empieza a jugar',
                   subtitle: 'Cuando un amigo inicia un juego nuevo.',
@@ -169,7 +171,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   onChanged: (v) => _toggle('friend_started_playing', v),
                 ),
                 _buildNotifTile(
-                  icon: Icons.emoji_events_outlined,
+                  icon: CorpusIconKind.EmojiEventsOutlined,
                   iconColor: Colors.amber,
                   title: 'Amigo termina un juego',
                   subtitle: 'Cuando un amigo marca un juego como completado.',
@@ -177,7 +179,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   onChanged: (v) => _toggle('friend_finished_game', v),
                 ),
                 _buildNotifTile(
-                  icon: Icons.bookmark_add_outlined,
+                  icon: CorpusIconKind.BookmarkAddOutlined,
                   iconColor: Colors.deepPurpleAccent,
                   title: 'Amigo añade a wishlist',
                   subtitle: 'Cuando un amigo quiere jugar a un juego.',
@@ -190,7 +192,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 // ── Bundles ───────────────────────────────────────────────
                 _buildSectionHeader('Bundles'),
                 _buildNotifTile(
-                  icon: Icons.redeem_outlined,
+                  icon: CorpusIconKind.RedeemOutlined,
                   iconColor: Colors.green,
                   title: 'Bundle nuevo disponible',
                   subtitle:
@@ -199,7 +201,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   onChanged: (v) => _toggle('new_bundle', v),
                 ),
                 _buildNotifTile(
-                  icon: Icons.timer_outlined,
+                  icon: CorpusIconKind.TimerOutlined,
                   iconColor: Colors.orange,
                   title: 'Bundle a punto de caducar',
                   subtitle: 'Aviso 24h antes de que un bundle expire.',
@@ -212,7 +214,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 // ── Social ────────────────────────────────────────────────
                 _buildSectionHeader('Social'),
                 _buildNotifTile(
-                  icon: Icons.comment_outlined,
+                  icon: CorpusIconKind.CommentOutlined,
                   iconColor: colorScheme.secondary,
                   title: 'Comentario en tu reseña',
                   subtitle: 'Cuando alguien comenta en una de tus reseñas.',
@@ -220,7 +222,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   onChanged: (v) => _toggle('comment_on_review', v),
                 ),
                 _buildNotifTile(
-                  icon: Icons.reply_outlined,
+                  icon: CorpusIconKind.ReplyOutlined,
                   iconColor: colorScheme.tertiary,
                   title: 'Respuesta a tu comentario',
                   subtitle:
@@ -247,7 +249,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         );
                       }
                     },
-                    icon: const Icon(Icons.notifications_active_outlined),
+                    icon: const CorpusTablerIcon(CorpusIconKind.NotificationsActiveOutlined),
                     label: const Text('Enviar notificación de prueba'),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 48),
@@ -295,7 +297,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildNotifTile({
-    required IconData icon,
+    required CorpusIconKind icon,
     required Color iconColor,
     required String title,
     required String subtitle,
@@ -309,7 +311,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           color: iconColor.withValues(alpha: 0.12),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 20, color: iconColor),
+        child: CorpusTablerIcon(icon, size: 20, color: iconColor),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(

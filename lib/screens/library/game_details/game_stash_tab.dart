@@ -5,6 +5,8 @@
 // "tu review / la de tu pareja" mostrada en el Hero.
 
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../../widgets/guest_login_prompt.dart';
 import '../../../theme/corpus_theme_extension.dart';
 import '../../../utils/format_utils.dart';
@@ -34,7 +36,7 @@ class _GameStashTabState extends State<GameStashTab> {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: GuestLoginPrompt(
-          icon: Icons.reviews_outlined,
+          icon: CorpusIconKind.ReviewsOutlined,
           message: 'Inicia sesión para ver las reseñas de la comunidad.',
         ),
       );
@@ -99,7 +101,7 @@ class _GameStashTabState extends State<GameStashTab> {
                           ? NetworkImage(avatarUrl)
                           : null,
                       child: avatarUrl == null
-                          ? const Icon(Icons.person, size: 16)
+                          ? const CorpusTablerIcon(CorpusIconKind.Person, size: 16)
                           : null,
                     ),
                     const SizedBox(width: 8),
@@ -112,7 +114,7 @@ class _GameStashTabState extends State<GameStashTab> {
                     if (rating > 0)
                       Row(
                         children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
+                          const CorpusTablerIcon(CorpusIconKind.Star, color: Colors.amber, size: 16),
                           const SizedBox(width: 4),
                           Text(
                             formatRating(rating),
@@ -145,7 +147,7 @@ class _GameStashTabState extends State<GameStashTab> {
                   _stashReviewLimit += 5;
                 });
               },
-              icon: const Icon(Icons.expand_more),
+              icon: const CorpusTablerIcon(CorpusIconKind.ExpandMore),
               label: const Text('Ver más reseñas'),
             ),
           ),

@@ -27,6 +27,8 @@ class ProfileController extends SafeChangeNotifier {
   int wishlistCount = 0;
   List<Map<String, dynamic>> playingGames = [];
   int playingCount = 0;
+  List<Map<String, dynamic>> toPlayGames = [];
+  int toPlayCount = 0;
   List<Map<String, dynamic>> beatenGames = [];
   int beatenCount = 0;
   List<Map<String, dynamic>> platinumGames = [];
@@ -94,6 +96,8 @@ class ProfileController extends SafeChangeNotifier {
       wishlistCount = data.wishlistCount;
       playingGames = data.playingGames;
       playingCount = data.playingCount;
+      toPlayGames = data.toPlayGames;
+      toPlayCount = data.toPlayCount;
       beatenGames = data.beatenGames;
       beatenCount = data.beatenCount;
       platinumGames = data.platinumGames;

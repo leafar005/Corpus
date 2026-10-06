@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../../widgets/design/corpus_button.dart';
 import '../../../widgets/design/corpus_dialog.dart';
@@ -109,11 +110,11 @@ class DesignFeedbackSection extends StatelessWidget {
           title: 'Empty state',
           subtitle: 'Listas vacías y zonas sin contenido.',
           child: CorpusEmptyState(
-            icon: Icons.videogame_asset_outlined,
+            icon: CorpusIconKind.VideogameAssetOutlined,
             title: 'Tu biblioteca está vacía',
             subtitle: 'Añade juegos desde la búsqueda o importa desde Steam.',
             actionLabel: 'Buscar juegos',
-            actionIcon: Icons.search,
+            actionIcon: CorpusIconKind.Search,
             onAction: () {},
           ),
         ),

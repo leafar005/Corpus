@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
@@ -122,7 +124,7 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
         backgroundColor: Theme.of(context).colorScheme.surface,
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: const CorpusTablerIcon(CorpusIconKind.DeleteOutline, color: Colors.red),
             tooltip: 'Vaciar hueco',
             onPressed: _removeGame,
           ),
@@ -141,7 +143,7 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                   child: TextField(
                     decoration: InputDecoration(
                       hintText: 'Buscar juego...',
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

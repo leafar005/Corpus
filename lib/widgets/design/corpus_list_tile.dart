@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../theme/corpus_theme_extension.dart';
 import '../../theme/corpus_typography.dart';
@@ -6,7 +8,7 @@ import 'corpus_pointer.dart';
 
 /// Settings-style list row with pack-aware typography.
 class CorpusListTile extends StatelessWidget {
-  final IconData icon;
+  final CorpusIconKind icon;
   final String title;
   final String? subtitle;
   final Widget? trailing;
@@ -31,7 +33,7 @@ class CorpusListTile extends StatelessWidget {
     final tile = ListTile(
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: ext.radiusMedium),
-      leading: Icon(icon, color: cs.primary),
+      leading: CorpusTablerIcon(icon, color: cs.primary),
       title: Text(
         title,
         style: CorpusTypography.display(
@@ -51,7 +53,7 @@ class CorpusListTile extends StatelessWidget {
       trailing:
           trailing ??
           (showChevron && onTap != null
-              ? Icon(Icons.chevron_right, color: cs.onSurfaceVariant)
+              ? CorpusTablerIcon(CorpusIconKind.ChevronRight, color: cs.onSurfaceVariant)
               : null),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
     );

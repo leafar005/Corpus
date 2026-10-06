@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../theme/corpus_theme_extension.dart';
 import '../theme/corpus_typography.dart';
@@ -10,7 +12,7 @@ import 'p5r_dynamic_frame.dart';
 /// they always share the same look within each style pack.
 class CorpusPrimaryButton extends StatelessWidget {
   final VoidCallback? onPressed;
-  final IconData icon;
+  final CorpusIconKind icon;
   final String label;
   final EdgeInsets? padding;
   final Color? backgroundColor;
@@ -58,7 +60,7 @@ class CorpusPrimaryButton extends StatelessWidget {
                   ? MainAxisAlignment.center
                   : MainAxisAlignment.start,
               children: [
-                Icon(icon, color: fg, size: 20),
+                CorpusTablerIcon(icon, color: fg, size: 20),
                 const SizedBox(width: 8),
                 Text(label, style: _labelStyle(context, ext, fg)),
               ],
@@ -69,7 +71,7 @@ class CorpusPrimaryButton extends StatelessWidget {
     } else {
       button = ElevatedButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, size: 20, color: fg),
+        icon: CorpusTablerIcon(icon, size: 20, color: fg),
         label: Text(
           label,
           style: CorpusTypography.display(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../theme/corpus_theme_extension.dart';
 import 'corpus_pointer.dart';
@@ -11,7 +13,7 @@ class CorpusTabs extends StatelessWidget {
   final List<String> labels;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
-  final List<IconData>? icons;
+  final List<CorpusIconKind>? icons;
   final Widget? child;
   final EdgeInsetsGeometry contentPadding;
   final bool isScrollable;
@@ -78,7 +80,7 @@ class CorpusTabs extends StatelessWidget {
 
 class _CorpusTabRow extends StatelessWidget {
   final List<String> labels;
-  final List<IconData>? icons;
+  final List<CorpusIconKind>? icons;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
   final bool isScrollable;
@@ -152,7 +154,7 @@ class _CorpusTabRow extends StatelessWidget {
 
 class _CorpusTabHeader extends StatefulWidget {
   final String label;
-  final IconData? icon;
+  final CorpusIconKind? icon;
   final bool selected;
   final VoidCallback onTap;
   final Color borderColor;
@@ -196,7 +198,7 @@ class _CorpusTabHeaderState extends State<_CorpusTabHeader> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (widget.icon != null) ...[
-          Icon(widget.icon, size: 16, color: fg),
+          CorpusTablerIcon(widget.icon!, size: 16, color: fg),
           const SizedBox(width: 6),
         ],
         DefaultTextStyle.merge(

@@ -1,5 +1,8 @@
 import '../../utils/debouncer.dart';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/globals.dart';
@@ -170,10 +173,10 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       controller: _searchController,
       decoration: InputDecoration(
         hintText: 'Buscar reseña por juego...',
-        prefixIcon: const Icon(Icons.search),
+        prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.clear),
+                icon: const CorpusTablerIcon(CorpusIconKind.Clear),
                 onPressed: () {
                   _searchController.clear();
                   setState(() => _searchQuery = '');
@@ -284,8 +287,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                       : null,
                 ),
                 child: coverUrl.isEmpty
-                    ? Icon(
-                        Icons.videogame_asset,
+                    ? CorpusTablerIcon(CorpusIconKind.VideogameAsset,
                         size: 18,
                         color: Theme.of(
                           context,
@@ -311,8 +313,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                           ),
                         ),
                         if (rating > 0) ...[
-                          Icon(
-                            Icons.star,
+                          CorpusTablerIcon(CorpusIconKind.Star,
                             size: 14,
                             color: Theme.of(context).colorScheme.secondary,
                           ),
@@ -345,8 +346,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(
-                          Icons.thumb_up_alt_outlined,
+                        CorpusTablerIcon(CorpusIconKind.ThumbUpAltOutlined,
                           size: 14,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -361,8 +361,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Icon(
-                          Icons.chat_bubble_outline,
+                        CorpusTablerIcon(CorpusIconKind.ChatBubbleOutline,
                           size: 14,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),

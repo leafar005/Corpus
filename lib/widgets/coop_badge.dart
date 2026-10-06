@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../theme/corpus_theme_extension.dart';
 
@@ -52,8 +54,7 @@ class CoopBadge extends StatelessWidget {
                 context,
               ).colorScheme.surfaceContainerHighest,
               child: avatarUrl == null
-                  ? Icon(
-                      Icons.person,
+                  ? CorpusTablerIcon(CorpusIconKind.Person,
                       size: size * 0.6,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     )

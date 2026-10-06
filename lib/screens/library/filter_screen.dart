@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
@@ -181,12 +183,12 @@ class _FilterScreenState extends State<FilterScreen> {
                 segments: const [
                   ButtonSegment(
                     value: false,
-                    icon: Icon(Icons.arrow_downward, size: 18),
+                    icon: CorpusTablerIcon(CorpusIconKind.ArrowDownward, size: 18),
                     label: Text('Descendente'),
                   ),
                   ButtonSegment(
                     value: true,
-                    icon: Icon(Icons.arrow_upward, size: 18),
+                    icon: CorpusTablerIcon(CorpusIconKind.ArrowUpward, size: 18),
                     label: Text('Ascendente'),
                   ),
                 ],
@@ -356,8 +358,7 @@ class _FilterCategoryRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right,
+              CorpusTablerIcon(CorpusIconKind.ChevronRight,
                 size: 20,
                 color: scheme.onSurfaceVariant,
               ),

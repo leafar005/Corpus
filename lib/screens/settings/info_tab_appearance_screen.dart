@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/globals.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -36,15 +38,15 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
     'engine': 'Motor gráfico',
   };
 
-  static const Map<String, IconData> itemIcons = {
-    'franchise': Icons.collections_bookmark_outlined,
-    'genres_themes': Icons.category_outlined,
-    'platforms': Icons.devices,
-    'metacritic': Icons.rate_review_outlined,
-    'stash_stats': Icons.groups_outlined,
-    'summary': Icons.description_outlined,
-    'hltb': Icons.timer_outlined,
-    'engine': Icons.memory,
+  static const Map<String, CorpusIconKind> itemIcons = {
+    'franchise': CorpusIconKind.CollectionsBookmarkOutlined,
+    'genres_themes': CorpusIconKind.CategoryOutlined,
+    'platforms': CorpusIconKind.Devices,
+    'metacritic': CorpusIconKind.RateReviewOutlined,
+    'stash_stats': CorpusIconKind.GroupsOutlined,
+    'summary': CorpusIconKind.DescriptionOutlined,
+    'hltb': CorpusIconKind.TimerOutlined,
+    'engine': CorpusIconKind.Memory,
   };
 
   List<String> _order = [];
@@ -135,7 +137,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.restart_alt),
+            icon: const CorpusTablerIcon(CorpusIconKind.RestartAlt),
             tooltip: 'Restablecer por defecto',
             onPressed: _resetToDefault,
           ),
@@ -175,7 +177,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                       final key = _order[index];
                       final isVisible = !_hiddenItems.contains(key);
                       final label = itemLabels[key] ?? key;
-                      final icon = itemIcons[key] ?? Icons.info_outline;
+                      final icon = itemIcons[key] ?? CorpusIconKind.InfoOutline;
 
                       return Container(
                         key: ValueKey(key),
@@ -194,8 +196,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                           ),
                         ),
                         child: ListTile(
-                          leading: Icon(
-                            icon,
+                          leading: CorpusTablerIcon(icon,
                             color: isVisible
                                 ? Theme.of(context).colorScheme.primary
                                 : Theme.of(
@@ -229,8 +230,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                               const SizedBox(width: 8),
                               ReorderableDragStartListener(
                                 index: index,
-                                child: Icon(
-                                  Icons.drag_handle,
+                                child: CorpusTablerIcon(CorpusIconKind.DragHandle,
                                   color: Theme.of(
                                     context,
                                   ).colorScheme.onSurfaceVariant,

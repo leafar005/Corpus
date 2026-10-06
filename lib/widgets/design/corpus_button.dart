@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../theme/corpus_theme_extension.dart';
 import '../../theme/corpus_typography.dart';
@@ -18,7 +20,7 @@ enum CorpusButtonSize { small, medium, large }
 class CorpusButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final String label;
-  final IconData? icon;
+  final CorpusIconKind? icon;
   final CorpusButtonVariant variant;
   final CorpusButtonSize size;
   final bool expand;
@@ -160,10 +162,10 @@ class _CorpusButtonState extends State<CorpusButton> {
     );
 
     final children = <Widget>[];
-    if (widget.icon != null && !widget.iconTrailing) {
+        if (widget.icon != null && !widget.iconTrailing) {
       children
         ..add(
-          Icon(widget.icon, size: metrics.iconSize, color: colors.foreground),
+          CorpusTablerIcon(widget.icon!, size: metrics.iconSize, color: colors.foreground),
         )
         ..add(SizedBox(width: metrics.iconGap));
     }
@@ -172,7 +174,7 @@ class _CorpusButtonState extends State<CorpusButton> {
       children
         ..add(SizedBox(width: metrics.iconGap))
         ..add(
-          Icon(widget.icon, size: metrics.iconSize, color: colors.foreground),
+          CorpusTablerIcon(widget.icon!, size: metrics.iconSize, color: colors.foreground),
         );
     }
 

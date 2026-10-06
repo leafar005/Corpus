@@ -6,10 +6,18 @@ import 'package:corpus/routes/app_navigation_controller.dart';
 import '../../utils/debouncer.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
+import '../../widgets/corpus_section_title.dart';
+import '../../widgets/explore_bundle_row.dart';
+import '../../widgets/horizontal_game_row.dart';
 import 'filter_screen.dart';
 
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../widgets/corpus_tabler_icon.dart';
+
+class ExploreNavigation {
+  static final targetQuery = ValueNotifier<String?>(null);
+}
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
@@ -43,21 +51,41 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   // Caché de los juegos del usuario (game_id -> nota)
   Map<int, double> _userGamesCache = {};
 
+  final List<Map<String, dynamic>> _bundles = [];
+  bool _isBundlesLoading = true;
+  String? _bundlesError;
+
   @override
   void initState() {
     super.initState();
     initPagination();
     _fetchUserGamesCache();
-    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+
+    final externalQuery = ExploreNavigation.targetQuery.value;
+    if (externalQuery != null && externalQuery.isNotEmpty) {
+      _searchController.text = externalQuery;
+      ExploreNavigation.targetQuery.value = null;
+      _performSearch(isInitial: true);
+    } else if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
       _searchController.text = widget.initialQuery!;
       _performSearch(isInitial: true);
     } else {
       _fetchPopularGames(isInitial: true);
+      _fetchBundles();
     }
-    // Solo la instancia raíz del tab Buscar escucha la señal de scroll-al-inicio.
+    ExploreNavigation.targetQuery.addListener(_onExternalSearch);
+    // Solo la instancia raíz del tab Explorar escucha la señal de scroll-al-inicio.
     if (widget.initialQuery == null && !widget.isSelectionMode) {
       tabScrollToTopNotifiers[1].addListener(_onScrollToTop);
     }
+  }
+
+  void _onExternalSearch() {
+    final query = ExploreNavigation.targetQuery.value;
+    if (query == null || query.isEmpty) return;
+    _searchController.text = query;
+    ExploreNavigation.targetQuery.value = null;
+    _performSearch(isInitial: true);
   }
 
   @override
@@ -71,6 +99,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
 
   @override
   void dispose() {
+    ExploreNavigation.targetQuery.removeListener(_onExternalSearch);
     if (widget.initialQuery == null && !widget.isSelectionMode) {
       tabScrollToTopNotifiers[1].removeListener(_onScrollToTop);
     }
@@ -139,6 +168,54 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
         setState(() {
           if (isInitial) _isInitialPopularLoading = false;
           isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchBundles() async {
+    setState(() {
+      _isBundlesLoading = true;
+      _bundlesError = null;
+    });
+
+    try {
+      final response = await Supabase.instance.client
+          .from('active_bundles')
+          .select()
+          .order('end_date', ascending: true);
+
+      final newBundles = List<Map<String, dynamic>>.from(response);
+      final now = DateTime.now();
+      newBundles.retainWhere((b) {
+        if (b['end_date'] == null) return true;
+        final endDate = DateTime.parse(b['end_date']);
+        return endDate.isAfter(now);
+      });
+
+      newBundles.sort((a, b) {
+        final dateA = a['end_date'] != null
+            ? DateTime.parse(a['end_date'])
+            : DateTime(2100);
+        final dateB = b['end_date'] != null
+            ? DateTime.parse(b['end_date'])
+            : DateTime(2100);
+        return dateA.compareTo(dateB);
+      });
+
+      if (mounted) {
+        setState(() {
+          _bundles
+            ..clear()
+            ..addAll(newBundles);
+          _isBundlesLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _bundlesError = e.toString();
+          _isBundlesLoading = false;
         });
       }
     }
@@ -277,60 +354,72 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: SizedBox(
-          height: 40,
-          child: TextField(
-            controller: _searchController,
-            autofocus: true,
-            textAlignVertical: TextAlignVertical.center,
-            decoration: InputDecoration(
-              hintText: 'Buscar juegos...',
-              filled: true,
-              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 0,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusLarge,
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusLarge,
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusLarge,
-                borderSide: BorderSide.none,
-              ),
-              hintStyle: TextStyle(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-            ),
-            style: const TextStyle(fontSize: 16),
-            onChanged: _onSearchChanged,
+        title: const CorpusScreenTitle('Explorar'),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: _buildSearchField(),
           ),
-        ),
-        actions: [
-          if (_searchController.text.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.clear),
-              onPressed: () {
-                _searchController.clear();
-                _onSearchChanged('');
-              },
-            ),
+          Expanded(child: _buildBody()),
         ],
       ),
-      body: _buildBody(),
+    );
+  }
+
+  Widget _buildSearchField() {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+
+    return SizedBox(
+      height: 44,
+      child: TextField(
+        controller: _searchController,
+        autofocus: false,
+        textAlignVertical: TextAlignVertical.center,
+        decoration: InputDecoration(
+          hintText: 'Buscar juegos...',
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 0,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: ext.radiusLarge,
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: ext.radiusLarge,
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: ext.radiusLarge,
+            borderSide: BorderSide.none,
+          ),
+          hintStyle: TextStyle(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const CorpusTablerIcon.clear(size: 20),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged('');
+                    setState(() {});
+                  },
+                )
+              : null,
+        ),
+        style: const TextStyle(fontSize: 16),
+        onChanged: (value) {
+          setState(() {});
+          _onSearchChanged(value);
+        },
+      ),
     );
   }
 
@@ -340,7 +429,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
       child: Align(
         alignment: Alignment.centerLeft,
         child: TextButton.icon(
-          icon: const Icon(Icons.tune, size: 20),
+          icon: const CorpusTablerIcon.tune(size: 20),
           label: Text(
             'Filtros${_filters.hasFilters ? ' (${_filters.filterCount})' : ''}',
           ),
@@ -383,7 +472,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
           ],
         );
       }
-      return _buildGrid(_popularGames);
+      return _buildExploreBody();
     }
 
     if (_results.isEmpty && _isInitialSearchLoading) {
@@ -416,6 +505,110 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
     }
 
     return _buildGrid(_results);
+  }
+
+  Future<void> _refreshExplore() async {
+    await Future.wait([
+      _fetchPopularGames(isInitial: true),
+      _fetchBundles(),
+      _fetchUserGamesCache(),
+    ]);
+  }
+
+  Widget _buildExploreBody() {
+    return RefreshIndicator(
+      onRefresh: _refreshExplore,
+      child: CustomScrollView(
+        controller: scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(child: _buildFiltersHeader()),
+          const SliverPadding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: CorpusSectionTitle('Tendencias'),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: HorizontalGameRow(
+              games: _popularGames,
+              userGamesCache: _userGamesCache,
+              onReturn: _fetchUserGamesCache,
+              onEndReached: hasMore && !isLoadingMore
+                  ? () => _fetchPopularGames(isInitial: false)
+                  : null,
+            ),
+          ),
+          if (isLoadingMore && _popularGames.isNotEmpty)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            ),
+          const SliverPadding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 20),
+            sliver: SliverToBoxAdapter(
+              child: CorpusSectionTitle('Bundles'),
+            ),
+          ),
+          if (_isBundlesLoading)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            )
+          else if (_bundlesError != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No se pudieron cargar los bundles.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            )
+          else if (_bundles.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No hay bundles activos en este momento.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) =>
+                    ExploreBundleRow(bundle: _bundles[index]),
+                childCount: _bundles.length,
+              ),
+            ),
+          SliverPadding(
+            padding: EdgeInsets.only(bottom: getBottomSpacer(context)),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildGrid(List<dynamic> gamesList) {

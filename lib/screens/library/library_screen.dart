@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
@@ -35,7 +37,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         title: const CorpusScreenTitle('Mi Biblioteca'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const CorpusTablerIcon(CorpusIconKind.Search),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -45,7 +47,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const CorpusTablerIcon(CorpusIconKind.Logout),
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.setInt('main_tab_index', 0);
@@ -83,8 +85,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.videogame_asset_off,
+                  CorpusTablerIcon(CorpusIconKind.VideogameAssetOff,
                     size: 80,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -148,7 +149,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           // mostrando tu nueva adquisición al instante.
           setState(() {});
         },
-        child: const Icon(Icons.add),
+        child: const CorpusTablerIcon(CorpusIconKind.Add),
       ),
     );
   }

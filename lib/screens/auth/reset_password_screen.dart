@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
@@ -95,8 +97,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.lock_rounded,
+                CorpusTablerIcon(CorpusIconKind.LockRounded,
                   size: 72,
                   color: Theme.of(context).colorScheme.primary,
                 ),
@@ -113,12 +114,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: 'Nueva contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    prefixIcon: const CorpusTablerIcon(CorpusIconKind.LockOutlineRounded),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_rounded
-                            : Icons.visibility_off_rounded,
+                      icon: CorpusTablerIcon(_obscurePassword
+                            ? CorpusIconKind.VisibilityRounded
+                            : CorpusIconKind.VisibilityOffRounded,
                       ),
                       onPressed: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
@@ -135,12 +135,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   onSubmitted: (_) => _updatePassword(),
                   decoration: InputDecoration(
                     labelText: 'Confirmar contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    prefixIcon: const CorpusTablerIcon(CorpusIconKind.LockOutlineRounded),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirm
-                            ? Icons.visibility_rounded
-                            : Icons.visibility_off_rounded,
+                      icon: CorpusTablerIcon(_obscureConfirm
+                            ? CorpusIconKind.VisibilityRounded
+                            : CorpusIconKind.VisibilityOffRounded,
                       ),
                       onPressed: () =>
                           setState(() => _obscureConfirm = !_obscureConfirm),

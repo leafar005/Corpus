@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../../widgets/design/corpus_badge.dart';
 import '../../../widgets/design/corpus_card.dart';
@@ -44,13 +45,13 @@ class DesignSurfacesSection extends StatelessWidget {
           child: Column(
             children: [
               CorpusListTile(
-                icon: Icons.palette_outlined,
+                icon: CorpusIconKind.PaletteOutlined,
                 title: 'Apariencia',
                 subtitle: 'Modo, color y style pack',
                 onTap: () {},
               ),
               CorpusListTile(
-                icon: Icons.notifications_outlined,
+                icon: CorpusIconKind.NotificationsOutlined,
                 title: 'Notificaciones',
                 subtitle: 'Push y avisos en app',
                 onTap: () {},

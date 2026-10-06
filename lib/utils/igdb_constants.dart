@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 class IgdbConstants {
   // ============================================================
@@ -453,7 +454,7 @@ class IgdbConstants {
       return {
         'color': Colors.orange,
         'icon': null,
-        'materialIcon': Icons.tv,
+        'fallbackIcon': CorpusIconKind.Tv,
         'textColor': Colors.black87,
       };
     }

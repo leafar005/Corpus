@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../../models/models.dart';
 import '../../../utils/url_utils.dart';
 import '../../../utils/igdb_constants.dart';
@@ -214,8 +216,7 @@ class GameInfoTab extends StatelessWidget {
                   ],
                   if (metacriticUrl != null) ...[
                     const SizedBox(width: 10),
-                    Icon(
-                      Icons.open_in_new,
+                    CorpusTablerIcon(CorpusIconKind.OpenInNew,
                       size: 14,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -249,7 +250,7 @@ class GameInfoTab extends StatelessWidget {
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
-    Widget statCard(IconData icon, String value, String label, Color color) {
+    Widget statCard(CorpusIconKind icon, String value, String label, Color color) {
       return Container(
         constraints: BoxConstraints(minWidth: isDesktop ? 88 : 72),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -263,7 +264,7 @@ class GameInfoTab extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: isDesktop ? 18 : 16, color: color),
+            CorpusTablerIcon(icon, size: isDesktop ? 18 : 16, color: color),
             const SizedBox(height: 3),
             Text(
               value,
@@ -301,28 +302,28 @@ class GameInfoTab extends StatelessWidget {
           children: [
             if (rating != null)
               statCard(
-                Icons.emoji_events,
+                CorpusIconKind.EmojiEvents,
                 formatRating(rating),
                 'Críticas',
                 Colors.amber,
               ),
             if (want != null)
               statCard(
-                Icons.favorite,
+                CorpusIconKind.Favorite,
                 want.toString(),
-                'Quiero',
+                GameStatus.wishlist.shortLabel,
                 Theme.of(context).colorScheme.primary,
               ),
             if (playing != null)
               statCard(
-                Icons.gamepad,
+                CorpusIconKind.Gamepad,
                 playing.toString(),
                 'Jugando',
                 Colors.green,
               ),
             if (played != null)
               statCard(
-                Icons.videogame_asset,
+                CorpusIconKind.VideogameAsset,
                 played.toString(),
                 'Jugado',
                 Colors.blueAccent,
@@ -339,7 +340,7 @@ class GameInfoTab extends StatelessWidget {
     String title,
     num? rawValue,
     Color color,
-    IconData icon,
+    CorpusIconKind icon,
   ) {
     String timeText = '--';
     if (rawValue != null && rawValue > 0) {
@@ -362,7 +363,7 @@ class GameInfoTab extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 28),
+            CorpusTablerIcon(icon, color: color, size: 28),
             const SizedBox(height: 8),
             Text(
               title,
@@ -408,7 +409,7 @@ class GameInfoTab extends StatelessWidget {
           'Principal',
           principal,
           Colors.blueAccent,
-          Icons.speed,
+          CorpusIconKind.Speed,
         ),
         const SizedBox(width: 8),
         _buildTimeToBeatCard(
@@ -416,7 +417,7 @@ class GameInfoTab extends StatelessWidget {
           'Extras',
           extras,
           Colors.purpleAccent,
-          Icons.explore,
+          CorpusIconKind.Explore,
         ),
         const SizedBox(width: 8),
         _buildTimeToBeatCard(
@@ -424,7 +425,7 @@ class GameInfoTab extends StatelessWidget {
           'Completista',
           completionist,
           Colors.amber,
-          Icons.emoji_events,
+          CorpusIconKind.EmojiEvents,
         ),
       ],
     );
@@ -644,9 +645,8 @@ class GameInfoTab extends StatelessWidget {
                         height: 20,
                         fit: BoxFit.contain,
                       )
-                    : (style['materialIcon'] != null
-                          ? Icon(
-                              style['materialIcon'],
+                    : (style['fallbackIcon'] != null
+                          ? CorpusTablerIcon(style['fallbackIcon'],
                               size: 20,
                               color: style['textColor'],
                             )
@@ -725,8 +725,7 @@ class GameInfoTab extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 28),
         child: Row(
           children: [
-            Icon(
-              Icons.memory,
+            CorpusTablerIcon(CorpusIconKind.Memory,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               size: 18,
             ),

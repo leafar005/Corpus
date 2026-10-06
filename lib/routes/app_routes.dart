@@ -4,14 +4,14 @@ abstract final class AppRoutes {
   static const tabHome = '/tab/home';
   static const tabSearch = '/tab/search';
   static const tabActivity = '/tab/activity';
-  static const tabBundles = '/tab/bundles';
+  static const tabMyGames = '/tab/my-games';
   static const tabProfile = '/tab/profile';
 
   // Rutas públicas en la URL del navegador (web)
   static const publicHome = '/inicio';
   static const publicSearch = '/buscar';
   static const publicActivity = '/actividad';
-  static const publicBundles = '/bundles';
+  static const publicMyGames = '/mis-juegos';
   static const publicProfile = '/perfil';
 
   /// Índice de pestaña → path público para la barra de direcciones.
@@ -20,7 +20,7 @@ abstract final class AppRoutes {
       0 => publicHome,
       1 => publicSearch,
       2 => publicActivity,
-      3 => publicBundles,
+      3 => publicMyGames,
       4 => publicProfile,
       _ => publicHome,
     };
@@ -35,7 +35,8 @@ abstract final class AppRoutes {
       '' || 'inicio' => 0,
       'buscar' => 1,
       'actividad' => 2,
-      'bundles' => 3,
+      'mis-juegos' => 3,
+      'bundles' => 1, // legacy: bundles viven en Explorar
       'perfil' => 4,
       _ => null,
     };
@@ -83,4 +84,5 @@ abstract final class AppRoutes {
   static const steamImportProgress = '/steam-import-progress';
   static const importPreview = '/import-preview';
   static const design = '/design';
+  static const privateCollection = '/private/collection';
 }

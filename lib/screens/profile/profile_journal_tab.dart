@@ -1,5 +1,8 @@
 import '../../utils/debouncer.dart';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/models.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/routes/corpus_router.dart';
@@ -208,8 +211,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          Icons.star,
+        CorpusTablerIcon(CorpusIconKind.Star,
           color: Theme.of(context).colorScheme.secondary,
           size: 16,
         ),
@@ -283,10 +285,10 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
             controller: _searchController,
             decoration: InputDecoration(
               hintText: 'Buscar juego...',
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear),
+                      icon: const CorpusTablerIcon(CorpusIconKind.Clear),
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _searchQuery = '');
@@ -318,7 +320,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
             initialValue: _selectedYear,
             hint: const Text('Año'),
             isExpanded: true,
-            icon: const Icon(Icons.arrow_drop_down),
+            icon: const CorpusTablerIcon(CorpusIconKind.ArrowDropDown),
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -421,7 +423,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
     );
   }
 
-  IconData _getStatusIcon(String status) => GameStatus.iconForString(status);
+  CorpusIconKind _getStatusIcon(String status) => GameStatus.iconForString(status);
 
   Widget _buildJournalRow(Map<String, dynamic> review) {
     final gameData = review['games'] as Map<String, dynamic>?;
@@ -489,8 +491,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                       : null,
                 ),
                 child: coverUrl.isEmpty
-                    ? Icon(
-                        Icons.videogame_asset,
+                    ? CorpusTablerIcon(CorpusIconKind.VideogameAsset,
                         size: 20,
                         color: Theme.of(
                           context,
@@ -518,8 +519,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                       ),
                       if (isReplay) ...[
                         const SizedBox(width: 6),
-                        Icon(
-                          Icons.replay,
+                        CorpusTablerIcon(CorpusIconKind.Replay,
                           size: 16,
                           color: Colors.orangeAccent.shade200,
                         ),
@@ -533,8 +533,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                         if (rating > 0) _buildStarRow(rating),
                         if (rating > 0 && isPlatinado) const SizedBox(width: 8),
                         if (isPlatinado)
-                          const Icon(
-                            Icons.emoji_events,
+                          const CorpusTablerIcon(CorpusIconKind.EmojiEvents,
                             size: 16,
                             color: Colors.amber,
                           ),
@@ -559,7 +558,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                               style['color'] as Color? ??
                               Theme.of(context).colorScheme.primary;
                           final iconPath = style['icon'] as String?;
-                          final iconData = style['materialIcon'] as IconData?;
+                          final iconData = style['fallbackIcon'] as CorpusIconKind?;
                           return Container(
                             width: 30,
                             height: 30,
@@ -576,8 +575,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                                       color: Colors.white,
                                     )
                                   : (iconData != null
-                                        ? Icon(
-                                            iconData,
+                                        ? CorpusTablerIcon(iconData,
                                             size: 16,
                                             color: Colors.white,
                                           )
@@ -594,8 +592,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                 width: 110,
                 child: Row(
                   children: [
-                    Icon(
-                      _getStatusIcon(status),
+                    CorpusTablerIcon(_getStatusIcon(status),
                       size: 16,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -615,8 +612,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
               ),
             ] else ...[
               const SizedBox(width: 12),
-              Icon(
-                _getStatusIcon(status),
+              CorpusTablerIcon(_getStatusIcon(status),
                 size: 18,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),

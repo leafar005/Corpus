@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../../theme/corpus_theme_extension.dart';
 import 'corpus_pointer.dart';
@@ -52,8 +54,7 @@ class CorpusDropdown<T> extends StatelessWidget {
           ? Text(hint!, style: TextStyle(color: cs.onSurfaceVariant))
           : null,
       isExpanded: expand,
-      icon: Icon(
-        Icons.keyboard_arrow_down_rounded,
+      icon: CorpusTablerIcon(CorpusIconKind.KeyboardArrowDownRounded,
         color: enabled ? cs.onSurface : cs.onSurface.withValues(alpha: 0.4),
       ),
       style: TextStyle(

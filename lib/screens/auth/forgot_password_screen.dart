@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
@@ -89,8 +91,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(
-          Icons.lock_reset_rounded,
+        CorpusTablerIcon(CorpusIconKind.LockResetRounded,
           size: 72,
           color: Theme.of(context).colorScheme.primary,
         ),
@@ -117,7 +118,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           onSubmitted: (_) => _sendResetEmail(),
           decoration: InputDecoration(
             labelText: 'Correo electrónico',
-            prefixIcon: const Icon(Icons.email_rounded),
+            prefixIcon: const CorpusTablerIcon(CorpusIconKind.EmailRounded),
             border: OutlineInputBorder(borderRadius: ext.radiusMedium),
           ),
         ),
@@ -144,8 +145,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(
-          Icons.mark_email_read_rounded,
+        CorpusTablerIcon(CorpusIconKind.MarkEmailReadRounded,
           size: 72,
           color: Theme.of(context).colorScheme.primary,
         ),

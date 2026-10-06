@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/models/models.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+
+Finder findCorpusIcon(CorpusIconKind kind) => find.byWidgetPredicate(
+  (w) => w is CorpusTablerIcon && w.kind == kind,
+);
 
 void main() {
   group('GameCard Widget Tests', () {
@@ -74,7 +80,7 @@ void main() {
     );
 
     testWidgets(
-      'Muestra un icono genérico (Icons.videogame_asset) cuando la URL de la carátula es nula o vacía',
+      'Muestra un icono genérico Tabler cuando la URL de la carátula es nula o vacía',
       (WidgetTester tester) async {
         final gameMock = {
           'id': 3,
@@ -104,7 +110,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Juego Sin Carátula'), findsWidgets);
-        expect(find.byIcon(Icons.videogame_asset), findsOneWidget);
+        expect(findCorpusIcon(CorpusIconKind.VideogameAsset), findsOneWidget);
       },
     );
   });

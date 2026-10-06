@@ -2,6 +2,8 @@
 // Origen: _buildMediaTab -> líneas 3465-3644.
 
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../../services/igdb_service.dart';
 import '../../../utils/url_utils.dart';
 import '../../../widgets/full_screen_gallery.dart';
@@ -36,18 +38,18 @@ class _GameMediaTabState extends State<GameMediaTab> {
       availableTabs.add({
         'id': 0,
         'label': 'Capturas',
-        'icon': Icons.screenshot_monitor,
+        'icon': CorpusIconKind.ScreenshotMonitor,
       });
     }
     if (widget.videosList.isNotEmpty) {
       availableTabs.add({
         'id': 1,
         'label': 'Tráilers',
-        'icon': Icons.video_library,
+        'icon': CorpusIconKind.VideoLibrary,
       });
     }
     if (widget.artworksList.isNotEmpty) {
-      availableTabs.add({'id': 2, 'label': 'Artworks', 'icon': Icons.brush});
+      availableTabs.add({'id': 2, 'label': 'Artworks', 'icon': CorpusIconKind.Brush});
     }
 
     if (availableTabs.isEmpty) return const SizedBox.shrink();
@@ -71,8 +73,7 @@ class _GameMediaTabState extends State<GameMediaTab> {
                   child: ChoiceChip(
                     label: Text(tab['label']),
                     showCheckmark: false,
-                    avatar: Icon(
-                      tab['icon'],
+                    avatar: CorpusTablerIcon(tab['icon'],
                       size: 18,
                       color: isSelected
                           ? Theme.of(context).colorScheme.onSurface
@@ -169,8 +170,7 @@ class _GameMediaTabState extends State<GameMediaTab> {
                         ).extension<CorpusThemeExtension>()!.radiusMedium,
                       ),
                       child: const Center(
-                        child: Icon(
-                          Icons.play_circle_fill,
+                        child: CorpusTablerIcon(CorpusIconKind.PlayCircleFill,
                           size: 48,
                           color: Colors.white,
                         ),

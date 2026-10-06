@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../../services/igdb_service.dart';
 import '../game_details_screen.dart';
@@ -172,8 +174,7 @@ class GameRelatedTab extends StatelessWidget {
                                   context,
                                 ).colorScheme.surfaceContainerHighest,
                                 child: Center(
-                                  child: Icon(
-                                    Icons.videogame_asset,
+                                  child: CorpusTablerIcon(CorpusIconKind.VideogameAsset,
                                     color: Theme.of(
                                       context,
                                     ).colorScheme.onSurfaceVariant,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../utils/url_utils.dart';
 import '../widgets/corpus_section_title.dart';
@@ -94,8 +96,7 @@ class InfoScreen extends StatelessWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    trailing: Icon(
-                      Icons.open_in_new,
+                    trailing: CorpusTablerIcon(CorpusIconKind.OpenInNew,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 20,
                     ),
@@ -121,8 +122,7 @@ class InfoScreen extends StatelessWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    trailing: Icon(
-                      Icons.open_in_new,
+                    trailing: CorpusTablerIcon(CorpusIconKind.OpenInNew,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 20,
                     ),
@@ -161,7 +161,7 @@ class InfoScreen extends StatelessWidget {
                     context: context,
                     title: 'Flutter',
                     subtitle: 'Framework de interfaz de usuario',
-                    icon: Icons.flutter_dash,
+                    icon: CorpusIconKind.FlutterDash,
                     url: 'https://flutter.dev/',
                   ),
                   Divider(
@@ -172,7 +172,7 @@ class InfoScreen extends StatelessWidget {
                     context: context,
                     title: 'Supabase',
                     subtitle: 'Backend, Autenticación y Base de datos',
-                    icon: Icons.storage,
+                    icon: CorpusIconKind.Storage,
                     url: 'https://supabase.com/',
                   ),
                   Divider(
@@ -183,7 +183,7 @@ class InfoScreen extends StatelessWidget {
                     context: context,
                     title: 'IGDB API',
                     subtitle: 'Base de datos de videojuegos (Twitch)',
-                    icon: Icons.videogame_asset,
+                    icon: CorpusIconKind.VideogameAsset,
                     url: 'https://www.igdb.com/api',
                   ),
                 ],
@@ -200,18 +200,17 @@ class InfoScreen extends StatelessWidget {
     required BuildContext context,
     required String title,
     required String subtitle,
-    required IconData icon,
+    required CorpusIconKind icon,
     required String url,
   }) {
     return ListTile(
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      leading: CorpusTablerIcon(icon, color: Theme.of(context).colorScheme.primary),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(
         subtitle,
         style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
-      trailing: Icon(
-        Icons.chevron_right,
+      trailing: CorpusTablerIcon(CorpusIconKind.ChevronRight,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
       onTap: () => _launchUrl(url),

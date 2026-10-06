@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -111,7 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _usernameController,
                   decoration: InputDecoration(
                     labelText: 'Nombre de usuario (ej: MasterChief99)',
-                    prefixIcon: const Icon(Icons.person),
+                    prefixIcon: const CorpusTablerIcon(CorpusIconKind.Person),
                     border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   textInputAction: TextInputAction.next,
@@ -122,7 +124,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _emailController,
                   decoration: InputDecoration(
                     labelText: 'Correo electrónico',
-                    prefixIcon: const Icon(Icons.email),
+                    prefixIcon: const CorpusTablerIcon(CorpusIconKind.Email),
                     border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   keyboardType: TextInputType.emailAddress,
@@ -134,7 +136,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordController,
                   decoration: InputDecoration(
                     labelText: 'Contraseña (mínimo 6 caracteres)',
-                    prefixIcon: const Icon(Icons.lock),
+                    prefixIcon: const CorpusTablerIcon(CorpusIconKind.Lock),
                     border: OutlineInputBorder(borderRadius: ext.radiusMedium),
                   ),
                   obscureText: true,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 
 import 'package:corpus/routes/corpus_router.dart';
@@ -74,7 +76,7 @@ class GameReviewsCard extends StatelessWidget {
 
   Widget _buildInfoBadge(
     String label,
-    IconData icon,
+    CorpusIconKind icon,
     Color color, {
     Widget? customIcon,
   }) {
@@ -89,7 +91,7 @@ class GameReviewsCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          customIcon ?? Icon(icon, size: 12, color: color),
+          customIcon ?? CorpusTablerIcon(icon, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
             label,
@@ -121,20 +123,20 @@ class GameReviewsCard extends StatelessWidget {
     }
   }
 
-  IconData _getCompletionTypeIcon(String type) {
+  CorpusIconKind _getCompletionTypeIcon(String type) {
     switch (type) {
       case 'story':
-        return Icons.auto_stories;
+        return CorpusIconKind.AutoStories;
       case 'story_extras':
-        return Icons.extension;
+        return CorpusIconKind.Extension;
       case '100_percent':
-        return Icons.emoji_events;
+        return CorpusIconKind.EmojiEvents;
       case 'endless':
-        return Icons.all_inclusive;
+        return CorpusIconKind.AllInclusive;
       case 'on_hold':
-        return Icons.pause;
+        return CorpusIconKind.Pause;
       default:
-        return Icons.flag;
+        return CorpusIconKind.Flag;
     }
   }
 
@@ -178,7 +180,10 @@ class GameReviewsCard extends StatelessWidget {
             statusText = 'En Pausa';
             break;
           case 'wishlist':
-            statusText = 'Quiero';
+            statusText = GameStatus.wishlist.shortLabel;
+            break;
+          case 'to_play':
+            statusText = GameStatus.toPlay.shortLabel;
             break;
           default:
             statusText = 'Desconocido';
@@ -235,7 +240,7 @@ class GameReviewsCard extends StatelessWidget {
                           if (isReplay)
                             _buildInfoBadge(
                               'Rejugada${replayNumber != null ? ' #$replayNumber' : ''}',
-                              Icons.replay,
+                              CorpusIconKind.Replay,
                               Colors.orangeAccent,
                             ),
                           if (rPlatform != null)
@@ -248,8 +253,8 @@ class GameReviewsCard extends StatelessWidget {
                                     pStyle['color'] as Color? ??
                                     Colors.blueGrey;
                                 final iconPath = pStyle['icon'] as String?;
-                                final materialIcon =
-                                    pStyle['materialIcon'] as IconData?;
+                                final fallbackIcon =
+                                    pStyle['fallbackIcon'] as CorpusIconKind?;
 
                                 Widget? customIcon;
                                 if (iconPath != null) {
@@ -259,9 +264,8 @@ class GameReviewsCard extends StatelessWidget {
                                     height: 12,
                                     color: pColor,
                                   );
-                                } else if (materialIcon != null) {
-                                  customIcon = Icon(
-                                    materialIcon,
+                                } else if (fallbackIcon != null) {
+                                  customIcon = CorpusTablerIcon(fallbackIcon,
                                     size: 12,
                                     color: pColor,
                                   );
@@ -269,7 +273,7 @@ class GameReviewsCard extends StatelessWidget {
 
                                 return _buildInfoBadge(
                                   rPlatform,
-                                  Icons.devices,
+                                  CorpusIconKind.Devices,
                                   pColor,
                                   customIcon: customIcon,
                                 );
@@ -283,8 +287,7 @@ class GameReviewsCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: Icon(
-                              Icons.edit_outlined,
+                            icon: CorpusTablerIcon(CorpusIconKind.EditOutlined,
                               size: 20,
                               color: Theme.of(
                                 context,
@@ -296,8 +299,7 @@ class GameReviewsCard extends StatelessWidget {
                             onPressed: () => onEditReview?.call(review),
                           ),
                           IconButton(
-                            icon: Icon(
-                              Icons.delete_outline,
+                            icon: CorpusTablerIcon(CorpusIconKind.DeleteOutline,
                               size: 20,
                               color: Theme.of(
                                 context,
@@ -335,8 +337,7 @@ class GameReviewsCard extends StatelessWidget {
                 if (rating > 0) ...[
                   Row(
                     children: [
-                      Icon(
-                        Icons.star,
+                      CorpusTablerIcon(CorpusIconKind.Star,
                         color: Theme.of(context).colorScheme.secondary,
                         size: 20,
                       ),
@@ -454,8 +455,7 @@ class GameReviewsCard extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.access_time,
+                            CorpusTablerIcon(CorpusIconKind.AccessTime,
                               size: 14,
                               color: Theme.of(
                                 context,
@@ -477,8 +477,7 @@ class GameReviewsCard extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.calendar_today,
+                            CorpusTablerIcon(CorpusIconKind.CalendarToday,
                               size: 14,
                               color: Theme.of(
                                 context,
@@ -503,8 +502,7 @@ class GameReviewsCard extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.pie_chart,
+                            CorpusTablerIcon(CorpusIconKind.PieChart,
                               size: 14,
                               color: Theme.of(
                                 context,

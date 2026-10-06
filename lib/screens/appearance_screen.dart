@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../services/style_pack_import_service.dart';
@@ -167,8 +169,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             ),
             child: Column(
               children: [
-                Icon(
-                  Icons.extension_outlined,
+                CorpusTablerIcon(CorpusIconKind.ExtensionOutlined,
                   size: 40,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -243,7 +244,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             shape: BoxShape.circle,
           ),
           child: isActive
-              ? const Icon(Icons.check, color: Colors.white, size: 20)
+              ? const CorpusTablerIcon(CorpusIconKind.Check, color: Colors.white, size: 20)
               : null,
         ),
         title: Text(
@@ -264,15 +265,13 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         trailing: isImported
             ? IconButton(
                 tooltip: 'Eliminar addon',
-                icon: Icon(
-                  Icons.delete_outline,
+                icon: CorpusTablerIcon(CorpusIconKind.DeleteOutline,
                   color: Theme.of(context).colorScheme.error,
                 ),
                 onPressed: () => _confirmRemovePack(pack),
               )
             : (isActive
-                  ? Icon(
-                      Icons.check_circle,
+                  ? CorpusTablerIcon(CorpusIconKind.CheckCircle,
                       color: Theme.of(context).colorScheme.primary,
                     )
                   : null),
@@ -319,7 +318,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   Widget _buildImportPackButton() {
     return FilledButton.icon(
       onPressed: _importPack,
-      icon: const Icon(Icons.file_download_outlined),
+      icon: const CorpusTablerIcon(CorpusIconKind.FileDownloadOutlined),
       label: const Text('Importar addon (.corpuspack)'),
     );
   }
@@ -364,8 +363,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         context,
       ).extension<CorpusThemeExtension>()!.radiusLarge,
       child: ListTile(
-        leading: Icon(
-          Icons.dashboard_customize_outlined,
+        leading: CorpusTablerIcon(CorpusIconKind.DashboardCustomizeOutlined,
           color: Theme.of(context).colorScheme.primary,
         ),
         title: const Text(
@@ -373,7 +371,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: const Text('Orden y visibilidad de las secciones'),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const CorpusTablerIcon(CorpusIconKind.ChevronRight),
         shape: RoundedRectangleBorder(
           borderRadius: Theme.of(
             context,
@@ -395,8 +393,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         context,
       ).extension<CorpusThemeExtension>()!.radiusLarge,
       child: ListTile(
-        leading: Icon(
-          Icons.view_list_outlined,
+        leading: CorpusTablerIcon(CorpusIconKind.ViewListOutlined,
           color: Theme.of(context).colorScheme.primary,
         ),
         title: const Text(
@@ -404,7 +401,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: const Text('Orden y visibilidad de los campos'),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const CorpusTablerIcon(CorpusIconKind.ChevronRight),
         shape: RoundedRectangleBorder(
           borderRadius: Theme.of(
             context,
@@ -429,19 +426,19 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         children: [
           _buildThemeTile(
             title: 'Sistema',
-            icon: Icons.brightness_auto,
+            icon: CorpusIconKind.BrightnessAuto,
             mode: ThemeMode.system,
           ),
           const Divider(height: 1, indent: 56),
           _buildThemeTile(
             title: 'Claro',
-            icon: Icons.light_mode,
+            icon: CorpusIconKind.LightMode,
             mode: ThemeMode.light,
           ),
           const Divider(height: 1, indent: 56),
           _buildThemeTile(
             title: 'Oscuro',
-            icon: Icons.dark_mode,
+            icon: CorpusIconKind.DarkMode,
             mode: ThemeMode.dark,
           ),
         ],
@@ -451,13 +448,12 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
 
   Widget _buildThemeTile({
     required String title,
-    required IconData icon,
+    required CorpusIconKind icon,
     required ThemeMode mode,
   }) {
     final isSelected = themeNotifier.currentMode == mode;
     return ListTile(
-      leading: Icon(
-        icon,
+      leading: CorpusTablerIcon(icon,
         color: isSelected
             ? Theme.of(context).colorScheme.primary
             : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -469,8 +465,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         ),
       ),
       trailing: isSelected
-          ? Icon(
-              Icons.check_circle,
+          ? CorpusTablerIcon(CorpusIconKind.CheckCircle,
               color: Theme.of(context).colorScheme.primary,
             )
           : null,
@@ -531,7 +526,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                   ],
                 ),
                 child: isSelected
-                    ? const Icon(Icons.check, color: Colors.white, size: 30)
+                    ? const CorpusTablerIcon(CorpusIconKind.Check, color: Colors.white, size: 30)
                     : null,
               ),
             );
