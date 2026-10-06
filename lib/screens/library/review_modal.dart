@@ -389,14 +389,18 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                           children: [
                             CorpusTablerIcon(icon, size: 22, color: labelColor),
                             const SizedBox(width: 10),
-                            Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: sel
-                                    ? FontWeight.bold
-                                    : FontWeight.w600,
-                                color: labelColor,
+                            Flexible(
+                              child: Text(
+                                label,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: sel
+                                      ? FontWeight.bold
+                                      : FontWeight.w600,
+                                  color: labelColor,
+                                ),
                               ),
                             ),
                           ],
@@ -1276,21 +1280,14 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                     ),
                                   ),
                                   const SizedBox(height: 12),
-                                  // En escritorio los 4 botones caben cómodos
-                                  // en una sola fila; en móvil se mantienen
-                                  // apilados verticalmente, como siempre.
+                                  // Hay 5 botones de estado; en escritorio
+                                  // usamos Wrap para que ajusten si no caben
+                                  // en una sola fila. En móvil, apilados.
                                   if (isDesktop)
-                                    Row(
-                                      children: [
-                                        for (final entry
-                                            in buildStatusButtons()
-                                                .asMap()
-                                                .entries) ...[
-                                          if (entry.key > 0)
-                                            const SizedBox(width: 12),
-                                          Expanded(child: entry.value),
-                                        ],
-                                      ],
+                                    Wrap(
+                                      spacing: 10,
+                                      runSpacing: 8,
+                                      children: buildStatusButtons(),
                                     )
                                   else
                                     Column(
@@ -1303,6 +1300,9 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                             const SizedBox(height: 8),
                                           entry.value,
                                         ],
+                                        // Espacio extra para que el último botón
+                                        // no quede tapado por la barra de navegación
+                                        const SizedBox(height: 64),
                                       ],
                                     ),
                                 ] else ...[

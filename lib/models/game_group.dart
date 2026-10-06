@@ -80,8 +80,8 @@ class GameGroup {
         : (items.isNotEmpty ? items.length : 0);
 
     return GameGroup(
-      id: map['id'] as String,
-      userId: map['user_id'] as String,
+      id: map['id'].toString(),
+      userId: map['user_id'].toString(),
       name: map['name'] as String,
       description: map['description'] as String?,
       coverGameId: (map['cover_game_id'] as num?)?.toInt(),

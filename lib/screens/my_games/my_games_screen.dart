@@ -168,7 +168,7 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
               child: FloatingActionButton.extended(
                 onPressed: () => _groupsTabKey.currentState?.createGroup(),
                 icon: const CorpusTablerIcon(CorpusIconKind.Add),
-                label: const Text('Nuevo grupo'),
+                label: const Text('Nueva colección'),
               ),
             )
           : null,
@@ -381,7 +381,7 @@ class _MyGamesTabBarDelegate extends SliverPersistentHeaderDelegate {
 
 
 
-  static const _tabs = ['Juegos', 'Colección', 'Grupos'];
+  static const _tabs = ['Juegos', 'Estantería', 'Colecciones'];
 
 
 

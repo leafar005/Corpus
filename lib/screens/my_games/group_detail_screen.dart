@@ -55,13 +55,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       setState(() {
         _group = group;
         _loading = false;
-        if (group == null) _error = 'Grupo no encontrado';
+        if (group == null) _error = 'Colección no encontrada';
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'No se pudo cargar el grupo';
+        _error = 'No se pudo cargar la colección';
       });
     }
   }
@@ -74,7 +74,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final game = await showGameSearchPicker(
       context,
       excludeGameIds: excludeIds,
-      title: 'Añadir al grupo',
+      title: 'Añadir a la colección',
       subtitle: 'Busca un juego (máx. $kGameSearchLimit resultados)',
     );
 
@@ -96,7 +96,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No se pudo añadir el juego (¿ya está en el grupo?)'),
+            content: Text('No se pudo añadir el juego (¿ya está en la colección?)'),
           ),
         );
       }
@@ -107,9 +107,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Quitar del grupo'),
+        title: const Text('Quitar de la colección'),
         content: Text(
-          '¿Quitar «${item.game?.title ?? 'este juego'}» del grupo?',
+          '¿Quitar «${item.game?.title ?? 'este juego'}» de la colección?',
         ),
         actions: [
           TextButton(
@@ -162,14 +162,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         ],
       ),
       body: _buildBody(),
-      floatingActionButton: Padding(
-        padding: EdgeInsets.only(bottom: getBottomSpacer(context) - 72),
-        child: FloatingActionButton.extended(
-          onPressed: _addGame,
-          icon: const CorpusTablerIcon(CorpusIconKind.Add),
-          label: const Text('Añadir juego'),
-        ),
-      ),
     );
   }
 
@@ -213,7 +205,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Grupo vacío',
+                'Colección vacía',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -232,6 +224,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
     return ReorderableListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+      buildDefaultDragHandles: false,
       itemCount: items.length,
       onReorder: _onReorder,
       itemBuilder: (context, index) {
@@ -336,7 +329,7 @@ class _GroupGameTile extends StatelessWidget {
             color: colorScheme.error,
           ),
           onPressed: onRemove,
-          tooltip: 'Quitar del grupo',
+          tooltip: 'Quitar de la colección',
         ),
         onTap: onTap,
       ),

@@ -69,8 +69,8 @@ class GameGroupItem {
     }
 
     return GameGroupItem(
-      id: map['id'] as String,
-      groupId: map['group_id'] as String,
+      id: map['id'].toString(),
+      groupId: map['group_id'].toString(),
       gameId: (map['game_id'] as num).toInt(),
       sortOrder: (map['sort_order'] as num?)?.toInt() ?? 0,
       note: map['note'] as String?,

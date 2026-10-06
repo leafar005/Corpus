@@ -48,7 +48,7 @@ class GroupsTabState extends State<GroupsTab> {
     final created = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Nuevo grupo'),
+        title: const Text('Nueva colección'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -136,7 +136,7 @@ class GroupsTabState extends State<GroupsTab> {
                 color: Colors.red,
               ),
               const SizedBox(height: 12),
-              Text(_controller.errorMessage ?? 'Error al cargar grupos'),
+              Text(_controller.errorMessage ?? 'Error al cargar colecciones'),
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: _controller.load,
@@ -167,7 +167,7 @@ class GroupsTabState extends State<GroupsTab> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Sin grupos todavía',
+                  'Sin colecciones todavía',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -186,7 +186,7 @@ class GroupsTabState extends State<GroupsTab> {
                 FilledButton.icon(
                   onPressed: openCreateGroupDialog,
                   icon: const CorpusTablerIcon(CorpusIconKind.Add),
-                  label: const Text('Crear grupo'),
+                  label: const Text('Crear colección'),
                 ),
               ],
             ),
@@ -210,7 +210,7 @@ class GroupsTabState extends State<GroupsTab> {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('Eliminar grupo'),
+                      title: const Text('Eliminar colección'),
                       content: Text(
                         '¿Eliminar «${group.name}»? Los juegos no se borran de tu biblioteca.',
                       ),
@@ -312,7 +312,7 @@ class _GroupCard extends StatelessWidget {
                   color: colorScheme.error,
                 ),
                 onPressed: onDelete,
-                tooltip: 'Eliminar grupo',
+                tooltip: 'Eliminar colección',
               ),
             ],
           ),

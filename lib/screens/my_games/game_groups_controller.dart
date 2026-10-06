@@ -38,7 +38,7 @@ class GameGroupsController extends ChangeNotifier {
     } catch (e) {
       debugPrint('[GameGroupsController] load: $e');
       hasError = true;
-      errorMessage = 'No se pudieron cargar los grupos.';
+      errorMessage = 'No se pudieron cargar las colecciones.';
       isLoading = false;
     } finally {
       _isLoading = false;

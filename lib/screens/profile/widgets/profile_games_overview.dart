@@ -7,10 +7,12 @@ import '../../../models/models.dart';
 /// Visión general de juegos en el perfil: carruseles por estado con títulos clicables.
 class ProfileGamesOverview extends StatelessWidget {
   final List<Map<String, dynamic>> wishlistGames;
+  final List<Map<String, dynamic>> toPlayGames;
   final List<Map<String, dynamic>> playingGames;
   final List<Map<String, dynamic>> beatenGames;
   final List<Map<String, dynamic>> platinumGames;
   final int wishlistCount;
+  final int toPlayCount;
   final int playingCount;
   final int beatenCount;
   final int platinumCount;
@@ -20,10 +22,12 @@ class ProfileGamesOverview extends StatelessWidget {
   const ProfileGamesOverview({
     super.key,
     required this.wishlistGames,
+    this.toPlayGames = const [],
     required this.playingGames,
     required this.beatenGames,
     required this.platinumGames,
     required this.wishlistCount,
+    this.toPlayCount = 0,
     required this.playingCount,
     required this.beatenCount,
     required this.platinumCount,
@@ -45,6 +49,17 @@ class ProfileGamesOverview extends StatelessWidget {
             iconType: ProfileStatIconType.wishlist,
           ),
           _buildCarousel(context, wishlistGames),
+          const SizedBox(height: 24),
+        ],
+        if (toPlayGames.isNotEmpty) ...[
+          _buildSectionTitle(
+            context,
+            'Por jugar',
+            toPlayCount,
+            'to_play',
+            iconType: ProfileStatIconType.toPlay,
+          ),
+          _buildCarousel(context, toPlayGames),
           const SizedBox(height: 24),
         ],
         if (playingGames.isNotEmpty) ...[
@@ -83,6 +98,7 @@ class ProfileGamesOverview extends StatelessWidget {
         if (beatenGames.isEmpty &&
             platinumGames.isEmpty &&
             playingGames.isEmpty &&
+            toPlayGames.isEmpty &&
             wishlistGames.isEmpty) ...[
           Center(
             child: Padding(

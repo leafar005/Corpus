@@ -6,6 +6,7 @@ class ProfileGiantStats extends StatelessWidget {
   final int beatenCount;
   final int platinumCount;
   final int playingCount;
+  final int toPlayCount;
   final int wishlistCount;
   final bool isMobile;
   final void Function(String status) onStatTapped;
@@ -15,6 +16,7 @@ class ProfileGiantStats extends StatelessWidget {
     required this.beatenCount,
     required this.platinumCount,
     required this.playingCount,
+    this.toPlayCount = 0,
     required this.wishlistCount,
     this.isMobile = false,
     required this.onStatTapped,
@@ -44,6 +46,14 @@ class ProfileGiantStats extends StatelessWidget {
         ProfileStatIconType.playing,
         () => onStatTapped('playing'),
       ),
+      if (!isMobile)
+        _buildGiantStat(
+          context,
+          toPlayCount.toString().padLeft(3, '0'),
+          'Por jugar',
+          ProfileStatIconType.toPlay,
+          toPlayCount > 0 ? () => onStatTapped('to_play') : null,
+        ),
       _buildGiantStat(
         context,
         wishlistCount.toString().padLeft(3, '0'),
@@ -73,10 +83,13 @@ class ProfileGiantStats extends StatelessWidget {
                 ),
               ],
             )
-          : Row(
-              children: stats
-                  .map((stat) => Expanded(child: Center(child: stat)))
-                  .toList(),
+          : Center(
+              child: Wrap(
+                spacing: 48,
+                runSpacing: 24,
+                alignment: WrapAlignment.center,
+                children: stats,
+              ),
             ),
     );
   }

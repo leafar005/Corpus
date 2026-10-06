@@ -13,7 +13,7 @@ class GameGroupRepository {
     final res = await _client
         .from('game_groups')
         .select(
-          '*, game_group_items(id, game_id, sort_order, games(*))',
+          '*, game_group_items(id, group_id, game_id, sort_order, games(*))',
         )
         .eq('user_id', userId)
         .order('sort_order', ascending: true)
@@ -28,15 +28,7 @@ class GameGroupRepository {
           ),
         );
       final totalCount = rawItems.length;
-      final previewItems = rawItems
-          .take(4)
-          .map(
-            (e) => GameGroupItem.fromMap(
-              Map<String, dynamic>.from(e as Map),
-            ),
-          )
-          .toList();
-      map['game_group_items'] = previewItems;
+      map['game_group_items'] = rawItems.take(4).toList();
       map['game_count'] = totalCount;
       return GameGroup.fromMap(map);
     }).toList();

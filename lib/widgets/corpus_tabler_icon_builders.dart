@@ -2,24 +2,28 @@ import 'package:flutter/widgets.dart';
 import 'tabler_icons.dart' as tabler;
 import 'corpus_icon_kind.dart';
 
-/// Filled "users" composite — Tabler has no official `users-filled` icon.
-Widget _usersFilled(double s) {
-  final person = s * 0.56;
+/// Filled "friends" composite — Tabler has no official `users-filled` icon.
+Widget _friendsFilled(double s) {
+  final frontSize = s * 0.75;
+  final backSize = s * 0.55;
   return SizedBox(
     width: s,
     height: s,
     child: Stack(
-      clipBehavior: Clip.hardEdge,
+      clipBehavior: Clip.none,
       children: [
         Positioned(
-          left: 0,
-          bottom: 0,
-          child: tabler.UserFilled(width: person, height: person),
+          left: s * 0.05,
+          top: s * 0.05,
+          child: Opacity(
+            opacity: 0.65,
+            child: tabler.UserFilled(width: backSize, height: backSize),
+          ),
         ),
         Positioned(
-          right: 0,
-          top: s * 0.04,
-          child: tabler.UserFilled(width: person, height: person),
+          right: s * 0.05,
+          bottom: s * 0.05,
+          child: tabler.UserFilled(width: frontSize, height: frontSize),
         ),
       ],
     ),
@@ -124,7 +128,7 @@ Widget buildTablerSvg(CorpusIconKind kind, double size) {
     CorpusIconKind.FlutterDash => tabler.BrandFlutter(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.Forum => tabler.Messages(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.Gamepad => tabler.DeviceGamepadFilled(width: s, height: s),
-    CorpusIconKind.GroupRounded => tabler.Users(width: s, height: s, strokeWidth: sw),
+    CorpusIconKind.GroupRounded => _friendsFilled(s),
     CorpusIconKind.GroupsOutlined => tabler.UsersGroup(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.HelpOutline => tabler.HelpCircle(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.Home => tabler.HomeFilled(width: s, height: s),
@@ -168,9 +172,9 @@ Widget buildTablerSvg(CorpusIconKind kind, double size) {
     CorpusIconKind.PauseCircle => tabler.PlayerPause(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.PauseCircleOutline => tabler.PlayerPause(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.PauseRounded => tabler.PlayerPauseFilled(width: s, height: s),
-    CorpusIconKind.People => tabler.Users(width: s, height: s, strokeWidth: sw),
-    CorpusIconKind.PeopleAltRounded => tabler.Users(width: s, height: s, strokeWidth: sw),
-    CorpusIconKind.PeopleRounded => tabler.Users(width: s, height: s, strokeWidth: sw),
+    CorpusIconKind.People => _friendsFilled(s),
+    CorpusIconKind.PeopleAltRounded => _friendsFilled(s),
+    CorpusIconKind.PeopleRounded => _friendsFilled(s),
     CorpusIconKind.Person => tabler.User(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.PersonAdd => tabler.UserPlus(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.PersonAddAlt1Rounded => tabler.UserPlus(width: s, height: s, strokeWidth: sw),
@@ -233,7 +237,7 @@ Widget buildTablerSvg(CorpusIconKind kind, double size) {
     CorpusIconKind.Tune => tabler.AdjustmentsFilled(width: s, height: s),
     CorpusIconKind.Tv => tabler.DeviceTv(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.UserFilled => tabler.UserFilled(width: s, height: s),
-    CorpusIconKind.Users => _usersFilled(s),
+    CorpusIconKind.Users => _friendsFilled(s),
     CorpusIconKind.VideoLibrary => tabler.Video(width: s, height: s, strokeWidth: sw),
     CorpusIconKind.VideogameAsset => tabler.DeviceGamepadFilled(width: s, height: s),
     CorpusIconKind.VideogameAssetOff => tabler.DeviceGamepad(width: s, height: s, strokeWidth: sw),

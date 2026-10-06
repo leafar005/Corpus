@@ -18,6 +18,7 @@ import 'profile_achievements_tab.dart';
 import 'profile_journal_tab.dart';
 import 'profile_reviews_tab.dart';
 import 'profile_games_grid_tab.dart';
+import '../my_games/groups_tab.dart';
 import 'currently_playing_badge.dart';
 
 import 'profile_controller.dart';
@@ -832,9 +833,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             _buildNavTab('Perfil', 0, compact: !isDesktop),
             _buildNavTab('Juegos', 1, compact: !isDesktop),
-            _buildNavTab('Diario', 2, compact: !isDesktop),
-            _buildNavTab('Reseñas', 3, compact: !isDesktop),
-            _buildNavTab('Logros', 4, compact: !isDesktop),
+            _buildNavTab('Colecciones', 2, compact: !isDesktop),
+            _buildNavTab('Diario', 3, compact: !isDesktop),
+            _buildNavTab('Reseñas', 4, compact: !isDesktop),
+            _buildNavTab('Logros', 5, compact: !isDesktop),
           ],
         ),
       ),
@@ -919,6 +921,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               beatenCount: _controller.beatenCount,
               platinumCount: _controller.platinumCount,
               playingCount: _controller.playingCount,
+              toPlayCount: _controller.toPlayCount,
               wishlistCount: _controller.wishlistCount,
               isMobile: isMobile,
               onStatTapped: (status) {
@@ -932,10 +935,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 32),
             ProfileGamesOverview(
               wishlistGames: _wishlistGames,
+              toPlayGames: _toPlayGames,
               playingGames: _playingGames,
               beatenGames: _beatenGames,
               platinumGames: _platinumGames,
               wishlistCount: _controller.wishlistCount,
+              toPlayCount: _controller.toPlayCount,
               playingCount: _controller.playingCount,
               beatenCount: _controller.beatenCount,
               platinumCount: _controller.platinumCount,
@@ -973,20 +978,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         scrollController: _scrollController,
       );
     } else if (_selectedTab == 2) {
+      // Colecciones
+      return GroupsTab(userId: userId);
+    } else if (_selectedTab == 3) {
       // Diario
       return ProfileJournalTab(
         userId: userId,
         userData: _userProfile,
         scrollController: _scrollController,
       );
-    } else if (_selectedTab == 3) {
+    } else if (_selectedTab == 4) {
       // Reseñas
       return ProfileReviewsTab(
         userId: userId,
         userData: _userProfile,
         scrollController: _scrollController,
       );
-    } else if (_selectedTab == 4) {
+    } else if (_selectedTab == 5) {
       // Logros
       return SliverToBoxAdapter(
         child: Padding(
