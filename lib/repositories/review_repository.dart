@@ -1027,17 +1027,24 @@ class ReviewRepository {
     required String? currentCoverUrl,
   }) async {
     final missingCover = currentCoverUrl == null || currentCoverUrl.isEmpty;
-    if (!missingCover || enrichedData['cover_url'] == null) return;
+    final enrichedPlatforms = enrichedData['platforms'];
+    final hasPlatforms =
+        enrichedPlatforms is List && enrichedPlatforms.isNotEmpty;
+    if ((!missingCover || enrichedData['cover_url'] == null) && !hasPlatforms) {
+      return;
+    }
 
     try {
       await _client
           .from('games')
           .update({
-            'cover_url': enrichedData['cover_url'],
+            if (missingCover && enrichedData['cover_url'] != null)
+              'cover_url': enrichedData['cover_url'],
             if (enrichedData['summary'] != null)
               'summary': enrichedData['summary'],
             if (enrichedData['developer'] != null)
               'developer': enrichedData['developer'],
+            if (hasPlatforms) 'platforms': enrichedPlatforms,
           })
           .eq('igdb_id', igdbId);
     } catch (e) {

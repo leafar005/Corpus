@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
+import 'package:corpus/theme/corpus_theme_extension.dart';
+import 'package:corpus/utils/shelf_platforms.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import 'package:corpus/widgets/design/corpus_empty_state.dart';
+import 'package:corpus/widgets/game_card.dart';
 
 import '../../repositories/collection_repository.dart';
 import '../profile/widgets/add_game_to_shelf_sheet.dart';
 import '../profile/widgets/bulk_add_to_shelf_sheet.dart';
 import '../profile/widgets/platform_picker_sheet.dart';
-import '../profile/widgets/shelf_game_box.dart' show ShelfGameBox, ShelfSpineLayout;
+import '../profile/widgets/shelf_game_box.dart'
+    show ShelfGameBox, ShelfSpineLayout;
 
-/// Pestaña "Colección" de Mis juegos: estantería virtual de juegos por plataforma.
+/// Pestaña "Estantería" de Mis juegos: estantería virtual de juegos por plataforma.
 class CollectionTab extends StatefulWidget {
   const CollectionTab({
     super.key,
@@ -31,13 +38,53 @@ class CollectionTabState extends State<CollectionTab> {
   List<ShelfItem> _items = [];
   bool _loading = true;
   String? _error;
+  bool _spineView = true; // true = lomo de juego físico, false = GameCards
+
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String? _selectedPlatform;
 
   bool get isLoading => _loading;
+
+  bool get _isOwner =>
+      Supabase.instance.client.auth.currentUser?.id == widget.userId;
 
   @override
   void initState() {
     super.initState();
     reload();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<ShelfItem> get _filteredItems {
+    var list = _items;
+    final q = _searchQuery.toLowerCase();
+    if (q.isNotEmpty) {
+      list = list.where((i) => i.game.title.toLowerCase().contains(q)).toList();
+    }
+    if (_selectedPlatform != null) {
+      list = list.where((i) => i.platformName == _selectedPlatform).toList();
+    }
+    return list;
+  }
+
+  List<String> get _availablePlatforms {
+    final set = <String>{};
+    for (final item in _items) {
+      if (item.platformName.isNotEmpty) {
+        set.add(item.platformName);
+      }
+    }
+    final list = set.toList()..sort();
+    return list;
   }
 
   Future<void> reload() => _load();
@@ -57,6 +104,10 @@ class CollectionTabState extends State<CollectionTab> {
       if (mounted) {
         setState(() {
           _items = items;
+          if (_selectedPlatform != null &&
+              !items.any((i) => i.platformName == _selectedPlatform)) {
+            _selectedPlatform = null;
+          }
           _loading = false;
         });
       }
@@ -71,6 +122,7 @@ class CollectionTabState extends State<CollectionTab> {
   }
 
   Future<void> _openAddGame() async {
+    if (!_isOwner) return;
     await showAddGameToShelfSheet(
       context: context,
       repository: _repository,
@@ -80,6 +132,7 @@ class CollectionTabState extends State<CollectionTab> {
   }
 
   Future<void> _openBulkAdd() async {
+    if (!_isOwner) return;
     await showBulkAddToShelfSheet(
       context: context,
       repository: _repository,
@@ -89,6 +142,7 @@ class CollectionTabState extends State<CollectionTab> {
   }
 
   Future<void> _editItemPlatforms(ShelfItem item) async {
+    if (!_isOwner) return;
     final owned = await _repository.fetchOwnedPlatforms(
       widget.userId,
       item.game.igdbId,
@@ -114,6 +168,10 @@ class CollectionTabState extends State<CollectionTab> {
       gameTitle: item.game.title,
       initialSelected: owned,
       suggestedPlatforms: option.suggestedPlatforms,
+      gamePlatforms: item.game.platforms.isNotEmpty
+          ? item.game.platforms
+          : option.game.platforms,
+      gameId: item.game.igdbId,
     );
 
     if (!mounted || result == null) return;
@@ -139,24 +197,12 @@ class CollectionTabState extends State<CollectionTab> {
       return SliverFillRemaining(
         hasScrollBody: false,
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CorpusTablerIcon(
-                  CorpusIconKind.Shelves,
-                  size: 64,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
+          child: CorpusEmptyState(
+            icon: CorpusIconKind.Shelves,
+            title: _error!,
+            actionLabel: 'Reintentar',
+            actionIcon: CorpusIconKind.Refresh,
+            onAction: _load,
           ),
         ),
       );
@@ -165,22 +211,28 @@ class CollectionTabState extends State<CollectionTab> {
     if (_items.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
-        child: CollectionEmptyShelf(onAdd: _openAddGame),
+        child: CollectionEmptyShelf(onAdd: _isOwner ? _openAddGame : null),
       );
     }
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
-    final horizontalPadding = widget.horizontalPadding ?? (isDesktop ? 40.0 : 16.0);
+    final horizontalPadding =
+        widget.horizontalPadding ?? (isDesktop ? 40.0 : 16.0);
     const gap = ShelfSpineLayout.gap;
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final filtered = _filteredItems;
+    final platforms = _availablePlatforms;
 
     return SliverMainAxisGroup(
       slivers: [
-        if (widget.showInlineActions)
+        if (widget.showInlineActions && _isOwner)
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 horizontalPadding,
-                8,
+                12,
                 horizontalPadding,
                 8,
               ),
@@ -190,98 +242,402 @@ class CollectionTabState extends State<CollectionTab> {
               ),
             ),
           ),
+        // ── Barra de controles: Buscador + Switch Vista ───────────
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(horizontalPadding, 8, horizontalPadding, 8),
-            child: Text(
-              '${_items.length} ${_items.length == 1 ? 'caja' : 'cajas'} en tu estantería',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              4,
+              horizontalPadding,
+              8,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: 44,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Buscador
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          textAlignVertical: TextAlignVertical.center,
+                          decoration: InputDecoration(
+                            hintText: 'Buscar en estantería…',
+                            prefixIcon: const CorpusTablerIcon(
+                              CorpusIconKind.Search,
+                              size: 20,
+                            ),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const CorpusTablerIcon(
+                                      CorpusIconKind.Clear,
+                                      size: 18,
+                                    ),
+                                    onPressed: () => _searchController.clear(),
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: ext.radiusMedium,
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: ext.radiusMedium,
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: ext.radiusMedium,
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerHighest,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 0,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Switch de estilo visual con esquinas y altura unificadas
+                      _ShelfViewToggle(
+                        spineView: _spineView,
+                        onChanged: (val) => setState(() => _spineView = val),
+                      ),
+                    ],
+                  ),
+                ),
+                // ── Filtros por plataforma ─────────────────────────
+                if (platforms.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 36,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: FilterChip(
+                            showCheckmark: false,
+                            label: Text('Todas (${_items.length})'),
+                            selected: _selectedPlatform == null,
+                            onSelected: (_) =>
+                                setState(() => _selectedPlatform = null),
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                          ),
+                        ),
+                        for (final p in platforms) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Builder(
+                              builder: (context) {
+                                final resolved = ShelfPlatforms.resolve(p);
+                                final count = _items
+                                    .where((i) => i.platformName == p)
+                                    .length;
+                                return FilterChip(
+                                  showCheckmark: false,
+                                  avatar: CircleAvatar(
+                                    radius: 5,
+                                    backgroundColor: resolved.color,
+                                  ),
+                                  label: Text('${resolved.shortLabel} ($count)'),
+                                  selected: _selectedPlatform == p,
+                                  onSelected: (sel) => setState(
+                                    () => _selectedPlatform = sel ? p : null,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+                if (_isOwner) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      CorpusTablerIcon(
+                        CorpusIconKind.InfoOutline,
+                        size: 14,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _spineView
+                              ? 'Toca una caja para ver su ficha · Mantén pulsado para editar o quitar plataformas'
+                              : 'Toca la portada para ver su ficha o el icono superior para editar plataformas',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
           ),
         ),
-        SliverLayoutBuilder(
-          builder: (context, constraints) {
-            final width = constraints.crossAxisExtent;
-            final rows = ShelfSpineLayout.chunkIntoRows(
-              _items,
-              width,
-              horizontalPadding: horizontalPadding * 2,
-              gap: gap,
-              itemWidth: (item) =>
-                  ShelfSpineLayout.uiWidthForPlatform(item.platformName),
-            );
-
-            return SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                0,
-                horizontalPadding,
-                120,
+        // ── Contenido ─────────────────────────────────────────────
+        if (filtered.isEmpty)
+          const SliverToBoxAdapter(
+            child: Center(
+              child: CorpusEmptyState(
+                icon: CorpusIconKind.Search,
+                title: 'Sin resultados',
+                subtitle: 'No hay cajas que coincidan con los filtros.',
               ),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, rowIndex) {
-                    return CollectionShelfRow(
-                      items: rows[rowIndex],
-                      gap: gap,
-                      onEditItem: _editItemPlatforms,
-                    );
-                  },
-                  childCount: rows.length,
-                ),
-              ),
-            );
-          },
-        ),
+            ),
+          )
+        else if (_spineView)
+          _buildSpineSliver(filtered, horizontalPadding, gap)
+        else
+          _buildGridSliver(filtered, horizontalPadding),
       ],
+    );
+  }
+
+  Widget _buildSpineSliver(
+    List<ShelfItem> items,
+    double horizontalPadding,
+    double gap,
+  ) {
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.crossAxisExtent;
+        final rows = ShelfSpineLayout.chunkIntoRows(
+          items,
+          width,
+          horizontalPadding: horizontalPadding * 2,
+          gap: gap,
+          itemWidth: (item) =>
+              ShelfSpineLayout.uiWidthForPlatform(item.platformName),
+        );
+
+        return SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            8,
+            horizontalPadding,
+            getBottomSpacer(context),
+          ),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, rowIndex) {
+                return CollectionShelfRow(
+                  items: rows[rowIndex],
+                  gap: gap,
+                  onEditItem: _isOwner ? _editItemPlatforms : null,
+                );
+              },
+              childCount: rows.length,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGridSliver(List<ShelfItem> items, double horizontalPadding) {
+    return ValueListenableBuilder<int>(
+      valueListenable: mobileGridColumnsNotifier,
+      builder: (context, columns, _) {
+        return SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            8,
+            horizontalPadding,
+            getBottomSpacer(context),
+          ),
+          sliver: SliverGrid(
+            gridDelegate: getCorpusGridDelegate(
+              context,
+              columns,
+              desktopMaxExtent: 120.0,
+              spacing: 12.0,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, i) {
+                final item = items[i];
+                final platform = ShelfPlatforms.resolve(item.platformName);
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    GameCard(
+                      key: ValueKey('${item.game.igdbId}_${item.platformName}'),
+                      game: item.game,
+                      onReturn: _load,
+                    ),
+                    // Insignia de plataforma (arriba izquierda)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: IgnorePointer(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: platform.color.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(6),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            platform.shortLabel,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: platform.textColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Botón para editar plataformas de esta caja (arriba derecha)
+                    if (_isOwner)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Material(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => _editItemPlatforms(item),
+                            child: const Padding(
+                              padding: EdgeInsets.all(5),
+                              child: CorpusTablerIcon(
+                                CorpusIconKind.EditOutlined,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+              childCount: items.length,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ShelfViewToggle extends StatelessWidget {
+  const _ShelfViewToggle({
+    required this.spineView,
+    required this.onChanged,
+  });
+
+  final bool spineView;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    Widget buildOption({
+      required bool value,
+      required CorpusIconKind icon,
+      required String tooltip,
+    }) {
+      final selected = spineView == value;
+      return Tooltip(
+        message: tooltip,
+        child: InkWell(
+          borderRadius: ext.radiusSmall,
+          onTap: () => onChanged(value),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 40,
+            decoration: BoxDecoration(
+              color: selected
+                  ? colorScheme.primary.withValues(alpha: 0.22)
+                  : Colors.transparent,
+              borderRadius: ext.radiusSmall,
+            ),
+            alignment: Alignment.center,
+            child: CorpusTablerIcon(
+              icon,
+              size: 18,
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: ext.radiusMedium,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          buildOption(
+            value: true,
+            icon: CorpusIconKind.Shelves,
+            tooltip: 'Estilo estantería (lomos)',
+          ),
+          const SizedBox(width: 2),
+          buildOption(
+            value: false,
+            icon: CorpusIconKind.ViewCarouselOutlined,
+            tooltip: 'Estilo portadas (GameCards)',
+          ),
+        ],
+      ),
     );
   }
 }
 
 class CollectionEmptyShelf extends StatelessWidget {
-  const CollectionEmptyShelf({super.key, required this.onAdd});
+  const CollectionEmptyShelf({super.key, this.onAdd});
 
-  final VoidCallback onAdd;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CorpusTablerIcon(
-              CorpusIconKind.Shelves,
-              size: 80,
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.6),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Tu estantería está vacía',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Añade plataformas a tus juegos para llenar tu estantería virtual con cajas físicas.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 28),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const CorpusTablerIcon(CorpusIconKind.Add),
-              label: const Text('Añadir primer juego'),
-            ),
-          ],
-        ),
+      child: CorpusEmptyState(
+        icon: CorpusIconKind.Shelves,
+        title: onAdd != null
+            ? 'Tu estantería está vacía'
+            : 'Esta estantería está vacía',
+        subtitle: onAdd != null
+            ? 'Añade plataformas a tus juegos para llenar tu estantería virtual con cajas físicas.'
+            : 'Este usuario aún no ha añadido juegos a su estantería.',
+        actionLabel: onAdd != null ? 'Añadir primer juego' : null,
+        actionIcon: onAdd != null ? CorpusIconKind.Add : null,
+        onAction: onAdd,
       ),
     );
   }
@@ -299,24 +655,53 @@ class CollectionShelfActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: onBulkAdd,
-            icon: const CorpusTablerIcon(CorpusIconKind.LibraryAddCheckOutlined),
-            label: const Text('Selección masiva'),
+    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final buttonStyle = FilledButton.styleFrom(
+      backgroundColor: colorScheme.surfaceContainerHighest,
+      foregroundColor: colorScheme.onSurface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: ext.radiusMedium),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+    );
+
+    return SizedBox(
+      height: 44,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: onBulkAdd,
+              style: buttonStyle,
+              icon: CorpusTablerIcon(
+                CorpusIconKind.LibraryAddCheckOutlined,
+                size: 18,
+                color: colorScheme.onSurface,
+              ),
+              label: const Text('Selección masiva'),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: onAddGame,
-            icon: const CorpusTablerIcon(CorpusIconKind.Add),
-            label: const Text('Añadir juego'),
+          const SizedBox(width: 10),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: onAddGame,
+              style: buttonStyle.copyWith(
+                backgroundColor: WidgetStatePropertyAll(
+                  colorScheme.primary.withValues(alpha: 0.18),
+                ),
+                foregroundColor: WidgetStatePropertyAll(colorScheme.primary),
+              ),
+              icon: CorpusTablerIcon(
+                CorpusIconKind.Add,
+                size: 18,
+                color: colorScheme.primary,
+              ),
+              label: const Text('Añadir juego'),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -326,12 +711,12 @@ class CollectionShelfRow extends StatelessWidget {
     super.key,
     required this.items,
     required this.gap,
-    required this.onEditItem,
+    this.onEditItem,
   });
 
   final List<ShelfItem> items;
   final double gap;
-  final void Function(ShelfItem item) onEditItem;
+  final void Function(ShelfItem item)? onEditItem;
 
   @override
   Widget build(BuildContext context) {
@@ -349,7 +734,8 @@ class CollectionShelfRow extends StatelessWidget {
                 ShelfGameBox(
                   game: items[i].game,
                   platformName: items[i].platformName,
-                  onLongPress: () => onEditItem(items[i]),
+                  onLongPress:
+                      onEditItem != null ? () => onEditItem!(items[i]) : null,
                 ),
               ],
             ],

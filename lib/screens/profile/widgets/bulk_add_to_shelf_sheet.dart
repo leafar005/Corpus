@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/theme/corpus_theme_extension.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 
@@ -226,15 +227,39 @@ class _BulkAddToShelfSheetState extends State<BulkAddToShelfSheet> {
                     ),
                     if (_platformId != null) ...[
                       const SizedBox(height: 12),
-                      TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Buscar en tu biblioteca…',
-                          prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
-                          border: const OutlineInputBorder(),
-                          isDense: true,
-                          suffixText: platform?.shortLabel,
-                        ),
-                        onChanged: (v) => setState(() => _query = v),
+                      Builder(
+                        builder: (context) {
+                          final ext = Theme.of(
+                            context,
+                          ).extension<CorpusThemeExtension>()!;
+                          final searchBorder = OutlineInputBorder(
+                            borderRadius: ext.radiusMedium,
+                            borderSide: BorderSide.none,
+                          );
+                          return TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Buscar en tu biblioteca…',
+                              prefixIcon: const CorpusTablerIcon(
+                                CorpusIconKind.Search,
+                                size: 20,
+                              ),
+                              border: searchBorder,
+                              enabledBorder: searchBorder,
+                              focusedBorder: searchBorder,
+                              filled: true,
+                              fillColor: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              suffixText: platform?.shortLabel,
+                            ),
+                            onChanged: (v) => setState(() => _query = v),
+                          );
+                        },
                       ),
                       const SizedBox(height: 8),
                       Row(

@@ -11,6 +11,7 @@ class GameGroup {
     this.description,
     this.coverGameId,
     this.sortOrder = 0,
+    this.isRanked = false,
     this.createdAt,
     this.items = const [],
     this.gameCount = 0,
@@ -22,6 +23,7 @@ class GameGroup {
   final String? description;
   final int? coverGameId;
   final int sortOrder;
+  final bool isRanked;
   final DateTime? createdAt;
   final List<GameGroupItem> items;
   final int gameCount;
@@ -45,6 +47,7 @@ class GameGroup {
     String? description,
     int? coverGameId,
     int? sortOrder,
+    bool? isRanked,
     DateTime? createdAt,
     List<GameGroupItem>? items,
     int? gameCount,
@@ -56,9 +59,46 @@ class GameGroup {
       description: description ?? this.description,
       coverGameId: coverGameId ?? this.coverGameId,
       sortOrder: sortOrder ?? this.sortOrder,
+      isRanked: isRanked ?? this.isRanked,
       createdAt: createdAt ?? this.createdAt,
       items: items ?? this.items,
       gameCount: gameCount ?? this.gameCount,
+    );
+  }
+
+  static const String rankedMarker = '[#ranked#]';
+  static const String _legacyRankedMarker = '\u200B[ranked]';
+
+  static String? encodeRankedDescription(String? description, bool isRanked) {
+    final clean = decodeRankedDescription(description).description;
+    if (!isRanked) {
+      return (clean == null || clean.isEmpty) ? null : clean;
+    }
+    if (clean == null || clean.isEmpty) {
+      return rankedMarker;
+    }
+    return '$rankedMarker\n$clean';
+  }
+
+  static ({String? description, bool isRanked}) decodeRankedDescription(
+    String? rawDescription,
+  ) {
+    if (rawDescription == null) {
+      return (description: null, isRanked: false);
+    }
+    for (final marker in [rankedMarker, _legacyRankedMarker]) {
+      if (rawDescription.startsWith('$marker\n')) {
+        final rest = rawDescription.substring('$marker\n'.length).trim();
+        return (description: rest.isEmpty ? null : rest, isRanked: true);
+      }
+      if (rawDescription == marker || rawDescription.startsWith(marker)) {
+        final rest = rawDescription.substring(marker.length).trim();
+        return (description: rest.isEmpty ? null : rest, isRanked: true);
+      }
+    }
+    return (
+      description: rawDescription.trim().isEmpty ? null : rawDescription,
+      isRanked: false,
     );
   }
 
@@ -79,13 +119,18 @@ class GameGroup {
         ? countRaw.toInt()
         : (items.isNotEmpty ? items.length : 0);
 
+    final decoded = decodeRankedDescription(map['description'] as String?);
+    final isRankedCol = map['is_ranked'] as bool?;
+    final resolvedIsRanked = (isRankedCol == true) || decoded.isRanked;
+
     return GameGroup(
       id: map['id'].toString(),
       userId: map['user_id'].toString(),
       name: map['name'] as String,
-      description: map['description'] as String?,
+      description: decoded.description,
       coverGameId: (map['cover_game_id'] as num?)?.toInt(),
       sortOrder: (map['sort_order'] as num?)?.toInt() ?? 0,
+      isRanked: resolvedIsRanked,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String)
           : null,
@@ -102,6 +147,7 @@ class GameGroup {
         'description': description,
       if (coverGameId != null) 'cover_game_id': coverGameId,
       'sort_order': sortOrder,
+      'is_ranked': isRanked,
     };
   }
 
@@ -111,6 +157,7 @@ class GameGroup {
       'description': description,
       if (coverGameId != null) 'cover_game_id': coverGameId,
       'sort_order': sortOrder,
+      'is_ranked': isRanked,
     };
   }
 }

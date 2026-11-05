@@ -55,7 +55,7 @@ class _CorpusButtonState extends State<CorpusButton> {
     final colors = _colorsFor(widget.variant, cs, _enabled);
     final borderRadius = ext.useDynamicFrames
         ? ext.radiusSmall
-        : BorderRadius.circular(999);
+        : ext.radiusMedium;
 
     final content = _buildContent(context, ext, colors, metrics);
     final padding = metrics.padding;

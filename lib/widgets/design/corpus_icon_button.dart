@@ -49,7 +49,7 @@ class _CorpusIconButtonState extends State<CorpusIconButton> {
       width: widget.size,
       height: widget.size,
       decoration: BoxDecoration(color: bg, borderRadius: ext.radiusMedium),
-      child: CorpusTablerIcon(widget.icon!,
+      child: CorpusTablerIcon(widget.icon,
         size: widget.size * 0.5,
         color: enabled ? fg : fg.withValues(alpha: 0.4),
       ),

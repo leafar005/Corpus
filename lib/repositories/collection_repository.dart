@@ -147,12 +147,13 @@ class CollectionRepository {
     return ids.length;
   }
 
-  /// Juegos de la biblioteca del usuario, con plataformas ya asignadas y sugerencias.
+  /// Juegos terminados de la biblioteca del usuario, con plataformas ya asignadas y sugerencias.
   Future<List<LibraryGameOption>> fetchLibraryForShelf(String userId) async {
     final rows = await _client
         .from('user_games')
-        .select('steam_owned, games(*)')
+        .select('status, steam_owned, games(*)')
         .eq('user_id', userId)
+        .eq('status', 'beaten')
         .order('updated_at', ascending: false);
 
     final platformRows = await _client

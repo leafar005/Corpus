@@ -49,8 +49,10 @@ class ActivityFormatters {
           case 'completed':
             return isOwnActivity ? 'has platinado' : 'ha platinado';
           case 'wishlist':
+          case 'to_play':
+          case 'backlog':
             return isOwnActivity
-                ? 'has añadido a la wishlist'
+                ? 'quieres jugar a'
                 : 'quiere jugar a';
           case 'abandoned':
             return isOwnActivity ? 'has abandonado' : 'ha abandonado';
@@ -80,6 +82,9 @@ class ActivityFormatters {
       case 'playing':
         return CorpusIconKind.SportsEsports;
       case 'wishlist':
+        return CorpusIconKind.Favorite;
+      case 'to_play':
+      case 'backlog':
         return CorpusIconKind.Bookmark;
       case 'abandoned':
         return CorpusIconKind.Cancel;
@@ -103,6 +108,11 @@ class ActivityFormatters {
       case 'completed':
         return Colors.green;
       case 'playing':
+        return cs.primary;
+      case 'to_play':
+      case 'backlog':
+        return Colors.green;
+      case 'wishlist':
         return cs.primary;
       case 'abandoned':
         return Colors.red;

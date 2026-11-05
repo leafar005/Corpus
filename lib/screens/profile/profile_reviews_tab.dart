@@ -2,7 +2,6 @@ import '../../utils/debouncer.dart';
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/globals.dart';
@@ -185,6 +184,18 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
               )
             : null,
         border: OutlineInputBorder(
+          borderRadius: Theme.of(
+            context,
+          ).extension<CorpusThemeExtension>()!.radiusMedium,
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: Theme.of(
+            context,
+          ).extension<CorpusThemeExtension>()!.radiusMedium,
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
           borderRadius: Theme.of(
             context,
           ).extension<CorpusThemeExtension>()!.radiusMedium,

@@ -4,7 +4,9 @@ import 'package:corpus/utils/igdb_constants.dart';
 import 'package:corpus/utils/format_utils.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
+import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/widgets/corpus_network_image.dart';
+import 'package:corpus/widgets/corpus_tabler_icon.dart';
 
 class GameCard extends StatefulWidget {
   final Game game;
@@ -66,8 +68,8 @@ class _GameCardState extends State<GameCard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.videogame_asset,
+          CorpusTablerIcon(
+            CorpusIconKind.VideogameAsset,
             size: 40,
             color: Theme.of(
               context,

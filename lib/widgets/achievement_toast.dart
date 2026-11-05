@@ -250,7 +250,7 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
                               color: widget.color.withValues(alpha: 0.5),
                             ),
                           ),
-                          child: CorpusTablerIcon(widget.icon!,
+                          child: CorpusTablerIcon(widget.icon,
                             color: widget.color,
                             size: 24,
                           ),

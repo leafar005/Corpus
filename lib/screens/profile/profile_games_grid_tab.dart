@@ -347,6 +347,18 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
                 ).extension<CorpusThemeExtension>()!.radiusMedium,
                 borderSide: BorderSide.none,
               ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: Theme.of(
+                  context,
+                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderSide: BorderSide.none,
+              ),
               filled: true,
               fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),

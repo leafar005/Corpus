@@ -755,16 +755,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                if (review['stash_user_avatar_url'] != null)
-                                  CircleAvatar(
-                                    radius: 9,
-                                    backgroundImage: NetworkImage(
-                                      review['stash_user_avatar_url'],
+                                ClipOval(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CorpusNetworkImage(
+                                      url: review['stash_user_avatar_url'] as String?,
+                                      fit: BoxFit.cover,
+                                      placeholder: const Center(
+                                        child: CorpusTablerIcon(
+                                          CorpusIconKind.Person,
+                                          size: 18,
+                                        ),
+                                      ),
                                     ),
-                                    onBackgroundImageError: (_, _) {},
-                                  )
-                                else
-                                  const CorpusTablerIcon(CorpusIconKind.Person, size: 18),
+                                  ),
+                                ),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
@@ -915,20 +921,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                           Row(
                                             children: [
-                                              if (review['stash_user_avatar_url'] !=
-                                                  null)
-                                                CircleAvatar(
-                                                  radius: 8,
-                                                  backgroundImage: NetworkImage(
-                                                    review['stash_user_avatar_url'],
+                                              ClipOval(
+                                                child: SizedBox(
+                                                  width: 16,
+                                                  height: 16,
+                                                  child: CorpusNetworkImage(
+                                                    url: review['stash_user_avatar_url'] as String?,
+                                                    fit: BoxFit.cover,
+                                                    placeholder: const Center(
+                                                      child: CorpusTablerIcon(
+                                                        CorpusIconKind.Person,
+                                                        size: 16,
+                                                      ),
+                                                    ),
                                                   ),
-                                                  onBackgroundImageError:
-                                                      (_, _) {},
-                                                )
-                                              else
-                                                const CorpusTablerIcon(CorpusIconKind.Person,
-                                                  size: 16,
                                                 ),
+                                              ),
                                               const SizedBox(width: 4),
                                               Expanded(
                                                 child: Text(

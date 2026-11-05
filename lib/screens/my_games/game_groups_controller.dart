@@ -49,18 +49,41 @@ class GameGroupsController extends ChangeNotifier {
   Future<GameGroup?> createGroup({
     required String name,
     String? description,
+    bool isRanked = false,
   }) async {
     try {
       final created = await _repo.createGroup(
         userId: userId,
         name: name,
         description: description,
+        isRanked: isRanked,
       );
       groups = [...groups, created];
       notifyListeners();
       return created;
     } catch (e) {
       debugPrint('[GameGroupsController] createGroup: $e');
+      return null;
+    }
+  }
+
+  Future<GameGroup?> updateGroup({
+    required String groupId,
+    String? name,
+    String? description,
+    bool? isRanked,
+  }) async {
+    try {
+      final updated = await _repo.updateGroup(
+        groupId: groupId,
+        name: name,
+        description: description,
+        isRanked: isRanked,
+      );
+      await load(silent: true);
+      return updated;
+    } catch (e) {
+      debugPrint('[GameGroupsController] updateGroup: $e');
       return null;
     }
   }

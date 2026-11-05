@@ -233,7 +233,22 @@ class Game {
           .where((s) => s.isNotEmpty)
           .toList();
     }
-    if (raw is String && raw.isNotEmpty) return [raw];
+    if (raw is String && raw.isNotEmpty) {
+      final trimmed = raw.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is List) {
+            return _parseStringList(
+              decoded,
+              isImage: isImage,
+              isVideo: isVideo,
+            );
+          }
+        } catch (_) {}
+      }
+      return [raw];
+    }
     return const [];
   }
 

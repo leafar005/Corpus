@@ -25,8 +25,8 @@ class ShelfCaseDimensions {
   /// conserva la proporción real: Switch (10×160) queda más alto y fino que
   /// Wii (14×135).
   ///
-  /// Referencia: PS2/DVD 184 mm ≈ 300 px de alto en pantalla.
-  static const double pxPerMm = 300 / 184;
+  /// Referencia: Caja DVD (PS2 / Wii / Xbox 360 / PC) 183 mm ≈ 300 px de alto en pantalla.
+  static const double pxPerMm = 300 / 183;
 
   double get uiWidth => spineMm * pxPerMm;
 
@@ -257,6 +257,32 @@ abstract final class ShelfPlatforms {
       group: 'Nintendo',
     ),
 
+    // Sega
+    ShelfPlatform(
+      id: 'Mega Drive',
+      label: 'Sega Mega Drive / Genesis',
+      shortLabel: 'Mega Drive',
+      color: Color(0xFF0060A8),
+      fallbackIcon: CorpusIconKind.VideogameAsset,
+      group: 'Sega',
+    ),
+    ShelfPlatform(
+      id: 'Master System',
+      label: 'Sega Master System',
+      shortLabel: 'Master Sys',
+      color: Color(0xFFB71C1C),
+      fallbackIcon: CorpusIconKind.VideogameAsset,
+      group: 'Sega',
+    ),
+    ShelfPlatform(
+      id: 'Dreamcast',
+      label: 'Sega Dreamcast',
+      shortLabel: 'Dreamcast',
+      color: Color(0xFFFF6D00),
+      fallbackIcon: CorpusIconKind.VideogameAsset,
+      group: 'Sega',
+    ),
+
     // PC y tiendas digitales
     ShelfPlatform(
       id: 'PC',
@@ -371,6 +397,7 @@ abstract final class ShelfPlatforms {
     'PlayStation',
     'Xbox',
     'Nintendo',
+    'Sega',
     'PC y digital',
     'Móvil',
     'Otras',
@@ -380,59 +407,78 @@ abstract final class ShelfPlatforms {
 
   /// Dimensiones de caja física por plataforma (mm).
   ///
-  /// Lomo × alto de pie en estantería. Fuentes: medidas de cajas retail
-  /// (CoverStitch, Wikipedia, empaquetado PAL/NTSC). Digital sin formato
-  /// físico usa caja DVD PC o tamaño simbólico reducido.
+  /// Lomo (spineMm) × alto de pie (heightMm) en estantería (estándar PAL/Europa):
+  /// - Switch / Switch 2: 161 × 10 mm
+  /// - 3DS (PAL): 115 × 14 mm
+  /// - DS (PAL): 115 × 16 mm
+  /// - Wii / Wii U / GameCube: 183 × 14 mm
+  /// - NES (cartucho): 120 × 20 mm
+  /// - SNES / N64 (caja de cartón clásica): 126 × 34 mm
+  /// - Game Boy / Color / GBA (caja de cartón): 126 × 25 mm
+  /// - PS4 / PS5 / PS3 (Blu-ray): 149 × 14 mm
+  /// - PS2 / PSP (Caja DVD): 183 × 14 mm
+  /// - PS Vita: 125 × 10 mm
+  /// - PS1 (PAL caja gruesa): 118 × 24 mm
+  /// - Xbox One / Xbox Series X: 149 × 12 mm
+  /// - Xbox Clásica / Xbox 360 (Caja DVD): 183 × 14 mm
+  /// - PC (Caja DVD estándar): 183 × 14 mm
+  /// - Sega Mega Drive / Master System (Caja plástica): 173 × 22 mm
+  /// - Sega Dreamcast (PAL caja gruesa): 118 × 24 mm
   static const Map<String, ShelfCaseDimensions> _caseDimensionsById = {
-    // PlayStation
-    'PS1': ShelfCaseDimensions(spineMm: 10, heightMm: 125),
-    'PS2': ShelfCaseDimensions(spineMm: 14, heightMm: 184),
-    'PS3': ShelfCaseDimensions(spineMm: 14, heightMm: 148),
-    'PS4': ShelfCaseDimensions(spineMm: 14, heightMm: 148),
-    'PS5': ShelfCaseDimensions(spineMm: 14, heightMm: 148),
-    'PSP': ShelfCaseDimensions(spineMm: 14, heightMm: 168),
-    'PS Vita': ShelfCaseDimensions(spineMm: 12, heightMm: 105),
+    // PlayStation (Sony)
+    'PS1': ShelfCaseDimensions(spineMm: 24, heightMm: 118),
+    'PS2': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'PS3': ShelfCaseDimensions(spineMm: 14, heightMm: 149),
+    'PS4': ShelfCaseDimensions(spineMm: 14, heightMm: 149),
+    'PS5': ShelfCaseDimensions(spineMm: 14, heightMm: 149),
+    'PSP': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'PS Vita': ShelfCaseDimensions(spineMm: 10, heightMm: 125),
 
-    // Xbox
-    'Xbox': ShelfCaseDimensions(spineMm: 14, heightMm: 184),
-    'Xbox 360': ShelfCaseDimensions(spineMm: 14, heightMm: 184),
-    'Xbox One': ShelfCaseDimensions(spineMm: 14, heightMm: 168),
-    'Xbox Series': ShelfCaseDimensions(spineMm: 14, heightMm: 168),
+    // Xbox (Microsoft)
+    'Xbox': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Xbox 360': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Xbox One': ShelfCaseDimensions(spineMm: 12, heightMm: 149),
+    'Xbox Series': ShelfCaseDimensions(spineMm: 12, heightMm: 149),
 
-    // Nintendo
-    'NES': ShelfCaseDimensions(spineMm: 24, heightMm: 127),
-    'SNES': ShelfCaseDimensions(spineMm: 33, heightMm: 127),
-    'N64': ShelfCaseDimensions(spineMm: 30, heightMm: 127),
-    'GameCube': ShelfCaseDimensions(spineMm: 17, heightMm: 107),
-    'Wii': ShelfCaseDimensions(spineMm: 14, heightMm: 135),
-    'Wii U': ShelfCaseDimensions(spineMm: 14, heightMm: 135),
-    'Nintendo DS': ShelfCaseDimensions(spineMm: 20, heightMm: 122),
-    'Nintendo 3DS': ShelfCaseDimensions(spineMm: 13, heightMm: 122),
-    'Nintendo Switch': ShelfCaseDimensions(spineMm: 10, heightMm: 160),
-    'Nintendo Switch 2': ShelfCaseDimensions(spineMm: 10, heightMm: 160),
-    'Game Boy': ShelfCaseDimensions(spineMm: 10, heightMm: 96),
-    'Game Boy Advance': ShelfCaseDimensions(spineMm: 21, heightMm: 87),
+    // Nintendo (Cajas de disco/tarjeta + cartuchos/cajas de cartón clásicas)
+    'NES': ShelfCaseDimensions(spineMm: 20, heightMm: 120),
+    'SNES': ShelfCaseDimensions(spineMm: 34, heightMm: 126),
+    'N64': ShelfCaseDimensions(spineMm: 34, heightMm: 126),
+    'GameCube': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Wii': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Wii U': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Nintendo DS': ShelfCaseDimensions(spineMm: 16, heightMm: 115),
+    'Nintendo 3DS': ShelfCaseDimensions(spineMm: 14, heightMm: 115),
+    'Nintendo Switch': ShelfCaseDimensions(spineMm: 10, heightMm: 161),
+    'Nintendo Switch 2': ShelfCaseDimensions(spineMm: 10, heightMm: 161),
+    'Game Boy': ShelfCaseDimensions(spineMm: 25, heightMm: 126),
+    'Game Boy Advance': ShelfCaseDimensions(spineMm: 25, heightMm: 126),
 
-    // PC / tiendas digitales
-    'PC': ShelfCaseDimensions(spineMm: 14, heightMm: 184),
-    'Steam': ShelfCaseDimensions(spineMm: 12, heightMm: 175),
-    'Epic Games': ShelfCaseDimensions(spineMm: 12, heightMm: 175),
-    'GOG': ShelfCaseDimensions(spineMm: 12, heightMm: 175),
-    'EA App': ShelfCaseDimensions(spineMm: 12, heightMm: 175),
-    'Ubisoft Connect': ShelfCaseDimensions(spineMm: 12, heightMm: 175),
-    'Battle.net': ShelfCaseDimensions(spineMm: 12, heightMm: 175),
-    'Mac': ShelfCaseDimensions(spineMm: 14, heightMm: 184),
-    'Linux': ShelfCaseDimensions(spineMm: 14, heightMm: 184),
+    // Sega
+    'Mega Drive': ShelfCaseDimensions(spineMm: 22, heightMm: 173),
+    'Master System': ShelfCaseDimensions(spineMm: 22, heightMm: 173),
+    'Dreamcast': ShelfCaseDimensions(spineMm: 24, heightMm: 118),
+
+    // PC / tiendas digitales (Caja DVD estándar 183 × 14 mm)
+    'PC': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Steam': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Epic Games': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'GOG': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'EA App': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Ubisoft Connect': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Battle.net': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Mac': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
+    'Linux': ShelfCaseDimensions(spineMm: 14, heightMm: 183),
 
     // Móvil / otros (sin caja física estándar)
     'Android': ShelfCaseDimensions(spineMm: 8, heightMm: 120),
     'iOS': ShelfCaseDimensions(spineMm: 8, heightMm: 120),
-    'VR': ShelfCaseDimensions(spineMm: 14, heightMm: 171),
+    'VR': ShelfCaseDimensions(spineMm: 14, heightMm: 149),
   };
 
   static const ShelfCaseDimensions _defaultCase = ShelfCaseDimensions(
-    spineMm: 12,
-    heightMm: 170,
+    spineMm: 14,
+    heightMm: 183,
   );
 
   static ShelfCaseDimensions caseDimensionsFor(String platformName) {
@@ -465,13 +511,16 @@ abstract final class ShelfPlatforms {
     'Nintendo Switch 2': ['Nintendo Switch 2'],
     'Game Boy': ['Game Boy', 'Game Boy Color'],
     'Game Boy Advance': ['Game Boy Advance'],
-    'PC': ['PC (Windows)', 'Linux', 'Mac'],
-    'Steam': ['PC (Windows)', 'Linux', 'Mac'],
-    'Epic Games': ['PC (Windows)', 'Linux', 'Mac'],
-    'GOG': ['PC (Windows)', 'Linux', 'Mac'],
-    'EA App': ['PC (Windows)', 'Linux', 'Mac'],
-    'Ubisoft Connect': ['PC (Windows)', 'Linux', 'Mac'],
-    'Battle.net': ['PC (Windows)', 'Linux', 'Mac'],
+    'Mega Drive': ['Sega Mega Drive/Genesis', 'Genesis', 'Mega Drive'],
+    'Master System': ['Sega Master System/Mark III', 'Master System'],
+    'Dreamcast': ['Dreamcast'],
+    'PC': ['PC (Microsoft Windows)', 'PC (Windows)', 'DOS', 'Linux', 'Mac'],
+    'Steam': ['PC (Microsoft Windows)', 'PC (Windows)', 'Linux', 'Mac'],
+    'Epic Games': ['PC (Microsoft Windows)', 'PC (Windows)', 'Mac'],
+    'GOG': ['PC (Microsoft Windows)', 'PC (Windows)', 'DOS', 'Linux', 'Mac'],
+    'EA App': ['PC (Microsoft Windows)', 'PC (Windows)', 'Mac'],
+    'Ubisoft Connect': ['PC (Microsoft Windows)', 'PC (Windows)'],
+    'Battle.net': ['PC (Microsoft Windows)', 'PC (Windows)', 'Mac'],
     'Mac': ['Mac'],
     'Linux': ['Linux'],
     'Android': ['Android'],
@@ -541,6 +590,22 @@ abstract final class ShelfPlatforms {
       'PS5' => gp.contains('playstation 5') || gp == 'ps5',
       'PSP' => gp.contains('playstation portable') || gp == 'psp',
       'PS Vita' => gp.contains('playstation vita') || gp == 'ps vita',
+      'Mega Drive' => gp.contains('mega drive') || gp.contains('genesis'),
+      'Master System' => gp.contains('master system') || gp.contains('mark iii'),
+      'Dreamcast' => gp.contains('dreamcast'),
+      'PC' ||
+      'Steam' ||
+      'Epic Games' ||
+      'GOG' ||
+      'EA App' ||
+      'Ubisoft Connect' ||
+      'Battle.net' =>
+        gp.contains('windows') ||
+        gp == 'pc' ||
+        gp.contains('pc (') ||
+        gp == 'dos' ||
+        gp == 'linux' ||
+        gp == 'mac',
       'VR' =>
         gp.contains('vr') ||
         gp.contains('oculus') ||
@@ -592,6 +657,14 @@ abstract final class ShelfPlatforms {
       'game boy advance': 'Game Boy Advance',
       'gba': 'Game Boy Advance',
       'game boy': 'Game Boy',
+      'sega mega drive/genesis': 'Mega Drive',
+      'mega drive': 'Mega Drive',
+      'genesis': 'Mega Drive',
+      'sega master system/mark iii': 'Master System',
+      'master system': 'Master System',
+      'dreamcast': 'Dreamcast',
+      'sega dreamcast': 'Dreamcast',
+      'pc (microsoft windows)': 'PC',
       'pc (windows)': 'PC',
       'pc': 'PC',
       'windows': 'PC',

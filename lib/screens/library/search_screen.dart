@@ -371,6 +371,10 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
 
   Widget _buildSearchField() {
     final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final searchBorder = OutlineInputBorder(
+      borderRadius: ext.radiusMedium,
+      borderSide: BorderSide.none,
+    );
 
     return SizedBox(
       height: 44,
@@ -380,24 +384,16 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
         textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: 'Buscar juegos...',
+          prefixIcon: const CorpusTablerIcon.search(size: 20),
           filled: true,
           fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
+            horizontal: 14,
             vertical: 0,
           ),
-          border: OutlineInputBorder(
-            borderRadius: ext.radiusLarge,
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: ext.radiusLarge,
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: ext.radiusLarge,
-            borderSide: BorderSide.none,
-          ),
+          border: searchBorder,
+          enabledBorder: searchBorder,
+          focusedBorder: searchBorder,
           hintStyle: TextStyle(
             color: Theme.of(
               context,

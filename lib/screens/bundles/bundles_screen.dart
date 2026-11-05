@@ -200,6 +200,14 @@ class _BundlesScreenState extends State<BundlesScreen> {
                     borderRadius: ext.radiusMedium,
                     borderSide: BorderSide.none,
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: ext.radiusMedium,
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: ext.radiusMedium,
+                    borderSide: BorderSide.none,
+                  ),
                   filled: true,
                   fillColor: Theme.of(
                     context,

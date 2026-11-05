@@ -5,6 +5,7 @@
 // "tu review / la de tu pareja" mostrada en el Hero.
 
 import 'package:flutter/material.dart';
+import 'package:corpus/widgets/corpus_network_image.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../../widgets/guest_login_prompt.dart';
@@ -92,17 +93,26 @@ class _GameStashTabState extends State<GameStashTab> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      backgroundImage: avatarUrl != null
-                          ? NetworkImage(avatarUrl)
-                          : null,
-                      child: avatarUrl == null
-                          ? const CorpusTablerIcon(CorpusIconKind.Person, size: 16)
-                          : null,
+                    ClipOval(
+                      child: SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CorpusNetworkImage(
+                          url: avatarUrl,
+                          fit: BoxFit.cover,
+                          placeholder: ColoredBox(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                            child: const Center(
+                              child: CorpusTablerIcon(
+                                CorpusIconKind.Person,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(

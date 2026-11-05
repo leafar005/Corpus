@@ -11,7 +11,6 @@
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/models.dart';
 
 import 'package:corpus/globals.dart';

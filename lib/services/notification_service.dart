@@ -188,6 +188,13 @@ class NotificationService {
 
     try {
       final messaging = FirebaseMessaging.instance;
+      if (kIsWeb) {
+        final settings = await messaging.getNotificationSettings();
+        if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+            settings.authorizationStatus != AuthorizationStatus.provisional) {
+          return;
+        }
+      }
       final token = kIsWeb
           ? await messaging.getToken(vapidKey: Env.firebaseVapidKey)
           : await messaging.getToken();

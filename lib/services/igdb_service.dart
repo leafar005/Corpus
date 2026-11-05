@@ -38,7 +38,7 @@ class IGDBService {
     // Traemos nombre, fecha de lanzamiento, el arte de fondo y la carátula por si acaso
     final query =
         '''
-      fields name, first_release_date, artworks.image_id, cover.image_id;
+      fields name, first_release_date, summary, artworks.image_id, cover.image_id, genres.name, platforms.name;
       where first_release_date > $now & hypes != null;
       sort hypes desc;
       limit $limit;
@@ -64,7 +64,7 @@ class IGDBService {
     final nowSeconds = (DateTime.now().millisecondsSinceEpoch / 1000).floor();
     final query =
         '''
-      fields name, first_release_date, artworks.image_id, cover.image_id;
+      fields name, first_release_date, summary, artworks.image_id, cover.image_id, genres.name, platforms.name;
       where id = (${ids.join(',')}) & first_release_date > $nowSeconds;
       sort first_release_date asc;
     ''';

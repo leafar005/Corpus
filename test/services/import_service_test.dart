@@ -78,7 +78,7 @@ Juego 7,backlog,0
       expect(rows[3].status, 'abandoned');
       expect(rows[4].status, 'on_hold');
       expect(rows[5].status, 'completed');
-      expect(rows[6].status, 'wishlist');
+      expect(rows[6].status, 'to_play');
     });
 
     test(

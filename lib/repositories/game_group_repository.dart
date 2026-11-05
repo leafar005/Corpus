@@ -68,16 +68,7 @@ class GameGroupRepository {
         .toList();
 
     final map = Map<String, dynamic>.from(groupRes as Map);
-    return GameGroup(
-      id: map['id'] as String,
-      userId: map['user_id'] as String,
-      name: map['name'] as String,
-      description: map['description'] as String?,
-      coverGameId: (map['cover_game_id'] as num?)?.toInt(),
-      sortOrder: (map['sort_order'] as num?)?.toInt() ?? 0,
-      createdAt: map['created_at'] != null
-          ? DateTime.tryParse(map['created_at'] as String)
-          : null,
+    return GameGroup.fromMap(map).copyWith(
       items: enrichedItems,
       gameCount: enrichedItems.length,
     );
@@ -108,21 +99,48 @@ class GameGroupRepository {
     required String userId,
     required String name,
     String? description,
+    bool isRanked = false,
   }) async {
     final maxSort = await _nextGroupSortOrder(userId);
-    final inserted = await _client
-        .from('game_groups')
-        .insert({
-          'user_id': userId,
-          'name': name.trim(),
-          if (description != null && description.trim().isNotEmpty)
-            'description': description.trim(),
-          'sort_order': maxSort,
-        })
-        .select()
-        .single();
 
-    return GameGroup.fromMap(Map<String, dynamic>.from(inserted as Map));
+    final payload = <String, dynamic>{
+      'user_id': userId,
+      'name': name.trim(),
+      if (description != null && description.trim().isNotEmpty)
+        'description': description.trim(),
+      'sort_order': maxSort,
+      'is_ranked': isRanked,
+    };
+
+    try {
+      final inserted = await _client
+          .from('game_groups')
+          .insert(payload)
+          .select()
+          .single();
+      return GameGroup.fromMap(Map<String, dynamic>.from(inserted as Map));
+    } catch (e) {
+      // Si la columna is_ranked aún no existe en la BD, codificamos el estado en description.
+      if (e.toString().contains('is_ranked')) {
+        payload.remove('is_ranked');
+        final encodedDesc = GameGroup.encodeRankedDescription(
+          description,
+          isRanked,
+        );
+        if (encodedDesc != null) {
+          payload['description'] = encodedDesc;
+        } else {
+          payload.remove('description');
+        }
+        final inserted = await _client
+            .from('game_groups')
+            .insert(payload)
+            .select()
+            .single();
+        return GameGroup.fromMap(Map<String, dynamic>.from(inserted as Map));
+      }
+      rethrow;
+    }
   }
 
   Future<int> _nextGroupSortOrder(String userId) async {
@@ -144,20 +162,45 @@ class GameGroupRepository {
     String? name,
     String? description,
     int? coverGameId,
+    bool? isRanked,
   }) async {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name.trim();
-    if (description != null) updates['description'] = description.trim();
+    if (description != null) {
+      final trimmed = description.trim();
+      updates['description'] = trimmed.isEmpty ? null : trimmed;
+    }
     if (coverGameId != null) updates['cover_game_id'] = coverGameId;
+    if (isRanked != null) updates['is_ranked'] = isRanked;
 
-    final res = await _client
-        .from('game_groups')
-        .update(updates)
-        .eq('id', groupId)
-        .select()
-        .single();
+    try {
+      final res = await _client
+          .from('game_groups')
+          .update(updates)
+          .eq('id', groupId)
+          .select()
+          .single();
 
-    return GameGroup.fromMap(Map<String, dynamic>.from(res as Map));
+      return GameGroup.fromMap(Map<String, dynamic>.from(res as Map));
+    } catch (e) {
+      if (e.toString().contains('is_ranked') && updates.containsKey('is_ranked')) {
+        updates.remove('is_ranked');
+        if (isRanked != null) {
+          updates['description'] = GameGroup.encodeRankedDescription(
+            description,
+            isRanked,
+          );
+        }
+        final res = await _client
+            .from('game_groups')
+            .update(updates)
+            .eq('id', groupId)
+            .select()
+            .single();
+        return GameGroup.fromMap(Map<String, dynamic>.from(res as Map));
+      }
+      rethrow;
+    }
   }
 
   Future<void> deleteGroup(String groupId) async {
@@ -176,12 +219,16 @@ class GameGroupRepository {
   /// Asegura que el juego exista en catálogo antes de añadirlo al grupo.
   Future<void> ensureGameInCatalog(Game game) async {
     try {
-      await _client.from('games').upsert({
-        'igdb_id': game.igdbId,
-        'title': game.title,
-        if (game.coverUrl != null) 'cover_url': game.coverUrl,
-        if (game.releaseDate != null) 'release_date': game.releaseDate,
-      });
+      await _client.from('games').upsert(
+        {
+          'igdb_id': game.igdbId,
+          'title': game.title,
+          if (game.coverUrl != null) 'cover_url': game.coverUrl,
+          if (game.releaseDate != null) 'release_date': game.releaseDate,
+        },
+        onConflict: 'igdb_id',
+        ignoreDuplicates: true,
+      );
     } catch (e) {
       debugPrint('[GameGroupRepository] ensureGameInCatalog: $e');
     }

@@ -47,12 +47,44 @@ class ExploreBundleRow extends StatelessWidget {
       if (games.isEmpty) continue;
 
       final tierName = tier['name'] as String? ?? '';
-      if (tierName.isNotEmpty) {
-        items.add(VerticalTierLabel(tierName));
-      }
+      final gameTiles = <Widget>[];
 
       for (final gameData in games) {
-        items.add(_buildGameTile(context, gameData as Map<String, dynamic>));
+        gameTiles.add(_buildGameTile(context, gameData as Map<String, dynamic>));
+      }
+
+      if (tierName.isNotEmpty) {
+        items.add(
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    tierName.toUpperCase(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.primary,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    children: gameTiles,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        // If no tier name, just add the games individually
+        items.addAll(gameTiles);
       }
     }
 
@@ -188,7 +220,7 @@ class ExploreBundleRow extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 190,
+            height: 220, // Increased height to accommodate the Tier header
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
               clipBehavior: Clip.none,
