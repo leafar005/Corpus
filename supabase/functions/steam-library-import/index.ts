@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { igdbGamesRequest, IGDB_FIELDS, getIgdbAccessToken } from '../_shared/igdb-client.ts';
-import { corsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
+import { corsHeadersForRequest, handleCorsPreflight } from '../_shared/cors.ts';
 
 const IGDB_CLIENT_ID = Deno.env.get('IGDB_CLIENT_ID') ?? '';
 const IGDB_CLIENT_SECRET = Deno.env.get('IGDB_CLIENT_SECRET') ?? '';
@@ -34,6 +34,7 @@ Deno.serve(async (req) => {
 
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
 
   try {
     const authHeader = req.headers.get('Authorization');

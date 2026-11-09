@@ -15,7 +15,7 @@
 //   c) Fallback por regex sobre el texto plano visible
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
+import { corsHeadersForRequest, handleCorsPreflight } from "../_shared/cors.ts";
 
 // ---------------------------------------------------------------------------
 // 1. CONFIG: rotación de User-Agents realistas + jitter
@@ -336,6 +336,7 @@ async function scrapeMetacriticGame(slug: string, url: string): Promise<Metacrit
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
 
   try {
     const authHeader = req.headers.get('Authorization');

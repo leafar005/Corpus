@@ -80,18 +80,45 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     const record = payload.record ?? payload;
 
-    const commentId = record?.id as string | undefined;
-    const commenterId = record?.user_id as string | undefined;
-    const reviewId = record?.review_id as string | undefined;
-    const content = record?.content as string | undefined;
+    const rawCommentId = record?.id as string | undefined;
+    const rawCommenterId = record?.user_id as string | undefined;
+    const rawReviewId = record?.review_id as string | undefined;
 
-    if (!commenterId || !reviewId) {
+    if (!rawCommentId && (!rawCommenterId || !rawReviewId)) {
       return new Response(JSON.stringify({ skipped: "missing fields" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Verificar en BD que el comentario existe realmente (evita spoofing de payload)
+    let commentQuery = supabase
+      .from("review_comments")
+      .select("id, user_id, review_id, content, created_at");
+
+    if (rawCommentId) {
+      commentQuery = commentQuery.eq("id", rawCommentId);
+    } else {
+      commentQuery = commentQuery
+        .eq("user_id", rawCommenterId!)
+        .eq("review_id", rawReviewId!)
+        .order("created_at", { ascending: false })
+        .limit(1);
+    }
+
+    const { data: verifiedComment } = await commentQuery.maybeSingle();
+    if (!verifiedComment) {
+      return new Response(JSON.stringify({ skipped: "comment not found in db" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const commentId = verifiedComment.id as string;
+    const commenterId = verifiedComment.user_id as string;
+    const reviewId = verifiedComment.review_id as string;
+    const content = verifiedComment.content as string | undefined;
 
     // Obtener nombre del comentador
     const { data: commenterUser } = await supabase

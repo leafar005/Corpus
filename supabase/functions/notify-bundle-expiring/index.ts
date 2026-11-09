@@ -79,6 +79,14 @@ Deno.serve(async (req) => {
 
     // ─── Caso A: Notificación de bundles nuevos (llamado desde sync-bundles) ──
     if (body?.type === "new_bundles" && Array.isArray(body.bundleTitles) && body.bundleTitles.length > 0) {
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const token = authHeader.replace("Bearer ", "");
+      if (!SUPABASE_SERVICE_ROLE_KEY || token !== SUPABASE_SERVICE_ROLE_KEY) {
+        return new Response(
+          JSON.stringify({ error: "new_bundles requires service_role authorization" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const titles = body.bundleTitles as string[];
       const bundleList = titles.length === 1
         ? titles[0]

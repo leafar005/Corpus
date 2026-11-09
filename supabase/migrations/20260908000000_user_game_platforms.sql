@@ -5,7 +5,7 @@
 -- Migración aditiva: no modifica tablas existentes.
 -- =============================================================================
 
-CREATE TABLE public.user_game_platforms (
+CREATE TABLE IF NOT EXISTS public.user_game_platforms (
     user_id       uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     game_id       integer     NOT NULL REFERENCES public.games(igdb_id) ON DELETE CASCADE,
     platform_name text        NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE public.user_game_platforms (
 COMMENT ON TABLE public.user_game_platforms IS
     'Plataformas en las que el usuario posee cada juego (estantería / colección visual).';
 
-CREATE INDEX idx_user_game_platforms_user_id
+CREATE INDEX IF NOT EXISTS idx_user_game_platforms_user_id
     ON public.user_game_platforms (user_id);
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -25,11 +25,13 @@ CREATE INDEX idx_user_game_platforms_user_id
 
 ALTER TABLE public.user_game_platforms ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "user owns their game platforms" ON public.user_game_platforms;
 CREATE POLICY "user owns their game platforms"
     ON public.user_game_platforms FOR ALL
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "anyone can view game platforms" ON public.user_game_platforms;
 CREATE POLICY "anyone can view game platforms"
     ON public.user_game_platforms FOR SELECT
     USING (true);

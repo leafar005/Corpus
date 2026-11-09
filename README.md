@@ -10,8 +10,10 @@ It combines a personal game journal with a closed social layer for your group, e
 
 ## Features
 
-### Library
-- Track every game with statuses: **Playing, Beaten, Wishlist, Abandoned, On Hold**
+### Library & Collections
+- Track every game with statuses: **Playing, To Play, Beaten, Wishlist, Abandoned, On Hold**
+- **Physical Shelf & Multi-Platform Tracking:** Track which console/platform editions you own with custom spine & box art rendering per platform family
+- **Custom Collections & Ranked Lists:** Organize games into custom groups or numbered rankings (`Top 10`, sagas, thematic lists) with per-game notes
 - Auto-populated covers, release dates, completion times, and genres from **IGDB**
 - Saga progress tracker grouped by IGDB collection
 - **Import Data:** Import your game history from CSV or JSON (e.g., from Backloggd, Stash).

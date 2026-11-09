@@ -1,5 +1,5 @@
 // supabase/functions/igdb-proxy/index.ts
-import { corsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
+import { corsHeadersForRequest, handleCorsPreflight } from '../_shared/cors.ts';
 import { igdbApiRequest } from '../_shared/igdb-client.ts';
 import { checkRateLimit, bucketKeyFromRequest } from '../_shared/rate-limit.ts';
 
@@ -31,6 +31,7 @@ const log = (level: 'INFO' | 'WARN' | 'ERROR', message: string, meta: Record<str
 Deno.serve(async (req: Request) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
 
   try {
     if (req.method !== 'POST') {

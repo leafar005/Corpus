@@ -139,7 +139,7 @@ class ReviewRepository {
   // Escritura
   // ──────────────────────────────────────────────────────────────────
 
-  /// Sanitiza los datos de reseña, forzando a null notas y comentarios cuando status == 'wishlist'.
+  /// Sanitiza los datos de reseña, forzando a null notas y comentarios cuando status == 'wishlist' o 'to_play'.
   static Map<String, dynamic> sanitizeReviewData({
     required String userId,
     required dynamic igdbId,
@@ -162,7 +162,7 @@ class ReviewRepository {
     required List<String> partnerIds,
     DateTime? reviewDate,
   }) {
-    final isWishlist = status == 'wishlist';
+    final isWishlist = status == 'wishlist' || status == 'to_play';
     return <String, dynamic>{
       'user_id': userId,
       'game_id': igdbId,
@@ -412,7 +412,7 @@ class ReviewRepository {
       enrichedData: enrichedData,
     );
 
-    final isWishlist = status == 'wishlist';
+    final isWishlist = status == 'wishlist' || status == 'to_play';
 
     // Subir imágenes nuevas
     final List<String> finalImageUrls = isWishlist

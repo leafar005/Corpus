@@ -153,7 +153,7 @@ class CollectionRepository {
         .from('user_games')
         .select('status, steam_owned, games(*)')
         .eq('user_id', userId)
-        .eq('status', 'beaten')
+        .inFilter('status', ['beaten', 'completed'])
         .order('updated_at', ascending: false);
 
     final platformRows = await _client

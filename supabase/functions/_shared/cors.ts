@@ -13,6 +13,16 @@ const ALLOWED_ORIGINS: string[] = [
   'http://localhost:8080',           // desarrollo local web (alt)
 ];
 
+function isAllowedOrigin(origin: string): boolean {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Permitir cualquier puerto efímero de desarrollo local (ej. flutter run -d edge/chrome)
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
+  // Permitir despliegues preview de Vercel del proyecto Corpus
+  if (/^https:\/\/corpus(-[a-z0-9-]+)?\.vercel\.app$/i.test(origin)) return true;
+  return false;
+}
+
 /**
  * Devuelve las cabeceras CORS apropiadas para la petición dada.
  *
@@ -26,11 +36,12 @@ const ALLOWED_ORIGINS: string[] = [
  */
 export function corsHeadersForRequest(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin') ?? '';
-  const allowed = ALLOWED_ORIGINS.includes(origin);
+  const allowed = isAllowedOrigin(origin);
   return {
     'Access-Control-Allow-Origin': allowed ? origin : ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Vary': 'Origin',
   };
 }
 

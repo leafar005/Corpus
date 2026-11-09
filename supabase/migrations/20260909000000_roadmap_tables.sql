@@ -7,7 +7,7 @@
 -- roadmap_nodes
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE public.roadmap_nodes (
+CREATE TABLE IF NOT EXISTS public.roadmap_nodes (
     id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id      uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     game_id      integer     NOT NULL REFERENCES public.games(igdb_id) ON DELETE CASCADE,
@@ -27,14 +27,14 @@ CREATE TABLE public.roadmap_nodes (
 COMMENT ON TABLE public.roadmap_nodes IS
     'Nodos del roadmap personal: un juego planificado con posición visual y metadata.';
 
-CREATE INDEX idx_roadmap_nodes_user_id ON public.roadmap_nodes (user_id);
-CREATE INDEX idx_roadmap_nodes_user_status ON public.roadmap_nodes (user_id, status);
+CREATE INDEX IF NOT EXISTS idx_roadmap_nodes_user_id ON public.roadmap_nodes (user_id);
+CREATE INDEX IF NOT EXISTS idx_roadmap_nodes_user_status ON public.roadmap_nodes (user_id, status);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- roadmap_edges
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE public.roadmap_edges (
+CREATE TABLE IF NOT EXISTS public.roadmap_edges (
     id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id          uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     source_node_id   uuid        NOT NULL REFERENCES public.roadmap_nodes(id) ON DELETE CASCADE,
@@ -50,15 +50,15 @@ CREATE TABLE public.roadmap_edges (
 COMMENT ON TABLE public.roadmap_edges IS
     'Conexiones entre nodos del roadmap (ramas del árbol).';
 
-CREATE INDEX idx_roadmap_edges_user_id ON public.roadmap_edges (user_id);
-CREATE INDEX idx_roadmap_edges_source ON public.roadmap_edges (source_node_id);
-CREATE INDEX idx_roadmap_edges_target ON public.roadmap_edges (target_node_id);
+CREATE INDEX IF NOT EXISTS idx_roadmap_edges_user_id ON public.roadmap_edges (user_id);
+CREATE INDEX IF NOT EXISTS idx_roadmap_edges_source ON public.roadmap_edges (source_node_id);
+CREATE INDEX IF NOT EXISTS idx_roadmap_edges_target ON public.roadmap_edges (target_node_id);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- roadmap_suggestions
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE public.roadmap_suggestions (
+CREATE TABLE IF NOT EXISTS public.roadmap_suggestions (
     id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     target_user_id  uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     suggester_id    uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -74,7 +74,7 @@ CREATE TABLE public.roadmap_suggestions (
 COMMENT ON TABLE public.roadmap_suggestions IS
     'Sugerencias de juegos entre amigos para el roadmap.';
 
-CREATE INDEX idx_roadmap_suggestions_target
+CREATE INDEX IF NOT EXISTS idx_roadmap_suggestions_target
     ON public.roadmap_suggestions (target_user_id, status);
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -91,6 +91,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_roadmap_nodes_updated_at ON public.roadmap_nodes;
 CREATE TRIGGER trg_roadmap_nodes_updated_at
     BEFORE UPDATE ON public.roadmap_nodes
     FOR EACH ROW
@@ -126,6 +127,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_sync_roadmap_from_user_games ON public.user_games;
 CREATE TRIGGER trg_sync_roadmap_from_user_games
     AFTER INSERT OR UPDATE OF status ON public.user_games
     FOR EACH ROW
@@ -140,23 +142,27 @@ ALTER TABLE public.roadmap_edges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.roadmap_suggestions ENABLE ROW LEVEL SECURITY;
 
 -- roadmap_nodes: owner only
+DROP POLICY IF EXISTS "Users manage own roadmap nodes" ON public.roadmap_nodes;
 CREATE POLICY "Users manage own roadmap nodes"
     ON public.roadmap_nodes FOR ALL
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
 -- roadmap_edges: owner only
+DROP POLICY IF EXISTS "Users manage own roadmap edges" ON public.roadmap_edges;
 CREATE POLICY "Users manage own roadmap edges"
     ON public.roadmap_edges FOR ALL
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
 -- roadmap_suggestions: read if involved
+DROP POLICY IF EXISTS "Users view roadmap suggestions they are part of" ON public.roadmap_suggestions;
 CREATE POLICY "Users view roadmap suggestions they are part of"
     ON public.roadmap_suggestions FOR SELECT
     USING (auth.uid() = target_user_id OR auth.uid() = suggester_id);
 
 -- roadmap_suggestions: insert if suggester and friends
+DROP POLICY IF EXISTS "Friends can suggest roadmap games" ON public.roadmap_suggestions;
 CREATE POLICY "Friends can suggest roadmap games"
     ON public.roadmap_suggestions FOR INSERT
     WITH CHECK (
@@ -173,6 +179,7 @@ CREATE POLICY "Friends can suggest roadmap games"
     );
 
 -- roadmap_suggestions: target can update (accept/dismiss)
+DROP POLICY IF EXISTS "Target user can respond to roadmap suggestions" ON public.roadmap_suggestions;
 CREATE POLICY "Target user can respond to roadmap suggestions"
     ON public.roadmap_suggestions FOR UPDATE
     USING (auth.uid() = target_user_id)

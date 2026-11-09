@@ -1,13 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-import { corsHeaders, corsHeadersForRequest } from '../_shared/cors.ts';
+import { corsHeadersForRequest, handleCorsPreflight } from '../_shared/cors.ts';
 
 const STEAM_WEB_API_KEY = Deno.env.get('STEAM_WEB_API_KEY') ?? '';
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
 
   try {
     const authHeader = req.headers.get('Authorization');

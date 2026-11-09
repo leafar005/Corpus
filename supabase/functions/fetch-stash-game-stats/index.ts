@@ -1,6 +1,6 @@
 // supabase/functions/fetch-stash-game-stats/index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { corsHeaders, randomUserAgent, jitter, buildStashHeaders, makeLogger } from '../_shared/stash-client.ts';
+import { corsHeadersForRequest, handleCorsPreflight, randomUserAgent, jitter, buildStashHeaders, makeLogger } from '../_shared/stash-client.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 
 const log = makeLogger('fetch-stash-game-stats');
@@ -14,9 +14,9 @@ const STASH_GAME_DETAIL_URL = (id: number) => `https://api.stash.games/api/v1/ga
 const STASH_STATUS_STATISTIC_URL = (id: number) => `https://api.stash.games/api/v1/games/${id}/statuses/statistic`;
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
 
   const rateLimit = await checkRateLimit({
     bucketKey: STASH_RATE_LIMIT_BUCKET,

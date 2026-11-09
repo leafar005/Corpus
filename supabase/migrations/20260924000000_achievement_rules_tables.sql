@@ -22,9 +22,11 @@ CREATE TABLE IF NOT EXISTS public.achievement_rules (
 -- para mostrar progreso).
 ALTER TABLE public.achievement_rules ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "achievement_rules_select" ON public.achievement_rules;
 CREATE POLICY "achievement_rules_select" ON public.achievement_rules
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "achievement_rules_service_role" ON public.achievement_rules;
 CREATE POLICY "achievement_rules_service_role" ON public.achievement_rules
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
@@ -39,9 +41,11 @@ CREATE TABLE IF NOT EXISTS public.achievement_match_patterns (
 
 ALTER TABLE public.achievement_match_patterns ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "match_patterns_select" ON public.achievement_match_patterns;
 CREATE POLICY "match_patterns_select" ON public.achievement_match_patterns
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "match_patterns_service_role" ON public.achievement_match_patterns;
 CREATE POLICY "match_patterns_service_role" ON public.achievement_match_patterns
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 

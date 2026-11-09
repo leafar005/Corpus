@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { corsHeaders, randomUserAgent, jitter, buildStashHeaders, makeLogger } from '../_shared/stash-client.ts';
+import { corsHeadersForRequest, handleCorsPreflight, randomUserAgent, jitter, buildStashHeaders, makeLogger } from '../_shared/stash-client.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 
 const log = makeLogger('fetch-stash-reviews');
@@ -15,9 +15,9 @@ const STASH_RATE_LIMIT_MAX = 20;
 const STASH_RATE_LIMIT_WINDOW_SECONDS = 60;
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
 
   const rateLimit = await checkRateLimit({
     bucketKey: STASH_RATE_LIMIT_BUCKET,

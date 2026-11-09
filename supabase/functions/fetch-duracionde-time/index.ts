@@ -1,4 +1,4 @@
-﻿// supabase/functions/fetch-duracionde-time/index.ts
+// supabase/functions/fetch-duracionde-time/index.ts
 //
 // Scraper de duracionde.com para obtener tiempos de duración de juegos.
 // Estrategia:
@@ -9,12 +9,7 @@
 //   4. Si falla (404 / sin datos) → { found: false } guardado igualmente en caché.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeadersForRequest, handleCorsPreflight } from "../_shared/cors.ts";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -155,9 +150,9 @@ function parseJsonLd(html: string, slug: string, title: string): DuracionResult 
 // ---------------------------------------------------------------------------
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
 
   try {
     // Autenticación: requerimos un usuario válido (no es una función pública)

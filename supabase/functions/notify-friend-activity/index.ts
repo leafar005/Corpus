@@ -57,6 +57,26 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // Verificar en BD que la entrada de activity_feed existe realmente (evita spoofing)
+    if (record?.id) {
+      const { data: verifiedFeed } = await supabase
+        .from("activity_feed")
+        .select("id, user_id, game_id, action_type, metadata, created_at")
+        .eq("id", record.id)
+        .maybeSingle();
+
+      if (
+        !verifiedFeed ||
+        verifiedFeed.user_id !== userId ||
+        verifiedFeed.action_type !== "status_change"
+      ) {
+        return new Response(JSON.stringify({ skipped: "activity not found in db" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Obtener el nombre del usuario que generó la actividad
     const { data: actorUser } = await supabase
       .from("users")

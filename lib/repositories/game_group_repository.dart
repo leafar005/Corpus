@@ -186,8 +186,21 @@ class GameGroupRepository {
       if (e.toString().contains('is_ranked') && updates.containsKey('is_ranked')) {
         updates.remove('is_ranked');
         if (isRanked != null) {
+          String? baseDescription = description;
+          if (baseDescription == null) {
+            final current = await _client
+                .from('game_groups')
+                .select('description')
+                .eq('id', groupId)
+                .maybeSingle();
+            if (current != null) {
+              baseDescription = GameGroup.fromMap(
+                Map<String, dynamic>.from(current as Map),
+              ).description;
+            }
+          }
           updates['description'] = GameGroup.encodeRankedDescription(
-            description,
+            baseDescription,
             isRanked,
           );
         }

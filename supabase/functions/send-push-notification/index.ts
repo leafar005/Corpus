@@ -21,7 +21,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from '../_shared/cors.ts';
+import { corsHeadersForRequest, handleCorsPreflight } from '../_shared/cors.ts';
 
 const FIREBASE_PROJECT_ID = Deno.env.get("FIREBASE_PROJECT_ID") ?? "";
 const FIREBASE_SERVICE_ACCOUNT = Deno.env.get("FIREBASE_SERVICE_ACCOUNT") ?? "";
@@ -205,9 +205,9 @@ async function sendToTokens(
 // ─── Handler principal ───────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
 
   try {
     // ── Auth check (Auditoría H-05) ──────────────────────────────────────
@@ -222,23 +222,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verificar que el JWT pertenece al service_role (no a un usuario anónimo)
+    // Verificar que el JWT pertenece al service_role (o es una prueba propia del usuario)
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const token = authHeader.replace("Bearer ", "");
-
-    // Si el token es la propia service_role key, se acepta directamente
-    // (las Edge Functions internas pasan la key como Bearer token).
-    // Si NO coincide, intentamos decodificar el JWT para verificar el rol.
-    if (token !== SUPABASE_SERVICE_ROLE_KEY) {
-      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-      // Si el token es de un usuario normal (no service_role), rechazar
-      if (user || authError) {
-        return new Response(
-          JSON.stringify({ error: "This function requires service_role access" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
+    const isServiceRole =
+      SUPABASE_SERVICE_ROLE_KEY.length > 0 && token === SUPABASE_SERVICE_ROLE_KEY;
 
     const { tokens, title, body, data } = await req.json();
 
@@ -249,7 +237,39 @@ Deno.serve(async (req) => {
       );
     }
 
-    const result = await sendToTokens(tokens, title, body, data);
+    let targetTokens: string[] = tokens;
+    let targetTitle: string = title;
+    let targetBody: string = body;
+
+    if (!isServiceRole) {
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      if (authError || !user || data?.type !== "test") {
+        return new Response(
+          JSON.stringify({ error: "This function requires service_role access" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Usuario autenticado probando sus propias notificaciones:
+      // restringir estrictamente a tokens registrados a nombre de `user.id`
+      const { data: ownedRows } = await supabaseAdmin
+        .from("push_tokens")
+        .select("token")
+        .eq("user_id", user.id)
+        .in("token", tokens);
+
+      targetTokens = (ownedRows ?? []).map((r: any) => r.token);
+      if (targetTokens.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "No owned push tokens matched for test notification" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      targetTitle = "Corpus — Notificación de prueba";
+      targetBody = "Las notificaciones funcionan correctamente.";
+    }
+
+    const result = await sendToTokens(targetTokens, targetTitle, targetBody, data);
 
     return new Response(JSON.stringify({ success: true, ...result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

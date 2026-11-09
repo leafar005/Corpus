@@ -330,6 +330,7 @@ class GroupsTabState extends State<GroupsTab> {
   Future<void> _openGroupDetail(GameGroup group) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
+        settings: RouteSettings(name: '/group-detail/${group.id}'),
         builder: (_) => GroupDetailScreen(
           userId: widget.userId,
           groupId: group.id,

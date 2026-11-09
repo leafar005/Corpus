@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Corpus necesita acceso a tu galería para elegir o actualizar tu avatar, banner e imágenes de reseñas.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Corpus necesita acceso a la cámara si deseas tomar una foto para tu perfil o reseñas.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
