@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/models/game_status.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 /// Utilidades compartidas para formatear eventos del feed de actividad.
@@ -125,5 +126,67 @@ class ActivityFormatters {
     return userData['display_name'] as String? ??
         userData['username'] as String? ??
         'Usuario';
+  }
+
+  /// Texto de acción para una publicación agrupada de varios juegos con el
+  /// mismo estado.
+  static String groupedActionText(
+    String? status, {
+    required bool isOwnActivity,
+  }) {
+    switch (status) {
+      case 'to_play':
+      case 'backlog':
+        return isOwnActivity
+            ? 'has añadido a "Por jugar":'
+            : 'ha añadido a "Por jugar":';
+      case 'wishlist':
+        return isOwnActivity
+            ? 'has añadido a "Wishlist":'
+            : 'ha añadido a "Wishlist":';
+      case 'playing':
+        return isOwnActivity ? 'has empezado a jugar a:' : 'está jugando a:';
+      case 'beaten':
+        return isOwnActivity ? 'has completado:' : 'ha completado:';
+      case 'completed':
+        return isOwnActivity ? 'has platinado:' : 'ha platinado:';
+      default:
+        final label = GameStatus.labelForString(status);
+        return isOwnActivity
+            ? 'has añadido a "$label":'
+            : 'ha añadido a "$label":';
+    }
+  }
+
+  /// Separa los nombres de juegos de un grupo en la parte visible (máx.
+  /// [maxShown] nombres) y el sufijo opcional `" y N más"`.
+  static ({String shownTitles, String? moreSuffix}) splitGroupedGameTitles(
+    List<String> titles, {
+    int maxShown = 3,
+  }) {
+    if (titles.isEmpty) {
+      return (shownTitles: '', moreSuffix: null);
+    }
+    if (titles.length == 1) {
+      return (shownTitles: titles.first, moreSuffix: null);
+    }
+    if (titles.length <= maxShown) {
+      final head = titles.sublist(0, titles.length - 1).join(', ');
+      final last = titles.last;
+      return (shownTitles: '$head y $last', moreSuffix: null);
+    }
+    final shown = titles.take(maxShown).join(', ');
+    final remaining = titles.length - maxShown;
+    return (shownTitles: shown, moreSuffix: ' y $remaining más');
+  }
+
+  /// Formatea como texto plano la lista de nombres de juegos de un grupo
+  /// (p. ej. `"Juego A, Juego B, Juego C y 4 más"`).
+  static String formatGroupedGameTitles(
+    List<String> titles, {
+    int maxShown = 3,
+  }) {
+    final parts = splitGroupedGameTitles(titles, maxShown: maxShown);
+    return '${parts.shownTitles}${parts.moreSuffix ?? ''}';
   }
 }

@@ -99,7 +99,9 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   Map<String, dynamic>? get _currentReview =>
       _currentActivity['_review'] as Map<String, dynamic>?;
 
-  bool get _isReviewSlide => _currentReview?['id'] != null;
+  bool get _isReviewSlide =>
+      !ActivityRepository.isGroupedActivity(_currentActivity) &&
+      _currentReview?['id'] != null;
 
   void _onCommentFocusChanged() {
     _togglePause(_commentFocusNode.hasFocus);
@@ -152,19 +154,23 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   }
 
   void _markCurrentActivityAsViewed() {
-    final id = _currentActivity['id'] as String?;
+    final ids = ActivityRepository.activityIdsOf(_currentActivity);
     final myId = Supabase.instance.client.auth.currentUser?.id;
-    if (id == null || myId == null || _viewedThisSession.contains(id)) return;
-    _viewedThisSession.add(id);
+    if (ids.isEmpty || myId == null) return;
+    final unseenIds = ids
+        .where((id) => !_viewedThisSession.contains(id))
+        .toList();
+    if (unseenIds.isEmpty) return;
+    _viewedThisSession.addAll(unseenIds);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       viewedStoryIdsNotifier.value = {
         ...viewedStoryIdsNotifier.value,
-        id,
+        ...unseenIds,
       }; // optimista
     });
     _repo
-        .markStoryViewed(userId: myId, activityId: id)
+        .markStoriesViewed(userId: myId, activityIds: unseenIds)
         .catchError((_) {}); // persistir, fire-and-forget
   }
 
@@ -512,9 +518,19 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
                                 20,
                                 _isReviewSlide ? 8 : 24,
                               ),
-                              child:
-                                  activity['action_type'] == 'reviewed' &&
-                                      review != null
+                              child: ActivityRepository.isGroupedActivity(activity)
+                                  ? _buildGroupedStatusContent(
+                                      cs: cs,
+                                      ext: ext,
+                                      activity: activity,
+                                      actionIcon: actionIcon,
+                                      actionColor: actionColor,
+                                      isOwn: isOwn,
+                                      displayName: displayName,
+                                      status: status,
+                                    )
+                                  : activity['action_type'] == 'reviewed' &&
+                                        review != null
                                   ? _buildReviewContent(
                                       cs: cs,
                                       ext: ext,
@@ -821,6 +837,163 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
               color: cs.onSurface.withValues(alpha: 0.9),
             ),
           ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildGroupedStatusContent({
+    required ColorScheme cs,
+    required CorpusThemeExtension ext,
+    required Map<String, dynamic> activity,
+    required CorpusIconKind actionIcon,
+    required Color actionColor,
+    required bool isOwn,
+    required String displayName,
+    required String? status,
+  }) {
+    const textShadows = [
+      Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1.5, 1.5)),
+      Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
+    ];
+
+    final games = (activity['_games'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
+    final titles = games
+        .map((g) => g['title'] as String? ?? 'Juego desconocido')
+        .toList();
+    final titleParts = ActivityFormatters.splitGroupedGameTitles(
+      titles,
+      maxShown: 3,
+    );
+    final groupedAction = ActivityFormatters.groupedActionText(
+      status,
+      isOwnActivity: isOwn,
+    );
+
+    final visibleGames = games.take(kMaxGroupedFeedCards).toList();
+    final extraCount = games.length - visibleGames.length;
+
+    return Column(
+      children: [
+        if (visibleGames.isNotEmpty) ...[
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final gMap in visibleGames)
+                GestureDetector(
+                  onTap: () => _openGameDetails(gMap),
+                  child: Container(
+                    width: 84,
+                    height: 112,
+                    decoration: BoxDecoration(
+                      borderRadius: ext.radiusSmall,
+                      color: cs.surfaceContainerHighest,
+                      boxShadow: [
+                        BoxShadow(
+                          color: cs.shadow.withValues(alpha: 0.45),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: (gMap['cover_url'] as String?)?.isNotEmpty == true
+                        ? CorpusNetworkImage(
+                            url: gMap['cover_url'] as String,
+                            fit: BoxFit.cover,
+                            width: 84,
+                            height: 112,
+                          )
+                        : Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Text(
+                                gMap['title'] as String? ?? '',
+                                textAlign: TextAlign.center,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+              if (extraCount > 0)
+                Container(
+                  width: 84,
+                  height: 112,
+                  decoration: BoxDecoration(
+                    borderRadius: ext.radiusSmall,
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.85),
+                    border: Border.all(
+                      color: cs.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '+$extraCount',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: cs.primary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
+        ],
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CorpusTablerIcon(
+              actionIcon,
+              color: actionColor,
+              size: 22,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: RichText(
+                textAlign: TextAlign.center,
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 18,
+                    height: 1.35,
+                    color: cs.onSurface,
+                    shadows: textShadows,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: isOwn ? 'Tú' : displayName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    TextSpan(text: ' $groupedAction '),
+                    TextSpan(
+                      text: titleParts.shownTitles,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: cs.primary,
+                      ),
+                    ),
+                    if (titleParts.moreSuffix != null)
+                      TextSpan(text: titleParts.moreSuffix),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (status != null) ...[
+          const SizedBox(height: 12),
+          _statusChip(cs, ext, status),
         ],
       ],
     );

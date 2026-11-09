@@ -16,9 +16,11 @@ import '../../widgets/corpus_network_image.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../models/models.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../utils/igdb_constants.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../../widgets/activity_story_ring.dart';
 import '../../widgets/corpus_tabler_icon.dart';
+import '../../widgets/game_card.dart';
 
 /// Feed de actividad social en tiempo real.
 /// Muestra la actividad del usuario actual y la de sus amigos aceptados.
@@ -177,7 +179,369 @@ class _ActivityScreenState extends State<ActivityScreen>
   // CARD
   // ──────────────────────────────────────────
 
+  void _openGameDetailsForMap(Map<String, dynamic> gameData) {
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+    if (isDesktop) {
+      context
+          .pushGameDetails(Game.fromMap(gameData))
+          .then((_) => _controller.refreshInPlace());
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: false,
+        enableDrag: true,
+        builder: (context) => DraggableScrollableSheet(
+          initialChildSize: 1.0,
+          minChildSize: 0.5,
+          maxChildSize: 1.0,
+          expand: false,
+          snap: true,
+          builder: (context, scrollController) => GameDetailsScreen(
+            gameData: Game.fromMap(gameData),
+            scrollController: scrollController,
+          ),
+        ),
+      ).then((_) => _controller.refreshInPlace());
+    }
+  }
+
+  void _openGroupedGamesSheet({
+    required String actorName,
+    required String? status,
+    required List<Map<String, dynamic>> games,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final statusLabel = status != null ? _getStatusText(status) : 'Juegos';
+    final statusIcon = _getActionIcon('status_change', status);
+    final statusColor = _getActionColor('status_change', status, context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      enableDrag: true,
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.45,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, sheetScrollController) => Column(
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+              child: Row(
+                children: [
+                  CorpusTablerIcon(statusIcon, size: 20, color: statusColor),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$actorName · $statusLabel (${games.length})',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const CorpusTablerIcon(CorpusIconKind.Close),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ValueListenableBuilder<bool>(
+                valueListenable: floatingMobileNavNotifier,
+                builder: (context, _, _) => GridView.builder(
+                  controller: sheetScrollController,
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    16 + getFloatingNavModalInset(context),
+                  ),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 140,
+                    childAspectRatio: IgdbConstants.coverAspectRatio,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: games.length,
+                  itemBuilder: (context, idx) {
+                    final gMap = games[idx];
+                    final game = Game.fromMap(gMap);
+                    return GameCard(
+                      game: game,
+                      onReturn: () => _controller.refreshInPlace(),
+                      onTap: (_) {
+                        Navigator.of(sheetContext).pop();
+                        _openGameDetailsForMap(gMap);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoreGamesCard({
+    required int extraCount,
+    required VoidCallback onTap,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final radius =
+        Theme.of(context).extension<CorpusThemeExtension>()?.radiusSmall ??
+        BorderRadius.circular(8);
+
+    return Material(
+      color: cs.surfaceContainerHighest,
+      borderRadius: radius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '+$extraCount',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: cs.primary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Ver todos',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupedActivityCard(Map<String, dynamic> activity) {
+    final userData = activity['users'] as Map<String, dynamic>? ?? {};
+    final meta = activity['metadata'] as Map<String, dynamic>? ?? {};
+    final status = meta['status'] as String?;
+    final games = (activity['_games'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
+
+    final displayName = ActivityFormatters.displayName(userData);
+    final avatarUrl = userData['avatar_url'] as String?;
+    final dateStr = _formatDate(activity['created_at'] as String? ?? '');
+
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    final activityUserId =
+        (userData['id'] as String?) ?? (activity['user_id'] as String?);
+    final isOwnActivity = myId != null && myId == activityUserId;
+
+    final actorLabel = isOwnActivity ? 'Tú' : displayName;
+    final actionText = ActivityFormatters.groupedActionText(
+      status,
+      isOwnActivity: isOwnActivity,
+    );
+    final actionIcon = _getActionIcon('status_change', status);
+    final actionColor = _getActionColor('status_change', status, context);
+
+    final titles = games
+        .map((g) => g['title'] as String? ?? 'Juego desconocido')
+        .toList();
+    final titleParts = ActivityFormatters.splitGroupedGameTitles(
+      titles,
+      maxShown: 3,
+    );
+
+    final visibleGames = games.take(kMaxGroupedFeedCards).toList();
+    final extraCount = games.length - visibleGames.length;
+    final stripCount = visibleGames.length + (extraCount > 0 ? 1 : 0);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Cabecera: avatar + acción agrupada + tiempo ──
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  if (activityUserId != null) {
+                    context.pushProfile(userId: activityUserId);
+                  }
+                },
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      backgroundImage: avatarUrl != null
+                          ? NetworkImage(avatarUrl)
+                          : null,
+                      child: avatarUrl == null
+                          ? CorpusTablerIcon.user(size: 24)
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    if (games.length > 3) {
+                      _openGroupedGamesSheet(
+                        actorName: actorLabel,
+                        status: status,
+                        games: games,
+                      );
+                    } else if (activityUserId != null) {
+                      context.pushProfile(userId: activityUserId);
+                    }
+                  },
+                  child: RichText(
+                    text: TextSpan(
+                      style: DefaultTextStyle.of(
+                        context,
+                      ).style.copyWith(fontSize: 15, height: 1.35),
+                      children: [
+                        TextSpan(
+                          text: actorLabel,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: ' $actionText '),
+                        TextSpan(
+                          text: titleParts.shownTitles,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        if (titleParts.moreSuffix != null)
+                          TextSpan(
+                            text: titleParts.moreSuffix,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              CorpusTablerIcon(actionIcon, size: 16, color: actionColor),
+              const SizedBox(width: 4),
+              Text(
+                dateStr,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Tira horizontal de GameCards (3:4) + tarjeta "+N" ──
+          SizedBox(
+            height: 148,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              itemCount: stripCount,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, i) {
+                if (i < visibleGames.length) {
+                  final gMap = visibleGames[i];
+                  final game = Game.fromMap(gMap);
+                  return AspectRatio(
+                    aspectRatio: IgdbConstants.coverAspectRatio,
+                    child: GameCard(
+                      game: game,
+                      onReturn: () => _controller.refreshInPlace(),
+                      onTap: (_) => _openGameDetailsForMap(gMap),
+                    ),
+                  );
+                }
+                return AspectRatio(
+                  aspectRatio: IgdbConstants.coverAspectRatio,
+                  child: _buildMoreGamesCard(
+                    extraCount: extraCount,
+                    onTap: () => _openGroupedGamesSheet(
+                      actorName: actorLabel,
+                      status: status,
+                      games: games,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActivityCard(Map<String, dynamic> activity, int index) {
+    if (ActivityRepository.isGroupedActivity(activity)) {
+      return _buildGroupedActivityCard(activity);
+    }
+
     final userData = activity['users'] as Map<String, dynamic>? ?? {};
     final gameData = activity['games'] as Map<String, dynamic>? ?? {};
     final meta = activity['metadata'] as Map<String, dynamic>? ?? {};

@@ -16,6 +16,28 @@ import '../utils/image_compressor.dart';
 import 'review_repository.dart';
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Constantes de agrupación del feed
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// Conjunto configurable de estados cuyos cambios (`status_change`) sin
+/// información adicional son agrupables en el feed.
+const Set<String> kGroupableFeedStatuses = {
+  'wishlist',
+  'playing',
+  'to_play',
+  'beaten',
+  'completed',
+};
+
+/// Ventana temporal máxima entre entradas consecutivas del mismo grupo
+/// (mismo usuario + mismo estado) para unirse en una publicación agrupada.
+const Duration kFeedGroupGap = Duration(hours: 1);
+
+/// Número máximo de tarjetas que se muestran en la tira horizontal de un
+/// grupo antes de mostrar la tarjeta final "+N".
+const int kMaxGroupedFeedCards = 8;
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Value objects de retorno
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -176,12 +198,13 @@ class ActivityRepository {
       }
     }
 
-    // 4. Enriquecer + merge — lógica de presentación pura (sin queries)
-    final mergedActivities = _mergeActivityItems(
+    // 4. Enriquecer + merge (24h usuario+juego) + agrupación (60m usuario+estado)
+    final mergedByGame = _mergeActivityItems(
       feedItems: feedItems,
       reviewsById: reviewsById,
       partnersByUserGame: partnersByUserGame,
     );
+    final mergedActivities = _groupActivityItems(mergedByGame);
 
     return ActivityFeedResult(
       mergedActivities: mergedActivities,
@@ -664,6 +687,220 @@ class ActivityRepository {
     return merged;
   }
 
+  /// Determina si una entrada del feed (ya enriquecida por [_mergeActivityItems])
+  /// es agrupable con otras del mismo usuario y estado:
+  /// - `action_type == 'status_change'` (no agrupa `'reviewed'` ni `'achievement'`)
+  /// - `status` está en [groupableStatuses]
+  /// - Sin reseña asociada con contenido (sin rating, comentario, fotos, horas ni replay)
+  /// - Sin compañeros / co-op (`_partners`, `partners`, `partner_ids`)
+  static bool isGroupableActivityItem(
+    Map<String, dynamic> item, {
+    Set<String> groupableStatuses = kGroupableFeedStatuses,
+  }) {
+    if (item['action_type'] != 'status_change') return false;
+    final userId = item['user_id'] as String?;
+    if (userId == null || userId.isEmpty) return false;
+
+    final createdAtStr = item['created_at'] as String?;
+    if (createdAtStr == null || DateTime.tryParse(createdAtStr) == null) {
+      return false;
+    }
+
+    final meta = item['metadata'] as Map?;
+    final status = meta?['status'] as String?;
+    if (status == null || !groupableStatuses.contains(status)) return false;
+
+    // Sin compañeros/co-op (_partners o en metadata)
+    final partners = item['_partners'] as List?;
+    if (partners != null && partners.isNotEmpty) return false;
+
+    final metaPartners = meta?['partner_ids'] as List?;
+    if (metaPartners != null && metaPartners.isNotEmpty) return false;
+
+    // Sin contenido adicional en metadata
+    final metaRating = meta?['rating'] as num?;
+    if (metaRating != null && metaRating > 0) return false;
+
+    final metaComment = meta?['comment'] as String?;
+    if (metaComment != null && metaComment.trim().isNotEmpty) return false;
+
+    final metaImages = meta?['image_urls'] as List?;
+    if (metaImages != null && metaImages.isNotEmpty) return false;
+
+    // Sin reseña asociada con contenido
+    final review = item['_review'] as Map?;
+    if (review != null) {
+      final rating = review['rating'] as num?;
+      if (rating != null && rating > 0) return false;
+
+      for (final subKey in const [
+        'rating_gameplay',
+        'rating_narrative',
+        'rating_soundtrack',
+        'rating_visuals',
+      ]) {
+        final subRating = review[subKey] as num?;
+        if (subRating != null && subRating > 0) return false;
+      }
+
+      final comment = review['comment'] as String?;
+      if (comment != null && comment.trim().isNotEmpty) return false;
+
+      final imageUrls = review['image_urls'] as List?;
+      if (imageUrls != null && imageUrls.isNotEmpty) return false;
+
+      final reviewPartners = review['partners'] as List?;
+      if (reviewPartners != null && reviewPartners.isNotEmpty) return false;
+
+      final reviewPartnerIds = review['partner_ids'] as List?;
+      if (reviewPartnerIds != null && reviewPartnerIds.isNotEmpty) return false;
+
+      final playTimeHours = review['play_time_hours'] as num?;
+      if (playTimeHours != null && playTimeHours > 0) return false;
+
+      final replayCount = review['replay_count'] as num?;
+      if (replayCount != null && replayCount > 0) return false;
+
+      if (review['is_replay'] == true) return false;
+    }
+
+    return true;
+  }
+
+  /// Devuelve `true` si la actividad representa una publicación agrupada
+  /// de 2 o más juegos con el mismo estado.
+  static bool isGroupedActivity(Map<String, dynamic> activity) {
+    final grouped = activity['_grouped_items'];
+    return activity['_is_group'] == true &&
+        grouped is List &&
+        grouped.length > 1;
+  }
+
+  /// Extrae todos los IDs de `activity_feed` asociados a una entrada
+  /// (1 ID para entradas individuales, N IDs para publicaciones agrupadas).
+  static List<String> activityIdsOf(Map<String, dynamic> activity) {
+    final ids = activity['_activity_ids'];
+    if (ids is List && ids.isNotEmpty) {
+      return ids.whereType<String>().toList();
+    }
+    final grouped = activity['_grouped_items'];
+    if (grouped is List && grouped.isNotEmpty) {
+      return grouped
+          .whereType<Map<String, dynamic>>()
+          .map((e) => e['id'] as String?)
+          .whereType<String>()
+          .toList();
+    }
+    final singleId = activity['id'] as String?;
+    return singleId != null ? [singleId] : const [];
+  }
+
+  /// Agrupa entradas `status_change` sin información adicional que compartan
+  /// `(user_id, status)` dentro de una ventana máxima [maxGap] entre entradas
+  /// consecutivas del mismo grupo.
+  ///
+  /// Se ejecuta DESPUÉS de `_mergeActivityItems`. Si recibe elementos que ya
+  /// fueron agrupados previamente (p. ej. al paginar o al incorporar eventos
+  /// Realtime sobre la lista acumulada), los expande primero para no partir
+  /// grupos en límites de página.
+  static List<Map<String, dynamic>> groupActivityItems(
+    List<Map<String, dynamic>> items, {
+    Duration maxGap = kFeedGroupGap,
+    Set<String> groupableStatuses = kGroupableFeedStatuses,
+  }) => _groupActivityItems(
+    items,
+    maxGap: maxGap,
+    groupableStatuses: groupableStatuses,
+  );
+
+  static List<Map<String, dynamic>> _groupActivityItems(
+    List<Map<String, dynamic>> items, {
+    Duration maxGap = kFeedGroupGap,
+    Set<String> groupableStatuses = kGroupableFeedStatuses,
+  }) {
+    if (items.isEmpty) return [];
+
+    // 1. Desarmar grupos previos (para paginación / Realtime sobre lista acumulada)
+    //    y deduplicar por id de actividad.
+    final flattened = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    for (final item in items) {
+      if (item['_is_group'] == true && item['_grouped_items'] is List) {
+        for (final sub in (item['_grouped_items'] as List)) {
+          if (sub is Map<String, dynamic>) {
+            final id = sub['id'] as String?;
+            if (id != null && !seenIds.add(id)) continue;
+            flattened.add(sub);
+          }
+        }
+      } else {
+        final id = item['id'] as String?;
+        if (id != null && !seenIds.add(id)) continue;
+        flattened.add(item);
+      }
+    }
+
+    // 2. Ordenar siempre por created_at descendente (más reciente primero),
+    //    preservando el orden relativo en caso de empate.
+    final indexed = List<({int index, Map<String, dynamic> item, DateTime? date})>.generate(
+      flattened.length,
+      (i) {
+        final rawDate = flattened[i]['created_at'] as String?;
+        final parsed = rawDate != null ? DateTime.tryParse(rawDate) : null;
+        return (index: i, item: flattened[i], date: parsed);
+      },
+    );
+
+    indexed.sort((a, b) {
+      if (a.date != null && b.date != null) {
+        final cmp = b.date!.compareTo(a.date!);
+        if (cmp != 0) return cmp;
+      } else if (a.date != null) {
+        return -1;
+      } else if (b.date != null) {
+        return 1;
+      }
+      return a.index.compareTo(b.index);
+    });
+
+    // 3. Agrupar por clave (user_id + status) y ventana entre consecutivas.
+    final slots = <_ActivityFeedSlot>[];
+    final activeGroups = <String, _ActivityGroupBuilder>{};
+
+    for (final entry in indexed) {
+      final item = entry.item;
+      if (!isGroupableActivityItem(item, groupableStatuses: groupableStatuses)) {
+        slots.add(_ActivityFeedSlot.single(item));
+        continue;
+      }
+
+      final userId = item['user_id'] as String;
+      final status = (item['metadata'] as Map)['status'] as String;
+      final itemDate = entry.date!;
+      final key = '$userId|$status';
+
+      final currentGroup = activeGroups[key];
+      if (currentGroup != null &&
+          currentGroup.lastDate.difference(itemDate).abs() <= maxGap) {
+        currentGroup.add(item, itemDate);
+      } else {
+        final newGroup = _ActivityGroupBuilder(
+          userId: userId,
+          status: status,
+          firstItem: item,
+          firstDate: itemDate,
+        );
+        activeGroups[key] = newGroup;
+        slots.add(_ActivityFeedSlot.group(newGroup));
+      }
+    }
+
+    // 4. Materializar lista final: grupos de 1 entrada quedan igual que antes;
+    //    grupos de >= 2 entradas producen una sola publicación agrupada.
+    return slots.map((slot) => slot.build()).toList();
+  }
+
   /// IDs de activity_feed que el usuario ya ha visto, limitado a [activityIds]
   /// para no traer todo el historial de vistas.
   Future<Set<String>> fetchViewedStoryIds({
@@ -688,13 +925,36 @@ class ActivityRepository {
     required String userId,
     required String activityId,
   }) async {
-    await _client.from('story_views').upsert({
-      'user_id': userId,
-      'activity_id': activityId,
-    }, onConflict: 'user_id,activity_id');
+    await markStoriesViewed(userId: userId, activityIds: [activityId]);
+  }
+
+  /// Marca uno o varios activity IDs de un slide (individual o agrupado)
+  /// como vistos en `story_views` (idempotente).
+  Future<void> markStoriesViewed({
+    required String userId,
+    required List<String> activityIds,
+  }) async {
+    if (activityIds.isEmpty) return;
+    final rows = activityIds
+        .map((id) => {'user_id': userId, 'activity_id': id})
+        .toList();
+    await _client
+        .from('story_views')
+        .upsert(rows, onConflict: 'user_id,activity_id');
   }
 
   // ── Helpers puros (testeables) ──────────────────────────────
+
+  /// Devuelve `true` si todos los activity IDs del slide [activity] están en
+  /// [viewedIds]. Para un grupo, requiere que todos sus IDs hayan sido vistos.
+  static bool isActivitySeen(
+    Map<String, dynamic> activity,
+    Set<String> viewedIds,
+  ) {
+    final ids = activityIdsOf(activity);
+    if (ids.isEmpty) return viewedIds.contains(activity['id']);
+    return ids.every(viewedIds.contains);
+  }
 
   /// Índice del primer slide no visto dentro de una lista de actividades
   /// ordenada de más antigua a más reciente. 0 si todas están vistas.
@@ -702,7 +962,7 @@ class ActivityRepository {
     List<Map<String, dynamic>> activities,
     Set<String> viewedIds,
   ) {
-    final idx = activities.indexWhere((a) => !viewedIds.contains(a['id']));
+    final idx = activities.indexWhere((a) => !isActivitySeen(a, viewedIds));
     return idx == -1 ? 0 : idx;
   }
 
@@ -710,7 +970,7 @@ class ActivityRepository {
   static bool groupHasUnseenStory(
     List<Map<String, dynamic>> activities,
     Set<String> viewedIds,
-  ) => activities.any((a) => !viewedIds.contains(a['id']));
+  ) => activities.any((a) => !isActivitySeen(a, viewedIds));
 
   /// Ordena la franja de amigos para el "story bar" (estilo Instagram).
   ///
@@ -783,11 +1043,12 @@ class ActivityRepository {
 
     final grouped = <String, List<Map<String, dynamic>>>{};
     for (final entry in byUser.entries) {
-      final mergedForUser = mergeActivityItems(
+      final mergedByGame = _mergeActivityItems(
         feedItems: entry.value,
         reviewsById: reviewsById,
         partnersByUserGame: partnersByUserGame,
       );
+      final mergedForUser = _groupActivityItems(mergedByGame);
       grouped[entry.key] = mergedForUser
           .take(maxPerUser)
           .toList()
@@ -795,5 +1056,89 @@ class ActivityRepository {
           .toList();
     }
     return grouped;
+  }
+}
+
+class _ActivityFeedSlot {
+  _ActivityFeedSlot.single(Map<String, dynamic> this.singleItem)
+    : groupBuilder = null;
+
+  _ActivityFeedSlot.group(_ActivityGroupBuilder this.groupBuilder)
+    : singleItem = null;
+
+  final Map<String, dynamic>? singleItem;
+  final _ActivityGroupBuilder? groupBuilder;
+
+  Map<String, dynamic> build() {
+    if (singleItem != null) return singleItem!;
+    return groupBuilder!.build();
+  }
+}
+
+class _ActivityGroupBuilder {
+  _ActivityGroupBuilder({
+    required this.userId,
+    required this.status,
+    required Map<String, dynamic> firstItem,
+    required DateTime firstDate,
+  }) : items = [firstItem],
+       lastDate = firstDate;
+
+  final String userId;
+  final String status;
+  final List<Map<String, dynamic>> items;
+  DateTime lastDate;
+
+  void add(Map<String, dynamic> item, DateTime itemDate) {
+    items.add(item);
+    lastDate = itemDate;
+  }
+
+  Map<String, dynamic> build() {
+    if (items.length < 2) return items.first;
+
+    final first = items.first;
+    final activityIds = <String>[];
+    final games = <Map<String, dynamic>>[];
+    final seenGameIds = <dynamic>{};
+
+    for (final it in items) {
+      final id = it['id'] as String?;
+      if (id != null) activityIds.add(id);
+
+      final rawGameMap = it['games'] as Map<String, dynamic>?;
+      final gId = it['game_id'] ?? rawGameMap?['igdb_id'] ?? rawGameMap?['id'];
+      if (gId != null && !seenGameIds.add(gId)) {
+        continue;
+      }
+
+      final gameMap = <String, dynamic>{
+        if (gId != null) 'igdb_id': gId,
+        'title': 'Juego desconocido',
+        ...?rawGameMap,
+      };
+      games.add(gameMap);
+    }
+
+    if (games.length < 2) return first;
+
+    final firstMeta = first['metadata'] as Map?;
+    return <String, dynamic>{
+      'id': first['id'],
+      'user_id': userId,
+      'action_type': 'status_change',
+      'created_at': first['created_at'],
+      'users': first['users'],
+      'games': first['games'],
+      'game_id': first['game_id'],
+      'metadata': <String, dynamic>{
+        if (firstMeta != null) ...Map<String, dynamic>.from(firstMeta),
+        'status': status,
+      },
+      '_is_group': true,
+      '_grouped_items': List<Map<String, dynamic>>.unmodifiable(items),
+      '_activity_ids': List<String>.unmodifiable(activityIds),
+      '_games': List<Map<String, dynamic>>.unmodifiable(games),
+    };
   }
 }

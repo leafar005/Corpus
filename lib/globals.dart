@@ -63,6 +63,14 @@ double getBottomSpacer(BuildContext context) {
   return isDesktop ? 32.0 : 120.0;
 }
 
+/// Espaciado inferior extra para modales/bottom sheets cuando el menú móvil es flotante,
+/// evitando que la píldora de navegación tape botones inferiores como "Guardar".
+double getFloatingNavModalInset(BuildContext context) {
+  final isDesktop = MediaQuery.sizeOf(context).width > kDesktopBreakpoint;
+  if (isDesktop || !floatingMobileNavNotifier.value) return 0.0;
+  return 76.0;
+}
+
 /// Define la cantidad de columnas (2, 3 o 4) para las cuadrículas de juegos en móviles.
 final ValueNotifier<int> mobileGridColumnsNotifier = ValueNotifier<int>(3);
 

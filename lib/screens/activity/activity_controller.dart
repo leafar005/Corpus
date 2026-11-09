@@ -118,7 +118,12 @@ class ActivityController extends SafeChangeNotifier {
       if (isRefresh) {
         _activities = result.mergedActivities;
       } else {
-        _activities.addAll(result.mergedActivities);
+        // Rehacer la agrupación sobre la lista acumulada para que un grupo
+        // que cruza el límite de página no quede partido.
+        _activities = ActivityRepository.groupActivityItems([
+          ..._activities,
+          ...result.mergedActivities,
+        ]);
       }
       _offset = result.nextOffset;
       hasMore = result.hasMore;
@@ -201,8 +206,7 @@ class ActivityController extends SafeChangeNotifier {
 
       final allActivityIds = stories.values
           .expand((list) => list)
-          .map((a) => a['id'] as String?)
-          .whereType<String>()
+          .expand(ActivityRepository.activityIdsOf)
           .toList();
 
       final viewed = allActivityIds.isNotEmpty
@@ -272,8 +276,10 @@ class ActivityController extends SafeChangeNotifier {
   // ── Realtime ─────────────────────────────────────────────────────────
 
   /// Callback para que el screen lo llame cuando reciba un evento realtime.
+  /// Recarga el rango acumulado para que la entrada nueva se incorpore al
+  /// grupo existente sin perder páginas ya cargadas.
   void onRealtimeEvent() {
-    fetchActivity(isRefresh: true, silent: true);
+    refreshInPlace();
     fetchFriendsStrip();
   }
 
