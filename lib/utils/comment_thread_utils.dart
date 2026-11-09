@@ -55,7 +55,22 @@ List<Map<String, dynamic>> orderCommentsThreaded(
       final id = comment['id'] as String?;
       if (id == null || visited.contains(id)) continue;
       visited.add(id);
-      result.add({...comment, '_thread_depth': depth});
+
+      String? replyToUsername;
+      if (parentId != null) {
+        final parentComment = byId[parentId];
+        replyToUsername =
+            (parentComment?['users'] as Map<String, dynamic>?)?['username']
+                ?.toString();
+      }
+      replyToUsername ??= _inferMentionedUsername(comment);
+
+      result.add({
+        ...comment,
+        '_thread_depth': depth,
+        if (depth > 0 && replyToUsername != null)
+          '_reply_to_username': replyToUsername,
+      });
       visit(id, depth + 1);
     }
   }
@@ -65,10 +80,30 @@ List<Map<String, dynamic>> orderCommentsThreaded(
   for (final comment in sorted) {
     final id = comment['id'] as String?;
     if (id == null || visited.contains(id)) continue;
-    result.add({...comment, '_thread_depth': 0});
+    final parentId = inferredParent[id];
+    String? replyToUsername;
+    if (parentId != null) {
+      final parentComment = byId[parentId];
+      replyToUsername =
+          (parentComment?['users'] as Map<String, dynamic>?)?['username']
+              ?.toString();
+    }
+    replyToUsername ??= _inferMentionedUsername(comment);
+
+    result.add({
+      ...comment,
+      '_thread_depth': 0,
+      if (replyToUsername != null) '_reply_to_username': replyToUsername,
+    });
   }
 
   return result;
+}
+
+String? _inferMentionedUsername(Map<String, dynamic> comment) {
+  final content = comment['content']?.toString().trim() ?? '';
+  final mentionMatch = RegExp(r'^@(\w+)').firstMatch(content);
+  return mentionMatch?.group(1);
 }
 
 String? _inferParentId(

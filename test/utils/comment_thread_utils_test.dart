@@ -29,6 +29,7 @@ void main() {
 
       expect(ordered.map((c) => c['id']).toList(), ['1', '2', '3']);
       expect(ordered[2]['_thread_depth'], 1);
+      expect(ordered[2]['_reply_to_username'], 'alice');
     });
 
     test('uses stored parent_comment_id when available', () {
@@ -52,6 +53,7 @@ void main() {
 
       expect(ordered.map((c) => c['id']).toList(), ['1', '2']);
       expect(ordered[1]['_thread_depth'], 1);
+      expect(ordered[1]['_reply_to_username'], 'alice');
     });
   });
 }

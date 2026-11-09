@@ -199,6 +199,279 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   /// Delega en [MentionText] el renderizado de texto con menciones `@usuario`.
   Widget _buildCommentContent(String text) => MentionText(text: text);
 
+  /// Tarjeta contenedora con recuadro relleno para un comentario o respuesta.
+  Widget _buildCommentCard({
+    required Map<String, dynamic> comment,
+    required String? currentUserId,
+    required bool isDesktop,
+  }) {
+    final user = comment['users'] as Map<String, dynamic>?;
+    final isMyComment = comment['user_id'] == currentUserId;
+    final isReviewAuthor = widget.userData?['id'] != null &&
+        comment['user_id'] == widget.userData!['id'];
+    final threadDepth = comment['_thread_depth'] as int? ?? 0;
+    // Solo aplicamos sangría visual para el primer nivel de respuesta. A partir de
+    // ahí se mantiene la misma sangría para evitar desbordamiento en pantallas estrechas.
+    final visualThreadDepth = threadDepth > 1 ? 1 : threadDepth;
+    final isReply = visualThreadDepth > 0;
+
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final ext = theme.extension<CorpusThemeExtension>();
+    final borderRadius = ext?.radiusMedium ?? BorderRadius.circular(12);
+
+    final leftIndent = isReply ? (isDesktop ? 48.0 : 36.0) : 0.0;
+
+    return Padding(
+      padding: EdgeInsets.only(left: leftIndent),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+          borderRadius: borderRadius,
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      final uid = comment['user_id'];
+                      if (uid != null) {
+                        context.pushProfile(
+                          userId: uid,
+                        );
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: cs.surfaceContainerHighest,
+                      backgroundImage: user?['avatar_url'] != null
+                          ? NetworkImage(
+                              user!['avatar_url'],
+                            )
+                          : null,
+                      child: user?['avatar_url'] == null
+                          ? const CorpusTablerIcon(
+                              CorpusIconKind.Person,
+                              size: 16,
+                            )
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Fila superior: nombre, autor, fecha.
+                        // Padding a la derecha para no solapar con los botones fijados en la esquina.
+                        Padding(
+                          padding: EdgeInsets.only(
+                            right: isMyComment ? 64.0 : 36.0,
+                          ),
+                          child: GestureDetector(
+                            onTap: () {
+                              final uid = comment['user_id'];
+                              if (uid != null) {
+                                context.pushProfile(
+                                  userId: uid,
+                                );
+                              }
+                            },
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    user?['username'] ?? 'Usuario',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isReviewAuthor) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: cs.primary.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'Autor',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: cs.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(width: 8),
+                                Text(
+                                  _formatCommentDate(comment['created_at']),
+                                  style: TextStyle(
+                                    color: cs.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // Texto del comentario (ancho completo)
+                        if (comment['content'] != null &&
+                            comment['content'].toString().isNotEmpty)
+                          _buildCommentContent(comment['content']),
+                        if (comment['image_url'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: GestureDetector(
+                              onTap: () => showFullScreenGallery(
+                                context,
+                                [comment['image_url']],
+                                0,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: CorpusNetworkImage(
+                                  url: comment['image_url'],
+                                  height: isDesktop ? 300 : 150,
+                                  fit: BoxFit.fitHeight,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (comment['attached_game'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: GestureDetector(
+                              onTap: () {
+                                final gameData = Map<String, dynamic>.from(
+                                  comment['attached_game'],
+                                );
+                                final isDesktop =
+                                    MediaQuery.of(context).size.width > 800;
+                                if (isDesktop) {
+                                  context.pushGameDetails(Game.fromMap(gameData));
+                                } else {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    useSafeArea: false,
+                                    enableDrag: true,
+                                    builder: (context) =>
+                                        DraggableScrollableSheet(
+                                      initialChildSize: 1.0,
+                                      minChildSize: 0.5,
+                                      maxChildSize: 1.0,
+                                      expand: false,
+                                      snap: true,
+                                      builder: (context, scrollController) =>
+                                          GameDetailsScreen(
+                                        gameData: Game.fromMap(gameData),
+                                        scrollController: scrollController,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: Container(
+                                width: isDesktop ? 160 : 120,
+                                height: isDesktop ? 224 : 168,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Theme.of(context).primaryColorDark,
+                                  image: (comment['attached_game']['cover_url'] !=
+                                              null ||
+                                          comment['attached_game']['cover'] !=
+                                              null)
+                                      ? DecorationImage(
+                                          image: NetworkImage(
+                                            comment['attached_game']
+                                                    ['cover_url'] ??
+                                                IGDBService.getCoverUrl(
+                                                  comment['attached_game']
+                                                      ['cover']?['image_id'],
+                                                ),
+                                          ),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                ),
+                                child: (comment['attached_game']['cover_url'] ==
+                                            null &&
+                                        comment['attached_game']['cover'] == null)
+                                    ? Center(
+                                        child: CorpusTablerIcon(
+                                          CorpusIconKind.VideogameAsset,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.54),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Botones fijados en la esquina superior derecha
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: CorpusTablerIcon(
+                      CorpusIconKind.Reply,
+                      size: 18,
+                      color: cs.onSurfaceVariant,
+                    ),
+                    tooltip: 'Responder',
+                    onPressed: () => _startReply(comment),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
+                  ),
+                  if (isMyComment) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: CorpusTablerIcon(
+                        CorpusIconKind.DeleteOutline,
+                        size: 18,
+                        color: cs.error,
+                      ),
+                      tooltip: 'Eliminar',
+                      onPressed: () => _deleteComment(comment['id']),
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _deleteReview(String reviewId) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -1178,314 +1451,13 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                   physics: const NeverScrollableScrollPhysics(),
                                   itemCount: _orderedComments.length,
                                   separatorBuilder: (context, index) =>
-                                      const SizedBox(height: 16),
-                                  itemBuilder: (context, index) {
-                                    final comment = _orderedComments[index];
-                                    final user = comment['users'];
-                                    final isMyComment =
-                                        comment['user_id'] == currentUserId;
-                                    final threadDepth =
-                                        comment['_thread_depth'] as int? ?? 0;
-                                    // Solo aplicamos sangría visual para el
-                                    // primer nivel de respuesta. A partir de
-                                    // ahí (respuesta a una respuesta, y así
-                                    // sucesivamente) se mantiene la misma
-                                    // sangría que el primer nivel, en lugar
-                                    // de seguir sumando 40px por nivel, que
-                                    // en hilos largos terminaba empujando el
-                                    // comentario fuera de la pantalla.
-                                    final visualThreadDepth = threadDepth > 1
-                                        ? 1
-                                        : threadDepth;
-
-                                    return Padding(
-                                      padding: EdgeInsets.only(
-                                        left: visualThreadDepth * 40.0,
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          GestureDetector(
-                                            onTap: () {
-                                              final uid = comment['user_id'];
-                                              if (uid != null) {
-                                                context.pushProfile(
-                                                  userId: uid,
-                                                );
-                                              }
-                                            },
-                                            child: CircleAvatar(
-                                              radius: 16,
-                                              backgroundColor: Theme.of(context)
-                                                  .colorScheme
-                                                  .surfaceContainerHighest,
-                                              backgroundImage:
-                                                  user?['avatar_url'] != null
-                                                  ? NetworkImage(
-                                                      user['avatar_url'],
-                                                    )
-                                                  : null,
-                                              child: user?['avatar_url'] == null
-                                                  ? const CorpusTablerIcon(CorpusIconKind.Person,
-                                                      size: 16,
-                                                    )
-                                                  : null,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                // Fila superior: nombre, fecha e iconos de acción
-                                                Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: GestureDetector(
-                                                        onTap: () {
-                                                          final uid =
-                                                              comment['user_id'];
-                                                          if (uid != null) {
-                                                            context.pushProfile(
-                                                              userId: uid,
-                                                            );
-                                                          }
-                                                        },
-                                                        child: Row(
-                                                          children: [
-                                                            Text(
-                                                              user?['username'] ??
-                                                                  'Usuario',
-                                                              style: const TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                fontSize: 14,
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                              width: 8,
-                                                            ),
-                                                            Flexible(
-                                                              child: Text(
-                                                                _formatCommentDate(
-                                                                  comment['created_at'],
-                                                                ),
-                                                                style: TextStyle(
-                                                                  color: Theme.of(
-                                                                    context,
-                                                                  ).colorScheme.onSurfaceVariant,
-                                                                  fontSize: 12,
-                                                                ),
-                                                                overflow:
-                                                                    TextOverflow
-                                                                        .ellipsis,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    // Botones de responder / eliminar
-                                                    IconButton(
-                                                      icon: CorpusTablerIcon(CorpusIconKind.Reply,
-                                                        size: 18,
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurfaceVariant,
-                                                      ),
-                                                      onPressed: () =>
-                                                          _startReply(comment),
-                                                      constraints:
-                                                          const BoxConstraints(),
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                            4,
-                                                          ),
-                                                    ),
-                                                    if (isMyComment)
-                                                      IconButton(
-                                                        icon: CorpusTablerIcon(CorpusIconKind.DeleteOutline,
-                                                          size: 18,
-                                                          color: Theme.of(
-                                                            context,
-                                                          ).colorScheme.error,
-                                                        ),
-                                                        onPressed: () =>
-                                                            _deleteComment(
-                                                              comment['id'],
-                                                            ),
-                                                        constraints:
-                                                            const BoxConstraints(),
-                                                        padding:
-                                                            const EdgeInsets.all(
-                                                              4,
-                                                            ),
-                                                      ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 4),
-                                                // Texto del comentario (ancho completo)
-                                                if (comment['content'] !=
-                                                        null &&
-                                                    comment['content']
-                                                        .toString()
-                                                        .isNotEmpty)
-                                                  _buildCommentContent(
-                                                    comment['content'],
-                                                  ),
-                                                if (comment['image_url'] !=
-                                                    null)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          top: 8.0,
-                                                        ),
-                                                    child: GestureDetector(
-                                                      onTap: () =>
-                                                          showFullScreenGallery(
-                                                            context,
-                                                            [
-                                                              comment['image_url'],
-                                                            ],
-                                                            0,
-                                                          ),
-                                                      child: ClipRRect(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              8,
-                                                            ),
-                                                        child: CorpusNetworkImage(
-                                                          url:
-                                                              comment['image_url'],
-                                                          height: isDesktop
-                                                              ? 300
-                                                              : 150,
-                                                          fit: BoxFit.fitHeight,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                if (comment['attached_game'] !=
-                                                    null)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          top: 8.0,
-                                                        ),
-                                                    child: GestureDetector(
-                                                      onTap: () {
-                                                        final gameData =
-                                                            Map<
-                                                              String,
-                                                              dynamic
-                                                            >.from(
-                                                              comment['attached_game'],
-                                                            );
-                                                        final isDesktop =
-                                                            MediaQuery.of(
-                                                              context,
-                                                            ).size.width >
-                                                            800;
-                                                        if (isDesktop) {
-                                                          context
-                                                              .pushGameDetails(
-                                                                Game.fromMap(
-                                                                  gameData,
-                                                                ),
-                                                              );
-                                                        } else {
-                                                          showModalBottomSheet(
-                                                            context: context,
-                                                            isScrollControlled:
-                                                                true,
-                                                            useSafeArea: false,
-                                                            enableDrag: true,
-                                                            builder: (context) => DraggableScrollableSheet(
-                                                              initialChildSize:
-                                                                  1.0,
-                                                              minChildSize: 0.5,
-                                                              maxChildSize: 1.0,
-                                                              expand: false,
-                                                              snap: true,
-                                                              builder:
-                                                                  (
-                                                                    context,
-                                                                    scrollController,
-                                                                  ) => GameDetailsScreen(
-                                                                    gameData:
-                                                                        Game.fromMap(
-                                                                          gameData,
-                                                                        ),
-                                                                    scrollController:
-                                                                        scrollController,
-                                                                  ),
-                                                            ),
-                                                          );
-                                                        }
-                                                      },
-                                                      child: Container(
-                                                        width: isDesktop
-                                                            ? 160
-                                                            : 120,
-                                                        height: isDesktop
-                                                            ? 224
-                                                            : 168,
-                                                        decoration: BoxDecoration(
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                8,
-                                                              ),
-                                                          color: Theme.of(
-                                                            context,
-                                                          ).primaryColorDark,
-                                                          image:
-                                                              (comment['attached_game']['cover_url'] !=
-                                                                      null ||
-                                                                  comment['attached_game']['cover'] !=
-                                                                      null)
-                                                              ? DecorationImage(
-                                                                  image: NetworkImage(
-                                                                    comment['attached_game']['cover_url'] ??
-                                                                        IGDBService.getCoverUrl(
-                                                                          comment['attached_game']['cover']?['image_id'],
-                                                                        ),
-                                                                  ),
-                                                                  fit: BoxFit
-                                                                      .cover,
-                                                                )
-                                                              : null,
-                                                        ),
-                                                        child:
-                                                            (comment['attached_game']['cover_url'] ==
-                                                                    null &&
-                                                                comment['attached_game']['cover'] ==
-                                                                    null)
-                                                            ? Center(
-                                                                child: CorpusTablerIcon(
-                                                                  CorpusIconKind.VideogameAsset,
-                                                                  color:
-                                                                      Theme.of(
-                                                                        context,
-                                                                      ).colorScheme.onSurface.withValues(
-                                                                        alpha:
-                                                                            0.54,
-                                                                      ),
-                                                                ),
-                                                              )
-                                                            : null,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
+                                      const SizedBox(height: 12),
+                                  itemBuilder: (context, index) =>
+                                      _buildCommentCard(
+                                    comment: _orderedComments[index],
+                                    currentUserId: currentUserId,
+                                    isDesktop: isDesktop,
+                                  ),
                                 ),
                                 const SizedBox(height: 24),
                               ],
