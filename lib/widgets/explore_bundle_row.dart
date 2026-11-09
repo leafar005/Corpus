@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/globals.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/models/models.dart';
@@ -10,10 +11,69 @@ import 'vertical_tier_label.dart';
 
 /// Una fila horizontal deslizable con los juegos de un bundle activo.
 /// Los tiers se marcan con [VerticalTierLabel] al inicio de cada grupo.
-class ExploreBundleRow extends StatelessWidget {
+class ExploreBundleRow extends StatefulWidget {
   final Map<String, dynamic> bundle;
 
   const ExploreBundleRow({super.key, required this.bundle});
+
+  @override
+  State<ExploreBundleRow> createState() => _ExploreBundleRowState();
+}
+
+class _ExploreBundleRowState extends State<ExploreBundleRow> {
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<bool> _canScrollLeft = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _canScrollRight = ValueNotifier<bool>(false);
+
+  Map<String, dynamic> get bundle => widget.bundle;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_updateScrollArrows);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateScrollArrows());
+  }
+
+  @override
+  void didUpdateWidget(covariant ExploreBundleRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.bundle != widget.bundle) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _updateScrollArrows(),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_updateScrollArrows);
+    _scrollController.dispose();
+    _canScrollLeft.dispose();
+    _canScrollRight.dispose();
+    super.dispose();
+  }
+
+  void _updateScrollArrows() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    _canScrollLeft.value = position.pixels > 1.0;
+    _canScrollRight.value = position.pixels < (position.maxScrollExtent - 1.0);
+  }
+
+  void _scrollBy(int direction) {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final step = (position.viewportDimension * 0.75).clamp(240.0, 500.0);
+    final target = (position.pixels + direction * step).clamp(
+      0.0,
+      position.maxScrollExtent,
+    );
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+  }
 
   bool _shouldFlattenTiers(String storeName, String title) {
     final isFanatical = storeName.toLowerCase().contains('fanatical');
@@ -141,6 +201,7 @@ class ExploreBundleRow extends StatelessWidget {
 
     final timeRemaining = _timeRemaining(endDateStr);
     final timeColor = _timeColor(endDateStr);
+    final isDesktop = MediaQuery.sizeOf(context).width > kDesktopBreakpoint;
 
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 20),
@@ -221,12 +282,83 @@ class ExploreBundleRow extends StatelessWidget {
           ),
           SizedBox(
             height: 220, // Increased height to accommodate the Tier header
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-              clipBehavior: Clip.none,
-              scrollDirection: Axis.horizontal,
-              itemCount: rowItems.length,
-              itemBuilder: (context, index) => rowItems[index],
+            child: NotificationListener<ScrollMetricsNotification>(
+              onNotification: (_) {
+                _updateScrollArrows();
+                return false;
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 15,
+                    ),
+                    clipBehavior: Clip.none,
+                    scrollDirection: Axis.horizontal,
+                    itemCount: rowItems.length,
+                    itemBuilder: (context, index) => rowItems[index],
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _canScrollLeft,
+                    builder: (context, canLeft, _) {
+                      if (!isDesktop || !canLeft) {
+                        return const SizedBox.shrink();
+                      }
+                      return Positioned(
+                        left: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const CorpusTablerIcon(
+                                CorpusIconKind.ChevronLeft,
+                                color: Colors.white,
+                              ),
+                              onPressed: () => _scrollBy(-1),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _canScrollRight,
+                    builder: (context, canRight, _) {
+                      if (!isDesktop || !canRight) {
+                        return const SizedBox.shrink();
+                      }
+                      return Positioned(
+                        right: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const CorpusTablerIcon(
+                                CorpusIconKind.ChevronRight,
+                                color: Colors.white,
+                              ),
+                              onPressed: () => _scrollBy(1),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           Divider(
