@@ -5,33 +5,27 @@ All notable changes to this project will be documented in this file.
 ## [1.3.0] - 2026-11-09
 
 ### Añadido
-- **Pestaña Mis Juegos (`my_games`):** Nueva sección centralizada en la navegación principal con tres subpestañas:
-  - **Juegos:** Vista completa de la biblioteca personal con filtros rápidos por estado, plataforma y ordenación.
-  - **Estantería / Colección física (`shelf_tab.dart`):** Seguimiento multi-plataforma por juego (`user_game_platforms`), visualización realista de cajas por consola con lomo y logotipo oficial (`shelf_platforms.dart`), estadísticas por familia de plataformas y modales de añadido individual y en bloque (`add_to_shelf_sheet.dart`, `bulk_add_to_shelf_sheet.dart`).
-  - **Colecciones y Rankings (`groups_tab.dart`):** Creación y gestión de listas personalizadas (`game_groups` y `game_group_items`) con reordenación drag-and-drop, notas por juego y modo **Ranking numerado** (`is_ranked`) con medallas visuales para el Top 3.
-- **Nuevo estado `Por jugar` (`to_play`):** Estado intermedio entre *Wishlist* y *Jugando* para organizar el backlog inmediato sin contaminar la lista de deseados ni el feed de reseñas.
-- **Sistema de iconos unificado (`tabler_icons`):** Integración completa de `tabler_icons_next` mediante wrappers tipados (`CorpusIconKind`, `CorpusTablerIcon`, `CorpusNavIcon`) en toda la aplicación.
-- **Infraestructura, Calidad y UI:**
-  - Nuevo widget reutilizable `CorpusGameGrid` para unificar grillas de juegos.
-  - Logger estructurado `CorpusLogger` y pantalla de error de producción segura (`ErrorWidget.builder`) sin exposición de trazas internas.
-  - Tablas de reglas de logros data-driven en base de datos (`achievement_rules` y `achievement_match_patterns`) sincronizadas con el motor de logros.
-  - Documentación de arquitectura mediante ADRs (`docs/adr/001` y `docs/adr/002`) y plantilla `.env.json.example`.
+- **Pestaña Mis Juegos (`my_games`):** Nueva sección centralizada en la navegación principal que agrupa la biblioteca en tres subpestañas dedicadas (Juegos, Estantería y Colecciones).
+- **Estantería y Colección Física (`shelf_tab`):** Seguimiento multi-plataforma por juego (`user_game_platforms`), visualización de cajas por consola con lomo y logotipo oficial (`shelf_platforms.dart`), estadísticas por familia de plataformas y modales de añadido individual y en bloque (`add_to_shelf_sheet`, `bulk_add_to_shelf_sheet`).
+- **Colecciones y Rankings (`groups_tab`):** Creación y gestión de listas personalizadas (`game_groups` y `game_group_items`) con reordenación, notas individuales por juego y modo Ranking numerado (`is_ranked`) con medallas para el Top 3.
+- **Nuevo estado `Por jugar` (`to_play`):** Estado intermedio entre Wishlist y Jugando para organizar el backlog inmediato sin contaminar la lista de deseados ni el feed de actividad.
+- **Sistema de iconos unificado:** Integración global de `tabler_icons_next` mediante wrappers tipados (`CorpusIconKind`, `CorpusTablerIcon`, `CorpusNavIcon`) en toda la interfaz.
+- **Componentes y Utilidades:** Nuevo widget reutilizable `CorpusGameGrid` para grillas de juegos, logger estructurado `CorpusLogger` y pantalla de error de producción segura (`ErrorWidget.builder`) sin exposición de trazas internas.
+- **Reglas de Logros en Base de Datos:** Nuevas tablas `achievement_rules` y `achievement_match_patterns` para gestionar reglas y patrones de desbloqueo de logros de forma declarativa.
+- **Documentación y Configuración:** Añadidos ADRs de arquitectura (`docs/adr/001` y `docs/adr/002`) y plantilla `.env.json.example`.
 
 ### Cambiado
-- **Navegación y Bundles:** La sección de Bundles pasa a integrarse directamente dentro de la pestaña *Explorar* (`ExploreBundleRow`), dejando espacio en la barra principal para *Mis Juegos*.
-- **Descomposición de `ReviewModal`:** Extraídos los subcomponentes visuales a `review_modal_widgets.dart` para mejorar la mantenibilidad y el rendimiento de reconstrucción.
-- **Endurecimiento de Seguridad (RLS, Triggers y Edge Functions):**
-  - Protección mediante trigger (`trg_protect_user_xp`) de la columna `xp` en `public.users` frente a ediciones directas desde cliente.
-  - Políticas de Storage (`avatars` y `banners`) restringidas estrictamente a la carpeta del propietario autenticado (`auth.uid()`).
-  - Validación de autorización en `send-push-notification`, `notify-comment`, `notify-friend-activity` y `notify-bundle-expiring`.
-  - Validación contra *path traversal* y enlaces simbólicos en `style_pack_registry.dart`.
+- **Sección de Bundles:** Reubicada e integrada directamente dentro de la pestaña Explorar (`ExploreBundleRow`), liberando espacio en la navegación principal para Mis Juegos.
+- **ReviewModal descompuesto:** Extraídos los subcomponentes visuales a `review_modal_widgets.dart` para reducir el acoplamiento y mejorar el mantenimiento.
+- **Seguridad en Base de Datos y Storage:** Añadido trigger `trg_protect_user_xp` en `public.users` para bloquear modificaciones directas de `xp` desde el cliente, y restringidas las políticas de `avatars` y `banners` en Supabase Storage a la carpeta del propio usuario autenticado.
+- **Endurecimiento de Edge Functions:** Validación de autorización `service_role` y propiedad de tokens en `send-push-notification`, `notify-comment`, `notify-friend-activity` y `notify-bundle-expiring`, además de validación contra path traversal y symlinks en `style_pack_registry.dart`.
 
 ### Arreglado
-- **CORS en Edge Functions (`_shared/cors.ts`):** Soporte completo para orígenes de desarrollo local en puertos efímeros (`localhost:<puerto>`), previews de Vercel y respuestas `POST` dinámicas con `corsHeadersForRequest(req)`.
-- **Feed de Actividad y Estado `Por jugar`:** El trigger `on_review_upsert` y `ReviewRepository` excluyen ahora `to_play` de la generación de reseñas fantasma en el feed y tratan su transición igual que `wishlist`.
-- **Colecciones / Grupos:** Conservación de la descripción existente al actualizar metadatos de un grupo en modo fallback y añadido `RouteSettings` en la navegación al detalle de colección.
-- **Estantería:** Inclusión tanto de `beaten` como de `completed` al sugerir juegos pasados para añadir a la estantería física.
-- **Caché Web en Vercel (`vercel.json`) y Plataformas Nativas:** Ajustado `Cache-Control: no-cache` en `/main.dart.js` para evitar desincronización de bundles tras nuevos despliegues, y añadidos los permisos requeridos en `macos/Runner/Release.entitlements` (`network.client`) e `ios/Runner/Info.plist` (`NSPhotoLibraryUsageDescription`, `NSCameraUsageDescription`).
+- **CORS en Edge Functions (`_shared/cors.ts`):** Soporte completo para puertos efímeros en desarrollo local (`localhost`), despliegues preview de Vercel y cabeceras dinámicas `corsHeadersForRequest(req)` en respuestas `POST` y `OPTIONS`.
+- **Activity Feed y Reseñas:** El trigger `on_review_upsert` y `ReviewRepository` excluyen ahora el estado `to_play` de la generación de reseñas fantasma en el feed, igualando su transición a la de `wishlist`.
+- **Colecciones (`GameGroupRepository`):** Conservación de la descripción existente en base de datos al actualizar un grupo en modo fallback y añadido `RouteSettings` en la navegación al detalle de colección.
+- **Estantería (`CollectionRepository`):** Inclusión tanto de `beaten` como de `completed` al recuperar juegos superados para sugerir en la estantería física.
+- **Caché Web y Plataformas Nativas:** Ajustado `Cache-Control: no-cache` para `/main.dart.js` en `vercel.json` para evitar bundles desincronizados tras cada despliegue, y añadidos los permisos nativos requeridos en `macos/Runner/Release.entitlements` e `ios/Runner/Info.plist`.
 
 ## [1.2.4] - 2026-09-17
 
