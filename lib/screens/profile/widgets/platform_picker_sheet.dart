@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/globals.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
@@ -128,9 +129,16 @@ class _PlatformPickerSheetState extends State<_PlatformPickerSheet> {
       minChildSize: 0.4,
       maxChildSize: 0.92,
       builder: (context, scrollController) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Column(
+        return ValueListenableBuilder<bool>(
+          valueListenable: floatingMobileNavNotifier,
+          builder: (context, _, _) => Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              20 + getFloatingNavModalInset(context),
+            ),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Center(
@@ -228,6 +236,7 @@ class _PlatformPickerSheetState extends State<_PlatformPickerSheet> {
               ),
             ],
           ),
+        ),
         );
       },
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:corpus/globals.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
@@ -502,48 +503,56 @@ class _PlatformListSheet extends StatelessWidget {
       minChildSize: 0.4,
       maxChildSize: 0.92,
       builder: (context, controller) {
-        return ListView(
-          controller: controller,
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          children: [
-            Text(
-              'Plataforma',
-              style: Theme.of(context).textTheme.titleLarge,
+        return ValueListenableBuilder<bool>(
+          valueListenable: floatingMobileNavNotifier,
+          builder: (context, _, _) => ListView(
+            controller: controller,
+            padding: EdgeInsets.fromLTRB(
+              20,
+              16,
+              20,
+              24 + getFloatingNavModalInset(context),
             ),
-            const SizedBox(height: 16),
-            for (final group in ShelfPlatforms.groupOrder) ...[
-              if (grouped.containsKey(group)) ...[
-                Text(
-                  group,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                for (final platform in grouped[group]!)
-                  ListTile(
-                    leading: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: platform.color,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: _PlatformMiniIcon(platform: platform),
+            children: [
+              Text(
+                'Plataforma',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              for (final group in ShelfPlatforms.groupOrder) ...[
+                if (grouped.containsKey(group)) ...[
+                  Text(
+                    group,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    title: Text(platform.label),
-                    trailing: selectedId == platform.id
-                        ? CorpusTablerIcon(CorpusIconKind.CheckCircle,
-                            color: Theme.of(context).colorScheme.primary,
-                          )
-                        : null,
-                    onTap: () => onSelected(platform.id),
                   ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+                  for (final platform in grouped[group]!)
+                    ListTile(
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: platform.color,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: _PlatformMiniIcon(platform: platform),
+                      ),
+                      title: Text(platform.label),
+                      trailing: selectedId == platform.id
+                          ? CorpusTablerIcon(CorpusIconKind.CheckCircle,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
+                          : null,
+                      onTap: () => onSelected(platform.id),
+                    ),
+                  const SizedBox(height: 12),
+                ],
               ],
             ],
-          ],
+          ),
         );
       },
     );
@@ -617,23 +626,31 @@ class _BottomBar extends StatelessWidget {
       elevation: 8,
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: FilledButton(
-            onPressed: canSave ? onSave : null,
-            child: saving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(
-                    platformId == null
-                        ? 'Elige plataforma y juegos'
-                        : selectedCount == 0
-                        ? 'Marca al menos un juego'
-                        : 'Añadir $selectedCount ${selectedCount == 1 ? 'juego' : 'juegos'}',
-                  ),
+        child: ValueListenableBuilder<bool>(
+          valueListenable: floatingMobileNavNotifier,
+          builder: (context, _, _) => Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              12 + getFloatingNavModalInset(context),
+            ),
+            child: FilledButton(
+              onPressed: canSave ? onSave : null,
+              child: saving
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      platformId == null
+                          ? 'Elige plataforma y juegos'
+                          : selectedCount == 0
+                          ? 'Marca al menos un juego'
+                          : 'Añadir $selectedCount ${selectedCount == 1 ? 'juego' : 'juegos'}',
+                    ),
+            ),
           ),
         ),
       ),

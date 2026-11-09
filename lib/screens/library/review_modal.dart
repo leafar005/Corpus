@@ -1300,9 +1300,6 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                             const SizedBox(height: 8),
                                           entry.value,
                                         ],
-                                        // Espacio extra para que el último botón
-                                        // no quede tapado por la barra de navegación
-                                        const SizedBox(height: 64),
                                       ],
                                     ),
                                 ] else ...[
@@ -1822,7 +1819,12 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: floatingMobileNavNotifier,
+                    builder: (context, _, _) => SizedBox(
+                      height: 16.0 + getFloatingNavModalInset(context),
+                    ),
+                  ),
                 ],
               ),
             );

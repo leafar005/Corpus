@@ -1030,28 +1030,40 @@ class _MainScreenState extends State<MainScreen>
         }
       },
       child: EdgeSwipeBackDetector(
-        child: Scaffold(
-          extendBody: !isDesktop,
-          body: Column(
-            children: [
-              if (isDesktop) _buildTopNavigationBar(context),
-              Expanded(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: _handleScrollNotification,
-                  child: Stack(
-                    children: [
-                      _buildNavigator(0),
-                      _buildNavigator(1),
-                      _buildNavigator(2),
-                      _buildNavigator(3),
-                      _buildNavigator(4),
-                    ],
+        child: ValueListenableBuilder<bool>(
+          valueListenable: floatingMobileNavNotifier,
+          builder: (context, isFloatingNav, _) {
+            final ext = Theme.of(context).extension<CorpusThemeExtension>();
+            final navStyle = ext?.navBarStyle ?? NavBarStyle.solid;
+            final shouldExtendBody = !isDesktop &&
+                (navStyle == NavBarStyle.liquidGlass ||
+                    navStyle == NavBarStyle.persona5Royal ||
+                    (navStyle == NavBarStyle.solid && isFloatingNav));
+            return Scaffold(
+              extendBody: shouldExtendBody,
+              body: Column(
+                children: [
+                  if (isDesktop) _buildTopNavigationBar(context),
+                  Expanded(
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: _handleScrollNotification,
+                      child: Stack(
+                        children: [
+                          _buildNavigator(0),
+                          _buildNavigator(1),
+                          _buildNavigator(2),
+                          _buildNavigator(3),
+                          _buildNavigator(4),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          bottomNavigationBar: isDesktop ? null : _buildMobileNavBar(context),
+              bottomNavigationBar:
+                  isDesktop ? null : _buildMobileNavBar(context),
+            );
+          },
         ),
       ),
     );

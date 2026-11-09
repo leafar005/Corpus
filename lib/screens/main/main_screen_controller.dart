@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
+import 'package:corpus/repositories/activity_repository.dart';
 
 /// Controller para [MainScreen].
 ///
@@ -21,6 +22,9 @@ class MainScreenController {
   RealtimeChannel? _friendshipsChannel;
   RealtimeChannel? _activityFeedChannel;
   RealtimeChannel? _notificationsChannel;
+
+  final Set<String> _recentActivityGames = <String>{};
+  final Map<String, DateTime> _recentGroupActivityAt = <String, DateTime>{};
 
   String? get _myId => _client.auth.currentUser?.id;
 
@@ -82,6 +86,8 @@ class MainScreenController {
     if (myId == null) return;
 
     unreadActivityCount.value = 0; // Optimista — no revertir aunque falle.
+    _recentActivityGames.clear();
+    _recentGroupActivityAt.clear();
     try {
       await _client.rpc('mark_activity_read');
     } catch (e) {
@@ -151,10 +157,6 @@ class MainScreenController {
 
     fetchInitialBadges();
 
-    // Set anti-duplicado: evita incrementar varias veces si el mismo
-    // (user_id, game_id) produce múltiples inserts en ráfaga.
-    final recentGames = <String>{};
-
     _activityFeedChannel = _client
         .channel('main_activity_feed_badge')
         .onPostgresChanges(
@@ -162,15 +164,36 @@ class MainScreenController {
           schema: 'public',
           table: 'activity_feed',
           callback: (payload) {
-            final userId = payload.newRecord['user_id'];
+            final record = payload.newRecord;
+            final userId = record['user_id'];
             if (userId == myId) return; // Ignorar posts propios.
 
-            final gameId = payload.newRecord['game_id'];
+            final gameId = record['game_id'];
             if (gameId != null) {
               final key = '${userId}_$gameId';
-              if (recentGames.contains(key)) return;
-              recentGames.add(key);
-              if (recentGames.length > 50) recentGames.clear();
+              if (_recentActivityGames.contains(key)) return;
+              _recentActivityGames.add(key);
+              if (_recentActivityGames.length > 50) {
+                _recentActivityGames.clear();
+              }
+            }
+
+            // Si es un cambio de estado agrupable sin contenido adicional,
+            // incrementar el contador solo una vez por grupo dentro de la ventana.
+            if (ActivityRepository.isGroupableActivityItem(record)) {
+              final status = (record['metadata'] as Map?)?['status'] as String?;
+              if (status != null) {
+                final groupKey = '$userId|$status';
+                final eventTime =
+                    DateTime.tryParse(record['created_at'] as String? ?? '') ??
+                    DateTime.now();
+                final prevTime = _recentGroupActivityAt[groupKey];
+                _recentGroupActivityAt[groupKey] = eventTime;
+                if (prevTime != null &&
+                    eventTime.difference(prevTime).abs() <= kFeedGroupGap) {
+                  return;
+                }
+              }
             }
 
             if (!isOnActivityTab()) {
