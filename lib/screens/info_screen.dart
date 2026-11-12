@@ -42,7 +42,7 @@ class InfoScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Versión 1.3.0',
+              'Versión 1.3.1',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 14,
@@ -96,7 +96,8 @@ class InfoScreen extends StatelessWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    trailing: CorpusTablerIcon(CorpusIconKind.OpenInNew,
+                    trailing: CorpusTablerIcon(
+                      CorpusIconKind.OpenInNew,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 20,
                     ),
@@ -122,7 +123,8 @@ class InfoScreen extends StatelessWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    trailing: CorpusTablerIcon(CorpusIconKind.OpenInNew,
+                    trailing: CorpusTablerIcon(
+                      CorpusIconKind.OpenInNew,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 20,
                     ),
@@ -204,13 +206,17 @@ class InfoScreen extends StatelessWidget {
     required String url,
   }) {
     return ListTile(
-      leading: CorpusTablerIcon(icon, color: Theme.of(context).colorScheme.primary),
+      leading: CorpusTablerIcon(
+        icon,
+        color: Theme.of(context).colorScheme.primary,
+      ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(
         subtitle,
         style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
-      trailing: CorpusTablerIcon(CorpusIconKind.ChevronRight,
+      trailing: CorpusTablerIcon(
+        CorpusIconKind.ChevronRight,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
       onTap: () => _launchUrl(url),

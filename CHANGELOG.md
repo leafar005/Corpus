@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-11-13
+
+### Añadido
+- **Hilos por post en el feed (`feed_posts`):** Cada evento del feed tiene ahora identidad propia (`feed_posts.id`), de modo que los likes y comentarios pertenecen a esa publicación concreta y no a la fila mutable de la reseña; al cambiar el estado de un juego se inicia un hilo nuevo conservando el enlace al hilo anterior.
+- **Posts agrupados con interacción completa:** Las entradas consecutivas sin información adicional (`wishlist`, `to_play`, `playing`, `beaten`, `completed` en ventana de 60 minutos) comparten `post_id` asignado en base de datos, con barra de likes/comentarios, nueva pantalla `GroupedPostDetailsScreen` y ruta profunda `/post/{postId}`.
+- **Componentes compartidos de hilo:** Extraídos `PostStats`, `PostThreadController`, `PostActionBar`, `CommentThreadSection` y `CommentComposer` para unificar reseñas individuales y publicaciones agrupadas.
+- **Migraciones, backfill y tests SQL:** Migraciones incrementales e idempotentes con respaldo previo en esquema `backup`, reasignación por fecha de likes y comentarios históricos y suite SQL en `supabase/tests/feed_posts_test.sql`.
+- **Mejoras de escritorio, historias y documentación de auditoría:** Flechas de scroll horizontal en filas de juegos y bundles en escritorio, ajuste dinámico inferior en modales móviles, mejoras en visor de historias/formateadores y documentación en `docs/audit/2026-11/`.
+
+### Cambiado
+- **Regla centralizada en PostgreSQL:** La detección de actividad sin información adicional (`is_bare_activity`) y los resúmenes de post (`post_summary`) se resuelven directamente en base de datos para feed, contador de no leídos y Edge Functions.
+- **Notificaciones por `post_id`:** Actualizados los triggers (`notify_review_like`, `notify_review_unlike`, `notify_review_comment`) y las Edge Functions `notify-comment` y `notify-friend-activity` para enlazar y notificar tanto posts individuales como agrupados.
+- **Diseño de comentarios:** Tarjetas de comentario con respuestas indentadas e iconos de acción (responder y eliminar) fijados en la esquina superior derecha.
+- **Limpieza:** Eliminada la pantalla heredada sin uso `lib/screens/bundles/bundles_screen.dart`.
+
+### Arreglado
+- **Endurecimiento de seguridad y rutas:** Fijado `search_path = public, pg_temp` en las funciones `SECURITY DEFINER`, rate limiting por JWT verificado o IP real en Edge Functions (`_shared/rate-limit.ts`), limpieza garantizada de metadatos EXIF en imágenes pequeñas (`image_compressor.dart`), atributos `integrity` (SRI) para `cropperjs` en `web/index.html` y validación estricta de UUID en rutas de perfil/logros.
+- **Likes en publicaciones (`42703`):** Separados los triggers `fill_interaction_refs` (likes) y `fill_comment_refs` (comentarios) sobre un helper compartido `resolve_interaction_refs`.
+
 ## [1.3.0] - 2026-11-09
 
 ### Añadido
