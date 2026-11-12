@@ -19,14 +19,49 @@ export interface RateLimitResult {
 }
 
 /**
- * Genera una bucket key estable a partir de la cabecera Authorization (o
- * apikey como fallback) de la petición. Se usa el hash SHA-256 del token
- * crudo, sin decodificar/confiar en el JWT — así el resultado es seguro
- * independientemente de la configuración de verify_jwt a nivel de gateway.
+ * Genera una bucket key resistente a rotación de cabeceras falsas (SEC-06):
+ * 1. Si la petición incluye un Bearer JWT de un usuario real verificado por
+ *    Supabase Auth (`auth.getUser`), usa `user:<user.id>` para que distintos
+ *    usuarios detrás de una misma IP pública (ej. Wi-Fi compartida) tengan su
+ *    propio cupo.
+ * 2. En caso contrario (modo invitado con anon/publishable key, o un atacante
+ *    enviando tokens Bearer aleatorios inválidos), agrupa por la IP real del
+ *    cliente (`cf-connecting-ip` / `x-forwarded-for`), impidiendo evadir el
+ *    rate limit rotando cabeceras `Authorization` arbitrarias.
  */
 export async function bucketKeyFromRequest(req: Request): Promise<string> {
-  const raw = req.headers.get('Authorization') ?? req.headers.get('apikey') ?? 'anonymous';
-  const bytes = new TextEncoder().encode(raw);
+  const clientIp =
+    req.headers.get('cf-connecting-ip') ??
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    'unknown-ip';
+
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7).trim();
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    // Solo intentamos verificar si parece un JWT (3 segmentos) y no es la anon key
+    if (token && token !== anonKey && token.split('.').length === 3) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      if (supabaseUrl && serviceRoleKey) {
+        try {
+          const supabase = createClient(supabaseUrl, serviceRoleKey);
+          const { data: { user }, error } = await supabase.auth.getUser(token);
+          if (!error && user?.id) {
+            return await sha256Hex(`user:${user.id}`);
+          }
+        } catch {
+          // Fallback a IP del cliente
+        }
+      }
+    }
+  }
+
+  return await sha256Hex(`ip:${clientIp}`);
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const bytes = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))

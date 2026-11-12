@@ -9,16 +9,16 @@ class ImageCompressor {
     try {
       final Uint8List bytes = await file.readAsBytes();
 
-      // Skip compression for very small images (e.g. < 50KB)
-      if (bytes.lengthInBytes < 50 * 1024) {
-        return bytes;
-      }
+      // Para imágenes pequeñas (< 50 KB) mantenemos calidad alta (95), pero
+      // pasamos igualmente por FlutterImageCompress con keepExif: false para
+      // eliminar siempre metadatos EXIF/GPS antes de subir a Storage (SEC-08).
+      final bool isSmallImage = bytes.lengthInBytes < 50 * 1024;
 
       final Uint8List result = await FlutterImageCompress.compressWithList(
         bytes,
         minWidth: 1080,
         minHeight: 1080,
-        quality: 75,
+        quality: isSmallImage ? 95 : 75,
         format: CompressFormat.jpeg,
         keepExif: false, // Ensure EXIF data like GPS is removed
       );

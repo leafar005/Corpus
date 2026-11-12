@@ -58,15 +58,24 @@ void main() {
       expect(parseTabDeepRoute(['logros']), const AchievementsDeepRoute());
     });
 
+    const sampleUuid = '3f2a0000-0000-4000-8000-000000000001';
+
     test('{id}/logros son los de otro usuario', () {
       expect(
-        parseTabDeepRoute(['u-1', 'logros']),
-        const AchievementsDeepRoute(userId: 'u-1'),
+        parseTabDeepRoute([sampleUuid, 'logros']),
+        const AchievementsDeepRoute(userId: sampleUuid),
       );
     });
 
-    test('un id "pelado" es un perfil', () {
-      expect(parseTabDeepRoute(['u-1']), const ProfileDeepRoute('u-1'));
+    test('un id UUID válido es un perfil', () {
+      expect(
+        parseTabDeepRoute([sampleUuid]),
+        const ProfileDeepRoute(sampleUuid),
+      );
+    });
+
+    test('un segmento desconocido que no es UUID devuelve null', () {
+      expect(parseTabDeepRoute(['u-1']), isNull);
     });
 
     test('vacío no resuelve nada', () {
