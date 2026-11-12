@@ -345,7 +345,6 @@ class _ActivityScreenState extends State<ActivityScreen>
           children: [
             // ── Cabecera: avatar + acción agrupada + tiempo ──
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 GestureDetector(
                   onTap: () {
@@ -376,7 +375,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                     text: TextSpan(
                       style: DefaultTextStyle.of(
                         context,
-                      ).style.copyWith(fontSize: 15, height: 1.35),
+                      ).style.copyWith(fontSize: 15),
                       children: [
                         TextSpan(
                           text: actorLabel,
@@ -451,7 +450,7 @@ class _ActivityScreenState extends State<ActivityScreen>
               ),
             ),
             if (postId != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               PostActionBar(
                 likesCount: stats?.likesCount ?? 0,
                 commentsCount: stats?.commentsCount ?? 0,
