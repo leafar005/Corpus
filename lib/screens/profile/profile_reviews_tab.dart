@@ -143,11 +143,13 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
   }
 
   void _openReview(Map<String, dynamic> review) {
+    final postStats = PostStats.fromDynamic(review['_post']);
     context
         .pushReviewDetails(
           Game.fromMap(review['games']),
           widget.userData,
           review,
+          postId: postStats?.postId,
         )
         .then((_) => _refreshInPlace());
   }
@@ -261,8 +263,9 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
     final coverUrl = gameData['cover_url'] ?? '';
     final rating = (review['rating'] ?? 0).toDouble();
     final comment = review['comment'] ?? '';
-    final likesCount = (review['review_likes'] as List?)?.length ?? 0;
-    final commentsCount = (review['review_comments'] as List?)?.length ?? 0;
+    final postStats = PostStats.fromDynamic(review['_post']);
+    final likesCount = postStats?.likesCount ?? 0;
+    final commentsCount = postStats?.commentsCount ?? 0;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -298,7 +301,8 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                       : null,
                 ),
                 child: coverUrl.isEmpty
-                    ? CorpusTablerIcon(CorpusIconKind.VideogameAsset,
+                    ? CorpusTablerIcon(
+                        CorpusIconKind.VideogameAsset,
                         size: 18,
                         color: Theme.of(
                           context,
@@ -324,7 +328,8 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                           ),
                         ),
                         if (rating > 0) ...[
-                          CorpusTablerIcon(CorpusIconKind.Star,
+                          CorpusTablerIcon(
+                            CorpusIconKind.Star,
                             size: 14,
                             color: Theme.of(context).colorScheme.secondary,
                           ),
@@ -357,7 +362,8 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        CorpusTablerIcon(CorpusIconKind.ThumbUpAltOutlined,
+                        CorpusTablerIcon(
+                          CorpusIconKind.ThumbUpAltOutlined,
                           size: 14,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -372,7 +378,8 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                           ),
                         ),
                         const SizedBox(width: 12),
-                        CorpusTablerIcon(CorpusIconKind.ChatBubbleOutline,
+                        CorpusTablerIcon(
+                          CorpusIconKind.ChatBubbleOutline,
                           size: 14,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),

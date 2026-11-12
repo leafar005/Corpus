@@ -99,9 +99,15 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   Map<String, dynamic>? get _currentReview =>
       _currentActivity['_review'] as Map<String, dynamic>?;
 
+  String? get _currentPostId =>
+      (_currentActivity['post_id'] as String?) ??
+      PostStats.fromDynamic(
+        _currentActivity['_post'] ?? _currentReview?['_post'],
+      )?.postId;
+
   bool get _isReviewSlide =>
       !ActivityRepository.isGroupedActivity(_currentActivity) &&
-      _currentReview?['id'] != null;
+      (_currentPostId != null || _currentReview?['id'] != null);
 
   void _onCommentFocusChanged() {
     _togglePause(_commentFocusNode.hasFocus);
@@ -125,7 +131,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     final reviewId = review?['id'] as String?;
     final userId = Supabase.instance.client.auth.currentUser?.id;
 
-    if (!_isReviewSlide || reviewId == null || userId == null) {
+    if (!_isReviewSlide || userId == null) {
       setState(() {
         _likesCount = 0;
         _hasLiked = false;
@@ -134,23 +140,35 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     }
 
     // Datos precargados del feed (evita parpadeo)
-    final cachedLikes = review?['review_likes'] as List? ?? [];
+    final cachedStats = PostStats.fromDynamic(
+      _currentActivity['_post'] ?? review?['_post'],
+      fallbackPostId: _currentPostId,
+    );
 
     setState(() {
-      _likesCount = cachedLikes.length;
-      _hasLiked = cachedLikes.any((l) => l['user_id'] == userId);
+      _likesCount = cachedStats?.likesCount ?? 0;
+      _hasLiked = cachedStats?.likedByMe ?? false;
     });
 
     try {
-      final result = await _repo.fetchInteractions(reviewId, userId);
-      if (!mounted || _currentReview?['id'] != reviewId) return;
+      String? postId = _currentPostId;
+      if (postId == null && reviewId != null) {
+        postId = await _repo.resolvePostIdForReview(reviewId, create: false);
+      }
+      if (postId == null) return;
+
+      final result = await _repo.fetchInteractions(postId, userId);
+      if (!mounted ||
+          (_currentPostId != postId && _currentReview?['id'] != reviewId)) {
+        return;
+      }
       setState(() {
         _likesCount = result.likesCount;
         _hasLiked = result.hasLiked;
       });
     } catch (e) {
       debugPrint('[ActivityStoryViewer] fetchInteractions failed: $e');
-    } finally {}
+    }
   }
 
   void _markCurrentActivityAsViewed() {
@@ -275,7 +293,8 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     final review = _currentReview;
     final reviewId = review?['id'] as String?;
     final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (reviewId == null || userId == null) return;
+    String? postId = _currentPostId;
+    if ((postId == null && reviewId == null) || userId == null) return;
 
     final wasLiked = _hasLiked;
     setState(() {
@@ -284,8 +303,19 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     });
 
     try {
+      postId ??= await _repo.resolvePostIdForReview(reviewId!, create: true);
+      if (postId == null) {
+        if (mounted) {
+          setState(() {
+            _hasLiked = wasLiked;
+            _likesCount += wasLiked ? 1 : -1;
+          });
+        }
+        return;
+      }
+
       await _repo.toggleLike(
-        reviewId: reviewId,
+        postId: postId,
         userId: userId,
         currentlyLiked: wasLiked,
       );
@@ -306,12 +336,16 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
 
     final reviewId = _currentReview?['id'] as String?;
     final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (reviewId == null || userId == null) return;
+    String? postId = _currentPostId;
+    if ((postId == null && reviewId == null) || userId == null) return;
 
     setState(() => _isSubmittingComment = true);
     try {
+      postId ??= await _repo.resolvePostIdForReview(reviewId!, create: true);
+      if (postId == null) return;
+
       await _repo.submitComment(
-        reviewId: reviewId,
+        postId: postId,
         userId: userId,
         content: content,
         commentImage: null,
@@ -361,6 +395,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     Map<String, dynamic> gameData,
     Map<String, dynamic> review,
   ) {
+    final postId = _currentPostId;
     _togglePause(true);
     final navigator = Navigator.of(context);
     navigator.pop();
@@ -368,6 +403,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       Game.fromMap(gameData),
       _currentUserData,
       review,
+      postId: postId,
     );
   }
 
@@ -518,7 +554,8 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
                                 20,
                                 _isReviewSlide ? 8 : 24,
                               ),
-                              child: ActivityRepository.isGroupedActivity(activity)
+                              child:
+                                  ActivityRepository.isGroupedActivity(activity)
                                   ? _buildGroupedStatusContent(
                                       cs: cs,
                                       ext: ext,
@@ -784,10 +821,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CorpusTablerIcon(actionIcon,
-              color: actionColor,
-              size: 22,
-            ),
+            CorpusTablerIcon(actionIcon, color: actionColor, size: 22),
             const SizedBox(width: 8),
             Flexible(
               child: RichText(
@@ -857,7 +891,8 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
     ];
 
-    final games = (activity['_games'] as List?)
+    final games =
+        (activity['_games'] as List?)
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
         [];
@@ -954,11 +989,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CorpusTablerIcon(
-              actionIcon,
-              color: actionColor,
-              size: 22,
-            ),
+            CorpusTablerIcon(actionIcon, color: actionColor, size: 22),
             const SizedBox(width: 8),
             Flexible(
               child: RichText(
@@ -1112,7 +1143,10 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         const SizedBox(height: 20),
         FilledButton.icon(
           onPressed: () => _openFullReview(gameData, review),
-          icon: const CorpusTablerIcon(CorpusIconKind.ArticleOutlined, size: 18),
+          icon: const CorpusTablerIcon(
+            CorpusIconKind.ArticleOutlined,
+            size: 18,
+          ),
           label: const Text('Ver reseña completa'),
         ),
       ],
@@ -1175,7 +1209,10 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CorpusTablerIcon(_hasLiked ? CorpusIconKind.ThumbUp : CorpusIconKind.ThumbUpAltOutlined,
+                    CorpusTablerIcon(
+                      _hasLiked
+                          ? CorpusIconKind.ThumbUp
+                          : CorpusIconKind.ThumbUpAltOutlined,
                       size: 22,
                       color: _hasLiked ? cs.primary : cs.onSurfaceVariant,
                     ),
@@ -1251,7 +1288,11 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CorpusTablerIcon(GameStatus.iconForString(status), size: 16, color: cs.onSurface),
+          CorpusTablerIcon(
+            GameStatus.iconForString(status),
+            size: 16,
+            color: cs.onSurface,
+          ),
           const SizedBox(width: 6),
           Text(
             GameStatus.labelForString(status),

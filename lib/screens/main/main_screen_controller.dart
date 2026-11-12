@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
-import 'package:corpus/repositories/activity_repository.dart';
 
 /// Controller para [MainScreen].
 ///
@@ -24,7 +23,7 @@ class MainScreenController {
   RealtimeChannel? _notificationsChannel;
 
   final Set<String> _recentActivityGames = <String>{};
-  final Map<String, DateTime> _recentGroupActivityAt = <String, DateTime>{};
+  final Set<String> _countedPostIds = <String>{};
 
   String? get _myId => _client.auth.currentUser?.id;
 
@@ -87,7 +86,7 @@ class MainScreenController {
 
     unreadActivityCount.value = 0; // Optimista — no revertir aunque falle.
     _recentActivityGames.clear();
-    _recentGroupActivityAt.clear();
+    _countedPostIds.clear();
     try {
       await _client.rpc('mark_activity_read');
     } catch (e) {
@@ -178,21 +177,15 @@ class MainScreenController {
               }
             }
 
-            // Si es un cambio de estado agrupable sin contenido adicional,
-            // incrementar el contador solo una vez por grupo dentro de la ventana.
-            if (ActivityRepository.isGroupableActivityItem(record)) {
-              final status = (record['metadata'] as Map?)?['status'] as String?;
-              if (status != null) {
-                final groupKey = '$userId|$status';
-                final eventTime =
-                    DateTime.tryParse(record['created_at'] as String? ?? '') ??
-                    DateTime.now();
-                final prevTime = _recentGroupActivityAt[groupKey];
-                _recentGroupActivityAt[groupKey] = eventTime;
-                if (prevTime != null &&
-                    eventTime.difference(prevTime).abs() <= kFeedGroupGap) {
-                  return;
-                }
+            // Todos los ítems que comparten `post_id` (posts agrupados o fusión
+            // reviewed + status_change) incrementan el contador solo una vez.
+            final postId = record['post_id'] as String?;
+            if (postId != null) {
+              if (_countedPostIds.contains(postId)) return;
+              _countedPostIds.add(postId);
+              if (_countedPostIds.length > 100) {
+                _countedPostIds.clear();
+                _countedPostIds.add(postId);
               }
             }
 

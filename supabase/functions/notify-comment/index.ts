@@ -83,8 +83,9 @@ Deno.serve(async (req) => {
     const rawCommentId = record?.id as string | undefined;
     const rawCommenterId = record?.user_id as string | undefined;
     const rawReviewId = record?.review_id as string | undefined;
+    const rawPostId = record?.post_id as string | undefined;
 
-    if (!rawCommentId && (!rawCommenterId || !rawReviewId)) {
+    if (!rawCommentId && (!rawCommenterId || (!rawReviewId && !rawPostId))) {
       return new Response(JSON.stringify({ skipped: "missing fields" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -95,10 +96,16 @@ Deno.serve(async (req) => {
     // Verificar en BD que el comentario existe realmente (evita spoofing de payload)
     let commentQuery = supabase
       .from("review_comments")
-      .select("id, user_id, review_id, content, created_at");
+      .select("id, user_id, review_id, post_id, content, created_at");
 
     if (rawCommentId) {
       commentQuery = commentQuery.eq("id", rawCommentId);
+    } else if (rawPostId) {
+      commentQuery = commentQuery
+        .eq("user_id", rawCommenterId!)
+        .eq("post_id", rawPostId)
+        .order("created_at", { ascending: false })
+        .limit(1);
     } else {
       commentQuery = commentQuery
         .eq("user_id", rawCommenterId!)
@@ -117,7 +124,8 @@ Deno.serve(async (req) => {
 
     const commentId = verifiedComment.id as string;
     const commenterId = verifiedComment.user_id as string;
-    const reviewId = verifiedComment.review_id as string;
+    const reviewId = (verifiedComment.review_id as string | null) ?? "";
+    const postId = (verifiedComment.post_id as string | null) ?? "";
     const content = verifiedComment.content as string | undefined;
 
     // Obtener nombre del comentador
@@ -128,31 +136,64 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const commenterName = commenterUser?.display_name || commenterUser?.username || "Alguien";
 
-    // ─── Caso 1: Notificar al autor de la reseña ────────────────────────────
-    const { data: review } = await supabase
-      .from("reviews")
-      .select("user_id, game_id")
-      .eq("id", reviewId)
-      .maybeSingle();
+    // ─── Caso 1: Notificar al autor del post / reseña ───────────────────────
+    let targetOwnerId: string | null = null;
+    let gameTitle = "un juego";
+    let gamesCount = 1;
+    let resolvedReviewId = reviewId;
 
-    if (review && review.user_id && review.user_id !== commenterId) {
-      // Obtener título del juego para personalizar el mensaje
-      let gameTitle = "un juego";
-      if (review.game_id) {
-        const { data: game } = await supabase
-          .from("games")
-          .select("title")
-          .eq("igdb_id", review.game_id)
-          .maybeSingle();
-        if (game?.title) gameTitle = game.title;
+    if (postId) {
+      const { data: summaryRows } = await supabase.rpc("post_summary", {
+        p_post_id: postId,
+      });
+      const summary = Array.isArray(summaryRows) ? summaryRows[0] : summaryRows;
+      if (summary?.user_id) {
+        targetOwnerId = summary.user_id as string;
+        gamesCount = Number(summary.games_count ?? 1);
+        if (summary.game_title) gameTitle = summary.game_title as string;
+        if (!resolvedReviewId && summary.review_id) {
+          resolvedReviewId = summary.review_id as string;
+        }
       }
+    }
+
+    if (!targetOwnerId && resolvedReviewId) {
+      const { data: review } = await supabase
+        .from("reviews")
+        .select("user_id, game_id")
+        .eq("id", resolvedReviewId)
+        .maybeSingle();
+
+      if (review?.user_id) {
+        targetOwnerId = review.user_id as string;
+        if (review.game_id) {
+          const { data: game } = await supabase
+            .from("games")
+            .select("title")
+            .eq("igdb_id", review.game_id)
+            .maybeSingle();
+          if (game?.title) gameTitle = game.title;
+        }
+      }
+    }
+
+    if (targetOwnerId && targetOwnerId !== commenterId) {
+      const titleText =
+        gamesCount > 1
+          ? `${commenterName} comentó tu publicación de ${gamesCount} juegos`
+          : `${commenterName} comentó tu reseña de ${gameTitle}`;
 
       await notifyUser(
-        review.user_id,
+        targetOwnerId,
         "comment_on_review",
-        `${commenterName} comentó tu reseña de ${gameTitle}`,
+        titleText,
         content ?? "",
-        { type: "comment_on_review", review_id: reviewId, comment_id: commentId ?? "" },
+        {
+          type: "comment_on_review",
+          post_id: postId,
+          review_id: resolvedReviewId,
+          comment_id: commentId ?? "",
+        },
         supabase
       );
     }
@@ -173,7 +214,7 @@ Deno.serve(async (req) => {
         if (
           mentionedUser?.id &&
           mentionedUser.id !== commenterId &&             // No auto-notificar
-          mentionedUser.id !== review?.user_id            // No duplicar con Caso 1
+          mentionedUser.id !== targetOwnerId              // No duplicar con Caso 1
         ) {
           // Eliminar el prefijo @usuario del texto visible en el cuerpo
           const replyBody = content.replace(/^@\w+\s*/, "").trim();
@@ -182,7 +223,12 @@ Deno.serve(async (req) => {
             "reply_to_comment",
             `${commenterName} respondió a tu comentario`,
             replyBody.length > 100 ? replyBody.slice(0, 97) + "..." : replyBody,
-            { type: "reply_to_comment", review_id: reviewId, comment_id: commentId ?? "" },
+            {
+              type: "reply_to_comment",
+              post_id: postId,
+              review_id: resolvedReviewId,
+              comment_id: commentId ?? "",
+            },
             supabase
           );
         }

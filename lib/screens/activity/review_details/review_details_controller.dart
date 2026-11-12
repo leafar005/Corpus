@@ -1,35 +1,54 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../repositories/activity_repository.dart';
 import '../../../repositories/review_repository.dart';
 import '../../../models/models.dart';
 import '../../../utils/safe_change_notifier.dart';
+import '../widgets/post_thread_controller.dart';
 
 class ReviewDetailsController extends SafeChangeNotifier {
   ReviewDetailsController({
     required Map<String, dynamic> initialReviewData,
     required this.game,
+    String? postId,
   }) : currentReviewData = Map<String, dynamic>.from(initialReviewData),
        _activityRepo = ActivityRepository(),
-       _reviewRepo = ReviewRepository();
+       _reviewRepo = ReviewRepository() {
+    final initialStats = PostStats.fromDynamic(initialReviewData['_post']);
+    postThread = PostThreadController(
+      initialPostId: postId ?? initialStats?.postId,
+      reviewId: initialReviewData['id'] as String?,
+      initialStats: initialStats,
+      repo: _activityRepo,
+    );
+    postThread.addListener(notify);
+  }
 
   final Game game;
   final ActivityRepository _activityRepo;
   final ReviewRepository _reviewRepo;
+  late final PostThreadController postThread;
 
   /// ID del usuario actual, obtenido vía el repo (evita acoplar a Supabase).
   String? get _currentUserId => _reviewRepo.client.auth.currentUser?.id;
 
   Map<String, dynamic> currentReviewData;
-  bool isLoading = true;
-  int likesCount = 0;
-  bool hasLiked = false;
-  List<Map<String, dynamic>> comments = [];
-  bool isSubmitting = false;
+  bool _isSavingReview = false;
   List<Map<String, dynamic>> partnersData = [];
 
+  String? get postId => postThread.postId;
+  bool get isLoading => postThread.isLoading;
+  int get likesCount => postThread.likesCount;
+  bool get hasLiked => postThread.hasLiked;
+  List<Map<String, dynamic>> get comments => postThread.comments;
+  bool get isSubmitting => _isSavingReview || postThread.isSubmitting;
 
+  @override
+  void dispose() {
+    postThread.removeListener(notify);
+    postThread.dispose();
+    super.dispose();
+  }
 
   Future<void> fetchPartner() async {
     final partners = currentReviewData['partners'];
@@ -42,107 +61,39 @@ class ReviewDetailsController extends SafeChangeNotifier {
     }
   }
 
-  Future<void> fetchInteractions() async {
-    final currentUserId = _currentUserId;
-    final reviewId = currentReviewData['id'] as String?;
-
-    if (currentUserId == null || reviewId == null) {
-      isLoading = false;
-      notify();
-      return;
-    }
-
-    try {
-      final result = await _activityRepo.fetchInteractions(
-        reviewId,
-        currentUserId,
+  Future<void> fetchInteractions({bool resolveLatestReviewPost = false}) =>
+      postThread.fetchInteractions(
+        resolveLatestReviewPost: resolveLatestReviewPost,
       );
-      likesCount = result.likesCount;
-      hasLiked = result.hasLiked;
-      comments = result.comments;
-    } catch (e) {
-      debugPrint('[ReviewDetailsController] Error fetching interactions: $e');
-    } finally {
-      isLoading = false;
-      notify();
-    }
-  }
 
-  Future<void> toggleLike() async {
-    final currentUserId = _currentUserId;
-    if (currentUserId == null) return;
-    final reviewId = currentReviewData['id'] as String?;
-    if (reviewId == null) return;
+  Future<void> toggleLike() => postThread.toggleLike();
 
-    // Optimistic UI update
-    hasLiked = !hasLiked;
-    likesCount += hasLiked ? 1 : -1;
-    notify();
-
-    try {
-      await _activityRepo.toggleLike(
-        reviewId: reviewId,
-        userId: currentUserId,
-        currentlyLiked: !hasLiked, // was toggled above, pass pre-toggle value
-      );
-    } catch (e) {
-      // Revert on error
-      hasLiked = !hasLiked;
-      likesCount += hasLiked ? 1 : -1;
-      notify();
-      debugPrint('[ReviewDetailsController] Error toggling like: $e');
-    }
-  }
-
-  Future<void> submitComment({
+  Future<bool> submitComment({
     required String content,
     XFile? commentImage,
     Map<String, dynamic>? attachedGame,
     String? parentCommentId,
-  }) async {
-    if (content.isEmpty && commentImage == null && attachedGame == null) return;
+  }) => postThread.submitComment(
+    content: content.isNotEmpty ? content : null,
+    commentImage: commentImage,
+    attachedGame: attachedGame,
+    parentCommentId: parentCommentId,
+  );
 
-    final currentUserId = _currentUserId;
-    if (currentUserId == null) return;
-    final reviewId = currentReviewData['id'] as String?;
-    if (reviewId == null) return;
-
-    isSubmitting = true;
-    notify();
-
-    try {
-      await _activityRepo.submitComment(
-        reviewId: reviewId,
-        userId: currentUserId,
-        content: content.isNotEmpty ? content : null,
-        commentImage: commentImage,
-        attachedGame: attachedGame,
-        parentCommentId: parentCommentId,
-      );
-      await fetchInteractions();
-    } finally {
-      isSubmitting = false;
-      notify();
-    }
-  }
-
-  Future<void> deleteComment(String commentId) async {
-    final comment = comments.firstWhere(
-      (c) => c['id'] == commentId,
-      orElse: () => <String, dynamic>{},
-    );
-    await _activityRepo.deleteComment(
-      commentId: commentId,
-      imageUrl: comment['image_url'] as String?,
-    );
-    comments.removeWhere((c) => c['id'] == commentId);
-    notify();
+  Future<void> deleteComment(String commentId, {String? imageUrl}) async {
+    final resolvedImageUrl =
+        imageUrl ??
+        comments.firstWhere(
+              (c) => c['id'] == commentId,
+              orElse: () => <String, dynamic>{},
+            )['image_url']
+            as String?;
+    await postThread.deleteComment(commentId, imageUrl: resolvedImageUrl);
   }
 
   Future<void> deleteReview(String reviewId) async {
     final gameId = game.igdbId;
     final currentUserId = _currentUserId;
-
     if (currentUserId == null) return;
 
     await _reviewRepo.deleteReview(
@@ -174,13 +125,13 @@ class ReviewDetailsController extends SafeChangeNotifier {
     required List<String> existingImages,
     required List<String> partnerIds,
   }) async {
-    if (isSubmitting) throw Exception('Already submitting');
-    isSubmitting = true;
+    if (_isSavingReview) throw Exception('Already submitting');
+    _isSavingReview = true;
     notify();
 
     final userId = _currentUserId;
     if (userId == null) {
-      isSubmitting = false;
+      _isSavingReview = false;
       notify();
       throw Exception('Not logged in');
     }
@@ -229,10 +180,11 @@ class ReviewDetailsController extends SafeChangeNotifier {
       }
 
       await fetchPartner();
+      unawaited(postThread.fetchInteractions(resolveLatestReviewPost: true));
 
       return result;
     } finally {
-      isSubmitting = false;
+      _isSavingReview = false;
       notify();
     }
   }

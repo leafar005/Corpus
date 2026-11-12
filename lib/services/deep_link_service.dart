@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../routes/deep_route_resolver.dart';
 import '../screens/library/search_screen.dart';
+import '../screens/activity/grouped_post_details_screen.dart';
 import '../screens/activity/review_details_screen.dart';
 import '../screens/library/game_details_screen.dart';
 
@@ -33,10 +34,18 @@ class DeepLinkService {
           break;
         case 'comment_on_review':
         case 'reply_to_comment':
-          await _openReviewById(
-            data['review_id'] as String?,
-            focusComment: type == 'reply_to_comment',
-          );
+          final reviewId = data['review_id'] as String?;
+          final postId = data['post_id'] as String?;
+          final focus = type == 'reply_to_comment';
+          if (reviewId != null && reviewId.isNotEmpty) {
+            await _openReviewById(
+              reviewId,
+              postId: postId,
+              focusComment: focus,
+            );
+          } else if (postId != null && postId.isNotEmpty) {
+            _openGroupedPostById(postId, focusComment: focus);
+          }
           break;
         case 'new_bundle':
         case 'bundle_expiring':
@@ -50,6 +59,7 @@ class DeepLinkService {
 
   static Future<void> _openReviewById(
     String? reviewId, {
+    String? postId,
     bool focusComment = false,
   }) async {
     if (reviewId == null || reviewId.isEmpty) return;
@@ -58,6 +68,7 @@ class DeepLinkService {
     // (/actividad/resena/{id}); ver routes/deep_route_resolver.dart.
     final args = await DeepRouteResolver.fetchReviewById(
       reviewId,
+      postId: postId,
       focusComment: focusComment,
     );
     if (args == null) return;
@@ -71,7 +82,21 @@ class DeepLinkService {
           gameData: args.gameData,
           userData: args.userData,
           reviewData: args.reviewData,
+          postId: args.postId,
           focusComment: args.focusComment,
+        ),
+      ),
+    );
+  }
+
+  static void _openGroupedPostById(String postId, {bool focusComment = false}) {
+    final state = navigatorKey.currentState;
+    if (state == null) return;
+    state.push(
+      MaterialPageRoute(
+        builder: (_) => GroupedPostDetailsScreen(
+          postId: postId,
+          focusComment: focusComment,
         ),
       ),
     );
@@ -80,10 +105,16 @@ class DeepLinkService {
   static Future<void> _openReviewByUserAndGame(
     Map<String, dynamic> data,
   ) async {
+    final postId = data['post_id'] as String?;
     // Camino normal: activity_feed ya trae review_id enlazado.
     final reviewId = data['review_id'] as String?;
     if (reviewId != null && reviewId.isNotEmpty) {
-      await _openReviewById(reviewId);
+      await _openReviewById(reviewId, postId: postId);
+      return;
+    }
+
+    if (postId != null && postId.isNotEmpty) {
+      _openGroupedPostById(postId);
       return;
     }
 

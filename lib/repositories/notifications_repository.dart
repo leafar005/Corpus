@@ -129,9 +129,7 @@ class NotificationsRepository {
           .select('''
               *,
               users!reviews_user_id_users_fkey(*),
-              games!reviews_game_id_fkey(*),
-              review_likes(user_id),
-              review_comments(id)
+              games!reviews_game_id_fkey(*)
             ''')
           .eq('id', reviewId)
           .maybeSingle();

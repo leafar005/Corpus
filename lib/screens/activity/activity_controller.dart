@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/models.dart';
 import '../../repositories/activity_repository.dart';
 import '../../utils/safe_change_notifier.dart';
 
@@ -231,44 +232,90 @@ class ActivityController extends SafeChangeNotifier {
 
   // ── Likes ────────────────────────────────────────────────────────────
 
-  /// Alterna like en una actividad por índice. Hace optimistic update
-  /// y revierte si la petición falla.
-  Future<void> toggleLike(int index) async {
-    final activity = _activities[index];
-    final review = activity['_review'] as Map<String, dynamic>?;
-    if (review == null) return;
+  void _applyPostStats(int index, PostStats stats) {
+    final current = Map<String, dynamic>.from(_activities[index]);
+    final statsMap = stats.toMap();
+    current['_post'] = statsMap;
+    if (stats.postId.isNotEmpty) {
+      current['post_id'] ??= stats.postId;
+    }
 
+    final review = current['_review'];
+    if (review is Map<String, dynamic>) {
+      review['_post'] = statsMap;
+    } else if (review is Map) {
+      final copy = Map<String, dynamic>.from(review);
+      copy['_post'] = statsMap;
+      current['_review'] = copy;
+    }
+
+    final groupedItems = current['_grouped_items'];
+    if (groupedItems is List && groupedItems.isNotEmpty) {
+      final first = groupedItems.first;
+      if (first is Map<String, dynamic>) {
+        first['_post'] = statsMap;
+      }
+    }
+
+    _activities[index] = current;
+  }
+
+  /// Alterna like en una actividad por índice (individual o agrupada).
+  /// Hace optimistic update y revierte si la petición falla.
+  Future<void> toggleLike(int index) async {
+    if (index < 0 || index >= _activities.length) return;
+    final activity = _activities[index];
     final currentUserId = _userId;
     if (currentUserId == null) return;
-    final reviewId = review['id'];
 
-    final likes = List<Map<String, dynamic>>.from(review['review_likes'] ?? []);
-    final hasLiked = likes.any((l) => l['user_id'] == currentUserId);
+    final review = activity['_review'] as Map<String, dynamic>?;
+    String? postId =
+        (activity['post_id'] as String?) ??
+        (PostStats.fromDynamic(activity['_post'])?.postId) ??
+        (PostStats.fromDynamic(review?['_post'])?.postId);
+
+    if (postId == null && review?['id'] == null) return;
+
+    final stats =
+        PostStats.fromDynamic(
+          activity['_post'] ?? review?['_post'],
+          fallbackPostId: postId,
+        ) ??
+        PostStats(postId: postId ?? '');
+    final hasLiked = stats.likedByMe;
+    final nextStats = stats.copyWith(
+      likedByMe: !hasLiked,
+      likesCount: (stats.likesCount + (hasLiked ? -1 : 1)).clamp(0, 1 << 30),
+    );
 
     // Optimistic update
-    if (hasLiked) {
-      likes.removeWhere((l) => l['user_id'] == currentUserId);
-    } else {
-      likes.add({'user_id': currentUserId});
-    }
-    _activities[index]['_review']['review_likes'] = likes;
+    _applyPostStats(index, nextStats);
     notifyListeners();
 
     try {
+      postId ??= await _repo.resolvePostIdForReview(
+        review!['id'] as String,
+        create: true,
+      );
+      if (postId == null) {
+        _applyPostStats(index, stats);
+        notifyListeners();
+        return;
+      }
+
       await _repo.toggleLike(
-        reviewId: reviewId,
+        postId: postId,
         userId: currentUserId,
         currentlyLiked: hasLiked,
       );
+
+      if (nextStats.postId != postId) {
+        _applyPostStats(index, nextStats.copyWith(postId: postId));
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('[ActivityController] toggleLike failed: $e');
-      // Revert
-      if (!hasLiked) {
-        likes.removeWhere((l) => l['user_id'] == currentUserId);
-      } else {
-        likes.add({'user_id': currentUserId});
-      }
-      _activities[index]['_review']['review_likes'] = likes;
+      _applyPostStats(index, stats);
       notifyListeners();
     }
   }

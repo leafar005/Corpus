@@ -11,6 +11,7 @@ import 'dart:math';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/post_stats.dart';
 import '../utils/storage_utils.dart';
 import '../utils/image_compressor.dart';
 import 'review_repository.dart';
@@ -18,20 +19,6 @@ import 'review_repository.dart';
 // ──────────────────────────────────────────────────────────────────────────────
 // Constantes de agrupación del feed
 // ──────────────────────────────────────────────────────────────────────────────
-
-/// Conjunto configurable de estados cuyos cambios (`status_change`) sin
-/// información adicional son agrupables en el feed.
-const Set<String> kGroupableFeedStatuses = {
-  'wishlist',
-  'playing',
-  'to_play',
-  'beaten',
-  'completed',
-};
-
-/// Ventana temporal máxima entre entradas consecutivas del mismo grupo
-/// (mismo usuario + mismo estado) para unirse en una publicación agrupada.
-const Duration kFeedGroupGap = Duration(hours: 1);
 
 /// Número máximo de tarjetas que se muestran en la tira horizontal de un
 /// grupo antes de mostrar la tarjeta final "+N".
@@ -134,7 +121,7 @@ class ActivityRepository {
       try {
         final reviewsResp = await _client
             .from('reviews')
-            .select('*, review_likes(user_id), review_comments(id)')
+            .select('*')
             .inFilter('id', reviewIds);
         final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
         await ReviewRepository(client: _client).injectPartners(reviewsList);
@@ -145,6 +132,21 @@ class ActivityRepository {
         debugPrint(
           '[ActivityRepository] Error enriqueciendo reviews del feed: $e',
         );
+      }
+    }
+
+    // 2b. Estadísticas de posts (likes y comentarios por post_id) — batch único
+    final postIds = feedItems
+        .map((item) => item['post_id'] as String?)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    final postStatsById = await fetchPostStats(postIds);
+    for (final item in feedItems) {
+      final pid = item['post_id'] as String?;
+      if (pid != null && pid.isNotEmpty) {
+        item['_post'] = postStatsById[pid] ?? PostStats(postId: pid);
       }
     }
 
@@ -291,7 +293,7 @@ class ActivityRepository {
       try {
         final reviewsResp = await _client
             .from('reviews')
-            .select('*, review_likes(user_id), review_comments(id)')
+            .select('*')
             .inFilter('id', reviewIds);
         final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
         await ReviewRepository(client: _client).injectPartners(reviewsList);
@@ -302,6 +304,20 @@ class ActivityRepository {
         debugPrint(
           '[ActivityRepository] Error enriqueciendo reviews de stories: $e',
         );
+      }
+    }
+
+    final storyPostIds = feedItems
+        .map((item) => item['post_id'] as String?)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    final storyPostStatsById = await fetchPostStats(storyPostIds);
+    for (final item in feedItems) {
+      final pid = item['post_id'] as String?;
+      if (pid != null && pid.isNotEmpty) {
+        item['_post'] = storyPostStatsById[pid] ?? PostStats(postId: pid);
       }
     }
 
@@ -366,20 +382,90 @@ class ActivityRepository {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Detalle de reseña (ReviewDetailsScreen)
+  // Posts e interacciones (ReviewDetailsScreen y GroupedPostDetailsScreen)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Carga en paralelo los likes y comentarios de una reseña.
+  /// Obtiene en batch las estadísticas de un conjunto de posts (`post_id`).
+  Future<Map<String, PostStats>> fetchPostStats(List<String> postIds) async {
+    final distinctIds = postIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (distinctIds.isEmpty) return {};
+    try {
+      final rows =
+          await _client.rpc(
+                'get_post_stats',
+                params: {'p_post_ids': distinctIds},
+              )
+              as List;
+      return {
+        for (final r in rows.cast<Map<String, dynamic>>())
+          r['post_id'] as String: PostStats.fromMap(r),
+      };
+    } catch (e) {
+      debugPrint('[ActivityRepository] fetchPostStats error: $e');
+      return {};
+    }
+  }
+
+  /// Obtiene en batch las estadísticas del post vigente de cada reseña (`review_id`).
+  Future<Map<String, PostStats>> fetchReviewPostStats(
+    List<String> reviewIds,
+  ) async {
+    final distinctIds = reviewIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (distinctIds.isEmpty) return {};
+    try {
+      final rows =
+          await _client.rpc(
+                'get_review_post_stats',
+                params: {'p_review_ids': distinctIds},
+              )
+              as List;
+      return {
+        for (final r in rows.cast<Map<String, dynamic>>())
+          r['review_id'] as String: PostStats.fromMap(r),
+      };
+    } catch (e) {
+      debugPrint('[ActivityRepository] fetchReviewPostStats error: $e');
+      return {};
+    }
+  }
+
+  /// Resuelve el `post_id` vigente para una reseña.
+  /// Si [create] es `true`, crea un post implícito cuando la reseña aún no tiene post.
+  Future<String?> resolvePostIdForReview(
+    String reviewId, {
+    bool create = false,
+  }) async {
+    final fn = create ? 'ensure_review_post' : 'current_post_for_review';
+    final res = await _client.rpc(fn, params: {'p_review_id': reviewId});
+    return res as String?;
+  }
+
+  /// Carga los ítems (`status_change`) de un post del feed, con datos de usuario y juego.
+  Future<List<Map<String, dynamic>>> fetchPostItems(String postId) async {
+    final response = await _client
+        .from('activity_feed')
+        .select('''
+            *,
+            users!activity_feed_user_id_fkey(id, username, display_name, avatar_url),
+            games!activity_feed_game_id_fkey(igdb_id, title, cover_url)
+          ''')
+        .eq('post_id', postId)
+        .eq('action_type', 'status_change')
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Carga en paralelo los likes y comentarios de un post (`postId`).
   Future<ReviewInteractionsResult> fetchInteractions(
-    String reviewId,
+    String postId,
     String currentUserId,
   ) async {
     final results = await Future.wait([
-      _client.from('review_likes').select('user_id').eq('review_id', reviewId),
+      _client.from('review_likes').select('user_id').eq('post_id', postId),
       _client
           .from('review_comments')
           .select('*, users(*)')
-          .eq('review_id', reviewId)
+          .eq('post_id', postId)
           .order('created_at', ascending: true),
     ]);
 
@@ -393,9 +479,9 @@ class ActivityRepository {
     );
   }
 
-  /// Añade o elimina un like del usuario en la reseña indicada.
+  /// Añade o elimina un like del usuario en el post indicado (`postId`).
   Future<void> toggleLike({
-    required String reviewId,
+    required String postId,
     required String userId,
     required bool currentlyLiked,
   }) async {
@@ -404,19 +490,18 @@ class ActivityRepository {
           .from('review_likes')
           .delete()
           .eq('user_id', userId)
-          .eq('review_id', reviewId);
+          .eq('post_id', postId);
     } else {
       await _client.from('review_likes').insert({
         'user_id': userId,
-        'review_id': reviewId,
+        'post_id': postId,
       });
     }
   }
 
-  /// Inserta un comentario en una reseña, subiendo la imagen si se proporciona.
-  /// Devuelve el `image_url` generado (o null si no había imagen).
+  /// Inserta un comentario en un post (`postId`), subiendo la imagen si se proporciona.
   Future<void> submitComment({
-    required String reviewId,
+    required String postId,
     required String userId,
     required String? content,
     required XFile? commentImage,
@@ -439,7 +524,7 @@ class ActivityRepository {
 
     await _client.from('review_comments').insert({
       'user_id': userId,
-      'review_id': reviewId,
+      'post_id': postId,
       'content': content?.isNotEmpty == true ? content : null,
       'image_url': imageUrl,
       'attached_game': attachedGame,
@@ -488,6 +573,35 @@ class ActivityRepository {
     }
 
     try {
+      final postIdsForReview = <String>{};
+      final feedPostsResp = await _client
+          .from('activity_feed')
+          .select('post_id')
+          .eq('review_id', reviewId);
+      for (final r in feedPostsResp) {
+        final pid = r['post_id'] as String?;
+        if (pid != null && pid.isNotEmpty) postIdsForReview.add(pid);
+      }
+      final implicitPostsResp = await _client
+          .from('feed_posts')
+          .select('id')
+          .eq('review_id', reviewId);
+      for (final r in implicitPostsResp) {
+        final pid = r['id'] as String?;
+        if (pid != null && pid.isNotEmpty) postIdsForReview.add(pid);
+      }
+
+      if (postIdsForReview.isNotEmpty) {
+        final commentsByPost = await _client
+            .from('review_comments')
+            .select('image_url')
+            .inFilter('post_id', postIdsForReview.toList());
+        for (final c in commentsByPost) {
+          if (c['image_url'] != null)
+            urlsToDelete.add(c['image_url'] as String);
+        }
+      }
+
       final commentsResp = await _client
           .from('review_comments')
           .select('image_url')
@@ -583,7 +697,7 @@ class ActivityRepository {
     try {
       final resp = await _client
           .from('reviews')
-          .select('*, review_likes(user_id), review_comments(id)')
+          .select('*')
           .eq('user_id', userId)
           .eq('game_id', gameId)
           .order('created_at', ascending: false)
@@ -593,7 +707,15 @@ class ActivityRepository {
       if (resp != null) {
         final reviewsList = [Map<String, dynamic>.from(resp)];
         await ReviewRepository(client: _client).injectPartners(reviewsList);
-        return reviewsList.first;
+        final rev = reviewsList.first;
+        final revId = rev['id'] as String?;
+        if (revId != null) {
+          final stats = await fetchReviewPostStats([revId]);
+          if (stats.containsKey(revId)) {
+            rev['_post'] = stats[revId];
+          }
+        }
+        return rev;
       }
     } catch (e) {
       debugPrint(
@@ -610,6 +732,9 @@ class ActivityRepository {
   /// Enriquece el feed con datos de reseñas y partners, y agrupa eventos
   /// del mismo usuario + juego dentro de una ventana de 24 horas.
   ///
+  /// Conserva el `post_id` y `_post` del evento más reciente (`prev`) y guarda
+  /// en `_merged_post_ids` / `_merged_posts` los posts anteriores absorbidos.
+  ///
   /// Esta lógica es puramente de presentación — no hace queries.
   static List<Map<String, dynamic>> mergeActivityItems({
     required List<Map<String, dynamic>> feedItems,
@@ -621,6 +746,39 @@ class ActivityRepository {
     partnersByUserGame: partnersByUserGame,
   );
 
+  static void _recordMergedOlderPost(
+    Map<String, dynamic> target,
+    Map<String, dynamic> olderItem,
+  ) {
+    final olderPostId = olderItem['post_id'] as String?;
+    if (olderPostId == null ||
+        olderPostId.isEmpty ||
+        olderPostId == target['post_id']) {
+      return;
+    }
+    final mergedIds = List<String>.from(
+      (target['_merged_post_ids'] as List?)?.whereType<String>() ?? const [],
+    );
+    if (!mergedIds.contains(olderPostId)) {
+      mergedIds.add(olderPostId);
+      target['_merged_post_ids'] = mergedIds;
+    }
+
+    final olderStats = PostStats.fromDynamic(
+      olderItem['_post'],
+      fallbackPostId: olderPostId,
+    );
+    if (olderStats != null) {
+      final mergedPosts = List<PostStats>.from(
+        (target['_merged_posts'] as List?)?.whereType<PostStats>() ?? const [],
+      );
+      if (!mergedPosts.any((p) => p.postId == olderPostId)) {
+        mergedPosts.add(olderStats);
+        target['_merged_posts'] = mergedPosts;
+      }
+    }
+  }
+
   static List<Map<String, dynamic>> _mergeActivityItems({
     required List<Map<String, dynamic>> feedItems,
     required Map<String, Map<String, dynamic>> reviewsById,
@@ -628,7 +786,9 @@ class ActivityRepository {
   }) {
     final merged = <Map<String, dynamic>>[];
 
-    for (var item in feedItems) {
+    for (var rawItem in feedItems) {
+      var item = Map<String, dynamic>.from(rawItem);
+
       // Inyectar partners
       final uId = item['user_id'];
       final gId = item['game_id'];
@@ -641,7 +801,6 @@ class ActivityRepository {
           (item['review_id'] as String?) ??
           (item['metadata'] as Map?)?['review_id'] as String?;
       if (reviewId != null && reviewsById.containsKey(reviewId)) {
-        item = Map<String, dynamic>.from(item);
         item['_review'] = reviewsById[reviewId];
       }
 
@@ -661,18 +820,40 @@ class ActivityRepository {
             if (date.difference(prevDate).abs().inHours < 24) {
               if (type == 'status_change' &&
                   prev['action_type'] == 'reviewed') {
-                prev['action_type'] = 'status_change';
-                (prev['metadata'] as Map? ?? {})['status'] =
-                    (item['metadata'] as Map? ?? {})['status'];
+                // Solo adoptar el status_change si comparten post_id (o si prev no tenía post_id).
+                // Si item tiene otro post_id distinto, es un cambio de estado anterior (<24 h)
+                // que no debe pisar el post vigente de prev.
+                final prevPostId = prev['post_id'] as String?;
+                final itemPostId = item['post_id'] as String?;
+                if (prevPostId == null ||
+                    itemPostId == null ||
+                    prevPostId == itemPostId) {
+                  prev['action_type'] = 'status_change';
+                  final prevMeta = Map<String, dynamic>.from(
+                    prev['metadata'] as Map? ?? const {},
+                  );
+                  prevMeta['status'] =
+                      (item['metadata'] as Map? ?? {})['status'];
+                  prev['metadata'] = prevMeta;
+                  prev['post_id'] ??= itemPostId;
+                  prev['_post'] ??= item['_post'];
+                } else {
+                  _recordMergedOlderPost(prev, item);
+                }
                 wasMerged = true;
                 break;
               } else if (type == 'reviewed' &&
                   prev['action_type'] == 'status_change') {
                 prev['_review'] = item['_review'];
+                prev['post_id'] ??= item['post_id'];
+                prev['_post'] ??= item['_post'];
                 wasMerged = true;
                 break;
               } else if (type == 'status_change' &&
                   prev['action_type'] == 'status_change') {
+                // prev es el evento más reciente: conserva su post_id y _post.
+                // Guardamos el post anterior en _merged_post_ids / _merged_posts.
+                _recordMergedOlderPost(prev, item);
                 wasMerged = true;
                 break;
               }
@@ -687,88 +868,8 @@ class ActivityRepository {
     return merged;
   }
 
-  /// Determina si una entrada del feed (ya enriquecida por [_mergeActivityItems])
-  /// es agrupable con otras del mismo usuario y estado:
-  /// - `action_type == 'status_change'` (no agrupa `'reviewed'` ni `'achievement'`)
-  /// - `status` está en [groupableStatuses]
-  /// - Sin reseña asociada con contenido (sin rating, comentario, fotos, horas ni replay)
-  /// - Sin compañeros / co-op (`_partners`, `partners`, `partner_ids`)
-  static bool isGroupableActivityItem(
-    Map<String, dynamic> item, {
-    Set<String> groupableStatuses = kGroupableFeedStatuses,
-  }) {
-    if (item['action_type'] != 'status_change') return false;
-    final userId = item['user_id'] as String?;
-    if (userId == null || userId.isEmpty) return false;
-
-    final createdAtStr = item['created_at'] as String?;
-    if (createdAtStr == null || DateTime.tryParse(createdAtStr) == null) {
-      return false;
-    }
-
-    final meta = item['metadata'] as Map?;
-    final status = meta?['status'] as String?;
-    if (status == null || !groupableStatuses.contains(status)) return false;
-
-    // Sin compañeros/co-op (_partners o en metadata)
-    final partners = item['_partners'] as List?;
-    if (partners != null && partners.isNotEmpty) return false;
-
-    final metaPartners = meta?['partner_ids'] as List?;
-    if (metaPartners != null && metaPartners.isNotEmpty) return false;
-
-    // Sin contenido adicional en metadata
-    final metaRating = meta?['rating'] as num?;
-    if (metaRating != null && metaRating > 0) return false;
-
-    final metaComment = meta?['comment'] as String?;
-    if (metaComment != null && metaComment.trim().isNotEmpty) return false;
-
-    final metaImages = meta?['image_urls'] as List?;
-    if (metaImages != null && metaImages.isNotEmpty) return false;
-
-    // Sin reseña asociada con contenido
-    final review = item['_review'] as Map?;
-    if (review != null) {
-      final rating = review['rating'] as num?;
-      if (rating != null && rating > 0) return false;
-
-      for (final subKey in const [
-        'rating_gameplay',
-        'rating_narrative',
-        'rating_soundtrack',
-        'rating_visuals',
-      ]) {
-        final subRating = review[subKey] as num?;
-        if (subRating != null && subRating > 0) return false;
-      }
-
-      final comment = review['comment'] as String?;
-      if (comment != null && comment.trim().isNotEmpty) return false;
-
-      final imageUrls = review['image_urls'] as List?;
-      if (imageUrls != null && imageUrls.isNotEmpty) return false;
-
-      final reviewPartners = review['partners'] as List?;
-      if (reviewPartners != null && reviewPartners.isNotEmpty) return false;
-
-      final reviewPartnerIds = review['partner_ids'] as List?;
-      if (reviewPartnerIds != null && reviewPartnerIds.isNotEmpty) return false;
-
-      final playTimeHours = review['play_time_hours'] as num?;
-      if (playTimeHours != null && playTimeHours > 0) return false;
-
-      final replayCount = review['replay_count'] as num?;
-      if (replayCount != null && replayCount > 0) return false;
-
-      if (review['is_replay'] == true) return false;
-    }
-
-    return true;
-  }
-
   /// Devuelve `true` si la actividad representa una publicación agrupada
-  /// de 2 o más juegos con el mismo estado.
+  /// de 2 o más juegos con el mismo `post_id`.
   static bool isGroupedActivity(Map<String, dynamic> activity) {
     final grouped = activity['_grouped_items'];
     return activity['_is_group'] == true &&
@@ -795,29 +896,20 @@ class ActivityRepository {
     return singleId != null ? [singleId] : const [];
   }
 
-  /// Agrupa entradas `status_change` sin información adicional que compartan
-  /// `(user_id, status)` dentro de una ventana máxima [maxGap] entre entradas
-  /// consecutivas del mismo grupo.
+  /// Agrupa entradas `status_change` que compartan el mismo `post_id` asignado
+  /// por la base de datos.
   ///
   /// Se ejecuta DESPUÉS de `_mergeActivityItems`. Si recibe elementos que ya
   /// fueron agrupados previamente (p. ej. al paginar o al incorporar eventos
   /// Realtime sobre la lista acumulada), los expande primero para no partir
   /// grupos en límites de página.
   static List<Map<String, dynamic>> groupActivityItems(
-    List<Map<String, dynamic>> items, {
-    Duration maxGap = kFeedGroupGap,
-    Set<String> groupableStatuses = kGroupableFeedStatuses,
-  }) => _groupActivityItems(
-    items,
-    maxGap: maxGap,
-    groupableStatuses: groupableStatuses,
-  );
+    List<Map<String, dynamic>> items,
+  ) => _groupActivityItems(items);
 
   static List<Map<String, dynamic>> _groupActivityItems(
-    List<Map<String, dynamic>> items, {
-    Duration maxGap = kFeedGroupGap,
-    Set<String> groupableStatuses = kGroupableFeedStatuses,
-  }) {
+    List<Map<String, dynamic>> items,
+  ) {
     if (items.isEmpty) return [];
 
     // 1. Desarmar grupos previos (para paginación / Realtime sobre lista acumulada)
@@ -827,11 +919,18 @@ class ActivityRepository {
 
     for (final item in items) {
       if (item['_is_group'] == true && item['_grouped_items'] is List) {
+        final parentPost = item['_post'];
         for (final sub in (item['_grouped_items'] as List)) {
           if (sub is Map<String, dynamic>) {
             final id = sub['id'] as String?;
             if (id != null && !seenIds.add(id)) continue;
-            flattened.add(sub);
+            if (parentPost != null && sub['_post'] == null) {
+              final copy = Map<String, dynamic>.from(sub);
+              copy['_post'] = parentPost;
+              flattened.add(copy);
+            } else {
+              flattened.add(sub);
+            }
           }
         }
       } else {
@@ -843,14 +942,15 @@ class ActivityRepository {
 
     // 2. Ordenar siempre por created_at descendente (más reciente primero),
     //    preservando el orden relativo en caso de empate.
-    final indexed = List<({int index, Map<String, dynamic> item, DateTime? date})>.generate(
-      flattened.length,
-      (i) {
-        final rawDate = flattened[i]['created_at'] as String?;
-        final parsed = rawDate != null ? DateTime.tryParse(rawDate) : null;
-        return (index: i, item: flattened[i], date: parsed);
-      },
-    );
+    final indexed =
+        List<({int index, Map<String, dynamic> item, DateTime? date})>.generate(
+          flattened.length,
+          (i) {
+            final rawDate = flattened[i]['created_at'] as String?;
+            final parsed = rawDate != null ? DateTime.tryParse(rawDate) : null;
+            return (index: i, item: flattened[i], date: parsed);
+          },
+        );
 
     indexed.sort((a, b) {
       if (a.date != null && b.date != null) {
@@ -864,40 +964,32 @@ class ActivityRepository {
       return a.index.compareTo(b.index);
     });
 
-    // 3. Agrupar por clave (user_id + status) y ventana entre consecutivas.
+    // 3. Agrupar por post_id compartido en eventos status_change.
     final slots = <_ActivityFeedSlot>[];
-    final activeGroups = <String, _ActivityGroupBuilder>{};
+    final byPostId = <String, _ActivityGroupBuilder>{};
 
     for (final entry in indexed) {
       final item = entry.item;
-      if (!isGroupableActivityItem(item, groupableStatuses: groupableStatuses)) {
+      final postId = item['post_id'] as String?;
+      if (item['action_type'] != 'status_change' ||
+          postId == null ||
+          postId.isEmpty) {
         slots.add(_ActivityFeedSlot.single(item));
         continue;
       }
 
-      final userId = item['user_id'] as String;
-      final status = (item['metadata'] as Map)['status'] as String;
-      final itemDate = entry.date!;
-      final key = '$userId|$status';
-
-      final currentGroup = activeGroups[key];
-      if (currentGroup != null &&
-          currentGroup.lastDate.difference(itemDate).abs() <= maxGap) {
-        currentGroup.add(item, itemDate);
+      final existing = byPostId[postId];
+      if (existing != null) {
+        existing.add(item);
       } else {
-        final newGroup = _ActivityGroupBuilder(
-          userId: userId,
-          status: status,
-          firstItem: item,
-          firstDate: itemDate,
-        );
-        activeGroups[key] = newGroup;
-        slots.add(_ActivityFeedSlot.group(newGroup));
+        final group = _ActivityGroupBuilder(postId: postId, firstItem: item);
+        byPostId[postId] = group;
+        slots.add(_ActivityFeedSlot.group(group));
       }
     }
 
-    // 4. Materializar lista final: grupos de 1 entrada quedan igual que antes;
-    //    grupos de >= 2 entradas producen una sola publicación agrupada.
+    // 4. Materializar lista final: posts con 1 juego quedan como tarjeta simple;
+    //    posts con >= 2 juegos producen una tarjeta agrupada con su post_id y _post.
     return slots.map((slot) => slot.build()).toList();
   }
 
@@ -1077,27 +1169,24 @@ class _ActivityFeedSlot {
 
 class _ActivityGroupBuilder {
   _ActivityGroupBuilder({
-    required this.userId,
-    required this.status,
+    required this.postId,
     required Map<String, dynamic> firstItem,
-    required DateTime firstDate,
-  }) : items = [firstItem],
-       lastDate = firstDate;
+  }) : items = [firstItem];
 
-  final String userId;
-  final String status;
+  final String postId;
   final List<Map<String, dynamic>> items;
-  DateTime lastDate;
 
-  void add(Map<String, dynamic> item, DateTime itemDate) {
+  void add(Map<String, dynamic> item) {
     items.add(item);
-    lastDate = itemDate;
   }
 
   Map<String, dynamic> build() {
     if (items.length < 2) return items.first;
 
     final first = items.first;
+    final userId = first['user_id'] as String?;
+    final firstMeta = first['metadata'] as Map?;
+    final status = firstMeta?['status'] as String?;
     final activityIds = <String>[];
     final games = <Map<String, dynamic>>[];
     final seenGameIds = <dynamic>{};
@@ -1115,6 +1204,7 @@ class _ActivityGroupBuilder {
       final gameMap = <String, dynamic>{
         if (gId != null) 'igdb_id': gId,
         'title': 'Juego desconocido',
+        'review_id': it['review_id'] ?? (it['metadata'] as Map?)?['review_id'],
         ...?rawGameMap,
       };
       games.add(gameMap);
@@ -1122,9 +1212,10 @@ class _ActivityGroupBuilder {
 
     if (games.length < 2) return first;
 
-    final firstMeta = first['metadata'] as Map?;
     return <String, dynamic>{
       'id': first['id'],
+      'post_id': postId,
+      '_post': first['_post'],
       'user_id': userId,
       'action_type': 'status_change',
       'created_at': first['created_at'],
@@ -1133,7 +1224,7 @@ class _ActivityGroupBuilder {
       'game_id': first['game_id'],
       'metadata': <String, dynamic>{
         if (firstMeta != null) ...Map<String, dynamic>.from(firstMeta),
-        'status': status,
+        if (status != null) 'status': status,
       },
       '_is_group': true,
       '_grouped_items': List<Map<String, dynamic>>.unmodifiable(items),

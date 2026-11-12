@@ -4,7 +4,6 @@ import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:corpus/utils/comment_thread_utils.dart';
 import 'package:corpus/utils/format_utils.dart';
 import '../../widgets/corpus_network_image.dart';
 import 'package:corpus/routes/corpus_router.dart';
@@ -12,23 +11,21 @@ import '../library/game_details_screen.dart';
 import '../library/review_modal.dart';
 import '../../widgets/full_screen_gallery.dart';
 import '../../widgets/achievement_toast.dart';
-import '../../widgets/mention_text.dart';
 import '../../models/models.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/services.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
-import '../../services/igdb_service.dart';
 import '../../widgets/coop_badge.dart';
 import 'review_details/review_details_controller.dart';
+import 'widgets/comment_composer.dart';
+import 'widgets/comment_thread_section.dart';
 
 class ReviewDetailsScreen extends StatefulWidget {
   final Game gameData;
   final Map<String, dynamic>? userData;
   final Map<String, dynamic> reviewData;
+  final String? postId;
   final bool focusComment;
 
   const ReviewDetailsScreen({
@@ -36,6 +33,7 @@ class ReviewDetailsScreen extends StatefulWidget {
     required this.gameData,
     required this.userData,
     required this.reviewData,
+    this.postId,
     this.focusComment = false,
   });
 
@@ -57,8 +55,6 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   int get _likesCount => _controller.likesCount;
   bool get _hasLiked => _controller.hasLiked;
   List<Map<String, dynamic>> get _comments => _controller.comments;
-  List<Map<String, dynamic>> get _orderedComments =>
-      orderCommentsThreaded(_comments);
   bool get _isSubmitting => _controller.isSubmitting;
   List<Map<String, dynamic>> get _partnersData => _controller.partnersData;
 
@@ -68,6 +64,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     _controller = ReviewDetailsController(
       initialReviewData: widget.reviewData,
       game: widget.gameData,
+      postId: widget.postId,
     );
     _controller.fetchInteractions();
     _controller.fetchPartner();
@@ -121,35 +118,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     }
   }
 
-  Future<void> _deleteComment(String commentId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: const Text('Eliminar comentario'),
-        content: const Text(
-          '¿Estás seguro de que quieres eliminar este comentario?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
+  Future<void> _deleteComment(String commentId, {String? imageUrl}) async {
     try {
-      await _controller.deleteComment(commentId);
+      await _controller.deleteComment(commentId, imageUrl: imageUrl);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -194,282 +165,6 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
         '',
       );
     });
-  }
-
-  /// Delega en [MentionText] el renderizado de texto con menciones `@usuario`.
-  Widget _buildCommentContent(String text) => MentionText(text: text);
-
-  /// Tarjeta contenedora con recuadro relleno para un comentario o respuesta.
-  Widget _buildCommentCard({
-    required Map<String, dynamic> comment,
-    required String? currentUserId,
-    required bool isDesktop,
-  }) {
-    final user = comment['users'] as Map<String, dynamic>?;
-    final isMyComment = comment['user_id'] == currentUserId;
-    final isReviewAuthor = widget.userData?['id'] != null &&
-        comment['user_id'] == widget.userData!['id'];
-    final threadDepth = comment['_thread_depth'] as int? ?? 0;
-    // Solo aplicamos sangría visual para el primer nivel de respuesta. A partir de
-    // ahí se mantiene la misma sangría para evitar desbordamiento en pantallas estrechas.
-    final visualThreadDepth = threadDepth > 1 ? 1 : threadDepth;
-    final isReply = visualThreadDepth > 0;
-
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final ext = theme.extension<CorpusThemeExtension>();
-    final borderRadius = ext?.radiusMedium ?? BorderRadius.circular(12);
-
-    final leftIndent = isReply ? (isDesktop ? 48.0 : 36.0) : 0.0;
-
-    return Padding(
-      padding: EdgeInsets.only(left: leftIndent),
-      child: Container(
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
-          borderRadius: borderRadius,
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      final uid = comment['user_id'];
-                      if (uid != null) {
-                        context.pushProfile(
-                          userId: uid,
-                        );
-                      }
-                    },
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: cs.surfaceContainerHighest,
-                      backgroundImage: user?['avatar_url'] != null
-                          ? NetworkImage(
-                              user!['avatar_url'],
-                            )
-                          : null,
-                      child: user?['avatar_url'] == null
-                          ? const CorpusTablerIcon(
-                              CorpusIconKind.Person,
-                              size: 16,
-                            )
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Fila superior: nombre, autor, fecha.
-                        // Padding a la derecha para no solapar con los botones fijados en la esquina.
-                        Padding(
-                          padding: EdgeInsets.only(
-                            right: isMyComment ? 64.0 : 36.0,
-                          ),
-                          child: GestureDetector(
-                            onTap: () {
-                              final uid = comment['user_id'];
-                              if (uid != null) {
-                                context.pushProfile(
-                                  userId: uid,
-                                );
-                              }
-                            },
-                            child: Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    user?['username'] ?? 'Usuario',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (isReviewAuthor) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5,
-                                      vertical: 1,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: cs.primary.withValues(
-                                        alpha: 0.15,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      'Autor',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: cs.primary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(width: 8),
-                                Text(
-                                  _formatCommentDate(comment['created_at']),
-                                  style: TextStyle(
-                                    color: cs.onSurfaceVariant,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        // Texto del comentario (ancho completo)
-                        if (comment['content'] != null &&
-                            comment['content'].toString().isNotEmpty)
-                          _buildCommentContent(comment['content']),
-                        if (comment['image_url'] != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: GestureDetector(
-                              onTap: () => showFullScreenGallery(
-                                context,
-                                [comment['image_url']],
-                                0,
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: CorpusNetworkImage(
-                                  url: comment['image_url'],
-                                  height: isDesktop ? 300 : 150,
-                                  fit: BoxFit.fitHeight,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (comment['attached_game'] != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: GestureDetector(
-                              onTap: () {
-                                final gameData = Map<String, dynamic>.from(
-                                  comment['attached_game'],
-                                );
-                                final isDesktop =
-                                    MediaQuery.of(context).size.width > 800;
-                                if (isDesktop) {
-                                  context.pushGameDetails(Game.fromMap(gameData));
-                                } else {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    useSafeArea: false,
-                                    enableDrag: true,
-                                    builder: (context) =>
-                                        DraggableScrollableSheet(
-                                      initialChildSize: 1.0,
-                                      minChildSize: 0.5,
-                                      maxChildSize: 1.0,
-                                      expand: false,
-                                      snap: true,
-                                      builder: (context, scrollController) =>
-                                          GameDetailsScreen(
-                                        gameData: Game.fromMap(gameData),
-                                        scrollController: scrollController,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
-                              child: Container(
-                                width: isDesktop ? 160 : 120,
-                                height: isDesktop ? 224 : 168,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: Theme.of(context).primaryColorDark,
-                                  image: (comment['attached_game']['cover_url'] !=
-                                              null ||
-                                          comment['attached_game']['cover'] !=
-                                              null)
-                                      ? DecorationImage(
-                                          image: NetworkImage(
-                                            comment['attached_game']
-                                                    ['cover_url'] ??
-                                                IGDBService.getCoverUrl(
-                                                  comment['attached_game']
-                                                      ['cover']?['image_id'],
-                                                ),
-                                          ),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-                                ),
-                                child: (comment['attached_game']['cover_url'] ==
-                                            null &&
-                                        comment['attached_game']['cover'] == null)
-                                    ? Center(
-                                        child: CorpusTablerIcon(
-                                          CorpusIconKind.VideogameAsset,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.54),
-                                        ),
-                                      )
-                                    : null,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Botones fijados en la esquina superior derecha
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: CorpusTablerIcon(
-                      CorpusIconKind.Reply,
-                      size: 18,
-                      color: cs.onSurfaceVariant,
-                    ),
-                    tooltip: 'Responder',
-                    onPressed: () => _startReply(comment),
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(4),
-                  ),
-                  if (isMyComment) ...[
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: CorpusTablerIcon(
-                        CorpusIconKind.DeleteOutline,
-                        size: 18,
-                        color: cs.error,
-                      ),
-                      tooltip: 'Eliminar',
-                      onPressed: () => _deleteComment(comment['id']),
-                      constraints: const BoxConstraints(),
-                      padding: const EdgeInsets.all(4),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _deleteReview(String reviewId) async {
@@ -626,7 +321,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
   String _getStatusText(String status) => GameStatus.labelForString(status);
 
-  CorpusIconKind _getStatusIcon(String status) => GameStatus.iconForString(status);
+  CorpusIconKind _getStatusIcon(String status) =>
+      GameStatus.iconForString(status);
 
   String _getCompletionTypeText(String type) {
     switch (type) {
@@ -695,7 +391,11 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
     );
   }
 
-  Widget _buildSubRatingBadge(String label, double rating, CorpusIconKind icon) {
+  Widget _buildSubRatingBadge(
+    String label,
+    double rating,
+    CorpusIconKind icon,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -707,7 +407,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CorpusTablerIcon(icon,
+          CorpusTablerIcon(
+            icon,
             size: 14,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -828,7 +529,9 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                           ? NetworkImage(avatarUrl)
                                           : null,
                                       child: avatarUrl == null
-                                          ? const CorpusTablerIcon(CorpusIconKind.Person)
+                                          ? const CorpusTablerIcon(
+                                              CorpusIconKind.Person,
+                                            )
                                           : null,
                                     ),
                                     const SizedBox(width: 12),
@@ -866,7 +569,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           IconButton(
-                                            icon: CorpusTablerIcon(CorpusIconKind.EditOutlined,
+                                            icon: CorpusTablerIcon(
+                                              CorpusIconKind.EditOutlined,
                                               color: Theme.of(
                                                 context,
                                               ).colorScheme.onSurfaceVariant,
@@ -875,7 +579,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             onPressed: _editReview,
                                           ),
                                           IconButton(
-                                            icon: CorpusTablerIcon(CorpusIconKind.DeleteOutline,
+                                            icon: CorpusTablerIcon(
+                                              CorpusIconKind.DeleteOutline,
                                               color: Theme.of(
                                                 context,
                                               ).colorScheme.onSurfaceVariant,
@@ -922,7 +627,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         final iconPath =
                                             pStyle['icon'] as String?;
                                         final fallbackIcon =
-                                            pStyle['fallbackIcon'] as CorpusIconKind?;
+                                            pStyle['fallbackIcon']
+                                                as CorpusIconKind?;
 
                                         Widget? customIcon;
                                         if (iconPath != null) {
@@ -933,7 +639,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                             color: pColor,
                                           );
                                         } else if (fallbackIcon != null) {
-                                          customIcon = CorpusTablerIcon(fallbackIcon,
+                                          customIcon = CorpusTablerIcon(
+                                            fallbackIcon,
                                             size: 14,
                                             color: pColor,
                                           );
@@ -1017,7 +724,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         ),
                                         child: coverUrl.isEmpty
                                             ? Center(
-                                                child: CorpusTablerIcon(CorpusIconKind.VideogameAsset,
+                                                child: CorpusTablerIcon(
+                                                  CorpusIconKind.VideogameAsset,
                                                   color: Theme.of(context)
                                                       .colorScheme
                                                       .onSurface
@@ -1039,7 +747,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         if (rating > 0) ...[
                                           Row(
                                             children: [
-                                              CorpusTablerIcon(CorpusIconKind.Star,
+                                              CorpusTablerIcon(
+                                                CorpusIconKind.Star,
                                                 color: Theme.of(
                                                   context,
                                                 ).colorScheme.secondary,
@@ -1096,7 +805,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         ],
                                         Row(
                                           children: [
-                                            CorpusTablerIcon(_getStatusIcon(status),
+                                            CorpusTablerIcon(
+                                              _getStatusIcon(status),
                                               size: 18,
                                               color: Theme.of(
                                                 context,
@@ -1196,13 +906,15 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                 else
                                   GridView.builder(
                                     shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
-                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      crossAxisSpacing: 8,
-                                      mainAxisSpacing: 8,
-                                      childAspectRatio: 16 / 9,
-                                    ),
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          crossAxisSpacing: 8,
+                                          mainAxisSpacing: 8,
+                                          childAspectRatio: 16 / 9,
+                                        ),
                                     itemCount: imageUrls.length,
                                     itemBuilder: (context, idx) {
                                       return GestureDetector(
@@ -1259,7 +971,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                           ),
                                           child: Row(
                                             children: [
-                                              CorpusTablerIcon(CorpusIconKind.AccessTime,
+                                              CorpusTablerIcon(
+                                                CorpusIconKind.AccessTime,
                                                 size: 16,
                                                 color: Theme.of(
                                                   context,
@@ -1284,7 +997,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                           ),
                                           child: Row(
                                             children: [
-                                              CorpusTablerIcon(CorpusIconKind.CalendarToday,
+                                              CorpusTablerIcon(
+                                                CorpusIconKind.CalendarToday,
                                                 size: 16,
                                                 color: Theme.of(
                                                   context,
@@ -1308,7 +1022,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                       if (progressPercent != null)
                                         Row(
                                           children: [
-                                            CorpusTablerIcon(CorpusIconKind.PieChart,
+                                            CorpusTablerIcon(
+                                              CorpusIconKind.PieChart,
                                               size: 16,
                                               color: Theme.of(
                                                 context,
@@ -1357,7 +1072,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                 children: [
                                   OutlinedButton.icon(
                                     onPressed: _toggleLike,
-                                    icon: CorpusTablerIcon(_hasLiked
+                                    icon: CorpusTablerIcon(
+                                      _hasLiked
                                           ? CorpusIconKind.ThumbUp
                                           : CorpusIconKind.ThumbUpAltOutlined,
                                       size: 18,
@@ -1409,10 +1125,10 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                   ),
                                   const SizedBox(width: 12),
                                   OutlinedButton.icon(
-                                    onPressed: () {
-                                      // TODO: Focus on text field
-                                    },
-                                    icon: const CorpusTablerIcon(CorpusIconKind.ChatBubbleOutline,
+                                    onPressed: () =>
+                                        _commentFocusNode.requestFocus(),
+                                    icon: const CorpusTablerIcon(
+                                      CorpusIconKind.ChatBubbleOutline,
                                       size: 18,
                                     ),
                                     label: Text(_comments.length.toString()),
@@ -1438,26 +1154,16 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
 
                               // Comments List
                               if (_comments.isNotEmpty) ...[
-                                const Text(
-                                  'Comentarios',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                ListView.separated(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: _orderedComments.length,
-                                  separatorBuilder: (context, index) =>
-                                      const SizedBox(height: 12),
-                                  itemBuilder: (context, index) =>
-                                      _buildCommentCard(
-                                    comment: _orderedComments[index],
-                                    currentUserId: currentUserId,
-                                    isDesktop: isDesktop,
-                                  ),
+                                CommentThreadSection(
+                                  comments: _comments,
+                                  currentUserId: currentUserId,
+                                  authorId: widget.userData?['id'] as String?,
+                                  onReply: _startReply,
+                                  onDeleteComment: (commentId, imageUrl) =>
+                                      _deleteComment(
+                                        commentId,
+                                        imageUrl: imageUrl,
+                                      ),
                                 ),
                                 const SizedBox(height: 24),
                               ],
@@ -1468,309 +1174,20 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                     ),
                     // Comentario input at the bottom
                     if (!_isLoading)
-                      Container(
-                        padding: EdgeInsets.only(
-                          left: 16,
-                          right: 16,
-                          top: 8,
-                          bottom: MediaQuery.of(context).padding.bottom + 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          border: Border(
-                            top: BorderSide(
-                              color: Theme.of(
-                                context,
-                              ).dividerColor.withValues(alpha: 0.1),
-                            ),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            if (_replyToCommentId != null)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        'Respondiendo a @$_replyToUsername',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const CorpusTablerIcon(CorpusIconKind.Close, size: 18),
-                                      onPressed: _clearReplyTarget,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (_commentImage != null)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  bottom: 8.0,
-                                  left: 16,
-                                ),
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: Theme.of(context)
-                                            .extension<CorpusThemeExtension>()!
-                                            .radiusSmall,
-                                        child: kIsWeb
-                                            ? CorpusNetworkImage(
-                                                url: _commentImage!.path,
-                                                height: 80,
-                                                width: 80,
-                                                fit: BoxFit.cover,
-                                              )
-                                            : Image.file(
-                                                File(_commentImage!.path),
-                                                height: 80,
-                                                width: 80,
-                                                fit: BoxFit.cover,
-                                              ),
-                                      ),
-                                      Positioned(
-                                        top: -8,
-                                        right: -8,
-                                        child: GestureDetector(
-                                          onTap: () => setState(
-                                            () => _commentImage = null,
-                                          ),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(2),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.red,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const CorpusTablerIcon(CorpusIconKind.Close,
-                                              color: Colors.white,
-                                              size: 16,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            if (_selectedGameForComment != null)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  bottom: 8.0,
-                                  left: 16,
-                                ),
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      Container(
-                                        width: 80,
-                                        height: 110,
-                                        decoration: BoxDecoration(
-                                          borderRadius: Theme.of(context)
-                                              .extension<
-                                                CorpusThemeExtension
-                                              >()!
-                                              .radiusSmall,
-                                          color: Theme.of(
-                                            context,
-                                          ).primaryColorDark,
-                                          image:
-                                              (_selectedGameForComment!['cover_url'] !=
-                                                      null ||
-                                                  _selectedGameForComment!['cover'] !=
-                                                      null)
-                                              ? DecorationImage(
-                                                  image: NetworkImage(
-                                                    _selectedGameForComment!['cover_url'] ??
-                                                        IGDBService.getCoverUrl(
-                                                          _selectedGameForComment!['cover']?['image_id'],
-                                                        ),
-                                                  ),
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : null,
-                                        ),
-                                        child:
-                                            (_selectedGameForComment!['cover_url'] ==
-                                                    null &&
-                                                _selectedGameForComment!['cover'] ==
-                                                    null)
-                                            ? Center(
-                                                child: CorpusTablerIcon(CorpusIconKind.VideogameAsset,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurface
-                                                      .withValues(alpha: 0.54),
-                                                ),
-                                              )
-                                            : null,
-                                      ),
-                                      Positioned(
-                                        top: -8,
-                                        right: -8,
-                                        child: GestureDetector(
-                                          onTap: () => setState(
-                                            () =>
-                                                _selectedGameForComment = null,
-                                          ),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(2),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.red,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const CorpusTablerIcon(CorpusIconKind.Close,
-                                              color: Colors.white,
-                                              size: 16,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surface,
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              padding: const EdgeInsets.only(
-                                left: 8,
-                                right: 16,
-                                top: 4,
-                                bottom: 4,
-                              ),
-                              child: Row(
-                                children: [
-                                  IconButton(
-                                    icon: CorpusTablerIcon(CorpusIconKind.AddPhotoAlternate,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                                    padding: const EdgeInsets.all(4),
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () async {
-                                      final picker = ImagePicker();
-                                      final file = await picker.pickImage(
-                                        source: ImageSource.gallery,
-                                        imageQuality: 70,
-                                        maxWidth: 1080,
-                                      );
-                                      if (file != null) {
-                                        setState(() => _commentImage = file);
-                                      }
-                                    },
-                                  ),
-                                  const SizedBox(width: 0),
-                                  IconButton(
-                                    icon: CorpusTablerIcon(CorpusIconKind.VideogameAsset,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                                    padding: const EdgeInsets.all(4),
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () async {
-                                      final game = await context.pushSearch(
-                                        isSelectionMode: true,
-                                      );
-                                      if (game != null) {
-                                        setState(() {
-                                          if (game is Game) {
-                                            _selectedGameForComment = game
-                                                .toMap();
-                                          } else if (game
-                                              is Map<String, dynamic>) {
-                                            _selectedGameForComment = game;
-                                          }
-                                        });
-                                      }
-                                    },
-                                  ),
-                                  Expanded(
-                                    child: Focus(
-                                      onKeyEvent: (node, event) {
-                                        final isDesktop =
-                                            MediaQuery.of(context).size.width >
-                                            800;
-                                        if (isDesktop &&
-                                            event is KeyDownEvent &&
-                                            event.logicalKey ==
-                                                LogicalKeyboardKey.enter &&
-                                            !HardwareKeyboard
-                                                .instance
-                                                .isShiftPressed) {
-                                          _submitComment();
-                                          return KeyEventResult.handled;
-                                        }
-                                        return KeyEventResult.ignored;
-                                      },
-                                      child: TextField(
-                                        focusNode: _commentFocusNode,
-                                        controller: _commentController,
-                                        textCapitalization:
-                                            TextCapitalization.sentences,
-                                        maxLength: 500,
-                                        decoration: InputDecoration(
-                                          hintText: 'Añadir un comentario...',
-                                          hintStyle: TextStyle(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.onSurfaceVariant,
-                                          ),
-                                          border: InputBorder.none,
-                                          counterText: '',
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 8,
-                                              ),
-                                        ),
-                                        maxLines: null,
-                                      ),
-                                    ),
-                                  ),
-                                  if (_isSubmitting)
-                                    const Padding(
-                                      padding: EdgeInsets.all(12.0),
-                                      child: SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    IconButton(
-                                      icon: CorpusTablerIcon(CorpusIconKind.Send,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                      ),
-                                      onPressed: _submitComment,
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                      CommentComposer(
+                        controller: _commentController,
+                        focusNode: _commentFocusNode,
+                        isSubmitting: _isSubmitting,
+                        onSubmit: _submitComment,
+                        replyToCommentId: _replyToCommentId,
+                        replyToUsername: _replyToUsername,
+                        onClearReply: _clearReplyTarget,
+                        selectedImage: _commentImage,
+                        onImageChanged: (img) =>
+                            setState(() => _commentImage = img),
+                        selectedGame: _selectedGameForComment,
+                        onGameChanged: (game) =>
+                            setState(() => _selectedGameForComment = game),
                       ),
                   ],
                 ),
@@ -1780,7 +1197,4 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
   }
 
   // _showImageFullScreen removed in favor of full_screen_gallery.dart
-
-  /// Formatea la fecha de un comentario en formato relativo, por ejemplo "hace 2 horas".
-  String _formatCommentDate(String? isoString) => formatDateRelative(isoString);
 }

@@ -477,6 +477,8 @@ void main() {
       required int gameId,
       String status = 'to_play',
       required String createdAt,
+      String? postId,
+      Map<String, dynamic>? postStats,
       String? title,
       Map<String, dynamic>? review,
       List<dynamic>? partners,
@@ -486,6 +488,8 @@ void main() {
         'action_type': 'status_change',
         'user_id': userId,
         'game_id': gameId,
+        if (postId != null) 'post_id': postId,
+        if (postStats != null) '_post': postStats,
         'created_at': createdAt,
         'metadata': {'status': status},
         'users': {'id': userId, 'display_name': 'User $userId'},
@@ -503,6 +507,7 @@ void main() {
       final single = makeStatusItem(
         id: 'a1',
         gameId: 10,
+        postId: 'post-1',
         status: 'to_play',
         createdAt: '2026-11-09T12:00:00Z',
       );
@@ -513,15 +518,24 @@ void main() {
       expect(ActivityRepository.isGroupedActivity(result.first), isFalse);
       expect(result.first['id'], 'a1');
       expect(result.first['game_id'], 10);
+      expect(result.first['post_id'], 'post-1');
     });
 
     test(
-      '5 entradas del mismo usuario y estado dentro de la ventana: un grupo de 5',
+      'varias entradas compartiendo post_id se agrupan en un post preservando _post y _games',
       () {
+        final statsMap = {
+          'post_id': 'post-group-1',
+          'likes_count': 4,
+          'comments_count': 2,
+          'liked_by_me': true,
+        };
         final items = [
           makeStatusItem(
             id: 'a5',
             gameId: 5,
+            postId: 'post-group-1',
+            postStats: statsMap,
             status: 'to_play',
             createdAt: '2026-11-09T12:40:00Z',
             title: 'Juego E',
@@ -529,6 +543,8 @@ void main() {
           makeStatusItem(
             id: 'a4',
             gameId: 4,
+            postId: 'post-group-1',
+            postStats: statsMap,
             status: 'to_play',
             createdAt: '2026-11-09T12:30:00Z',
             title: 'Juego D',
@@ -536,6 +552,8 @@ void main() {
           makeStatusItem(
             id: 'a3',
             gameId: 3,
+            postId: 'post-group-1',
+            postStats: statsMap,
             status: 'to_play',
             createdAt: '2026-11-09T12:20:00Z',
             title: 'Juego C',
@@ -543,6 +561,8 @@ void main() {
           makeStatusItem(
             id: 'a2',
             gameId: 2,
+            postId: 'post-group-1',
+            postStats: statsMap,
             status: 'to_play',
             createdAt: '2026-11-09T12:10:00Z',
             title: 'Juego B',
@@ -550,6 +570,8 @@ void main() {
           makeStatusItem(
             id: 'a1',
             gameId: 1,
+            postId: 'post-group-1',
+            postStats: statsMap,
             status: 'to_play',
             createdAt: '2026-11-09T12:00:00Z',
             title: 'Juego A',
@@ -561,65 +583,67 @@ void main() {
         expect(result.length, 1);
         final group = result.first;
         expect(ActivityRepository.isGroupedActivity(group), isTrue);
+        expect(group['post_id'], 'post-group-1');
+        expect(group['_post'], statsMap);
         expect(group['created_at'], '2026-11-09T12:40:00Z');
         expect((group['_games'] as List).length, 5);
-        expect(
-          ActivityRepository.activityIdsOf(group),
-          ['a5', 'a4', 'a3', 'a2', 'a1'],
-        );
+        expect(ActivityRepository.activityIdsOf(group), [
+          'a5',
+          'a4',
+          'a3',
+          'a2',
+          'a1',
+        ]);
       },
     );
 
-    test('mismo usuario con estados distintos: grupos separados', () {
+    test('entradas con post_id distintos o null se mantienen separadas', () {
       final items = [
         makeStatusItem(
           id: 'tp2',
           gameId: 2,
+          postId: 'post-a',
           status: 'to_play',
           createdAt: '2026-11-09T12:25:00Z',
         ),
         makeStatusItem(
-          id: 'wl2',
-          gameId: 20,
-          status: 'wishlist',
+          id: 'tp1',
+          gameId: 1,
+          postId: 'post-b',
+          status: 'to_play',
           createdAt: '2026-11-09T12:20:00Z',
         ),
         makeStatusItem(
-          id: 'tp1',
-          gameId: 1,
+          id: 'null1',
+          gameId: 3,
           status: 'to_play',
-          createdAt: '2026-11-09T12:10:00Z',
+          createdAt: '2026-11-09T12:15:00Z',
         ),
         makeStatusItem(
-          id: 'wl1',
-          gameId: 10,
-          status: 'wishlist',
-          createdAt: '2026-11-09T12:05:00Z',
+          id: 'null2',
+          gameId: 4,
+          status: 'to_play',
+          createdAt: '2026-11-09T12:10:00Z',
         ),
       ];
 
       final result = ActivityRepository.groupActivityItems(items);
 
-      expect(result.length, 2);
-      expect(ActivityRepository.isGroupedActivity(result[0]), isTrue);
-      expect((result[0]['metadata'] as Map)['status'], 'to_play');
-      expect(result[0]['created_at'], '2026-11-09T12:25:00Z');
-      expect((result[0]['_games'] as List).length, 2);
-
-      expect(ActivityRepository.isGroupedActivity(result[1]), isTrue);
-      expect((result[1]['metadata'] as Map)['status'], 'wishlist');
-      expect(result[1]['created_at'], '2026-11-09T12:20:00Z');
-      expect((result[1]['_games'] as List).length, 2);
+      expect(result.length, 4);
+      for (final item in result) {
+        expect(ActivityRepository.isGroupedActivity(item), isFalse);
+      }
     });
 
     test(
-      'agrupa por clave (no por adyacencia) aunque haya actividad de otros usuarios entre medias y ubica el grupo en la más reciente',
+      'agrupa por post_id aunque haya actividad de otros usuarios entre medias y ubica el grupo en la más reciente',
       () {
         final items = [
           makeStatusItem(
             id: 'u1_2',
             userId: 'u1',
             gameId: 2,
+            postId: 'post-u1',
             status: 'to_play',
             createdAt: '2026-11-09T14:30:00Z',
           ),
@@ -627,6 +651,7 @@ void main() {
             id: 'u2_1',
             userId: 'u2',
             gameId: 99,
+            postId: 'post-u2',
             status: 'playing',
             createdAt: '2026-11-09T14:15:00Z',
           ),
@@ -634,6 +659,7 @@ void main() {
             id: 'u1_1',
             userId: 'u1',
             gameId: 1,
+            postId: 'post-u1',
             status: 'to_play',
             createdAt: '2026-11-09T14:00:00Z',
           ),
@@ -654,146 +680,21 @@ void main() {
     );
 
     test(
-      'ventana temporal por hueco entre consecutivas: cadena con huecos <= 60m se une aunque el total supere 60m, y hueco > 60m parte el grupo',
-      () {
-        final items = [
-          // Grupo reciente: 15:30 -> 14:40 (50m) -> 13:50 (50m). Total = 100m, pero cada salto <= 60m
-          makeStatusItem(
-            id: 'g3',
-            gameId: 3,
-            status: 'to_play',
-            createdAt: '2026-11-09T15:30:00Z',
-          ),
-          makeStatusItem(
-            id: 'g2',
-            gameId: 2,
-            status: 'to_play',
-            createdAt: '2026-11-09T14:40:00Z',
-          ),
-          makeStatusItem(
-            id: 'g1',
-            gameId: 1,
-            status: 'to_play',
-            createdAt: '2026-11-09T13:50:00Z',
-          ),
-          // Salto de > 60m (de 13:50 a 12:00 hay 110m) -> queda fuera del grupo
-          makeStatusItem(
-            id: 'old1',
-            gameId: 99,
-            status: 'to_play',
-            createdAt: '2026-11-09T12:00:00Z',
-          ),
-        ];
-
-        final result = ActivityRepository.groupActivityItems(items);
-
-        expect(result.length, 2);
-        expect(ActivityRepository.isGroupedActivity(result[0]), isTrue);
-        expect((result[0]['_games'] as List).length, 3);
-        expect(ActivityRepository.isGroupedActivity(result[1]), isFalse);
-        expect(result[1]['id'], 'old1');
-      },
-    );
-
-    test(
-      'NO agrupa entradas con rating, comentario, fotos, partners, ni action_type reviewed/achievement, ni estados fuera de kGroupableFeedStatuses',
-      () {
-        final withRating = makeStatusItem(
-          id: 'r_rating',
-          gameId: 1,
-          status: 'beaten',
-          createdAt: '2026-11-09T12:50:00Z',
-          review: {'id': 'rev1', 'rating': 8.5},
-        );
-        final withComment = makeStatusItem(
-          id: 'r_comment',
-          gameId: 2,
-          status: 'beaten',
-          createdAt: '2026-11-09T12:45:00Z',
-          review: {'id': 'rev2', 'comment': 'Obra maestra'},
-        );
-        final withPhotos = makeStatusItem(
-          id: 'r_photos',
-          gameId: 3,
-          status: 'beaten',
-          createdAt: '2026-11-09T12:40:00Z',
-          review: {
-            'id': 'rev3',
-            'image_urls': ['https://example.com/shot.jpg'],
-          },
-        );
-        final withPartners = makeStatusItem(
-          id: 'r_partners',
-          gameId: 4,
-          status: 'playing',
-          createdAt: '2026-11-09T12:35:00Z',
-          partners: [
-            {'id': 'p1', 'username': 'coop_friend'},
-          ],
-        );
-        final abandoned1 = makeStatusItem(
-          id: 'ab1',
-          gameId: 5,
-          status: 'abandoned',
-          createdAt: '2026-11-09T12:30:00Z',
-        );
-        final abandoned2 = makeStatusItem(
-          id: 'ab2',
-          gameId: 6,
-          status: 'abandoned',
-          createdAt: '2026-11-09T12:25:00Z',
-        );
-        final reviewedItem = {
-          'id': 'rev_only',
-          'action_type': 'reviewed',
-          'user_id': 'u1',
-          'game_id': 7,
-          'created_at': '2026-11-09T12:20:00Z',
-          'metadata': {'status': 'beaten'},
-        };
-        final achievementItem = {
-          'id': 'ach_only',
-          'action_type': 'achievement',
-          'user_id': 'u1',
-          'game_id': 8,
-          'created_at': '2026-11-09T12:15:00Z',
-          'metadata': {'status': 'completed'},
-        };
-
-        final items = [
-          withRating,
-          withComment,
-          withPhotos,
-          withPartners,
-          abandoned1,
-          abandoned2,
-          reviewedItem,
-          achievementItem,
-        ];
-
-        final result = ActivityRepository.groupActivityItems(items);
-
-        expect(result.length, items.length);
-        for (final item in result) {
-          expect(ActivityRepository.isGroupedActivity(item), isFalse);
-        }
-      },
-    );
-
-    test(
-      'paginación y Realtime: rehace la agrupación sobre la lista acumulada sin partir grupos entre páginas e incorpora entradas nuevas',
+      'paginación y Realtime: rehace la agrupación sobre la lista acumulada sin partir grupos del mismo post_id',
       () {
         // Página 1 termina con 2 juegos del grupo
         final page1 = ActivityRepository.groupActivityItems([
           makeStatusItem(
             id: 'p1_2',
             gameId: 2,
+            postId: 'post-paginated',
             status: 'to_play',
             createdAt: '2026-11-09T12:20:00Z',
           ),
           makeStatusItem(
             id: 'p1_1',
             gameId: 1,
+            postId: 'post-paginated',
             status: 'to_play',
             createdAt: '2026-11-09T12:10:00Z',
           ),
@@ -801,17 +702,19 @@ void main() {
         expect(page1.length, 1);
         expect((page1.first['_games'] as List).length, 2);
 
-        // Página 2 trae 2 juegos más del mismo grupo (dentro de los 60 min)
+        // Página 2 trae 2 juegos más del mismo post_id
         final page2 = ActivityRepository.groupActivityItems([
           makeStatusItem(
             id: 'p2_2',
             gameId: 4,
+            postId: 'post-paginated',
             status: 'to_play',
             createdAt: '2026-11-09T12:00:00Z',
           ),
           makeStatusItem(
             id: 'p2_1',
             gameId: 3,
+            postId: 'post-paginated',
             status: 'to_play',
             createdAt: '2026-11-09T11:50:00Z',
           ),
@@ -825,10 +728,11 @@ void main() {
         expect(accumulated.length, 1);
         expect((accumulated.first['_games'] as List).length, 4);
 
-        // Llega una nueva entrada por Realtime a las 12:35
+        // Llega una nueva entrada por Realtime con el mismo post_id a las 12:35
         final realtimeNew = makeStatusItem(
           id: 'rt_1',
           gameId: 5,
+          postId: 'post-paginated',
           status: 'to_play',
           createdAt: '2026-11-09T12:35:00Z',
         );
@@ -849,12 +753,14 @@ void main() {
           makeStatusItem(
             id: 's2',
             gameId: 2,
+            postId: 'post-story',
             status: 'to_play',
             createdAt: '2026-11-09T12:10:00Z',
           ),
           makeStatusItem(
             id: 's1',
             gameId: 1,
+            postId: 'post-story',
             status: 'to_play',
             createdAt: '2026-11-09T12:00:00Z',
           ),
@@ -870,6 +776,52 @@ void main() {
           ActivityRepository.groupHasUnseenStory(group, {'s1', 's2'}),
           isFalse,
         );
+      },
+    );
+
+    test(
+      'mergeActivityItems conserva post_id más reciente y registra _merged_post_ids/_merged_posts',
+      () {
+        final newer = makeStatusItem(
+          id: 'sc-new',
+          gameId: 100,
+          postId: 'post-beaten',
+          postStats: {
+            'post_id': 'post-beaten',
+            'likes_count': 1,
+            'comments_count': 0,
+            'liked_by_me': false,
+          },
+          status: 'beaten',
+          createdAt: '2026-11-10T18:00:00Z',
+        );
+        final older = makeStatusItem(
+          id: 'sc-old',
+          gameId: 100,
+          postId: 'post-playing',
+          postStats: {
+            'post_id': 'post-playing',
+            'likes_count': 2,
+            'comments_count': 3,
+            'liked_by_me': false,
+          },
+          status: 'playing',
+          createdAt: '2026-11-10T10:00:00Z',
+        );
+
+        final merged = ActivityRepository.mergeActivityItems(
+          feedItems: [newer, older],
+          reviewsById: const {},
+          partnersByUserGame: const {},
+        );
+
+        expect(merged.length, 1);
+        expect(merged.first['post_id'], 'post-beaten');
+        expect(merged.first['_merged_post_ids'], ['post-playing']);
+        final mergedPosts = merged.first['_merged_posts'] as List;
+        expect(mergedPosts.length, 1);
+        expect(mergedPosts.first.postId, 'post-playing');
+        expect(mergedPosts.first.commentsCount, 3);
       },
     );
 

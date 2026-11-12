@@ -10,6 +10,7 @@ import '../../widgets/full_screen_gallery.dart';
 import '../../widgets/coop_badge.dart';
 import '../activity/activity_formatters.dart';
 import '../activity/activity_story_viewer.dart';
+import '../activity/widgets/post_action_bar.dart';
 import '../library/game_details_screen.dart';
 import '../../repositories/activity_repository.dart';
 import '../../widgets/corpus_network_image.dart';
@@ -102,7 +103,12 @@ class _ActivityScreenState extends State<ActivityScreen>
     }
 
     final groups = storyFriends
-        .map((f) => StoryGroup(userData: f, activities: _controller.userStories[f['id']]!))
+        .map(
+          (f) => StoryGroup(
+            userData: f,
+            activities: _controller.userStories[f['id']]!,
+          ),
+        )
         .toList();
 
     final viewedIds = viewedStoryIdsNotifier.value;
@@ -157,7 +163,8 @@ class _ActivityScreenState extends State<ActivityScreen>
 
   String _getStatusText(String status) => GameStatus.labelForString(status);
 
-  CorpusIconKind _getStatusIcon(String status) => GameStatus.iconForString(status);
+  CorpusIconKind _getStatusIcon(String status) =>
+      GameStatus.iconForString(status);
 
   String _getActionText(
     String actionType,
@@ -206,105 +213,6 @@ class _ActivityScreenState extends State<ActivityScreen>
     }
   }
 
-  void _openGroupedGamesSheet({
-    required String actorName,
-    required String? status,
-    required List<Map<String, dynamic>> games,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    final statusLabel = status != null ? _getStatusText(status) : 'Juegos';
-    final statusIcon = _getActionIcon('status_change', status);
-    final statusColor = _getActionColor('status_change', status, context);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      enableDrag: true,
-      backgroundColor: cs.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        minChildSize: 0.45,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, sheetScrollController) => Column(
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
-              child: Row(
-                children: [
-                  CorpusTablerIcon(statusIcon, size: 20, color: statusColor),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '$actorName · $statusLabel (${games.length})',
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const CorpusTablerIcon(CorpusIconKind.Close),
-                    onPressed: () => Navigator.of(sheetContext).pop(),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ValueListenableBuilder<bool>(
-                valueListenable: floatingMobileNavNotifier,
-                builder: (context, _, _) => GridView.builder(
-                  controller: sheetScrollController,
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    16,
-                    16,
-                    16 + getFloatingNavModalInset(context),
-                  ),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 140,
-                    childAspectRatio: IgdbConstants.coverAspectRatio,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemCount: games.length,
-                  itemBuilder: (context, idx) {
-                    final gMap = games[idx];
-                    final game = Game.fromMap(gMap);
-                    return GameCard(
-                      game: game,
-                      onReturn: () => _controller.refreshInPlace(),
-                      onTap: (_) {
-                        Navigator.of(sheetContext).pop();
-                        _openGameDetailsForMap(gMap);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildMoreGamesCard({
     required int extraCount,
     required VoidCallback onTap,
@@ -324,9 +232,7 @@ class _ActivityScreenState extends State<ActivityScreen>
         child: Container(
           decoration: BoxDecoration(
             borderRadius: radius,
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.5),
-            ),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
           ),
           alignment: Alignment.center,
           padding: const EdgeInsets.all(8),
@@ -358,11 +264,12 @@ class _ActivityScreenState extends State<ActivityScreen>
     );
   }
 
-  Widget _buildGroupedActivityCard(Map<String, dynamic> activity) {
+  Widget _buildGroupedActivityCard(Map<String, dynamic> activity, int index) {
     final userData = activity['users'] as Map<String, dynamic>? ?? {};
     final meta = activity['metadata'] as Map<String, dynamic>? ?? {};
     final status = meta['status'] as String?;
-    final games = (activity['_games'] as List?)
+    final games =
+        (activity['_games'] as List?)
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
         [];
@@ -375,6 +282,31 @@ class _ActivityScreenState extends State<ActivityScreen>
     final activityUserId =
         (userData['id'] as String?) ?? (activity['user_id'] as String?);
     final isOwnActivity = myId != null && myId == activityUserId;
+    final postId = activity['post_id'] as String?;
+    final stats = PostStats.fromDynamic(
+      activity['_post'],
+      fallbackPostId: postId,
+    );
+
+    void openGroupedDetails({bool focusComment = false}) {
+      if (postId == null) {
+        if (activityUserId != null) {
+          context.pushProfile(userId: activityUserId);
+        }
+        return;
+      }
+      context
+          .pushGroupedPostDetails(
+            postId: postId,
+            actorData: userData,
+            status: status,
+            createdAt: activity['created_at'] as String?,
+            initialGames: games,
+            initialStats: stats,
+            focusComment: focusComment,
+          )
+          .then((_) => _controller.refreshInPlace());
+    }
 
     final actorLabel = isOwnActivity ? 'Tú' : displayName;
     final actionText = ActivityFormatters.groupedActionText(
@@ -396,59 +328,50 @@ class _ActivityScreenState extends State<ActivityScreen>
     final extraCount = games.length - visibleGames.length;
     final stripCount = visibleGames.length + (extraCount > 0 ? 1 : 0);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => openGroupedDetails(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+            ),
           ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Cabecera: avatar + acción agrupada + tiempo ──
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  if (activityUserId != null) {
-                    context.pushProfile(userId: activityUserId);
-                  }
-                },
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      backgroundImage: avatarUrl != null
-                          ? NetworkImage(avatarUrl)
-                          : null,
-                      child: avatarUrl == null
-                          ? CorpusTablerIcon.user(size: 24)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Cabecera: avatar + acción agrupada + tiempo ──
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
                   onTap: () {
-                    if (games.length > 3) {
-                      _openGroupedGamesSheet(
-                        actorName: actorLabel,
-                        status: status,
-                        games: games,
-                      );
-                    } else if (activityUserId != null) {
+                    if (activityUserId != null) {
                       context.pushProfile(userId: activityUserId);
                     }
                   },
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        backgroundImage: avatarUrl != null
+                            ? NetworkImage(avatarUrl)
+                            : null,
+                        child: avatarUrl == null
+                            ? CorpusTablerIcon.user(size: 24)
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                  ),
+                ),
+                Expanded(
                   child: RichText(
                     text: TextSpan(
                       style: DefaultTextStyle.of(
@@ -481,65 +404,71 @@ class _ActivityScreenState extends State<ActivityScreen>
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              CorpusTablerIcon(actionIcon, size: 16, color: actionColor),
-              const SizedBox(width: 4),
-              Text(
-                dateStr,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                const SizedBox(width: 8),
+                CorpusTablerIcon(actionIcon, size: 16, color: actionColor),
+                const SizedBox(width: 4),
+                Text(
+                  dateStr,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // ── Tira horizontal de GameCards (3:4) + tarjeta "+N" ──
-          SizedBox(
-            height: 148,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              itemCount: stripCount,
-              separatorBuilder: (_, _) => const SizedBox(width: 10),
-              itemBuilder: (context, i) {
-                if (i < visibleGames.length) {
-                  final gMap = visibleGames[i];
-                  final game = Game.fromMap(gMap);
+            // ── Tira horizontal de GameCards (3:4) + tarjeta "+N" ──
+            SizedBox(
+              height: 148,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                itemCount: stripCount,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, i) {
+                  if (i < visibleGames.length) {
+                    final gMap = visibleGames[i];
+                    final game = Game.fromMap(gMap);
+                    return AspectRatio(
+                      aspectRatio: IgdbConstants.coverAspectRatio,
+                      child: GameCard(
+                        game: game,
+                        onReturn: () => _controller.refreshInPlace(),
+                        onTap: (_) => _openGameDetailsForMap(gMap),
+                      ),
+                    );
+                  }
                   return AspectRatio(
                     aspectRatio: IgdbConstants.coverAspectRatio,
-                    child: GameCard(
-                      game: game,
-                      onReturn: () => _controller.refreshInPlace(),
-                      onTap: (_) => _openGameDetailsForMap(gMap),
+                    child: _buildMoreGamesCard(
+                      extraCount: extraCount,
+                      onTap: () => openGroupedDetails(),
                     ),
                   );
-                }
-                return AspectRatio(
-                  aspectRatio: IgdbConstants.coverAspectRatio,
-                  child: _buildMoreGamesCard(
-                    extraCount: extraCount,
-                    onTap: () => _openGroupedGamesSheet(
-                      actorName: actorLabel,
-                      status: status,
-                      games: games,
-                    ),
-                  ),
-                );
-              },
+                },
+              ),
             ),
-          ),
-        ],
+            if (postId != null) ...[
+              const SizedBox(height: 12),
+              PostActionBar(
+                likesCount: stats?.likesCount ?? 0,
+                commentsCount: stats?.commentsCount ?? 0,
+                likedByMe: stats?.likedByMe ?? false,
+                onLikeTap: () => _controller.toggleLike(index),
+                onCommentTap: () => openGroupedDetails(focusComment: true),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildActivityCard(Map<String, dynamic> activity, int index) {
     if (ActivityRepository.isGroupedActivity(activity)) {
-      return _buildGroupedActivityCard(activity);
+      return _buildGroupedActivityCard(activity, index);
     }
 
     final userData = activity['users'] as Map<String, dynamic>? ?? {};
@@ -589,32 +518,40 @@ class _ActivityScreenState extends State<ActivityScreen>
     final comment =
         review?['comment'] as String? ?? meta['comment'] as String? ?? '';
     final List<dynamic> imageUrls = review?['image_urls'] ?? [];
-    final likes = review != null ? (review['review_likes'] as List?) ?? [] : [];
-    final comments = review != null
-        ? (review['review_comments'] as List?) ?? []
-        : [];
+    final postId =
+        (activity['post_id'] as String?) ??
+        PostStats.fromDynamic(review?['_post'])?.postId;
+    final stats = PostStats.fromDynamic(
+      activity['_post'] ?? review?['_post'],
+      fallbackPostId: postId,
+    );
+    final mergedPosts =
+        (activity['_merged_posts'] as List?)
+            ?.map((e) => PostStats.fromDynamic(e))
+            .whereType<PostStats>()
+            .where((p) => p.commentsCount > 0)
+            .toList() ??
+        const <PostStats>[];
+    final previousPostWithComments = mergedPosts.isNotEmpty
+        ? mergedPosts.first
+        : null;
     final replayCount = review?['replay_count'] ?? 0;
-    final hasLiked = likes.any((l) => l['user_id'] == myId);
     final isReview = review != null;
 
-    void openReview() {
-      if (review == null) return;
-      context
-          .pushReviewDetails(Game.fromMap(gameData), userData, review)
-          .then((_) => _controller.refreshInPlace());
-    }
-
-    void openReviewComments() {
+    void openReview({String? targetPostId, bool focusComment = false}) {
       if (review == null) return;
       context
           .pushReviewDetails(
             Game.fromMap(gameData),
             userData,
             review,
-            focusComment: true,
+            postId: targetPostId ?? postId,
+            focusComment: focusComment,
           )
           .then((_) => _controller.refreshInPlace());
     }
+
+    void openReviewComments() => openReview(focusComment: true);
 
     void openGameDetails() {
       final isDesktop = MediaQuery.of(context).size.width > 800;
@@ -648,13 +585,17 @@ class _ActivityScreenState extends State<ActivityScreen>
       final internalGameId = activity['game_id'] as int?;
 
       if (uId != null && internalGameId != null) {
-        final review = await ActivityRepository().fetchLatestReviewForUserAndGame(
-          uId,
-          internalGameId,
-        );
+        final review = await ActivityRepository()
+            .fetchLatestReviewForUserAndGame(uId, internalGameId);
         if (review != null && mounted) {
           context
-              .pushReviewDetails(Game.fromMap(gameData), userData, review)
+              .pushReviewDetails(
+                Game.fromMap(gameData),
+                userData,
+                review,
+                postId:
+                    postId ?? PostStats.fromDynamic(review['_post'])?.postId,
+              )
               .then((_) => _controller.refreshInPlace());
           return;
         }
@@ -797,7 +738,8 @@ class _ActivityScreenState extends State<ActivityScreen>
                           effectiveStatus != 'achievement')
                         Row(
                           children: [
-                            CorpusTablerIcon(_getStatusIcon(effectiveStatus),
+                            CorpusTablerIcon(
+                              _getStatusIcon(effectiveStatus),
                               size: 18,
                               color: Theme.of(
                                 context,
@@ -977,83 +919,44 @@ class _ActivityScreenState extends State<ActivityScreen>
                 ),
             ],
 
-            // ── Acciones (likes / comentarios) solo en reseñas ──
-            if (isReview) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  InkWell(
-                    onTap: () => _controller.toggleLike(index),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 4,
-                        horizontal: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          hasLiked
-                              ? CorpusTablerIcon.thumbUp(
-                                  size: 20,
-                                  color: Theme.of(context).colorScheme.primary,
-                                )
-                              : CorpusTablerIcon.thumbUpOff(
-                                  size: 20,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                ),
-                          const SizedBox(width: 6),
-                          Text(
-                            likes.length.toString(),
-                            style: TextStyle(
-                              color: hasLiked
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                              fontSize: 16,
-                              fontWeight: hasLiked
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
+            // ── Acciones (likes / comentarios) del post ──
+            if (isReview || postId != null) ...[
+              const SizedBox(height: 14),
+              PostActionBar(
+                likesCount: stats?.likesCount ?? 0,
+                commentsCount: stats?.commentsCount ?? 0,
+                likedByMe: stats?.likedByMe ?? false,
+                onLikeTap: () => _controller.toggleLike(index),
+                onCommentTap: isReview
+                    ? openReviewComments
+                    : handleStatusChangeTap,
+                trailing: (previousPostWithComments != null && isReview)
+                    ? TextButton(
+                        onPressed: () => openReview(
+                          targetPostId: previousPostWithComments.postId,
+                          focusComment: true,
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  InkWell(
-                    onTap: openReviewComments,
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 4,
-                        horizontal: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          CorpusTablerIcon.message(
-                            size: 20,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Ver comentarios del estado anterior (${previousPostWithComments.commentsCount})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
                             color: Theme.of(
                               context,
                             ).colorScheme.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            comments.length.toString(),
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                        ),
+                      )
+                    : null,
               ),
             ],
           ],
@@ -1168,7 +1071,8 @@ class _ActivityScreenState extends State<ActivityScreen>
 
                     final hasStory =
                         friendId != null &&
-                        (_controller.userStories[friendId]?.isNotEmpty ?? false);
+                        (_controller.userStories[friendId]?.isNotEmpty ??
+                            false);
 
                     final playingColor = Colors.greenAccent[400]!;
                     const onlineColor = Colors.blueAccent;
@@ -1281,99 +1185,103 @@ class _ActivityScreenState extends State<ActivityScreen>
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
-    if (_controller.isGuest) {
-      return Scaffold(
-        appBar: AppBar(title: const CorpusScreenTitle('Actividad')),
-        body: Center(
-          child: GuestLoginPrompt(
-            iconWidget: CorpusTablerIcon.users(
-              size: 56,
-              color: Theme.of(context).colorScheme.primary.withValues(
-                alpha: 0.6,
+        if (_controller.isGuest) {
+          return Scaffold(
+            appBar: AppBar(title: const CorpusScreenTitle('Actividad')),
+            body: Center(
+              child: GuestLoginPrompt(
+                iconWidget: CorpusTablerIcon.users(
+                  size: 56,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.6),
+                ),
+                message: 'Inicia sesión para ver la actividad de tus amigos.',
               ),
             ),
-            message: 'Inicia sesión para ver la actividad de tus amigos.',
-          ),
-        ),
-      );
-    }
+          );
+        }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const CorpusScreenTitle('Actividad'),
-        actions: [
-          IconButton(
-            icon: ValueListenableBuilder<int>(
-              valueListenable: unreadNotificationsCount,
-              builder: (context, count, _) => Badge(
-                isLabelVisible: count > 0,
-                label: Text(count.toString()),
-                child: const CorpusTablerIcon.bell(),
+        return Scaffold(
+          appBar: AppBar(
+            title: const CorpusScreenTitle('Actividad'),
+            actions: [
+              IconButton(
+                icon: ValueListenableBuilder<int>(
+                  valueListenable: unreadNotificationsCount,
+                  builder: (context, count, _) => Badge(
+                    isLabelVisible: count > 0,
+                    label: Text(count.toString()),
+                    child: const CorpusTablerIcon.bell(),
+                  ),
+                ),
+                tooltip: 'Notificaciones',
+                onPressed: () => context.pushNotificationsFeed(),
               ),
-            ),
-            tooltip: 'Notificaciones',
-            onPressed: () => context.pushNotificationsFeed(),
+              IconButton(
+                icon: Badge(
+                  isLabelVisible: _controller.pendingRequestsCount > 0,
+                  label: Text(_controller.pendingRequestsCount.toString()),
+                  child: const CorpusTablerIcon.users(),
+                ),
+                tooltip: 'Amigos',
+                onPressed: _openFriendsScreen,
+              ),
+            ],
           ),
-          IconButton(
-            icon: Badge(
-              isLabelVisible: _controller.pendingRequestsCount > 0,
-              label: Text(_controller.pendingRequestsCount.toString()),
-              child: const CorpusTablerIcon.users(),
-            ),
-            tooltip: 'Amigos',
-            onPressed: _openFriendsScreen,
-          ),
-        ],
-      ),
-      body: _controller.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: () async {
-                await _controller.fetchActivity(isRefresh: true);
-                await _fetchFriendsStrip();
-              },
-              child: _controller.activities.isEmpty
-                  ? ListView(
-                      controller: scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.only(
-                        bottom: getBottomSpacer(context),
-                      ),
+          body: _controller.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    await _controller.fetchActivity(isRefresh: true);
+                    await _fetchFriendsStrip();
+                  },
+                  child: _controller.activities.isEmpty
+                      ? ListView(
+                          controller: scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: EdgeInsets.only(
+                            bottom: getBottomSpacer(context),
+                          ),
 
-                      children: [
-                        _buildFriendsHeaderSection(),
-                        _buildEmptyState(),
-                      ],
-                    )
-                  : ListView.builder(
-                      controller: scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.only(
-                        bottom: getBottomSpacer(context),
-                      ),
+                          children: [
+                            _buildFriendsHeaderSection(),
+                            _buildEmptyState(),
+                          ],
+                        )
+                      : ListView.builder(
+                          controller: scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: EdgeInsets.only(
+                            bottom: getBottomSpacer(context),
+                          ),
 
-                      itemCount: _controller.activities.length + 1 + (hasMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return _buildFriendsHeaderSection();
-                        }
-                        final activityIndex = index - 1;
-                        if (activityIndex >= _controller.activities.length) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        }
-                        return _buildActivityCard(
-                          _controller.activities[activityIndex],
-                          activityIndex,
-                        );
-                      },
-                    ),
-            ),
-    );
+                          itemCount:
+                              _controller.activities.length +
+                              1 +
+                              (hasMore ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              return _buildFriendsHeaderSection();
+                            }
+                            final activityIndex = index - 1;
+                            if (activityIndex >=
+                                _controller.activities.length) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+                            return _buildActivityCard(
+                              _controller.activities[activityIndex],
+                              activityIndex,
+                            );
+                          },
+                        ),
+                ),
+        );
       },
     );
   }

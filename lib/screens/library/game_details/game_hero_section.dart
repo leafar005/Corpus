@@ -178,7 +178,12 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       Navigator.of(context, rootNavigator: true).pop();
 
       if (data.review != null) {
-        context.pushReviewDetails(widget.gameData, user, data.review!);
+        context.pushReviewDetails(
+          widget.gameData,
+          user,
+          data.review!,
+          postId: PostStats.fromDynamic(data.review!['_post'])?.postId,
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -307,7 +312,10 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                               ? NetworkImage(avatarUrl)
                               : null,
                           child: avatarUrl == null
-                              ? const CorpusTablerIcon(CorpusIconKind.Person, size: 34)
+                              ? const CorpusTablerIcon(
+                                  CorpusIconKind.Person,
+                                  size: 34,
+                                )
                               : null,
                         ),
                         Positioned(
@@ -320,9 +328,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                                   width: 28,
                                   height: 28,
                                   decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFFF2EAE9,
-                                    ),
+                                    color: const Color(0xFFF2EAE9),
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                       color: Colors.black12,
@@ -476,7 +482,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                       width: 50,
                       height: 50,
                       child: Center(
-                        child: CorpusTablerIcon(CorpusIconKind.MoreVert,
+                        child: CorpusTablerIcon(
+                          CorpusIconKind.MoreVert,
                           color: menuIconColor,
                           size: 20,
                         ),
@@ -492,7 +499,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                       width: 50,
                       height: 50,
                       child: Center(
-                        child: CorpusTablerIcon(CorpusIconKind.MoreVert,
+                        child: CorpusTablerIcon(
+                          CorpusIconKind.MoreVert,
                           color: menuIconColor,
                           size: 20,
                         ),
@@ -593,7 +601,11 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 value: 'delete',
                 child: Row(
                   children: [
-                    CorpusTablerIcon(CorpusIconKind.Delete, size: 20, color: Colors.redAccent),
+                    CorpusTablerIcon(
+                      CorpusIconKind.Delete,
+                      size: 20,
+                      color: Colors.redAccent,
+                    ),
                     SizedBox(width: 8),
                     Text(
                       'Borrar juego',
@@ -686,7 +698,10 @@ class _GameHeroSectionState extends State<GameHeroSection> {
               ? CorpusNetworkImage(url: coverUrl, fit: BoxFit.cover)
               : Container(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  child: const CorpusTablerIcon(CorpusIconKind.VideogameAsset, size: 50),
+                  child: const CorpusTablerIcon(
+                    CorpusIconKind.VideogameAsset,
+                    size: 50,
+                  ),
                 ),
         ),
       ),
@@ -706,7 +721,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CorpusTablerIcon(CorpusIconKind.Business,
+          CorpusTablerIcon(
+            CorpusIconKind.Business,
             size: 16,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
           ),
@@ -746,7 +762,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CorpusTablerIcon(CorpusIconKind.Storefront,
+                CorpusTablerIcon(
+                  CorpusIconKind.Storefront,
                   size: 16,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
                 ),
@@ -809,7 +826,10 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 if (widget.originalGame != null)
                   ActionChip(
                     label: const Text('Ver juego original'),
-                    avatar: const CorpusTablerIcon(CorpusIconKind.ArrowForward, size: 16),
+                    avatar: const CorpusTablerIcon(
+                      CorpusIconKind.ArrowForward,
+                      size: 16,
+                    ),
                     onPressed: () {
                       if (widget.onNavigateToGame != null) {
                         widget.onNavigateToGame!(widget.originalGame!);
@@ -877,7 +897,8 @@ class _GameHeroSectionState extends State<GameHeroSection> {
         const SizedBox(height: 4),
         Row(
           children: [
-            CorpusTablerIcon(CorpusIconKind.CalendarToday,
+            CorpusTablerIcon(
+              CorpusIconKind.CalendarToday,
               size: 16,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
@@ -924,7 +945,10 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             backgroundColor: theme.scaffoldBackgroundColor,
             title: name,
             leading: IconButton(
-              icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack, color: Colors.white),
+              icon: const CorpusTablerIcon(
+                CorpusIconKind.ArrowBack,
+                color: Colors.white,
+              ),
               onPressed: () =>
                   AppNavigationController.instance.requestBack(context),
             ),

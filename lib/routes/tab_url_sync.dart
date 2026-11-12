@@ -52,6 +52,11 @@ TabDeepRoute? deepRouteFromRouteSettings(RouteSettings settings) {
       final id = args.reviewData['id'];
       return id == null ? null : ReviewDeepRoute(id.toString());
 
+    case AppRoutes.groupedPostDetails:
+      final args = settings.arguments;
+      if (args is! GroupedPostDetailsArgs) return null;
+      return GroupedPostDeepRoute(args.postId);
+
     case AppRoutes.bundleDetails:
       final args = settings.arguments;
       if (args is! BundleDetailsArgs) return null;

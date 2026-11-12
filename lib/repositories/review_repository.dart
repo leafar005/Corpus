@@ -124,7 +124,7 @@ class ReviewRepository {
   }) async {
     final response = await _client
         .from('reviews')
-        .select('*, review_likes(user_id), review_comments(id)')
+        .select('*')
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .order('created_at', ascending: false);
@@ -593,12 +593,44 @@ class ReviewRepository {
     }
 
     if (reviewIds.isNotEmpty) {
+      final postIdsForReviews = <String>{};
+      final feedPostsResp = await _client
+          .from('activity_feed')
+          .select('post_id')
+          .inFilter('review_id', reviewIds);
+      for (final row in feedPostsResp) {
+        final pid = row['post_id'] as String?;
+        if (pid != null && pid.isNotEmpty) postIdsForReviews.add(pid);
+      }
+      final implicitPostsResp = await _client
+          .from('feed_posts')
+          .select('id')
+          .inFilter('review_id', reviewIds);
+      for (final row in implicitPostsResp) {
+        final pid = row['id'] as String?;
+        if (pid != null && pid.isNotEmpty) postIdsForReviews.add(pid);
+      }
+      if (postIdsForReviews.isNotEmpty) {
+        final commentsByPost = await _client
+            .from('review_comments')
+            .select('image_url')
+            .inFilter('post_id', postIdsForReviews.toList());
+        for (var c in commentsByPost) {
+          if (c['image_url'] != null &&
+              !allImageUrls.contains(c['image_url'])) {
+            allImageUrls.add(c['image_url']);
+          }
+        }
+      }
+
       final commentsResponse = await _client
           .from('review_comments')
           .select('image_url')
           .inFilter('review_id', reviewIds);
       for (var c in commentsResponse) {
-        if (c['image_url'] != null) allImageUrls.add(c['image_url']);
+        if (c['image_url'] != null && !allImageUrls.contains(c['image_url'])) {
+          allImageUrls.add(c['image_url']);
+        }
       }
     }
 
@@ -650,6 +682,42 @@ class ReviewRepository {
       if (!urlsToDelete.contains(url.toString())) {
         urlsToDelete.add(url.toString());
       }
+    }
+
+    final postIdsForReview = <String>{};
+    try {
+      final feedPostsResp = await _client
+          .from('activity_feed')
+          .select('post_id')
+          .eq('review_id', reviewId);
+      for (final row in feedPostsResp) {
+        final pid = row['post_id'] as String?;
+        if (pid != null && pid.isNotEmpty) postIdsForReview.add(pid);
+      }
+      final implicitPostsResp = await _client
+          .from('feed_posts')
+          .select('id')
+          .eq('review_id', reviewId);
+      for (final row in implicitPostsResp) {
+        final pid = row['id'] as String?;
+        if (pid != null && pid.isNotEmpty) postIdsForReview.add(pid);
+      }
+      if (postIdsForReview.isNotEmpty) {
+        final commentsByPost = await _client
+            .from('review_comments')
+            .select('image_url')
+            .inFilter('post_id', postIdsForReview.toList());
+        for (var c in commentsByPost) {
+          if (c['image_url'] != null &&
+              !urlsToDelete.contains(c['image_url'])) {
+            urlsToDelete.add(c['image_url']);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint(
+        '[ReviewRepository] Error recogiendo imágenes por post_id al borrar reseña: $e',
+      );
     }
 
     final commentsResponse = await _client
@@ -819,9 +887,7 @@ class ReviewRepository {
       final metadata = bestActivity['metadata'] as Map<String, dynamic>? ?? {};
       final reviewId = bestActivity['review_id'] ?? metadata['review_id'];
       try {
-        final query = _client
-            .from('reviews')
-            .select('*, review_likes(user_id), review_comments(id)');
+        final query = _client.from('reviews').select('*');
 
         final reviewResponse = await (reviewId != null
             ? query.eq('id', reviewId).maybeSingle()
@@ -830,7 +896,11 @@ class ReviewRepository {
                   .eq('game_id', parsedGameId)
                   .maybeSingle());
 
-        review = reviewResponse;
+        if (reviewResponse != null) {
+          final revMap = Map<String, dynamic>.from(reviewResponse);
+          await _injectReviewPostStats([revMap]);
+          review = revMap;
+        }
       } catch (e) {
         debugPrint('[ReviewRepository] Error cargando reseña existente: $e');
       }
@@ -1054,6 +1124,39 @@ class ReviewRepository {
 
   // ── Profile tab queries ────────────────────────────────────────────────────
 
+  Future<void> _injectReviewPostStats(
+    List<Map<String, dynamic>> reviews,
+  ) async {
+    final reviewIds = reviews
+        .map((r) => r['id'] as String?)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    if (reviewIds.isEmpty) return;
+
+    try {
+      final rows =
+          await _client.rpc(
+                'get_review_post_stats',
+                params: {'p_review_ids': reviewIds},
+              )
+              as List;
+      final statsByReviewId = {
+        for (final r in rows.cast<Map<String, dynamic>>())
+          r['review_id'] as String: PostStats.fromMap(r),
+      };
+      for (final r in reviews) {
+        final id = r['id'] as String?;
+        if (id != null && statsByReviewId.containsKey(id)) {
+          r['_post'] = statsByReviewId[id];
+        }
+      }
+    } catch (e) {
+      debugPrint('[ReviewRepository] Error cargando stats de posts: $e');
+    }
+  }
+
   /// Fetches a page of reviews with written comments for the profile Reviews tab.
   /// Returns reviews that have a non-empty comment, ordered by created_at desc.
   Future<List<Map<String, dynamic>>> fetchProfileReviewsPage({
@@ -1064,7 +1167,7 @@ class ReviewRepository {
   }) async {
     var query = _client
         .from('reviews')
-        .select('*, games!inner(*), review_likes(user_id), review_comments(id)')
+        .select('*, games!inner(*)')
         .eq('user_id', userId)
         .not('comment', 'is', null)
         .neq('comment', '');
@@ -1077,9 +1180,11 @@ class ReviewRepository {
         .order('created_at', ascending: false)
         .range(from, to);
 
-    return List<Map<String, dynamic>>.from(res)
-        .where((r) => r['games'] != null)
-        .toList();
+    final list = List<Map<String, dynamic>>.from(
+      res,
+    ).where((r) => r['games'] != null).toList();
+    await _injectReviewPostStats(list);
+    return list;
   }
 
   /// Fetches a page of journal entries (playing/beaten/completed) for the Journal tab.
@@ -1111,9 +1216,9 @@ class ReviewRepository {
         .order(orderColumn, ascending: false)
         .range(from, to);
 
-    return List<Map<String, dynamic>>.from(res)
-        .where((r) => r['games'] != null)
-        .toList();
+    return List<Map<String, dynamic>>.from(
+      res,
+    ).where((r) => r['games'] != null).toList();
   }
 
   /// Fetches available years from journal entries for the year filter.

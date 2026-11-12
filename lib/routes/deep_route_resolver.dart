@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:corpus/screens/activity/grouped_post_details_screen.dart';
 import 'package:corpus/screens/activity/review_details_screen.dart';
 import 'package:corpus/screens/library/game_details_screen.dart';
 import 'package:corpus/screens/profile/achievements_screen.dart';
@@ -93,7 +94,17 @@ abstract final class DeepRouteResolver {
             gameData: args.gameData,
             userData: args.userData,
             reviewData: args.reviewData,
+            postId: args.postId,
           ),
+        );
+
+      case GroupedPostDeepRoute(:final postId):
+        return MaterialPageRoute(
+          settings: RouteSettings(
+            name: AppRoutes.groupedPostDetails,
+            arguments: GroupedPostDetailsArgs(postId: postId),
+          ),
+          builder: (_) => GroupedPostDetailsScreen(postId: postId),
         );
 
       case AchievementsDeepRoute(:final userId):
@@ -167,6 +178,7 @@ abstract final class DeepRouteResolver {
   /// usa [DeepLinkService] para notificaciones de comentarios/respuestas.
   static Future<ReviewDetailsArgs?> fetchReviewById(
     String reviewId, {
+    String? postId,
     bool focusComment = false,
   }) async {
     try {
@@ -182,6 +194,7 @@ abstract final class DeepRouteResolver {
             ? Map<String, dynamic>.from(res['users'])
             : null,
         reviewData: res,
+        postId: postId,
         focusComment: focusComment,
       );
     } catch (e) {

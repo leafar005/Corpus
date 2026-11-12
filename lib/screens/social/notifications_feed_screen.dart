@@ -111,6 +111,9 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
   Future<void> _onNotificationTap(Map<String, dynamic> notification) async {
     final type = notification['type'] as String?;
     final reviewId = notification['review_id'] as String?;
+    final postId = notification['post_id'] as String?;
+    final meta = notification['metadata'] as Map<String, dynamic>? ?? {};
+    final gamesCount = (meta['games_count'] as num?)?.toInt() ?? 0;
     final actor = notification['users'] as Map<String, dynamic>?;
     final actorId = actor?['id'] as String?;
 
@@ -118,6 +121,14 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
       case 'like':
       case 'comment':
       case 'reply':
+        final focusComment = type == 'comment' || type == 'reply';
+        if ((gamesCount > 1 || reviewId == null) && postId != null) {
+          context.pushGroupedPostDetails(
+            postId: postId,
+            focusComment: focusComment,
+          );
+          return;
+        }
         if (reviewId == null) return;
         final nav = await _repo.fetchReviewForNavigation(reviewId);
         if (nav == null || !mounted) return;
@@ -125,7 +136,8 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
           Game.fromMap(nav.gameData),
           nav.userData,
           nav.reviewData,
-          focusComment: type == 'comment' || type == 'reply',
+          postId: postId,
+          focusComment: focusComment,
         );
         break;
       case 'friend_request':
@@ -144,13 +156,20 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
         : 'Alguien';
     final meta = n['metadata'] as Map<String, dynamic>? ?? {};
     final gameTitle = meta['game_title'] as String?;
+    final gamesCount = (meta['games_count'] as num?)?.toInt() ?? 0;
 
     switch (n['type']) {
       case 'like':
+        if (gamesCount > 1) {
+          return '$name le dio like a tu publicación de $gamesCount juegos';
+        }
         return gameTitle != null
             ? '$name le dio like a tu reseña de $gameTitle'
             : '$name le dio like a tu reseña';
       case 'comment':
+        if (gamesCount > 1) {
+          return '$name comentó tu publicación de $gamesCount juegos';
+        }
         return gameTitle != null
             ? '$name comentó tu reseña de $gameTitle'
             : '$name comentó tu reseña';
@@ -209,7 +228,9 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
                   backgroundImage: avatarUrl != null
                       ? NetworkImage(avatarUrl)
                       : null,
-                  child: avatarUrl == null ? const CorpusTablerIcon(CorpusIconKind.Person) : null,
+                  child: avatarUrl == null
+                      ? const CorpusTablerIcon(CorpusIconKind.Person)
+                      : null,
                 ),
                 Positioned(
                   bottom: -2,
@@ -221,7 +242,8 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
                       color: cs.primary,
                       border: Border.all(color: cs.surface, width: 2),
                     ),
-                    child: CorpusTablerIcon(_notificationIcon(n['type'] as String?),
+                    child: CorpusTablerIcon(
+                      _notificationIcon(n['type'] as String?),
                       size: 12,
                       color: cs.onPrimary,
                     ),

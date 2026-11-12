@@ -16,3 +16,4 @@ export 'genre_time_stat.dart';
 export 'user_game_platform.dart';
 export 'game_group.dart';
 export 'game_group_item.dart';
+export 'post_stats.dart';

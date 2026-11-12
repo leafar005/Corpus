@@ -82,6 +82,23 @@ final class ReviewDeepRoute extends TabDeepRoute {
   String toString() => 'ReviewDeepRoute($reviewId)';
 }
 
+/// Detalle de una publicación agrupada (`feed_posts.id`).
+final class GroupedPostDeepRoute extends TabDeepRoute {
+  final String postId;
+  const GroupedPostDeepRoute(this.postId);
+
+  @override
+  List<String> toSegments() => ['post', postId];
+
+  @override
+  bool operator ==(Object other) =>
+      other is GroupedPostDeepRoute && other.postId == postId;
+  @override
+  int get hashCode => postId.hashCode;
+  @override
+  String toString() => 'GroupedPostDeepRoute($postId)';
+}
+
 /// Logros de un usuario. `userId == null` → los del propio usuario.
 final class AchievementsDeepRoute extends TabDeepRoute {
   final String? userId;
@@ -170,6 +187,10 @@ final class BundleDeepRoute extends TabDeepRoute {
   String toString() => 'BundleDeepRoute($bundleId)';
 }
 
+final RegExp _uuidPattern = RegExp(
+  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+);
+
 /// Interpreta los segmentos posteriores a la raíz de una pestaña (ver
 /// [AppRoutes.subSegmentsFromPublicPath]). Devuelve `null` si no reconoce el
 /// patrón, en cuyo caso la pestaña simplemente se queda en su raíz.
@@ -182,6 +203,11 @@ TabDeepRoute? parseTabDeepRoute(List<String> segments) {
   if (segments[0] == 'resena') {
     if (segments.length < 2 || segments[1].isEmpty) return null;
     return ReviewDeepRoute(segments[1]);
+  }
+
+  if (segments[0] == 'post') {
+    if (segments.length < 2 || segments[1].isEmpty) return null;
+    return GroupedPostDeepRoute(segments[1]);
   }
 
   if (segments[0] == 'bundle') {
@@ -205,6 +231,9 @@ TabDeepRoute? parseTabDeepRoute(List<String> segments) {
   }
 
   final userId = segments[0];
+  if (!_uuidPattern.hasMatch(userId)) {
+    return null;
+  }
   if (segments.length >= 2 && segments[1] == 'logros') {
     if (segments.length >= 3) {
       return AchievementGamesDeepRoute(

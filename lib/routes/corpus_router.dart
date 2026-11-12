@@ -3,6 +3,7 @@ import 'package:corpus/widgets/corpus_icon_kind.dart';
 
 import '../models/models.dart';
 
+import '../screens/activity/grouped_post_details_screen.dart';
 import '../screens/activity/review_details_screen.dart';
 import '../screens/appearance_screen.dart';
 import '../screens/design/design_screen.dart';
@@ -55,12 +56,34 @@ class ReviewDetailsArgs {
   final Game gameData;
   final Map<String, dynamic>? userData;
   final Map<String, dynamic> reviewData;
+  final String? postId;
   final bool focusComment;
 
   const ReviewDetailsArgs({
     required this.gameData,
     required this.userData,
     required this.reviewData,
+    this.postId,
+    this.focusComment = false,
+  });
+}
+
+class GroupedPostDetailsArgs {
+  final String postId;
+  final Map<String, dynamic>? actorData;
+  final String? status;
+  final String? createdAt;
+  final List<Map<String, dynamic>>? initialGames;
+  final PostStats? initialStats;
+  final bool focusComment;
+
+  const GroupedPostDetailsArgs({
+    required this.postId,
+    this.actorData,
+    this.status,
+    this.createdAt,
+    this.initialGames,
+    this.initialStats,
     this.focusComment = false,
   });
 }
@@ -183,6 +206,22 @@ abstract final class CorpusRouter {
             gameData: args.gameData,
             userData: args.userData,
             reviewData: args.reviewData,
+            postId: args.postId,
+            focusComment: args.focusComment,
+          ),
+        );
+
+      case AppRoutes.groupedPostDetails:
+        final args = settings.arguments! as GroupedPostDetailsArgs;
+        return MaterialPageRoute<T>(
+          settings: settings,
+          builder: (_) => GroupedPostDetailsScreen(
+            postId: args.postId,
+            actorData: args.actorData,
+            status: args.status,
+            createdAt: args.createdAt,
+            initialGames: args.initialGames,
+            initialStats: args.initialStats,
             focusComment: args.focusComment,
           ),
         );
@@ -436,6 +475,7 @@ extension CorpusNavigation on BuildContext {
     Game gameData,
     Map<String, dynamic>? userData,
     Map<String, dynamic> reviewData, {
+    String? postId,
     bool focusComment = false,
   }) {
     return pushRoute<T>(
@@ -444,6 +484,30 @@ extension CorpusNavigation on BuildContext {
         gameData: gameData,
         userData: userData,
         reviewData: reviewData,
+        postId: postId,
+        focusComment: focusComment,
+      ),
+    );
+  }
+
+  Future<T?> pushGroupedPostDetails<T>({
+    required String postId,
+    Map<String, dynamic>? actorData,
+    String? status,
+    String? createdAt,
+    List<Map<String, dynamic>>? initialGames,
+    PostStats? initialStats,
+    bool focusComment = false,
+  }) {
+    return pushRoute<T>(
+      AppRoutes.groupedPostDetails,
+      arguments: GroupedPostDetailsArgs(
+        postId: postId,
+        actorData: actorData,
+        status: status,
+        createdAt: createdAt,
+        initialGames: initialGames,
+        initialStats: initialStats,
         focusComment: focusComment,
       ),
     );

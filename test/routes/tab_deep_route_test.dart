@@ -35,6 +35,21 @@ void main() {
       expect(parseTabDeepRoute(['resena', '']), isNull);
     });
 
+    // ── Posts agrupados ──────────────────────────────────────────────────
+    test('post/{id} resolves to GroupedPostDeepRoute', () {
+      final route = parseTabDeepRoute(['post', 'post-123']);
+      expect(route, isA<GroupedPostDeepRoute>());
+      expect((route as GroupedPostDeepRoute).postId, 'post-123');
+    });
+
+    test('post without id returns null', () {
+      expect(parseTabDeepRoute(['post']), isNull);
+    });
+
+    test('post with empty id returns null', () {
+      expect(parseTabDeepRoute(['post', '']), isNull);
+    });
+
     // ── Bundles ──────────────────────────────────────────────────────────
     test('bundle/{id} resolves to BundleDeepRoute', () {
       final route = parseTabDeepRoute(['bundle', 'hb-summer-2026']);
@@ -63,23 +78,21 @@ void main() {
     });
 
     // ── Logros de otro usuario ────────────────────────────────────────────
+    const sampleUuid = '3f2a0000-0000-4000-8000-000000000001';
+
     test('{userId}/logros resolves to AchievementsDeepRoute with userId', () {
-      final route = parseTabDeepRoute(['user-uuid', 'logros']);
+      final route = parseTabDeepRoute([sampleUuid, 'logros']);
       expect(route, isA<AchievementsDeepRoute>());
-      expect((route as AchievementsDeepRoute).userId, 'user-uuid');
+      expect((route as AchievementsDeepRoute).userId, sampleUuid);
     });
 
     test(
       '{userId}/logros/{achievementId} resolves to AchievementGamesDeepRoute',
       () {
-        final route = parseTabDeepRoute([
-          'user-uuid',
-          'logros',
-          'zelda-master',
-        ]);
+        final route = parseTabDeepRoute([sampleUuid, 'logros', 'zelda-master']);
         expect(route, isA<AchievementGamesDeepRoute>());
         final ach = route as AchievementGamesDeepRoute;
-        expect(ach.userId, 'user-uuid');
+        expect(ach.userId, sampleUuid);
         expect(ach.achievementId, 'zelda-master');
       },
     );
@@ -96,11 +109,15 @@ void main() {
       );
     });
 
-    // ── Perfil de usuario (fallback) ─────────────────────────────────────
-    test('non-numeric, non-keyword segment resolves to ProfileDeepRoute', () {
-      final route = parseTabDeepRoute(['3f2a-uuid-here']);
+    // ── Perfil de usuario (UUID válido) y rechazo de segmentos inválidos ─
+    test('valid UUID segment resolves to ProfileDeepRoute', () {
+      final route = parseTabDeepRoute([sampleUuid]);
       expect(route, isA<ProfileDeepRoute>());
-      expect((route as ProfileDeepRoute).userId, '3f2a-uuid-here');
+      expect((route as ProfileDeepRoute).userId, sampleUuid);
+    });
+
+    test('non-UUID unknown segment returns null', () {
+      expect(parseTabDeepRoute(['unknown-segment']), isNull);
     });
   });
 
@@ -140,10 +157,7 @@ void main() {
 
     test('achievements with userId', () {
       expect(
-        publicPathForTabRoute(
-          4,
-          const AchievementsDeepRoute(userId: 'uid'),
-        ),
+        publicPathForTabRoute(4, const AchievementsDeepRoute(userId: 'uid')),
         '/perfil/uid/logros',
       );
     });
@@ -156,6 +170,10 @@ void main() {
 
     test('ReviewDeepRoute', () {
       expect(const ReviewDeepRoute('r1').toSegments(), ['resena', 'r1']);
+    });
+
+    test('GroupedPostDeepRoute', () {
+      expect(const GroupedPostDeepRoute('p1').toSegments(), ['post', 'p1']);
     });
 
     test('BundleDeepRoute', () {
@@ -171,10 +189,9 @@ void main() {
     });
 
     test('NotificationsFeedDeepRoute', () {
-      expect(
-        const NotificationsFeedDeepRoute().toSegments(),
-        ['notificaciones'],
-      );
+      expect(const NotificationsFeedDeepRoute().toSegments(), [
+        'notificaciones',
+      ]);
     });
   });
 
@@ -185,10 +202,7 @@ void main() {
     });
 
     test('ReviewDeepRoute equality by reviewId', () {
-      expect(
-        const ReviewDeepRoute('a'),
-        equals(const ReviewDeepRoute('a')),
-      );
+      expect(const ReviewDeepRoute('a'), equals(const ReviewDeepRoute('a')));
       expect(
         const ReviewDeepRoute('a'),
         isNot(equals(const ReviewDeepRoute('b'))),
@@ -196,10 +210,7 @@ void main() {
     });
 
     test('FriendsDeepRoute singleton equality', () {
-      expect(
-        const FriendsDeepRoute(),
-        equals(const FriendsDeepRoute()),
-      );
+      expect(const FriendsDeepRoute(), equals(const FriendsDeepRoute()));
     });
   });
 }
