@@ -135,20 +135,8 @@ class ActivityRepository {
       }
     }
 
-    // 2b. Estadísticas de posts (likes y comentarios por post_id) — batch único
-    final postIds = feedItems
-        .map((item) => item['post_id'] as String?)
-        .whereType<String>()
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList();
-    final postStatsById = await fetchPostStats(postIds);
-    for (final item in feedItems) {
-      final pid = item['post_id'] as String?;
-      if (pid != null && pid.isNotEmpty) {
-        item['_post'] = postStatsById[pid] ?? PostStats(postId: pid);
-      }
-    }
+    // 2b. Estadísticas de posts y post vigente por review_id — batch paralelo
+    await _enrichPostStatsAndCurrentPostIds(feedItems, reviewsById);
 
     // 3. Partners (user_games) — batch único
     final Map<String, List<dynamic>> partnersByUserGame = {};
@@ -307,19 +295,7 @@ class ActivityRepository {
       }
     }
 
-    final storyPostIds = feedItems
-        .map((item) => item['post_id'] as String?)
-        .whereType<String>()
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList();
-    final storyPostStatsById = await fetchPostStats(storyPostIds);
-    for (final item in feedItems) {
-      final pid = item['post_id'] as String?;
-      if (pid != null && pid.isNotEmpty) {
-        item['_post'] = storyPostStatsById[pid] ?? PostStats(postId: pid);
-      }
-    }
+    await _enrichPostStatsAndCurrentPostIds(feedItems, reviewsById);
 
     // Partners (misma lógica que fetchActivityPage)
     final Map<String, List<dynamic>> partnersByUserGame = {};
@@ -385,6 +361,44 @@ class ActivityRepository {
   // Posts e interacciones (ReviewDetailsScreen y GroupedPostDetailsScreen)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /// Enriquece [feedItems] con sus estadísticas `_post` y anota en cada entrada
+  /// de [reviewsById] el `_current_post_id` vigente en servidor para evitar que
+  /// un evento histórico (`status_change`) herede datos de una reseña posterior.
+  Future<void> _enrichPostStatsAndCurrentPostIds(
+    List<Map<String, dynamic>> feedItems,
+    Map<String, Map<String, dynamic>> reviewsById,
+  ) async {
+    final postIds = feedItems
+        .map((item) => item['post_id'] as String?)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    final reviewIds = reviewsById.keys.toList();
+
+    final results = await Future.wait([
+      fetchPostStats(postIds),
+      fetchReviewPostStats(reviewIds),
+    ]);
+    final postStatsById = results[0];
+    final reviewPostStatsById = results[1];
+
+    for (final item in feedItems) {
+      final pid = item['post_id'] as String?;
+      if (pid != null && pid.isNotEmpty) {
+        item['_post'] = postStatsById[pid] ?? PostStats(postId: pid);
+      }
+    }
+
+    for (final entry in reviewPostStatsById.entries) {
+      final rev = reviewsById[entry.key];
+      if (rev != null) {
+        rev['_current_post_id'] = entry.value.postId;
+        rev['_post'] ??= entry.value;
+      }
+    }
+  }
+
   /// Obtiene en batch las estadísticas de un conjunto de posts (`post_id`).
   Future<Map<String, PostStats>> fetchPostStats(List<String> postIds) async {
     final distinctIds = postIds.where((id) => id.isNotEmpty).toSet().toList();
@@ -421,7 +435,8 @@ class ActivityRepository {
               as List;
       return {
         for (final r in rows.cast<Map<String, dynamic>>())
-          r['review_id'] as String: PostStats.fromMap(r),
+          if ((r['post_id'] as String?)?.isNotEmpty == true)
+            r['review_id'] as String: PostStats.fromMap(r),
       };
     } catch (e) {
       debugPrint('[ActivityRepository] fetchReviewPostStats error: $e');
@@ -779,6 +794,39 @@ class ActivityRepository {
     }
   }
 
+  /// Determina si un evento `status_change` pertenece a un post histórico que
+  /// ya fue superado por otro estado o reseña posterior de la misma `review_id`.
+  static bool _isSupersededStatusPost(
+    Map<String, dynamic> item,
+    Map<String, dynamic> review,
+  ) {
+    if (item['action_type'] != 'status_change') return false;
+
+    final itemPostId = item['post_id'] as String?;
+    final currentReviewPostId =
+        (review['_current_post_id'] as String?) ??
+        PostStats.fromDynamic(review['_post'])?.postId;
+    if (itemPostId != null &&
+        itemPostId.isNotEmpty &&
+        currentReviewPostId != null &&
+        currentReviewPostId.isNotEmpty &&
+        itemPostId != currentReviewPostId) {
+      return true;
+    }
+
+    final itemStatus = (item['metadata'] as Map?)?['status'] as String?;
+    final reviewStatus = review['status'] as String?;
+    if (itemStatus != null &&
+        itemStatus.isNotEmpty &&
+        reviewStatus != null &&
+        reviewStatus.isNotEmpty &&
+        itemStatus != reviewStatus) {
+      return true;
+    }
+
+    return false;
+  }
+
   static List<Map<String, dynamic>> _mergeActivityItems({
     required List<Map<String, dynamic>> feedItems,
     required Map<String, Map<String, dynamic>> reviewsById,
@@ -789,19 +837,25 @@ class ActivityRepository {
     for (var rawItem in feedItems) {
       var item = Map<String, dynamic>.from(rawItem);
 
-      // Inyectar partners
-      final uId = item['user_id'];
-      final gId = item['game_id'];
-      if (uId != null && gId != null) {
-        item['_partners'] = partnersByUserGame['${uId}_$gId'];
-      }
-
-      // Inyectar datos de reseña si están referenciados
+      // Resolver reseña referenciada y descartarla en status_change históricos
+      // que pertenecen a un post/estado anterior ya superado.
       final reviewId =
           (item['review_id'] as String?) ??
           (item['metadata'] as Map?)?['review_id'] as String?;
-      if (reviewId != null && reviewsById.containsKey(reviewId)) {
-        item['_review'] = reviewsById[reviewId];
+      final reviewMap = reviewId != null ? reviewsById[reviewId] : null;
+      final isSuperseded =
+          reviewMap != null && _isSupersededStatusPost(item, reviewMap);
+
+      // Inyectar partners (no en posts históricos ya superados)
+      final uId = item['user_id'];
+      final gId = item['game_id'];
+      if (!isSuperseded && uId != null && gId != null) {
+        item['_partners'] = partnersByUserGame['${uId}_$gId'];
+      }
+
+      // Inyectar datos de reseña si siguen correspondiendo a este post
+      if (reviewMap != null && !isSuperseded) {
+        item['_review'] = reviewMap;
       }
 
       // Intentar fusionar con un evento reciente del mismo usuario y juego
@@ -820,14 +874,18 @@ class ActivityRepository {
             if (date.difference(prevDate).abs().inHours < 24) {
               if (type == 'status_change' &&
                   prev['action_type'] == 'reviewed') {
-                // Solo adoptar el status_change si comparten post_id (o si prev no tenía post_id).
-                // Si item tiene otro post_id distinto, es un cambio de estado anterior (<24 h)
-                // que no debe pisar el post vigente de prev.
+                // Solo adoptar el status_change si comparten post_id (o si prev no tenía post_id)
+                // y el status_change no pertenece a un estado anterior ya superado.
                 final prevPostId = prev['post_id'] as String?;
                 final itemPostId = item['post_id'] as String?;
-                if (prevPostId == null ||
-                    itemPostId == null ||
-                    prevPostId == itemPostId) {
+                final prevReview = prev['_review'] as Map<String, dynamic>?;
+                final itemSuperseded =
+                    prevReview != null &&
+                    _isSupersededStatusPost(item, prevReview);
+                if (!itemSuperseded &&
+                    (prevPostId == null ||
+                        itemPostId == null ||
+                        prevPostId == itemPostId)) {
                   prev['action_type'] = 'status_change';
                   final prevMeta = Map<String, dynamic>.from(
                     prev['metadata'] as Map? ?? const {},
@@ -844,9 +902,22 @@ class ActivityRepository {
                 break;
               } else if (type == 'reviewed' &&
                   prev['action_type'] == 'status_change') {
-                prev['_review'] = item['_review'];
-                prev['post_id'] ??= item['post_id'];
-                prev['_post'] ??= item['_post'];
+                final prevPostId = prev['post_id'] as String?;
+                final itemPostId = item['post_id'] as String?;
+                final itemReview = item['_review'] as Map<String, dynamic>?;
+                final prevSuperseded =
+                    itemReview != null &&
+                    _isSupersededStatusPost(prev, itemReview);
+                if (!prevSuperseded &&
+                    (prevPostId == null ||
+                        itemPostId == null ||
+                        prevPostId == itemPostId)) {
+                  prev['_review'] = item['_review'];
+                  prev['post_id'] ??= itemPostId;
+                  prev['_post'] ??= item['_post'];
+                } else {
+                  _recordMergedOlderPost(prev, item);
+                }
                 wasMerged = true;
                 break;
               } else if (type == 'status_change' &&

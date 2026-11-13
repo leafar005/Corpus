@@ -4,6 +4,7 @@
 // Prueba la lógica de enriquecimiento y merge de eventos sin necesitar Supabase.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:corpus/models/post_stats.dart';
 import 'package:corpus/repositories/activity_repository.dart';
 import 'package:corpus/screens/activity/activity_formatters.dart';
 
@@ -307,6 +308,153 @@ void main() {
 
         // u1+juego1 → 1 (merge), u1+juego2 → 1, u2+juego1 → 1 = 3 total
         expect(result.length, 3);
+      },
+    );
+
+    test(
+      'no inyecta _review ni _partners en status_change antiguo sustituido por otro estado',
+      () {
+        final latestReview = {
+          'id': 'r1',
+          'status': 'beaten',
+          'rating': 8.0,
+          'comment': 'Un juego interesante',
+          '_current_post_id': 'p_new',
+        };
+        final items = [
+          // Post actual ("Terminado" hoy)
+          {
+            'action_type': 'status_change',
+            'user_id': 'u1',
+            'game_id': 1,
+            'post_id': 'p_new',
+            'created_at': '2024-06-10T12:00:00',
+            'metadata': {'review_id': 'r1', 'status': 'beaten'},
+          },
+          // Post antiguo ("Jugando" días antes con comentarios propios)
+          {
+            'action_type': 'status_change',
+            'user_id': 'u1',
+            'game_id': 1,
+            'post_id': 'p_old',
+            'created_at': '2024-06-01T12:00:00',
+            'metadata': {'review_id': 'r1', 'status': 'playing'},
+          },
+        ];
+
+        final result = ActivityRepository.mergeActivityItems(
+          feedItems: items,
+          reviewsById: {'r1': latestReview},
+          partnersByUserGame: {
+            'u1_1': [
+              {'id': 'u2', 'username': 'amigo'},
+            ],
+          },
+        );
+
+        expect(result.length, 2);
+        // El post actual recibe la reseña y compañeros
+        expect(result[0]['post_id'], 'p_new');
+        expect(result[0]['_review'], latestReview);
+        expect(result[0]['_partners'], hasLength(1));
+
+        // El post antiguo ("Jugando") permanece aislado sin nota/reseña/compañeros nuevos
+        expect(result[1]['post_id'], 'p_old');
+        expect(result[1].containsKey('_review'), isFalse);
+        expect(result[1].containsKey('_partners'), isFalse);
+      },
+    );
+
+    test(
+      'no inyecta _review si post_id difiere aunque coincida el status (re-jugado)',
+      () {
+        final latestReview = {
+          'id': 'r1',
+          'status': 'playing',
+          'rating': 9.0,
+          'comment': 'Segunda vuelta',
+          '_current_post_id': 'p_new',
+        };
+        final items = [
+          {
+            'action_type': 'status_change',
+            'user_id': 'u1',
+            'game_id': 1,
+            'post_id': 'p_old',
+            'created_at': '2024-05-01T12:00:00',
+            'metadata': {'review_id': 'r1', 'status': 'playing'},
+          },
+        ];
+
+        final result = ActivityRepository.mergeActivityItems(
+          feedItems: items,
+          reviewsById: {'r1': latestReview},
+          partnersByUserGame: {
+            'u1_1': [
+              {'id': 'u2'},
+            ],
+          },
+        );
+
+        expect(result.length, 1);
+        expect(result.first.containsKey('_review'), isFalse);
+        expect(result.first.containsKey('_partners'), isFalse);
+      },
+    );
+
+    test(
+      'merge <24h entre dos status_change distintos conserva el post nuevo y guarda _merged_posts del antiguo sin contaminarlo',
+      () {
+        final latestReview = {
+          'id': 'r1',
+          'status': 'beaten',
+          'rating': 8.0,
+          '_current_post_id': 'p2',
+        };
+        final items = [
+          {
+            'action_type': 'status_change',
+            'user_id': 'u1',
+            'game_id': 1,
+            'post_id': 'p2',
+            'created_at': '2024-06-01T14:00:00',
+            'metadata': {'review_id': 'r1', 'status': 'beaten'},
+            '_post': const PostStats(
+              postId: 'p2',
+              likesCount: 0,
+              commentsCount: 0,
+              likedByMe: false,
+            ),
+          },
+          {
+            'action_type': 'status_change',
+            'user_id': 'u1',
+            'game_id': 1,
+            'post_id': 'p1',
+            'created_at': '2024-06-01T10:00:00',
+            'metadata': {'review_id': 'r1', 'status': 'playing'},
+            '_post': const PostStats(
+              postId: 'p1',
+              likesCount: 1,
+              commentsCount: 2,
+              likedByMe: false,
+            ),
+          },
+        ];
+
+        final result = ActivityRepository.mergeActivityItems(
+          feedItems: items,
+          reviewsById: {'r1': latestReview},
+          partnersByUserGame: {},
+        );
+
+        expect(result.length, 1);
+        expect(result.first['post_id'], 'p2');
+        expect(result.first['_review'], latestReview);
+        final mergedOlder = result.first['_merged_posts'] as List<PostStats>?;
+        expect(mergedOlder, hasLength(1));
+        expect(mergedOlder!.first.postId, 'p1');
+        expect(mergedOlder.first.commentsCount, 2);
       },
     );
   });

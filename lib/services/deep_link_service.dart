@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
+import '../repositories/activity_repository.dart';
 import '../routes/deep_route_resolver.dart';
 import '../screens/library/search_screen.dart';
 import '../screens/activity/grouped_post_details_screen.dart';
@@ -63,6 +64,15 @@ class DeepLinkService {
     bool focusComment = false,
   }) async {
     if (reviewId == null || reviewId.isEmpty) return;
+
+    if (postId != null && postId.isNotEmpty) {
+      final currentReviewPostId = await ActivityRepository()
+          .resolvePostIdForReview(reviewId, create: false);
+      if (currentReviewPostId != null && currentReviewPostId != postId) {
+        _openGroupedPostById(postId, focusComment: focusComment);
+        return;
+      }
+    }
 
     // Misma query que usa la resolución de URLs profundas
     // (/actividad/resena/{id}); ver routes/deep_route_resolver.dart.

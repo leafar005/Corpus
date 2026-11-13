@@ -579,11 +579,32 @@ class _ActivityScreenState extends State<ActivityScreen>
       }
     }
 
-    void handleStatusChangeTap() async {
+    Future<void> handleStatusChangeTap({bool focusComment = false}) async {
+      // Un status_change sin _review representa un estado histórico o sin reseña
+      // (p.ej. un "Jugando" anterior al "Terminado" actual). Abrimos su hilo por
+      // postId para no mezclar la reseña del estado nuevo con los comentarios
+      // del estado antiguo.
+      if (actionType == 'status_change' && postId != null) {
+        context
+            .pushGroupedPostDetails(
+              postId: postId,
+              actorData: userData,
+              status: effectiveStatus,
+              createdAt: activity['created_at'] as String?,
+              initialGames: gameData.isNotEmpty ? [gameData] : null,
+              initialStats: stats,
+              focusComment: focusComment,
+            )
+            .then((_) => _controller.refreshInPlace());
+        return;
+      }
+
       final uId = activityUserId;
       final internalGameId = activity['game_id'] as int?;
 
-      if (uId != null && internalGameId != null) {
+      if (actionType != 'status_change' &&
+          uId != null &&
+          internalGameId != null) {
         final review = await ActivityRepository()
             .fetchLatestReviewForUserAndGame(uId, internalGameId);
         if (review != null && mounted) {
@@ -594,6 +615,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                 review,
                 postId:
                     postId ?? PostStats.fromDynamic(review['_post'])?.postId,
+                focusComment: focusComment,
               )
               .then((_) => _controller.refreshInPlace());
           return;
@@ -928,13 +950,16 @@ class _ActivityScreenState extends State<ActivityScreen>
                 onLikeTap: () => _controller.toggleLike(index),
                 onCommentTap: isReview
                     ? openReviewComments
-                    : handleStatusChangeTap,
+                    : () => handleStatusChangeTap(focusComment: true),
                 trailing: (previousPostWithComments != null && isReview)
                     ? TextButton(
-                        onPressed: () => openReview(
-                          targetPostId: previousPostWithComments.postId,
-                          focusComment: true,
-                        ),
+                        onPressed: () => context
+                            .pushGroupedPostDetails(
+                              postId: previousPostWithComments.postId,
+                              actorData: userData,
+                              focusComment: true,
+                            )
+                            .then((_) => _controller.refreshInPlace()),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,

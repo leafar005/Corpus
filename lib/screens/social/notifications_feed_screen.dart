@@ -14,6 +14,7 @@ import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../models/models.dart';
 
 import 'package:corpus/globals.dart';
+import '../../repositories/activity_repository.dart';
 import '../../repositories/notifications_repository.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -130,6 +131,18 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
           return;
         }
         if (reviewId == null) return;
+        if (postId != null) {
+          final currentReviewPostId = await ActivityRepository()
+              .resolvePostIdForReview(reviewId, create: false);
+          if (!mounted) return;
+          if (currentReviewPostId != null && currentReviewPostId != postId) {
+            context.pushGroupedPostDetails(
+              postId: postId,
+              focusComment: focusComment,
+            );
+            return;
+          }
+        }
         final nav = await _repo.fetchReviewForNavigation(reviewId);
         if (nav == null || !mounted) return;
         context.pushReviewDetails(
