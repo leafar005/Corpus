@@ -395,7 +395,10 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     Map<String, dynamic> gameData,
     Map<String, dynamic> review,
   ) {
-    final postId = _currentPostId;
+    final reviewPostId = PostStats.fromDynamic(review['_post'])?.postId;
+    final postId = (reviewPostId != null && reviewPostId.isNotEmpty)
+        ? reviewPostId
+        : null;
     _togglePause(true);
     final navigator = Navigator.of(context);
     navigator.pop();

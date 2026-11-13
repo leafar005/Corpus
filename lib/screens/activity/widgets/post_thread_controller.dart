@@ -16,10 +16,13 @@ class PostThreadController extends SafeChangeNotifier {
     SupabaseClient? client,
   }) : _repo = repo ?? ActivityRepository(),
        _client = client,
-       _postId = initialPostId ?? initialStats?.postId,
+       _postId = _normalizePostId(initialPostId ?? initialStats?.postId),
        _likesCount = initialStats?.likesCount ?? 0,
        _hasLiked = initialStats?.likedByMe ?? false,
        _commentsCount = initialStats?.commentsCount ?? 0;
+
+  static String? _normalizePostId(String? id) =>
+      (id == null || id.isEmpty) ? null : id;
 
   final ActivityRepository _repo;
   final SupabaseClient? _client;
@@ -55,15 +58,18 @@ class PostThreadController extends SafeChangeNotifier {
       (_client ?? Supabase.instance.client).auth.currentUser?.id;
 
   void updatePostId(String? newPostId) {
-    if (newPostId == null || newPostId == _postId) return;
-    _postId = newPostId;
+    final normalized = _normalizePostId(newPostId);
+    if (normalized == null || normalized == _postId) return;
+    _postId = normalized;
     notifyListeners();
   }
 
   Future<String?> _ensurePostId() async {
     if (_postId != null) return _postId;
     if (reviewId == null) return null;
-    _postId = await _repo.resolvePostIdForReview(reviewId!, create: true);
+    _postId = _normalizePostId(
+      await _repo.resolvePostIdForReview(reviewId!, create: true),
+    );
     if (_postId != null) {
       notifyListeners();
     }
@@ -80,11 +86,12 @@ class PostThreadController extends SafeChangeNotifier {
 
     try {
       if ((_postId == null || resolveLatestReviewPost) && reviewId != null) {
-        final resolved = await _repo.resolvePostIdForReview(
-          reviewId!,
-          create: false,
+        final resolved = _normalizePostId(
+          await _repo.resolvePostIdForReview(reviewId!, create: false),
         );
-        if (resolved != null) {
+        if (resolveLatestReviewPost) {
+          _postId = resolved;
+        } else if (resolved != null) {
           _postId = resolved;
         }
       }

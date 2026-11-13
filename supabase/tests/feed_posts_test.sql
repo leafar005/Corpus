@@ -300,6 +300,23 @@ BEGIN
     RAISE EXCEPTION 'Test 9 failed: group comment notification missing or wrong games_count (%)',
       v_notif.metadata;
   END IF;
+
+  -- ===========================================================================
+  -- 10. Aislamiento entre post grupal y reseña individual
+  -- ===========================================================================
+  IF public.current_post_for_review(v_review_3) IS NOT NULL THEN
+    RAISE EXCEPTION 'Test 10 failed: solo review inside grouped post leaked group post %',
+      public.current_post_for_review(v_review_3);
+  END IF;
+
+  v_post_impl_1 := public.ensure_review_post(v_review_3);
+  v_post_impl_2 := public.ensure_review_post(v_review_3);
+  IF v_post_impl_1 IS NULL
+     OR v_post_impl_1 = v_post_g1
+     OR v_post_impl_1 <> v_post_impl_2 THEN
+    RAISE EXCEPTION 'Test 10 failed: solo implicit post invalid or reused group (% vs %, group %)',
+      v_post_impl_1, v_post_impl_2, v_post_g1;
+  END IF;
 END;
 $$;
 

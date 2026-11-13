@@ -1144,7 +1144,8 @@ class ReviewRepository {
               as List;
       final statsByReviewId = {
         for (final r in rows.cast<Map<String, dynamic>>())
-          r['review_id'] as String: PostStats.fromMap(r),
+          if ((r['post_id'] as String?)?.isNotEmpty == true)
+            r['review_id'] as String: PostStats.fromMap(r),
       };
       for (final r in reviews) {
         final id = r['id'] as String?;
