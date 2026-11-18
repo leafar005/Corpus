@@ -47,7 +47,20 @@ class AppNavigationController {
   _tabNavigatorKeys; // longitud 5, índice = pestaña
   GlobalKey<NavigatorState>? _rootNavigatorKey;
 
+  final Set<int> _pendingTabSwitches = <int>{};
+
   void Function(int newTab)? onTabSwitchedByBrowser;
+
+  /// Limpia el historial en memoria al cambiar o cerrar sesión sin tocar
+  /// [rootStackIndex], cuyo Navigator permanece montado bajo [MaterialApp].
+  void resetForSessionChange() {
+    for (var i = 0; i < 5; i++) {
+      _stacks[i] = [];
+    }
+    _pendingTabSwitches.clear();
+    _ignorePopSyncCount = 0;
+    _isProgrammaticBack = false;
+  }
 
   void registerTabNavigatorKeys(List<GlobalKey<NavigatorState>> keys) {
     assert(keys.length == 5);
@@ -103,6 +116,12 @@ class AppNavigationController {
 
     if (_replaying) return; // eco de un popstate que ya estamos procesando
 
+    // La ruta raíz de MaterialApp (MainScreen) no debe pisar la URL de la pestaña.
+    if (stackIndex == rootStackIndex &&
+        (_stacks[rootStackIndex]!.length - 1) == 0) {
+      return;
+    }
+
     // Pestaña en segundo plano (Offstage): se contabiliza, pero no se toca
     // la URL visible hasta que el usuario vuelva a esa pestaña.
     if (stackIndex != rootStackIndex &&
@@ -131,28 +150,30 @@ class AppNavigationController {
     }
 
     // depth == 0 → ruta raíz de la pestaña: usamos replaceState para
-    // sustituir la entrada inicial (p. ej. '/') por la URL canónica
-    // (p. ej. '/inicio'), evitando que quede una entrada «huérfana» en
-    // el historial que un «atrás» pudiera retomar.
+    // sustituir la entrada inicial salvo si llega desde recordTabSwitch.
+    final isPendingTabSwitch =
+        depth == 0 && _pendingTabSwitches.remove(stackIndex);
     setWebPath(
       path,
-      replace: depth == 0,
+      replace: depth == 0 && !isPendingTabSwitch,
       state: {'tab': stackIndex, 'depth': depth, 'token': token},
     );
   }
 
   void onNavigatorPop(int stackIndex, [Route<dynamic>? route]) {
-    if (!kIsWeb) return;
     if (route != null && route.settings.name == 'loading_dialog') return;
 
     if (_ignorePopSyncCount > 0) {
       _ignorePopSyncCount--;
       return;
     }
+    if (_replaying) return;
     final frames = _stacks[stackIndex];
     if (frames == null || frames.isEmpty) return; // defensivo
 
     _stacks[stackIndex] = frames.sublist(0, frames.length - 1);
+
+    if (!kIsWeb) return;
 
     // [OPCIÓN 1]: Sincronizar la URL actual del navegador para que refleje el pop visual.
     // Esto desvincula el botón volver interno de la app (que ahora usa nav.pop())
@@ -160,8 +181,8 @@ class AppNavigationController {
     if (stackIndex == rootStackIndex ||
         stackIndex == currentTabIndexNotifier.value) {
       final rootFrames = _stacks[rootStackIndex] ?? const [];
-      if (rootFrames.isNotEmpty) {
-        // Si todavía hay modales en la pila raíz, actualizamos el path al del último modal.
+      if (rootFrames.length > 1) {
+        // Si todavía hay modales sobre la ruta raíz, actualizamos el path al último modal.
         final last = rootFrames.last;
         setWebPath(
           getWebPathname() ?? '/',
@@ -209,6 +230,24 @@ class AppNavigationController {
         route: newRoute,
       ),
     ];
+    if (kIsWeb &&
+        !_replaying &&
+        (stackIndex == rootStackIndex ||
+            stackIndex == currentTabIndexNotifier.value)) {
+      final subRoute = deepRouteFromRouteSettings(newRoute.settings);
+      final path = stackIndex == rootStackIndex
+          ? (getWebPathname() ?? '/')
+          : publicPathForTabRoute(stackIndex, subRoute);
+      setWebPath(
+        path,
+        replace: true,
+        state: {
+          'tab': stackIndex,
+          'depth': _stacks[stackIndex]!.length - 1,
+          'token': last.token,
+        },
+      );
+    }
   }
 
   /// Único método que cualquier control de la UI debe llamar para "ir
@@ -325,7 +364,12 @@ class AppNavigationController {
       // Fallback a reconstruir desde URL pura si todo lo demás falla
       try {
         final tab = AppRoutes.tabIndexFromPublicPath(pathname) ?? 0;
-        await _rebuildStackFromUrl(tab, pathname);
+        _replaying = true;
+        try {
+          await _rebuildStackFromUrl(tab, pathname);
+        } finally {
+          _replaying = false;
+        }
       } catch (_) {
         // En caso catastrófico, no hacer nada y esperar nueva interacción.
       }
@@ -361,19 +405,29 @@ class AppNavigationController {
         // Vamos hacia atrás y el destino sigue vivo en memoria: solo hace
         // falta desapilar. Cero peticiones de red, cero spinners.
         final navigator = _navigatorFor(tab);
+        if (navigator == null) {
+          await _rebuildStackFromUrl(tab, pathname);
+          return;
+        }
         final steps = currentDepth - depth;
 
         // Actualizamos sincrónicamente para evitar condiciones de carrera en
         // clics rápidos donde didPop/didRemove tardan en actualizar el estado.
         _stacks[tab] = frames.sublist(0, frames.length - steps);
-        _ignorePopSyncCount += steps;
 
         for (var i = 0; i < steps; i++) {
+          if (!navigator.canPop()) break;
           final topFrame = frames[currentDepth - i];
-          if (isNativeBrowserBack && topFrame.route != null) {
-            navigator?.removeRoute(topFrame.route!);
+          final targetRoute = topFrame.route;
+          _ignorePopSyncCount++;
+          if (isNativeBrowserBack &&
+              targetRoute != null &&
+              targetRoute.isActive &&
+              !targetRoute.isFirst &&
+              targetRoute.navigator == navigator) {
+            navigator.removeRoute(targetRoute);
           } else {
-            navigator?.pop();
+            navigator.pop();
           }
         }
       } else if (depth == currentDepth && targetFrameStillAlive) {
@@ -453,33 +507,41 @@ class AppNavigationController {
       return;
     }
 
-    // El push que sigue pasará por onNavigatorPush (porque el observer
-    // sigue enganchado); como _replaying sigue en true durante toda esta
-    // llamada, ese push NO tocará window.history por sí mismo — así que lo
-    // hacemos explícitamente aquí, con un token nuevo, y con replace:true
-    // porque YA estamos en esta entrada del historial (la trajo el propio
-    // popstate): no queremos añadir una entrada más, solo corregirla.
-    navigator?.push(route);
-    final newToken = _nextToken++;
-    _stacks[tab] = [
-      ...(_stacks[tab] ?? const []),
-      // Guardamos el objeto Route para que removeRoute() funcione
-      // correctamente si el usuario pulsa atrás desde aquí.
-      NavHistoryFrame(token: newToken, settings: route.settings, route: route),
-    ];
+    // El push que sigue pasa por onNavigatorPush (via TabUrlSyncObserver),
+    // que ya añade el NavHistoryFrame a `_stacks[tab]`. Como `_replaying` es
+    // true, onNavigatorPush no modifica `window.history`, así que sincronizamos
+    // la entrada actual aquí con `replace: true` reutilizando ese token.
+    if (navigator == null) return;
+    navigator.push(route);
+    final tabFrames = _stacks[tab] ?? const [];
+    final frameToken = tabFrames.isNotEmpty
+        ? tabFrames.last.token
+        : _nextToken++;
+    if (tabFrames.isEmpty) {
+      _stacks[tab] = [
+        NavHistoryFrame(
+          token: frameToken,
+          settings: route.settings,
+          route: route,
+        ),
+      ];
+    }
     setWebPath(
       publicPathForTabRoute(tab, subRoute),
       replace: true,
       state: {
         'tab': tab,
         'depth': (_stacks[tab]!.length - 1),
-        'token': newToken,
+        'token': frameToken,
       },
     );
   }
 
   Future<void> _handleLegacyPopState(String pathname) async {
     final tab = AppRoutes.tabIndexFromPublicPath(pathname) ?? 0;
+    if (tab != currentTabIndexNotifier.value) {
+      onTabSwitchedByBrowser?.call(tab);
+    }
 
     final frames = _stacks[tab] ?? const [];
     if (frames.isNotEmpty) {
@@ -506,11 +568,14 @@ class AppNavigationController {
           final stepsToPop = frames.length - 1 - i;
 
           _stacks[tab] = frames.sublist(0, frames.length - stepsToPop);
-          _ignorePopSyncCount += stepsToPop;
 
           // Pops visuales nativos sin recargar toda la jerarquía
-          for (int j = 0; j < stepsToPop; j++) {
-            navigator?.pop();
+          if (navigator != null) {
+            for (int j = 0; j < stepsToPop; j++) {
+              if (!navigator.canPop()) break;
+              _ignorePopSyncCount++;
+              navigator.pop();
+            }
           }
 
           setWebPath(
@@ -523,9 +588,6 @@ class AppNavigationController {
       }
     }
 
-    if (tab != currentTabIndexNotifier.value) {
-      onTabSwitchedByBrowser?.call(tab);
-    }
     _replaying = true;
     try {
       await _rebuildStackFromUrl(tab, pathname);
@@ -538,11 +600,13 @@ class AppNavigationController {
     final frames = _stacks[toTab] ?? const [];
     if (frames.isEmpty) {
       if (retries >= 5) {
+        _pendingTabSwitches.remove(toTab);
         debugPrint(
           '[Nav] recordTabSwitch: frames de tab $toTab siguen vacíos tras $retries reintentos',
         );
         return;
       }
+      _pendingTabSwitches.add(toTab);
       // Primera visita a esta pestaña en la sesión: su Navigator todavía
       // no ha construido ni empujado su ruta raíz (eso ocurre en el
       // siguiente frame). Diferimos un frame — mismo patrón que ya usaba
@@ -550,6 +614,9 @@ class AppNavigationController {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => recordTabSwitch(toTab, retries: retries + 1),
       );
+      return;
+    }
+    if (retries > 0 && !_pendingTabSwitches.remove(toTab)) {
       return;
     }
     final last = frames.last;

@@ -12,14 +12,14 @@ class AppRoot extends StatelessWidget {
   const AppRoot({super.key, required this.child});
 
   static bool isDesignRoute() {
-    if (!kIsWeb) return false;
+    if (!kIsWeb || !kDebugMode) return false;
     final path = getWebPathname();
     if (path == null) return false;
     return isDesignPublicPath(path);
   }
 
   static bool isPrivateCollectionRoute() {
-    if (!kIsWeb) return false;
+    if (!kIsWeb || !kDebugMode) return false;
     final path = getWebPathname();
     if (path == null) return false;
     return isPrivateCollectionPublicPath(path);
@@ -28,9 +28,11 @@ class AppRoot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isDesignRoute()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => dispatchCorpusReady());
       return const DesignScreen();
     }
     if (isPrivateCollectionRoute()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => dispatchCorpusReady());
       return const CollectionShelfScreen();
     }
     return child;

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../repositories/activity_repository.dart';
+import '../routes/app_routes.dart';
+import '../routes/corpus_router.dart';
 import '../routes/deep_route_resolver.dart';
 import '../screens/library/search_screen.dart';
 import '../screens/activity/grouped_post_details_screen.dart';
@@ -88,6 +90,7 @@ class DeepLinkService {
 
     state.push(
       MaterialPageRoute(
+        settings: RouteSettings(name: AppRoutes.reviewDetails, arguments: args),
         builder: (_) => ReviewDetailsScreen(
           gameData: args.gameData,
           userData: args.userData,
@@ -104,6 +107,13 @@ class DeepLinkService {
     if (state == null) return;
     state.push(
       MaterialPageRoute(
+        settings: RouteSettings(
+          name: AppRoutes.groupedPostDetails,
+          arguments: GroupedPostDetailsArgs(
+            postId: postId,
+            focusComment: focusComment,
+          ),
+        ),
         builder: (_) => GroupedPostDetailsScreen(
           postId: postId,
           focusComment: focusComment,
@@ -138,9 +148,14 @@ class DeepLinkService {
 
     final state = navigatorKey.currentState;
     if (state == null) return;
+    final gameModel = Game.fromMap(game);
     state.push(
       MaterialPageRoute(
-        builder: (_) => GameDetailsScreen(gameData: Game.fromMap(game)),
+        settings: RouteSettings(
+          name: AppRoutes.gameDetails,
+          arguments: GameDetailsArgs(gameData: gameModel),
+        ),
+        builder: (_) => GameDetailsScreen(gameData: gameModel),
       ),
     );
   }

@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/routes/app_routes.dart';
 import 'package:corpus/routes/app_root.dart';
 import 'package:corpus/routes/tab_deep_route.dart';
@@ -127,5 +129,97 @@ void main() {
       expect(AppRoutes.publicPathForTab(0), AppRoutes.publicHome);
       expect(AppRoutes.publicPathForTab(2), AppRoutes.publicActivity);
     });
+  });
+
+  group('AppNavigationController', () {
+    void clearAllStacks() {
+      final nav = AppNavigationController.instance;
+      nav.resetForSessionChange();
+      nav.truncateStack(
+        AppNavigationController.rootStackIndex,
+        keepFirst: false,
+      );
+    }
+
+    tearDown(clearAllStacks);
+
+    test(
+      'resetForSessionChange limpia las pilas 0..4 y preserva rootStackIndex',
+      () {
+        clearAllStacks();
+        final nav = AppNavigationController.instance;
+        final rootRoute = MaterialPageRoute<void>(
+          settings: const RouteSettings(name: '/'),
+          builder: (_) => const SizedBox(),
+        );
+        final tabRoute = MaterialPageRoute<void>(
+          settings: const RouteSettings(name: AppRoutes.tabHome),
+          builder: (_) => const SizedBox(),
+        );
+
+        nav.onNavigatorPush(AppNavigationController.rootStackIndex, rootRoute);
+        nav.onNavigatorPush(0, tabRoute);
+        nav.onNavigatorPush(1, tabRoute);
+
+        nav.resetForSessionChange();
+
+        for (var i = 0; i < 5; i++) {
+          expect(nav.framesFor(i), isEmpty);
+        }
+        expect(
+          nav.framesFor(AppNavigationController.rootStackIndex).length,
+          1,
+        );
+      },
+    );
+
+    test(
+      'onNavigatorPush en rootStackIndex con depth 0 no altera pilas de pestañas y onNavigatorPop desapila limpio',
+      () {
+        clearAllStacks();
+        final nav = AppNavigationController.instance;
+        final rootRoute = MaterialPageRoute<void>(
+          settings: const RouteSettings(name: '/'),
+          builder: (_) => const SizedBox(),
+        );
+        final modalRoute = MaterialPageRoute<void>(
+          settings: const RouteSettings(name: AppRoutes.settings),
+          builder: (_) => const SizedBox(),
+        );
+
+        nav.onNavigatorPush(AppNavigationController.rootStackIndex, rootRoute);
+        for (var i = 0; i < 5; i++) {
+          expect(nav.framesFor(i), isEmpty);
+        }
+        expect(
+          nav.framesFor(AppNavigationController.rootStackIndex).length,
+          1,
+        );
+
+        nav.onNavigatorPush(
+          AppNavigationController.rootStackIndex,
+          modalRoute,
+        );
+        expect(
+          nav.framesFor(AppNavigationController.rootStackIndex).length,
+          2,
+        );
+
+        nav.onNavigatorPop(
+          AppNavigationController.rootStackIndex,
+          modalRoute,
+        );
+        expect(
+          nav.framesFor(AppNavigationController.rootStackIndex).length,
+          1,
+        );
+
+        nav.onNavigatorPop(AppNavigationController.rootStackIndex, rootRoute);
+        expect(
+          nav.framesFor(AppNavigationController.rootStackIndex),
+          isEmpty,
+        );
+      },
+    );
   });
 }
