@@ -9,7 +9,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
+import { corsHeadersForRequest, handleCorsPreflight } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -18,35 +18,69 @@ const SELF_URL = Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "supabase.
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
+
+  const webhookSecret = Deno.env.get("WEBHOOK_SECRET") ?? "";
+  if (webhookSecret && req.headers.get("x-webhook-secret") !== webhookSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   try {
     const payload = await req.json();
 
     // El webhook de Supabase envía { type, table, record, old_record, schema }
-    const record = payload.record ?? payload;
-    const actionType = record?.action_type;
-    const userId = record?.user_id;
-    const metadata = record?.metadata ?? {};
-    const gameId = record?.game_id;
+    const record = payload?.record ?? payload;
+    const feedId = typeof record?.id === "string" ? record.id.trim() : "";
 
-    // Solo procesamos status_change de playing y beaten
-    if (actionType !== "status_change") {
+    if (!feedId) {
+      return new Response(JSON.stringify({ error: "missing record id" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Verificar en BD que la entrada de activity_feed existe realmente (evita spoofing)
+    const { data: verifiedFeed } = await supabase
+      .from("activity_feed")
+      .select("id, user_id, game_id, review_id, post_id, action_type, metadata, created_at")
+      .eq("id", feedId)
+      .maybeSingle();
+
+    if (!verifiedFeed) {
+      return new Response(JSON.stringify({ skipped: "activity not found in db" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Solo procesamos status_change de playing, beaten y wishlist
+    if (verifiedFeed.action_type !== "status_change") {
       return new Response(JSON.stringify({ skipped: "not a status_change" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Ignorar actividades de hace más de 1 hora (ej: importaciones masivas de Stash o Steam)
-    const createdAt = record?.created_at;
-    if (createdAt) {
-      const eventTime = new Date(createdAt).getTime();
-      const now = Date.now();
-      if (now - eventTime > 60 * 60 * 1000) {
-        return new Response(JSON.stringify({ skipped: "activity is too old (likely imported)" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    // Ignorar actividades de hace más de 1 hora contra el timestamp real de BD
+    // (ej: importaciones masivas de Stash o Steam o replays de IDs antiguos)
+    const eventTime = verifiedFeed.created_at
+      ? new Date(verifiedFeed.created_at).getTime()
+      : NaN;
+    if (!Number.isFinite(eventTime) || Date.now() - eventTime > 60 * 60 * 1000) {
+      return new Response(JSON.stringify({ skipped: "activity is too old (likely imported)" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
+    const userId = verifiedFeed.user_id as string;
+    const gameId = verifiedFeed.game_id as number | null;
+    const metadata = (verifiedFeed.metadata as Record<string, unknown> | null) ?? {};
+    const postId = (verifiedFeed.post_id as string | null) ?? undefined;
+    const reviewId = (verifiedFeed.review_id as string | null) ?? "";
 
     const status = metadata?.status as string | undefined;
     if (status !== "playing" && status !== "beaten" && status !== "wishlist") {
@@ -55,43 +89,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    let postId: string | undefined = record?.post_id as string | undefined;
-
-    // Verificar en BD que la entrada de activity_feed existe realmente (evita spoofing)
-    if (record?.id) {
-      const { data: verifiedFeed } = await supabase
-        .from("activity_feed")
-        .select("id, user_id, game_id, post_id, action_type, metadata, created_at")
-        .eq("id", record.id)
-        .maybeSingle();
-
-      if (
-        !verifiedFeed ||
-        verifiedFeed.user_id !== userId ||
-        verifiedFeed.action_type !== "status_change"
-      ) {
-        return new Response(JSON.stringify({ skipped: "activity not found in db" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (verifiedFeed.post_id) {
-        postId = verifiedFeed.post_id as string;
-      }
-    }
-
     // Si este evento se unió a un post ya abierto (post_id compartido con otro
     // status_change anterior), el primer ítem ya disparó el push.
-    if (postId && record?.id) {
+    if (postId) {
       const { count } = await supabase
         .from("activity_feed")
         .select("id", { count: "exact", head: true })
         .eq("post_id", postId)
         .eq("action_type", "status_change")
-        .neq("id", record.id);
+        .neq("id", feedId);
 
       if ((count ?? 0) > 0) {
         return new Response(
@@ -209,7 +215,7 @@ Deno.serve(async (req) => {
           type: "friend_activity",
           user_id: userId,
           game_id: String(gameId ?? ""),
-          review_id: record?.review_id ?? "",
+          review_id: reviewId,
           post_id: String(postId ?? ""),
         },
       }),

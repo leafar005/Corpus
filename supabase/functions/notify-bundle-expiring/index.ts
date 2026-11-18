@@ -11,7 +11,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
+import { corsHeadersForRequest, handleCorsPreflight } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -64,6 +64,27 @@ async function sendToUsersWithPref(
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  const bearerToken = bearerMatch ? bearerMatch[1].trim() : "";
+  const cronSecretEnv = Deno.env.get("CRON_SECRET") ?? "";
+  const cronHeader = req.headers.get("x-cron-secret") ?? "";
+
+  const isServiceRole =
+    SUPABASE_SERVICE_ROLE_KEY.length > 0 &&
+    bearerToken === SUPABASE_SERVICE_ROLE_KEY;
+  const isCronSecret =
+    cronSecretEnv.length > 0 &&
+    cronHeader === cronSecretEnv;
+
+  if (!isServiceRole && !isCronSecret) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -79,14 +100,6 @@ Deno.serve(async (req) => {
 
     // ─── Caso A: Notificación de bundles nuevos (llamado desde sync-bundles) ──
     if (body?.type === "new_bundles" && Array.isArray(body.bundleTitles) && body.bundleTitles.length > 0) {
-      const authHeader = req.headers.get("Authorization") ?? "";
-      const token = authHeader.replace("Bearer ", "");
-      if (!SUPABASE_SERVICE_ROLE_KEY || token !== SUPABASE_SERVICE_ROLE_KEY) {
-        return new Response(
-          JSON.stringify({ error: "new_bundles requires service_role authorization" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       const titles = body.bundleTitles as string[];
       const bundleList = titles.length === 1
         ? titles[0]

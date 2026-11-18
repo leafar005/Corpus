@@ -235,19 +235,18 @@ Deno.serve(async (req) => {
       result = parseJsonLd(html, slug, title);
     }
 
-    // Upsert en BD (siempre guardamos, aunque sea found:false, para evitar re-intentos)
+    // Actualizamos en BD solo si el juego ya existe en `public.games` (p. ej.
+    // en la biblioteca de alguien). Evitamos insertar filas esqueleto sin
+    // cover_url cuando un usuario solo curiosea una ficha sin guardarla.
     const { error: upsertError } = await supabase
       .from("games")
       .update({ duracionde_time: result })
       .eq("igdb_id", igdbId);
 
     if (upsertError) {
-      // Si no existe aún en la tabla games, hacemos upsert completo
-      await supabase
-        .from("games")
-        .upsert({ igdb_id: igdbId, title, duracionde_time: result }, {
-          onConflict: "igdb_id",
-        });
+      log("WARN", "Error actualizando duracionde_time", {
+        error: upsertError.message,
+      });
     }
 
     return new Response(JSON.stringify(result), {

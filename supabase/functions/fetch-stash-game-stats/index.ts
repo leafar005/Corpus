@@ -1,12 +1,13 @@
 // supabase/functions/fetch-stash-game-stats/index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { corsHeadersForRequest, handleCorsPreflight, randomUserAgent, jitter, buildStashHeaders, makeLogger } from '../_shared/stash-client.ts';
-import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { checkRateLimit, bucketKeyFromRequest } from '../_shared/rate-limit.ts';
 
 const log = makeLogger('fetch-stash-game-stats');
 
 const STASH_RATE_LIMIT_BUCKET = 'stash-shared-account';
 const STASH_RATE_LIMIT_MAX = 20;
+const STASH_USER_RATE_LIMIT_MAX = 10;
 const STASH_RATE_LIMIT_WINDOW_SECONDS = 60;
 
 // Rutas confirmadas contra la API real de Stash
@@ -18,20 +19,69 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
   const corsHeaders = corsHeadersForRequest(req);
 
-  const rateLimit = await checkRateLimit({
-    bucketKey: STASH_RATE_LIMIT_BUCKET,
-    maxRequests: STASH_RATE_LIMIT_MAX,
-    windowSeconds: STASH_RATE_LIMIT_WINDOW_SECONDS,
-  });
-  if (!rateLimit.allowed) {
-    log('WARN', 'Rate limit de Stash excedido, petición rechazada');
-    return new Response(JSON.stringify({ error: 'Too many requests, please slow down' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(STASH_RATE_LIMIT_WINDOW_SECONDS) },
-      status: 429,
-    });
-  }
-
   try {
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      log('ERROR', 'Faltan variables de entorno de Supabase');
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
+    }
+
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = bearerMatch ? bearerMatch[1].trim() : '';
+
+    if (!token || (SUPABASE_ANON_KEY && token === SUPABASE_ANON_KEY)) {
+      log('WARN', 'Petición sin JWT de usuario autenticado');
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      log('WARN', 'JWT de usuario inválido o expirado', { error: authError?.message });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+
+    // Bucket por usuario primero para impedir que un solo usuario agote la cuota global
+    const userBucketKey = `stash:${await bucketKeyFromRequest(req)}`;
+    const userRateLimit = await checkRateLimit({
+      bucketKey: userBucketKey,
+      maxRequests: STASH_USER_RATE_LIMIT_MAX,
+      windowSeconds: STASH_RATE_LIMIT_WINDOW_SECONDS,
+    });
+    if (!userRateLimit.allowed) {
+      log('WARN', 'Rate limit por usuario de Stash excedido', { userId: user.id });
+      return new Response(JSON.stringify({ error: 'Too many requests, please slow down' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(STASH_RATE_LIMIT_WINDOW_SECONDS) },
+        status: 429,
+      });
+    }
+
+    const rateLimit = await checkRateLimit({
+      bucketKey: STASH_RATE_LIMIT_BUCKET,
+      maxRequests: STASH_RATE_LIMIT_MAX,
+      windowSeconds: STASH_RATE_LIMIT_WINDOW_SECONDS,
+    });
+    if (!rateLimit.allowed) {
+      log('WARN', 'Rate limit de Stash excedido, petición rechazada');
+      return new Response(JSON.stringify({ error: 'Too many requests, please slow down' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(STASH_RATE_LIMIT_WINDOW_SECONDS) },
+        status: 429,
+      });
+    }
+
     const body = await req.json();
     const igdbId = parseInt(body?.igdb_id);
     if (!Number.isInteger(igdbId) || igdbId <= 0) {
@@ -40,10 +90,6 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
-
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const stashToken = Deno.env.get('STASH_JWT_TOKEN') ?? '';
     if (!stashToken) {

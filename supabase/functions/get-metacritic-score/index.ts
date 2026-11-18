@@ -258,8 +258,12 @@ function tryParseRegexFallback(html: string): Partial<MetacriticData> | null {
   };
 }
 
-async function scrapeMetacriticGame(slug: string, url: string): Promise<MetacriticData> {
-  const { status, html } = await fetchWithRetry(url);
+async function scrapeMetacriticGame(
+  slug: string,
+  url: string,
+  prefetched?: { status: number; html: string },
+): Promise<MetacriticData> {
+  const { status, html } = prefetched ?? await fetchWithRetry(url);
 
   const blocked = detectBlocked(status, html);
   if (blocked) {
@@ -364,6 +368,7 @@ Deno.serve(async (req) => {
     }
 
     let resolved: { slug: string; url: string };
+    let prefetched: { status: number; html: string } | undefined;
 
     if (metacriticSlug) {
       // Slug ya conocido — ir directo a la ficha
@@ -374,12 +379,12 @@ Deno.serve(async (req) => {
       const guessedSlug = slugifyTitle(gameTitle!);
       const guessedUrl = `https://www.metacritic.com/game/${guessedSlug}/`;
 
-      await jitter();
       const guessRes = await fetchWithRetry(guessedUrl);
 
       if (guessRes.status === 200 && !detectBlocked(guessRes.status, guessRes.html)) {
         log('INFO', 'Slug adivinado directamente funcionó', { gameTitle, guessedSlug });
         resolved = { slug: guessedSlug, url: guessedUrl };
+        prefetched = guessRes;
       } else {
         log('INFO', 'Slug adivinado falló, recurriendo al buscador', {
           gameTitle,
@@ -394,33 +399,38 @@ Deno.serve(async (req) => {
       }
     }
 
-    const data = await scrapeMetacriticGame(resolved.slug, resolved.url);
+    const data = await scrapeMetacriticGame(resolved.slug, resolved.url, prefetched);
 
     // Guardar en BD si tenemos datos válidos (lazy backfill)
     if (gameId && data.parse_strategy !== 'none' && !(data as any)._metascoreLowConfidence) {
-      // Antes usaba 'SERVICE_ROLE_KEY' (sin el prefijo SUPABASE_), que casi
-      // seguro no existe como secreto — Supabase inyecta automáticamente
-      // 'SUPABASE_SERVICE_ROLE_KEY' en toda Edge Function, sin configuración
-      // manual. Con la key vacía, este guardado fallaba en silencio (el
-      // catch de abajo solo lo registra en logs) y el caché de 30 días
-      // nunca llegaba a persistirse: cada apertura de ficha de juego
-      // volvía a scrapear Metacritic desde cero.
       const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
       const supabase = createClient(supabaseUrl, SUPABASE_SERVICE_ROLE_KEY);
+      const baseFields = {
+        metacritic_slug: data.slug,
+        metacritic_score: data.metascore,
+        metacritic_url: data.url,
+        metacritic_user_score: data.user_score,
+        metacritic_updated_at: new Date().toISOString(),
+      };
 
       const { error: updateError } = await supabase
         .from('games')
         .update({
-          metacritic_slug: data.slug,
-          metacritic_score: data.metascore,
-          metacritic_url: data.url,
-          metacritic_user_score: data.user_score,
-          metacritic_updated_at: new Date().toISOString(),
+          ...baseFields,
+          metacritic_critic_count: data.critic_review_count,
+          metacritic_user_rating_count: data.user_rating_count,
         })
         .eq('igdb_id', gameId);
 
       if (updateError) {
-        log('ERROR', 'Error guardando en la tabla games', { error: updateError.message });
+        // Fallback si las columnas de conteo aún no existen en BD
+        const { error: fallbackErr } = await supabase
+          .from('games')
+          .update(baseFields)
+          .eq('igdb_id', gameId);
+        if (fallbackErr) {
+          log('ERROR', 'Error guardando en la tabla games', { error: fallbackErr.message });
+        }
       }
     }
 

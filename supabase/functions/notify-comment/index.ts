@@ -14,7 +14,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
+import { corsHeadersForRequest, handleCorsPreflight } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -75,6 +75,15 @@ async function notifyUser(
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
+  const corsHeaders = corsHeadersForRequest(req);
+
+  const webhookSecret = Deno.env.get("WEBHOOK_SECRET") ?? "";
+  if (webhookSecret && req.headers.get("x-webhook-secret") !== webhookSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   try {
     const payload = await req.json();
@@ -122,6 +131,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Evitar replays de comentarios antiguos (> 1 hora)
+    const commentTime = verifiedComment.created_at
+      ? new Date(verifiedComment.created_at).getTime()
+      : NaN;
+    if (!Number.isFinite(commentTime) || Date.now() - commentTime > 60 * 60 * 1000) {
+      return new Response(JSON.stringify({ skipped: "comment is too old" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const commentId = verifiedComment.id as string;
     const commenterId = verifiedComment.user_id as string;
     const reviewId = (verifiedComment.review_id as string | null) ?? "";
@@ -147,12 +166,23 @@ Deno.serve(async (req) => {
         p_post_id: postId,
       });
       const summary = Array.isArray(summaryRows) ? summaryRows[0] : summaryRows;
-      if (summary?.user_id) {
-        targetOwnerId = summary.user_id as string;
+      if (summary?.owner_id) {
+        targetOwnerId = summary.owner_id as string;
         gamesCount = Number(summary.games_count ?? 1);
-        if (summary.game_title) gameTitle = summary.game_title as string;
-        if (!resolvedReviewId && summary.review_id) {
-          resolvedReviewId = summary.review_id as string;
+        if (summary.first_title) gameTitle = summary.first_title as string;
+      }
+      if (!resolvedReviewId && gamesCount <= 1) {
+        const { data: feedRows } = await supabase
+          .from("activity_feed")
+          .select("review_id")
+          .eq("post_id", postId)
+          .not("review_id", "is", null)
+          .limit(10);
+        const uniqueReviewIds = Array.from(
+          new Set((feedRows ?? []).map((r: any) => r.review_id).filter(Boolean))
+        );
+        if (uniqueReviewIds.length === 1) {
+          resolvedReviewId = uniqueReviewIds[0] as string;
         }
       }
     }
@@ -200,7 +230,7 @@ Deno.serve(async (req) => {
 
     // ─── Caso 2: Notificar al usuario mencionado con @username (reply) ──────
     if (content) {
-      const mentionMatch = content.match(/^@(\w+)/);
+      const mentionMatch = content.match(/^@([A-Za-z0-9_.-]+)/);
       if (mentionMatch) {
         const mentionedUsername = mentionMatch[1];
 
@@ -217,7 +247,7 @@ Deno.serve(async (req) => {
           mentionedUser.id !== targetOwnerId              // No duplicar con Caso 1
         ) {
           // Eliminar el prefijo @usuario del texto visible en el cuerpo
-          const replyBody = content.replace(/^@\w+\s*/, "").trim();
+          const replyBody = content.replace(/^@[A-Za-z0-9_.-]+\s*/, "").trim();
           await notifyUser(
             mentionedUser.id,
             "reply_to_comment",

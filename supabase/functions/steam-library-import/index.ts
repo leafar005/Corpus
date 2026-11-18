@@ -224,8 +224,8 @@ Deno.serve(async (req) => {
           matchedGames++;
         }
 
-        // Fallback or metacritic fetch
-        if (timeLeft() > 5000) {
+        // Fallback únicamente si no hubo match IGDB (evita 150ms + appdetails por juego ya resuelto)
+        if (!gameObj && timeLeft() > 5000) {
           try {
             const fallbackRes = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}&l=spanish`);
             if (fallbackRes.ok) {
@@ -233,41 +233,40 @@ Deno.serve(async (req) => {
               const appData = fallbackJson[appId.toString()];
               if (appData && appData.success) {
                 const data = appData.data;
-                if (!gameObj && data.type === 'game') { // fully unmatched by IGDB
+                if (data.type === 'game') { // fully unmatched by IGDB
+                  let parsedReleaseDate: string | null = null;
+                  if (data.release_date?.date) {
+                    const d = new Date(data.release_date.date);
+                    if (!Number.isNaN(d.getTime())) {
+                      parsedReleaseDate = d.toISOString().split('T')[0];
+                    }
+                  }
                   gameObj = {
-                    igdb_id: appId + 1000000000, // fake igdb_id to satisfy primary key requirement ideally, but wait: igdb_id is primary key, it must be unique. Let's use a very high negative number or just appId + big offset.
+                    igdb_id: -appId,
                     title: data.name,
                     cover_url: data.header_image,
-                    release_date: data.release_date?.date ? new Date(data.release_date.date).toISOString().split('T')[0] : null, // handle date parse carefully, often not ISO
+                    release_date: parsedReleaseDate,
                     genres: data.genres?.map((g: any) => g.description) || [],
                     steam_app_id: appId,
                     summary: data.short_description,
                     platforms: ['PC (Steam)'],
                     developer: data.developers?.length > 0 ? data.developers[0] : null,
+                    metacritic_score: data.metacritic?.score ?? null,
+                    metacritic_url: data.metacritic?.url ?? null,
                   };
                   unmatchedGames++;
-                }
-                
-                // Add metacritic to either IGDB or Fallback resolved object
-                if (gameObj) {
-                  gameObj.metacritic_score = data.metacritic?.score ?? null;
-                  gameObj.metacritic_url = data.metacritic?.url ?? null;
                 }
               }
             }
           } catch (e) {
             console.error(`Steam fallback error for ${appId}:`, e);
           }
-          // Pausa entre llamadas a la Store API de Steam: sin esto, una
-          // biblioteca grande dispara cientos de peticiones seguidas sin
-          // ninguna pausa, y es fácil chocar con el rate limit de Steam
-          // (afecta a STEAM_WEB_API_KEY, que es compartida por toda la app).
+          // Pausa entre llamadas a la Store API de Steam para no agotar la cuota compartida
           await sleep(150);
         }
 
         if (gameObj) {
-          // If igdb_id is fake, we should make sure it doesn't collide.
-          // Using -steamAppId is a good trick for Steam-only games in an IGDB DB.
+          // Using -steamAppId for Steam-only games in an IGDB DB.
           if (!igdbId) {
             gameObj.igdb_id = -appId;
           }
@@ -285,9 +284,22 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Upsert games
+      // Upsert games sin pisar campos existentes del catálogo con nulos
       if (resolvedGamesForCatalog.length > 0) {
-        await supabase.from('games').upsert(resolvedGamesForCatalog, { onConflict: 'igdb_id' });
+        const sanitizedCatalogRows = resolvedGamesForCatalog.map((row) => {
+          const clean: Record<string, any> = {
+            igdb_id: row.igdb_id,
+            title: row.title,
+          };
+          for (const [k, v] of Object.entries(row)) {
+            if (k === 'igdb_id' || k === 'title') continue;
+            if (v !== null && v !== undefined) {
+              clean[k] = v;
+            }
+          }
+          return clean;
+        });
+        await supabase.from('games').upsert(sanitizedCatalogRows, { onConflict: 'igdb_id' });
         allCatalogGames.push(...resolvedGamesForCatalog);
       }
 

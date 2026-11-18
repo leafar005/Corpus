@@ -13,6 +13,24 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
   const corsHeaders = corsHeadersForRequest(req);
 
+  const cronSecretEnv = Deno.env.get('CRON_SECRET') ?? '';
+  const cronHeader = req.headers.get('x-cron-secret') ?? '';
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  const bearerToken = bearerMatch ? bearerMatch[1].trim() : '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+  const isCronSecret = cronSecretEnv.length > 0 && cronHeader === cronSecretEnv;
+  const isServiceRole = serviceRoleKey.length > 0 && bearerToken === serviceRoleKey;
+
+  if (!isCronSecret && !isServiceRole) {
+    log('WARN', 'fetch-stash-feed invocado sin cron secret o service_role válido');
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 401,
+    });
+  }
+
   const rateLimit = await checkRateLimit({
     bucketKey: STASH_RATE_LIMIT_BUCKET,
     maxRequests: STASH_RATE_LIMIT_MAX,
