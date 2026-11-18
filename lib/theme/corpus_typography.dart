@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'corpus_theme_extension.dart';
 
@@ -7,49 +6,93 @@ import 'corpus_theme_extension.dart';
 class CorpusTypography {
   CorpusTypography._();
 
+  static List<String> _fallbackFor(String? fontFamily) {
+    return switch (fontFamily) {
+      'Archivo Black' => const ['Impact', 'Arial Black', 'Syne', 'sans-serif'],
+      _ => const ['Syne', 'sans-serif'],
+    };
+  }
+
   static TextTheme? textThemeFor(String? fontFamily, Brightness brightness) {
     if (fontFamily == null) return null;
     final base = ThemeData(brightness: brightness).textTheme;
-
-    final theme = switch (fontFamily) {
-      'Syne' => GoogleFonts.syneTextTheme(base),
-      'Archivo Black' => GoogleFonts.archivoBlackTextTheme(base),
-      _ => _googleOrBundled(fontFamily, base),
-    };
-
-    return _applyFeatures(theme);
+    final theme = base.apply(fontFamily: fontFamily);
+    return _applyFeatures(
+      theme,
+      fallback: _fallbackFor(fontFamily),
+    );
   }
 
-  static TextTheme _applyFeatures(TextTheme theme) {
+  static TextTheme _applyFeatures(
+    TextTheme theme, {
+    List<String>? fallback,
+  }) {
     const features = [
       FontFeature.liningFigures(),
       FontFeature.tabularFigures(),
     ];
     return theme.copyWith(
-      displayLarge: theme.displayLarge?.copyWith(fontFeatures: features),
-      displayMedium: theme.displayMedium?.copyWith(fontFeatures: features),
-      displaySmall: theme.displaySmall?.copyWith(fontFeatures: features),
-      headlineLarge: theme.headlineLarge?.copyWith(fontFeatures: features),
-      headlineMedium: theme.headlineMedium?.copyWith(fontFeatures: features),
-      headlineSmall: theme.headlineSmall?.copyWith(fontFeatures: features),
-      titleLarge: theme.titleLarge?.copyWith(fontFeatures: features),
-      titleMedium: theme.titleMedium?.copyWith(fontFeatures: features),
-      titleSmall: theme.titleSmall?.copyWith(fontFeatures: features),
-      bodyLarge: theme.bodyLarge?.copyWith(fontFeatures: features),
-      bodyMedium: theme.bodyMedium?.copyWith(fontFeatures: features),
-      bodySmall: theme.bodySmall?.copyWith(fontFeatures: features),
-      labelLarge: theme.labelLarge?.copyWith(fontFeatures: features),
-      labelMedium: theme.labelMedium?.copyWith(fontFeatures: features),
-      labelSmall: theme.labelSmall?.copyWith(fontFeatures: features),
+      displayLarge: theme.displayLarge?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      displayMedium: theme.displayMedium?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      displaySmall: theme.displaySmall?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      headlineLarge: theme.headlineLarge?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      headlineMedium: theme.headlineMedium?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      headlineSmall: theme.headlineSmall?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      titleLarge: theme.titleLarge?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      titleMedium: theme.titleMedium?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      titleSmall: theme.titleSmall?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      bodyLarge: theme.bodyLarge?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      bodyMedium: theme.bodyMedium?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      bodySmall: theme.bodySmall?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      labelLarge: theme.labelLarge?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      labelMedium: theme.labelMedium?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
+      labelSmall: theme.labelSmall?.copyWith(
+        fontFeatures: features,
+        fontFamilyFallback: fallback,
+      ),
     );
-  }
-
-  static TextTheme _googleOrBundled(String fontFamily, TextTheme base) {
-    try {
-      return GoogleFonts.getTextTheme(fontFamily, base);
-    } catch (_) {
-      return base.apply(fontFamily: fontFamily);
-    }
   }
 
   static TextStyle style({
@@ -60,10 +103,13 @@ class CorpusTypography {
     double? height,
     double? letterSpacing,
   }) {
-    final textStyle = TextStyle(
+    return TextStyle(
       fontFamily: fontFamily,
+      fontFamilyFallback: _fallbackFor(fontFamily),
       fontSize: fontSize,
-      fontWeight: fontWeight,
+      fontWeight: fontFamily == 'Archivo Black'
+          ? (fontWeight ?? FontWeight.w400)
+          : fontWeight,
       color: color,
       height: height,
       letterSpacing: letterSpacing,
@@ -72,14 +118,6 @@ class CorpusTypography {
         FontFeature.tabularFigures(),
       ],
     );
-
-    return switch (fontFamily) {
-      'Syne' => GoogleFonts.syne(textStyle: textStyle).copyWith(color: color),
-      'Archivo Black' => GoogleFonts.archivoBlack(
-        textStyle: textStyle.copyWith(fontWeight: FontWeight.w400),
-      ).copyWith(color: color),
-      _ => textStyle,
-    };
   }
 
   static TextStyle fromTheme(
@@ -140,20 +178,5 @@ class CorpusTypography {
     );
   }
 
-  static Future<void> preloadFonts(Iterable<String?> families) async {
-    final pending = <Future<void>>[];
-    for (final family in families) {
-      switch (family) {
-        case 'Syne':
-          pending.add(GoogleFonts.pendingFonts([GoogleFonts.syne()]));
-        case 'Archivo Black':
-          pending.add(GoogleFonts.pendingFonts([GoogleFonts.archivoBlack()]));
-        default:
-          break;
-      }
-    }
-    if (pending.isNotEmpty) {
-      await Future.wait(pending);
-    }
-  }
+  static Future<void> preloadFonts(Iterable<String?> families) async {}
 }

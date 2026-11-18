@@ -50,7 +50,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/images/logo/
+    - assets/images/logo/logo_default.png
     - assets/images/logo_full/
     - assets/guest_showcase/
   fonts:
@@ -62,10 +62,8 @@ flutter:
           weight: 500
         - asset: assets/fonts/Syne/static/Syne-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/Syne/static/Syne-Bold.ttf
+        - asset: assets/fonts/Syne/static/Syne-SemiBold.ttf
           weight: 700
-        - asset: assets/fonts/Syne/static/Syne-ExtraBold.ttf
-          weight: 800
 
 # flutter_launcher_icons
 flutter_launcher_icons:

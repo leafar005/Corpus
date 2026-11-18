@@ -13,6 +13,7 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
   String? _currentSrc;
   String? _pendingAsset;
   bool _unlockListenersRegistered = false;
+  JSFunction? _unlockListener;
 
   @override
   Future<void> init({required double volume}) async {
@@ -27,7 +28,7 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
     final audio = web.HTMLAudioElement()
       ..loop = true
       ..volume = _volume
-      ..preload = 'auto'
+      ..preload = 'metadata'
       ..style.display = 'none';
 
     web.document.body?.append(audio);
@@ -39,16 +40,30 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
     _unlockListenersRegistered = true;
 
     void onUserGesture(web.Event _) {
-      if (_pendingAsset == null) return;
-      final asset = _pendingAsset!;
-      _pendingAsset = null;
-      playAsset(asset);
+      final asset = _pendingAsset;
+      if (asset != null) {
+        _pendingAsset = null;
+        playAsset(asset);
+      } else if (_audio != null && _audio!.paused) {
+        resume();
+      }
     }
 
     final listener = onUserGesture.toJS;
+    _unlockListener = listener;
     web.document.addEventListener('pointerdown', listener);
     web.document.addEventListener('keydown', listener);
     web.document.addEventListener('touchstart', listener);
+  }
+
+  void _removeUnlockListeners() {
+    final listener = _unlockListener;
+    if (listener == null) return;
+    web.document.removeEventListener('pointerdown', listener);
+    web.document.removeEventListener('keydown', listener);
+    web.document.removeEventListener('touchstart', listener);
+    _unlockListener = null;
+    _unlockListenersRegistered = false;
   }
 
   @override
@@ -69,8 +84,10 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
     try {
       await audio.play().toDart;
       _pendingAsset = null;
+      _removeUnlockListeners();
     } catch (_) {
       _pendingAsset = assetPath;
+      _registerUnlockListeners();
       rethrow;
     }
   }
@@ -100,12 +117,18 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
   Future<void> resume() async {
     final audio = _audio;
     if (audio != null) {
-      await audio.play().toDart;
+      try {
+        await audio.play().toDart;
+        _removeUnlockListeners();
+      } catch (_) {
+        _registerUnlockListeners();
+      }
     }
   }
 
   @override
   void dispose() {
+    _removeUnlockListeners();
     final audio = _audio;
     if (audio != null) {
       audio.pause();

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import '../theme/app_theme.dart';
@@ -52,12 +51,6 @@ class StylePackMusicService with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       syncWithCurrentPack(force: true);
     });
-
-    if (kIsWeb) {
-      SchedulerBinding.instance.scheduleFrameCallback((_) {
-        syncWithCurrentPack(force: true);
-      });
-    }
   }
 
   /// Syncs playback with the active style pack.

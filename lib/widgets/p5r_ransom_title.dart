@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// P5R menu-style title: mixed fonts per letter, black cut-out halo, slight jitter.
 class P5rRansomTitle extends StatelessWidget {
@@ -92,7 +91,9 @@ class P5rRansomTitle extends StatelessWidget {
     Color color,
   ) {
     if (_accentPattern.hasMatch(char)) {
-      return GoogleFonts.notoSans(
+      return TextStyle(
+        fontFamily: 'Syne',
+        fontFamilyFallback: const ['Arial', 'sans-serif'],
         fontSize: baseSize,
         color: color,
         fontWeight: FontWeight.w700,
@@ -102,34 +103,45 @@ class P5rRansomTitle extends StatelessWidget {
 
     switch (index % 5) {
       case 0:
-        return GoogleFonts.notoSerif(
+        return TextStyle(
+          fontFamily: 'Georgia',
+          fontFamilyFallback: const ['Times New Roman', 'serif'],
           fontSize: baseSize * 0.95,
           color: color,
           fontWeight: FontWeight.w700,
           height: 1.0,
         );
       case 1:
-        return GoogleFonts.oswald(
+        return TextStyle(
+          fontFamily: 'Impact',
+          fontFamilyFallback: const ['Arial Narrow', 'Syne', 'sans-serif'],
           fontSize: baseSize * 1.08,
           color: color,
           fontWeight: FontWeight.w700,
           height: 1.0,
         );
       case 2:
-        return GoogleFonts.archivoBlack(
+        return TextStyle(
+          fontFamily: 'Archivo Black',
+          fontFamilyFallback: const ['Impact', 'Arial Black', 'Syne', 'sans-serif'],
           fontSize: baseSize * 1.12,
           color: color,
+          fontWeight: FontWeight.w400,
           height: 1.0,
         );
       case 3:
-        return GoogleFonts.robotoSlab(
+        return TextStyle(
+          fontFamily: 'Courier New',
+          fontFamilyFallback: const ['Georgia', 'serif'],
           fontSize: baseSize * 0.92,
           color: color,
           fontWeight: FontWeight.w800,
           height: 1.0,
         );
       case 4:
-        return GoogleFonts.jost(
+        return TextStyle(
+          fontFamily: 'Syne',
+          fontFamilyFallback: const ['Trebuchet MS', 'sans-serif'],
           fontSize: baseSize,
           color: color,
           fontWeight: FontWeight.w800,

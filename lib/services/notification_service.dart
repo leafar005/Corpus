@@ -1,10 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:convert';
 import 'deep_link_service.dart';
 import '../env.dart';
 
@@ -32,6 +33,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+  StreamSubscription<String>? _tokenRefreshSub;
 
   // Activo en Android, Windows y Web
   bool get _isSupported =>
@@ -130,48 +132,52 @@ class NotificationService {
   Future<void> requestPermissions() async {
     if (!_isSupported) return;
 
-    if (kIsWeb) {
-      // En web: pedir permiso a través de la API de Firebase Messaging
-      final settings = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      debugPrint(
-        '[NotificationService] Permiso web: ${settings.authorizationStatus}',
-      );
-      return;
-    }
+    try {
+      if (kIsWeb) {
+        // En web: pedir permiso a través de la API de Firebase Messaging
+        final settings = await FirebaseMessaging.instance.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        debugPrint(
+          '[NotificationService] Permiso web: ${settings.authorizationStatus}',
+        );
+        return;
+      }
 
-    if (Platform.isAndroid) {
-      final messaging = FirebaseMessaging.instance;
-      final settings = await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        announcement: false,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-      );
-      debugPrint(
-        '[NotificationService] Permiso Android: ${settings.authorizationStatus}',
-      );
+      if (Platform.isAndroid) {
+        final messaging = FirebaseMessaging.instance;
+        final settings = await messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+          announcement: false,
+          carPlay: false,
+          criticalAlert: false,
+          provisional: false,
+        );
+        debugPrint(
+          '[NotificationService] Permiso Android: ${settings.authorizationStatus}',
+        );
 
-      // Solicitar también el permiso nativo POST_NOTIFICATIONS (Android 13+)
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.requestNotificationsPermission();
-    }
+        // Solicitar también el permiso nativo POST_NOTIFICATIONS (Android 13+)
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestNotificationsPermission();
+      }
 
-    if (Platform.isWindows) {
-      // flutter_local_notifications v19 no requiere solicitud explícita de permiso
-      // en Windows — las notificaciones Toast funcionan directamente.
-      debugPrint(
-        '[NotificationService] Windows: permisos de notificación por defecto.',
-      );
+      if (Platform.isWindows) {
+        // flutter_local_notifications v19 no requiere solicitud explícita de permiso
+        // en Windows — las notificaciones Toast funcionan directamente.
+        debugPrint(
+          '[NotificationService] Windows: permisos de notificación por defecto.',
+        );
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] Error solicitando permisos: $e');
     }
   }
 
@@ -218,8 +224,8 @@ class NotificationService {
         '[NotificationService] Token FCM ($platform) guardado: ${token.substring(0, 20)}...',
       );
 
-      // Escuchar refresh de token para mantenerlo actualizado
-      messaging.onTokenRefresh.listen((newToken) async {
+      // Escuchar refresh de token una sola vez para mantenerlo actualizado
+      _tokenRefreshSub ??= messaging.onTokenRefresh.listen((newToken) async {
         final uid = Supabase.instance.client.auth.currentUser?.id;
         if (uid == null) return;
         await Supabase.instance.client.from('push_tokens').upsert({
@@ -247,6 +253,8 @@ class NotificationService {
 
   /// Elimina el token del dispositivo cuando el usuario cierra sesión.
   Future<void> deleteFcmToken() async {
+    await _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = null;
     if (!_isSupported) return;
     final bool isAndroid = !kIsWeb && Platform.isAndroid;
     if (!kIsWeb && !isAndroid) return;
@@ -336,7 +344,7 @@ class NotificationService {
           },
         );
         debugPrint(
-          '[NotificationService] Test notification enviada al token: $token',
+          '[NotificationService] Test notification enviada al token: ${token.substring(0, token.length.clamp(0, 12))}...',
         );
         return; // FCM se encargará de mostrarla
       } catch (e) {

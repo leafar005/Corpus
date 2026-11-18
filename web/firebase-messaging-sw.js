@@ -43,7 +43,6 @@ self.addEventListener('push', function (event) {
     icon: notification.icon || '/icons/Icon-192.png',
     badge: '/icons/Icon-192.png',
     data,
-    vibrate: [200, 100, 200],
   };
 
   // event.waitUntil es imprescindible: si el navegador cierra el Service
@@ -54,15 +53,25 @@ self.addEventListener('push', function (event) {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Al hacer clic en la notificación, enfocar la ventana de la PWA (o abrirla).
+// Al hacer clic en la notificación, enfocar la ventana de la PWA (o abrirla en su ruta).
 self.addEventListener('notificationclick', function (event) {
+  const data = (event.notification && event.notification.data) || {};
+  let targetUrl = '/';
+  if (data.review_id) {
+    targetUrl = '/actividad/resena/' + encodeURIComponent(data.review_id);
+  } else if (data.post_id) {
+    targetUrl = '/actividad';
+  } else if (data.type === 'new_bundle' || data.type === 'bundle_expiring') {
+    targetUrl = '/buscar';
+  }
+
   event.notification.close();
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
       for (const client of clientList) {
         if ('focus' in client) return client.focus();
       }
-      if (clients.openWindow) return clients.openWindow('/');
+      if (clients.openWindow) return clients.openWindow(targetUrl);
     })
   );
 });

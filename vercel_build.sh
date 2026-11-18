@@ -21,4 +21,4 @@ EOF
 
 # Descargamos Flutter y compilamos la versión Web
 git clone https://github.com/flutter/flutter.git -b stable --depth 1
-./flutter/bin/flutter build web --release --dart-define-from-file=.env.json
+./flutter/bin/flutter build web --release --pwa-strategy=none --dart-define-from-file=.env.json

@@ -69,6 +69,10 @@ class ThemeNotifier extends ChangeNotifier {
   Future<void> reloadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await _applyFromPrefs(prefs);
+    final urlPackId = StylePackUrlOverride.packIdFromUri(Uri.base);
+    if (urlPackId != null) {
+      _applyStylePack(urlPackId, persist: false);
+    }
     notifyListeners();
   }
 
@@ -104,7 +108,6 @@ class ThemeNotifier extends ChangeNotifier {
   Future<void> setStylePack(String id) async {
     if (!StylePackRegistry.exists(id)) return;
     _applyStylePack(id, persist: true);
-    notifyListeners();
     final pack = currentPack;
     await CorpusTypography.preloadFonts([pack.fontFamily, pack.heroFontFamily]);
     notifyListeners();

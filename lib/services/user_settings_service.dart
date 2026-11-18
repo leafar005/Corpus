@@ -11,6 +11,7 @@ class UserSettingsService {
   SupabaseClient get _supabase => Supabase.instance.client;
   final Map<String, dynamic> _pending = {};
   Timer? _debounce;
+  Future<void>? _dirtyFlagWrite;
 
   static const List<String> syncKeys = [
     'theme_mode',
@@ -86,10 +87,10 @@ class UserSettingsService {
 
       if (remote == null) {
         final seed = _snapshotLocals(prefs);
-        await _supabase.from('user_settings').upsert({
-          'user_id': userId,
-          ...seed,
-        }, onConflict: 'user_id');
+        await _supabase
+            .from('user_settings')
+            .upsert({'user_id': userId, ...seed}, onConflict: 'user_id')
+            .timeout(const Duration(seconds: 6));
         return;
       }
 
@@ -109,9 +110,9 @@ class UserSettingsService {
     }
 
     _pending.addAll(changedKeys);
-    SharedPreferences.getInstance().then(
-      (p) => p.setBool('user_settings_dirty', true),
-    );
+    _dirtyFlagWrite = SharedPreferences.getInstance().then((p) async {
+      await p.setBool('user_settings_dirty', true);
+    });
 
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 600), _flush);
@@ -138,6 +139,10 @@ class UserSettingsService {
 
   Future<void> _flush() async {
     if (_pending.isEmpty) return;
+    if (_dirtyFlagWrite != null) {
+      await _dirtyFlagWrite;
+      _dirtyFlagWrite = null;
+    }
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
       _pending.clear();
@@ -146,10 +151,10 @@ class UserSettingsService {
 
     final payload = Map<String, dynamic>.from(_pending);
     try {
-      await _supabase.from('user_settings').upsert({
-        'user_id': userId,
-        ...payload,
-      }, onConflict: 'user_id');
+      await _supabase
+          .from('user_settings')
+          .upsert({'user_id': userId, ...payload}, onConflict: 'user_id')
+          .timeout(const Duration(seconds: 6));
 
       _pending.removeWhere((k, _) => payload.containsKey(k));
       if (_pending.isEmpty) {

@@ -61,6 +61,26 @@ void dispatchCorpusReady() {
   }
 }
 
+/// Carga bajo demanda CropperJS en Web cuando el usuario abre el recorte.
+Future<void> ensureCropperJsLoaded() async {
+  if (!kIsWeb) return;
+  try {
+    if (js_util.hasProperty(html.window, 'Cropper')) return;
+    if (js_util.hasProperty(html.window, '__loadCropperJs')) {
+      final promise = js_util.callMethod<Object>(
+        html.window,
+        '__loadCropperJs',
+        const [],
+      );
+      await js_util
+          .promiseToFuture<Object?>(promise)
+          .timeout(const Duration(seconds: 8), onTimeout: () => null);
+    }
+  } catch (e) {
+    debugPrint('[WebJs] Error cargando CropperJS bajo demanda: $e');
+  }
+}
+
 String? getWebPathname() {
   if (!kIsWeb) return null;
   try {
@@ -101,6 +121,16 @@ String? getWebPathname() {
 /// 6. Verify that the Navigator history never reaches an invalid state.
 ///
 /// DO NOT refactor or "modernize" this code just for stylistic reasons.
+String? _getWebSearch() {
+  if (!kIsWeb) return null;
+  try {
+    return html.window.location.search;
+  } catch (e) {
+    debugPrint('[WebJs] Error leyendo search: $e');
+    return null;
+  }
+}
+
 void setWebPath(
   String path, {
   bool replace = false,
@@ -108,8 +138,20 @@ void setWebPath(
 }) {
   if (!kIsWeb) return;
   try {
-    final search = html.window.location.search;
-    final url = '$path$search';
+    final rawSearch = _getWebSearch();
+    var preservedSearch = '';
+    if (rawSearch != null && rawSearch.isNotEmpty) {
+      final uri = Uri(
+        query: rawSearch.startsWith('?') ? rawSearch.substring(1) : rawSearch,
+      );
+      final styleParam = uri.queryParameters['style'];
+      if (styleParam != null && styleParam.isNotEmpty) {
+        preservedSearch = '?style=${Uri.encodeQueryComponent(styleParam)}';
+      } else if (rawSearch.startsWith('?=')) {
+        preservedSearch = rawSearch;
+      }
+    }
+    final url = '$path$preservedSearch';
     final jsState = state == null ? null : jsonEncode(state);
     if (replace) {
       html.window.history.replaceState(jsState, '', url);

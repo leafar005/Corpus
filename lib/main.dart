@@ -9,7 +9,6 @@ import 'screens/main_screen.dart';
 import 'env.dart';
 import 'package:corpus/theme/style_pack.dart';
 import 'theme/app_theme.dart';
-import 'theme/corpus_typography.dart';
 import 'theme/style_pack_registry.dart';
 import 'services/notification_service.dart';
 import 'services/style_pack_music_service.dart';
@@ -77,51 +76,45 @@ void main() async {
   //    Ejecutar con: flutter run --dart-define-from-file=.env.json
   Env.assertConfigured();
 
-  // 3. Inicializa Firebase
-  if (kIsWeb) {
-    // En web: la configuración viene de variables de entorno (Env.*)
-    // ya que google-services.json no aplica en web.
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: Env.firebaseApiKey,
-        authDomain: Env.firebaseAuthDomain,
-        projectId: Env.firebaseProjectId,
-        storageBucket: Env.firebaseStorageBucket,
-        messagingSenderId: Env.firebaseMessagingSenderId,
-        appId: Env.firebaseAppId,
-      ),
-    );
-  } else {
-    await Firebase.initializeApp();
-  }
-
-  // 4. Inicializa la conexión con Supabase
-  await Supabase.initialize(
-    url: Env.supabaseUrl,
-    publishableKey: Env.supabaseAnonKey,
-  );
-
-  if (Supabase.instance.client.auth.currentSession != null) {
-    await UserSettingsService().pullAndApplyToLocalCache();
-  }
-
-  // 5. Carga packs importados por el usuario
-  await StylePackRegistry.loadImported();
-  if (kDebugMode) {
-    StylePackRegistry.registerDebugBuiltIn(StylePack.persona5RoyalPack());
-  }
-  await themeNotifier.initialize();
-  await CorpusTypography.preloadFonts([
-    AppTheme.fontPreviewOverride,
-    themeNotifier.currentPack.fontFamily,
-    themeNotifier.currentPack.heroFontFamily,
+  // 3. Inicializa Firebase, Supabase y packs locales en paralelo para acelerar FCP
+  await Future.wait([
+    () async {
+      try {
+        if (kIsWeb) {
+          // En web: la configuración viene de variables de entorno (Env.*)
+          // ya que google-services.json no aplica en web.
+          await Firebase.initializeApp(
+            options: const FirebaseOptions(
+              apiKey: Env.firebaseApiKey,
+              authDomain: Env.firebaseAuthDomain,
+              projectId: Env.firebaseProjectId,
+              storageBucket: Env.firebaseStorageBucket,
+              messagingSenderId: Env.firebaseMessagingSenderId,
+              appId: Env.firebaseAppId,
+            ),
+          );
+        } else {
+          await Firebase.initializeApp();
+        }
+      } catch (e) {
+        debugPrint('[main] Firebase initialize falló (continuando): $e');
+      }
+    }(),
+    Supabase.initialize(
+      url: Env.supabaseUrl,
+      publishableKey: Env.supabaseAnonKey,
+    ),
+    () async {
+      await StylePackRegistry.loadImported();
+      if (kDebugMode) {
+        StylePackRegistry.registerDebugBuiltIn(StylePack.persona5RoyalPack());
+      }
+      await themeNotifier.initialize();
+    }(),
   ]);
-  await StylePackMusicService.instance.init(themeNotifier);
 
-  // 6. Inicializa el servicio de notificaciones (Android + Windows + Web)
-  await NotificationService().init();
-
-  // 7. Arranca la interfaz gráfica
+  // 4. Arranca la interfaz gráfica inmediatamente (música, notificaciones y
+  // sincronización remota se ejecutan tras el primer frame).
   runApp(const CorpusApp());
 }
 
@@ -137,14 +130,20 @@ class _CorpusAppState extends State<CorpusApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await StylePackMusicService.instance.init(themeNotifier);
       StylePackMusicService.instance.syncWithCurrentPack(force: true);
+      await NotificationService().init();
 
       // Deep link en frío: la app estaba completamente cerrada y se abrió
       // tocando una notificación push.
-      final initialMessage = await FirebaseMessaging.instance
-          .getInitialMessage();
-      if (initialMessage != null) {
-        DeepLinkService.handle(initialMessage.data);
+      try {
+        final initialMessage = await FirebaseMessaging.instance
+            .getInitialMessage();
+        if (initialMessage != null) {
+          DeepLinkService.handle(initialMessage.data);
+        }
+      } catch (e) {
+        debugPrint('[CorpusApp] getInitialMessage no disponible: $e');
       }
     });
   }
@@ -190,6 +189,7 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   RealtimeChannel? _presenceChannel;
   StreamSubscription<AuthState>? _authSub;
+  String? _lastUserId;
 
   @override
   void initState() {
@@ -200,7 +200,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // Escuchamos el estado de autenticación para rastrear o limpiar la presencia
     _authSub =
         (widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange)
-            .listen((data) {
+            .listen((data) async {
               // El usuario volvió desde el link de reset de contraseña:
               // Supabase valida el token y emite passwordRecovery.
               // Navegamos a la pantalla de nueva contraseña por encima de todo.
@@ -217,13 +217,28 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                 });
                 return;
               }
-              if (data.session?.user != null) {
+              final newUserId = data.session?.user.id;
+              if (newUserId != null) {
+                final userChanged =
+                    _lastUserId != null && _lastUserId != newUserId;
+                _lastUserId = newUserId;
+                if (userChanged) {
+                  AppNavigationController.instance.resetForSessionChange();
+                }
                 UserSettingsService().pullAndApplyToLocalCache().then((_) {
                   themeNotifier.reloadFromPrefs();
                 });
                 _setupPresence();
               } else {
-                _cleanupPresence();
+                final wasLoggedIn =
+                    _lastUserId != null ||
+                    data.event == AuthChangeEvent.signedOut;
+                _lastUserId = null;
+                _cleanupPresenceChannel();
+                if (wasLoggedIn) {
+                  AppNavigationController.instance.resetForSessionChange();
+                  await resetAllGlobalState();
+                }
               }
             });
   }
@@ -233,10 +248,15 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // Si no hay usuario o el canal ya está configurado, salimos temprano
     if (userId == null || _presenceChannel != null) return;
 
-    // Pedir permisos de notificación y guardar token FCM (solo la primera vez)
+    // En nativo solicitamos permiso; en Web (especialmente iOS Safari 16.4+)
+    // el permiso requiere gesto explícito del usuario en Ajustes -> Notificaciones.
     final notifService = NotificationService();
-    await notifService.requestPermissions();
-    await notifService.saveFcmToken();
+    if (!kIsWeb) {
+      try {
+        await notifService.requestPermissions();
+      } catch (_) {}
+    }
+    unawaited(notifService.saveFcmToken());
 
     // Inicializamos el canal de presencia en tiempo real
     _presenceChannel = Supabase.instance.client.channel('online-users');
@@ -264,11 +284,15 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         });
   }
 
-  Future<void> _cleanupPresence() async {
-    _presenceChannel?.untrack();
-    _presenceChannel?.unsubscribe();
+  void _cleanupPresenceChannel() {
+    final channel = _presenceChannel;
     _presenceChannel = null;
-    await resetAllGlobalState();
+    if (channel != null) {
+      try {
+        channel.untrack();
+        unawaited(Supabase.instance.client.removeChannel(channel));
+      } catch (_) {}
+    }
   }
 
   @override
@@ -278,7 +302,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       _setupPresence();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      _presenceChannel?.untrack();
+      _cleanupPresenceChannel();
     }
   }
 
@@ -304,7 +328,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _cleanupPresence();
+    _cleanupPresenceChannel();
     _authSub?.cancel();
     super.dispose();
   }

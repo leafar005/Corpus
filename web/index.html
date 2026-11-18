@@ -4,6 +4,7 @@
     <base href="$FLUTTER_BASE_HREF">
     <meta charset="UTF-8">
     <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="description" content="Personal &amp; social video game tracker.">
 
     <!-- iOS meta tags & icons -->
@@ -12,10 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Corpus">
     <link rel="apple-touch-icon" href="icons/Icon-512.png">
-
-    <!-- cropperjs -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.css" integrity="sha384-msRo/DUqciLiajfTHR4aynPm/OyeCwjTio3llAz/9Ajeq4fDBmSiNL1QDum77PDK" crossorigin="anonymous" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.js" integrity="sha384-qcjDNZ/IpdqIwoKebwA5UvG4QQo4TWNqKmSI+lmUioJaSOR558QFRETuu+WA1btW" crossorigin="anonymous"></script>
+    <link rel="preload" as="image" href="splash_logo.png">
 
     <!-- Theme color for Safari/Chrome top and bottom bars -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
@@ -162,6 +160,43 @@
       </div>
     </div>
     <script>
+      var _cropperPromise = null;
+      window.__loadCropperJs = function() {
+        if (window.Cropper) return Promise.resolve(true);
+        if (_cropperPromise) return _cropperPromise;
+        _cropperPromise = new Promise(function(resolve) {
+          if (!document.getElementById('corpus-cropper-css')) {
+            var link = document.createElement('link');
+            link.id = 'corpus-cropper-css';
+            link.rel = 'stylesheet';
+            link.href = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.css';
+            link.integrity = 'sha384-msRo/DUqciLiajfTHR4aynPm/OyeCwjTio3llAz/9Ajeq4fDBmSiNL1QDum77PDK';
+            link.crossOrigin = 'anonymous';
+            document.head.appendChild(link);
+          }
+          var existingScript = document.getElementById('corpus-cropper-js');
+          if (existingScript) {
+            if (window.Cropper) {
+              resolve(true);
+              return;
+            }
+            existingScript.addEventListener('load', function() { resolve(true); }, { once: true });
+            existingScript.addEventListener('error', function() { _cropperPromise = null; resolve(false); }, { once: true });
+            return;
+          }
+          var script = document.createElement('script');
+          script.id = 'corpus-cropper-js';
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.js';
+          script.integrity = 'sha384-qcjDNZ/IpdqIwoKebwA5UvG4QQo4TWNqKmSI+lmUioJaSOR558QFRETuu+WA1btW';
+          script.crossOrigin = 'anonymous';
+          script.async = true;
+          script.onload = function() { resolve(true); };
+          script.onerror = function() { _cropperPromise = null; resolve(false); };
+          document.head.appendChild(script);
+        });
+        return _cropperPromise;
+      };
+
       var _splashHidden = false;
       function hideSplash() {
         if (_splashHidden) return;
@@ -171,6 +206,9 @@
           splash.classList.add('hidden');
           setTimeout(function() { splash.remove(); }, 500);
         }
+        setTimeout(function() {
+          if (window.__loadCropperJs) window.__loadCropperJs();
+        }, 2500);
       }
       window.addEventListener('corpus-ready', hideSplash);
       setTimeout(hideSplash, 8000);
