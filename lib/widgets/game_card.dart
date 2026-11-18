@@ -310,6 +310,9 @@ class _GameCardState extends State<GameCard> {
                                                 Container(
                                                   width: 28,
                                                   height: 28,
+                                                  padding: const EdgeInsets.all(
+                                                    2,
+                                                  ),
                                                   alignment: Alignment.center,
                                                   decoration: BoxDecoration(
                                                     color: Theme.of(
@@ -317,18 +320,24 @@ class _GameCardState extends State<GameCard> {
                                                     ).colorScheme.onSurface,
                                                     shape: BoxShape.circle,
                                                   ),
-                                                  child: Text(
-                                                    formatRating(
-                                                      widget.userRating,
-                                                    ),
-                                                    style: TextStyle(
-                                                      color: Theme.of(
-                                                        context,
-                                                      ).colorScheme.surface,
-                                                      fontWeight:
-                                                          FontWeight.w900,
-                                                      fontSize: 13,
-                                                      letterSpacing: -0.5,
+                                                  child: FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    child: Text(
+                                                      formatRating(
+                                                        widget.userRating,
+                                                      ),
+                                                      maxLines: 1,
+                                                      softWrap: false,
+                                                      style: TextStyle(
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.surface,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        fontSize: 13,
+                                                        letterSpacing: -0.5,
+                                                        height: 1.0,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
@@ -356,6 +365,7 @@ class _GameCardState extends State<GameCard> {
                                       child: Container(
                                         width: 28,
                                         height: 28,
+                                        padding: const EdgeInsets.all(2),
                                         alignment: Alignment.center,
                                         decoration: BoxDecoration(
                                           color: Theme.of(
@@ -372,15 +382,21 @@ class _GameCardState extends State<GameCard> {
                                             ),
                                           ],
                                         ),
-                                        child: Text(
-                                          formatRating(widget.userRating),
-                                          style: TextStyle(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.surface,
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 13,
-                                            letterSpacing: -0.5,
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            formatRating(widget.userRating),
+                                            maxLines: 1,
+                                            softWrap: false,
+                                            style: TextStyle(
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.surface,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              letterSpacing: -0.5,
+                                              height: 1.0,
+                                            ),
                                           ),
                                         ),
                                       ),

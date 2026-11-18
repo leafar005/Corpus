@@ -32,6 +32,7 @@ class InfoScreen extends StatelessWidget {
             Image.asset(
               'assets/images/logo/logo_default.png',
               height: 100,
+              cacheHeight: 300,
               filterQuality: FilterQuality.high,
               isAntiAlias: true,
             ),

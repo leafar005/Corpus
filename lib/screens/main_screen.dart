@@ -169,6 +169,7 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   void dispose() {
+    AppNavigationController.instance.onTabSwitchedByBrowser = null;
     WidgetsBinding.instance.removeObserver(this);
     DeepLinkService.pendingTab.removeListener(_onPendingTab);
     _badgeController.dispose();
@@ -407,6 +408,7 @@ class _MainScreenState extends State<MainScreen>
               child: Image.asset(
                 _getDynamicLogoFullPath(context),
                 height: 60,
+                cacheHeight: 180,
                 filterQuality: FilterQuality.high,
                 isAntiAlias: true,
               ),
@@ -454,6 +456,7 @@ class _MainScreenState extends State<MainScreen>
                       child: Image.asset(
                         _getDynamicLogoFullPath(context),
                         height: 24,
+                        cacheHeight: 72,
                         filterQuality: FilterQuality.high,
                         isAntiAlias: true,
                       ),
@@ -564,6 +567,7 @@ class _MainScreenState extends State<MainScreen>
         builder: (context, constraints) {
           final barWidth =
               constraints.maxWidth - 40; // 20px padding a cada lado
+          final isMobileWeb = kIsWeb && constraints.maxWidth <= 800;
           const barHeight = 64.0;
           const bottomMargin = 12.0;
           const totalHeight = barHeight + bottomMargin;
@@ -598,16 +602,16 @@ class _MainScreenState extends State<MainScreen>
                     ],
                     selectedIndex: _currentIndex,
                     onChanged: (index) => _onTabTapped(index),
-                    pillStyle: const LiquidGlassNavPillStyle(
+                    pillStyle: LiquidGlassNavPillStyle(
                       animated: true,
                       mode: LiquidGlassPillMode.both,
                       enableInnerRadiusTransparent: true,
                       magnification: 1.25,
                       glassStyle: LiquidGlassStyle(
                         refraction: LiquidGlassRefraction(
-                          distortion: 0.15,
+                          distortion: isMobileWeb ? 0.08 : 0.15,
                           distortionWidth: 24.0,
-                          chromaticAberration: 0.025,
+                          chromaticAberration: isMobileWeb ? 0.0 : 0.025,
                         ),
                       ),
                     ),
@@ -635,7 +639,7 @@ class _MainScreenState extends State<MainScreen>
     const sideOffset = 20.0;
     final itemWidth = barWidth / 5;
 
-    Widget? badge(int tabIndex, ValueNotifier<int> notifier) {
+    Widget badge(int tabIndex, ValueNotifier<int> notifier) {
       return ValueListenableBuilder<int>(
         valueListenable: notifier,
         builder: (context, count, _) {
@@ -652,8 +656,8 @@ class _MainScreenState extends State<MainScreen>
 
     return Stack(
       children: [
-        badge(2, unreadActivityCount)!,
-        badge(4, unreadFriendRequestsCount)!,
+        badge(2, unreadActivityCount),
+        badge(4, unreadFriendRequestsCount),
       ],
     );
   }
@@ -794,69 +798,71 @@ class _MainScreenState extends State<MainScreen>
           );
         }
 
-        return AnimatedBuilder(
-          animation: _navCollapseAnim,
-          builder: (context, _) {
-            final t = _navCollapseAnim.value;
-            const expandedMargin = 20.0;
-            final maxWidth = MediaQuery.sizeOf(context).width;
-            var collapsedMargin = (maxWidth - 240.0) / 2;
-            if (collapsedMargin < 20.0) collapsedMargin = 20.0;
-            final currentMargin =
-                expandedMargin + (collapsedMargin - expandedMargin) * t;
-            final currentHeight = 66.0 - (18.0 * t); // De 66 a 48
-            final showLabels = t < 0.5;
+        return RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _navCollapseAnim,
+            builder: (context, _) {
+              final t = _navCollapseAnim.value;
+              const expandedMargin = 20.0;
+              final maxWidth = MediaQuery.sizeOf(context).width;
+              var collapsedMargin = (maxWidth - 240.0) / 2;
+              if (collapsedMargin < 20.0) collapsedMargin = 20.0;
+              final currentMargin =
+                  expandedMargin + (collapsedMargin - expandedMargin) * t;
+              final currentHeight = 66.0 - (18.0 * t); // De 66 a 48
+              final showLabels = t < 0.5;
 
-            return SafeArea(
-              child: Container(
-                height: currentHeight,
-                margin: EdgeInsets.symmetric(
-                  horizontal: currentMargin,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
-                  child: OverflowBox(
-                    maxHeight: 66,
-                    alignment: Alignment.topCenter,
-                    child: BottomNavigationBar(
-                      elevation: 0,
-                      currentIndex: _currentIndex,
-                      onTap: _onNavBarItemTapped,
-                      type: BottomNavigationBarType.fixed,
-                      backgroundColor: Colors.transparent,
-                      selectedItemColor: Theme.of(context).colorScheme.primary,
-                      unselectedItemColor: Theme.of(
-                        context,
-                      ).colorScheme.onSurfaceVariant,
-                      selectedFontSize: 12,
-                      unselectedFontSize: 12,
-                      showSelectedLabels: showLabels,
-                      showUnselectedLabels: showLabels,
-                      items: [
-                        _solidNavItem(0, 'Inicio'),
-                        _solidNavItem(1, 'Explorar'),
-                        _solidNavItem(2, 'Actividad', badge: true),
-                        _solidNavItem(3, 'Mis juegos'),
-                        _solidNavItem(4, 'Perfil', badge: true),
-                      ],
+              return SafeArea(
+                child: Container(
+                  height: currentHeight,
+                  margin: EdgeInsets.symmetric(
+                    horizontal: currentMargin,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: OverflowBox(
+                      maxHeight: 66,
+                      alignment: Alignment.topCenter,
+                      child: BottomNavigationBar(
+                        elevation: 0,
+                        currentIndex: _currentIndex,
+                        onTap: _onNavBarItemTapped,
+                        type: BottomNavigationBarType.fixed,
+                        backgroundColor: Colors.transparent,
+                        selectedItemColor: Theme.of(context).colorScheme.primary,
+                        unselectedItemColor: Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
+                        selectedFontSize: 12,
+                        unselectedFontSize: 12,
+                        showSelectedLabels: showLabels,
+                        showUnselectedLabels: showLabels,
+                        items: [
+                          _solidNavItem(0, 'Inicio'),
+                          _solidNavItem(1, 'Explorar'),
+                          _solidNavItem(2, 'Actividad', badge: true),
+                          _solidNavItem(3, 'Mis juegos'),
+                          _solidNavItem(4, 'Perfil', badge: true),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );

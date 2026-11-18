@@ -19,7 +19,7 @@ class BundleDetailsScreen extends StatefulWidget {
 
 class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
   late final ScrollController _scrollController;
-  double _scrollOffset = 0.0;
+  final ValueNotifier<bool> _showTitleNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -28,20 +28,17 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
   }
 
   void _onScroll() {
-    if (!mounted) return;
-    final offset = _scrollController.hasClients
-        ? _scrollController.offset
-        : 0.0;
-    if ((offset - _scrollOffset).abs() > 2.0) {
-      setState(() {
-        _scrollOffset = offset;
-      });
+    if (!mounted || !_scrollController.hasClients) return;
+    final shouldShow = _scrollController.offset > 50;
+    if (shouldShow != _showTitleNotifier.value) {
+      _showTitleNotifier.value = shouldShow;
     }
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _showTitleNotifier.dispose();
     super.dispose();
   }
 
@@ -81,9 +78,13 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
           onPressed: () =>
               AppNavigationController.instance.requestBack(context),
         ),
-        title: AnimatedOpacity(
-          opacity: _scrollOffset > 50 ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 200),
+        title: ValueListenableBuilder<bool>(
+          valueListenable: _showTitleNotifier,
+          builder: (context, showTitle, child) => AnimatedOpacity(
+            opacity: showTitle ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: child,
+          ),
           child: Text(title),
         ),
         actions: [

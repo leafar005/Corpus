@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../globals.dart';
+
 /// Default cadence for P5R jagged-frame swaps (slower = less visual noise).
 const Duration kP5rFrameInterval = Duration(milliseconds: 1800);
 
@@ -34,11 +36,13 @@ class _P5rDynamicBackgroundState extends State<P5rDynamicBackground> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(widget.interval, (_) {
-      if (mounted) {
-        setState(() => _frame = (_frame + 1) % _frameCount);
-      }
-    });
+    if (!kDisableCarouselForTests) {
+      _timer = Timer.periodic(widget.interval, (_) {
+        if (mounted && TickerMode.valuesOf(context).enabled) {
+          setState(() => _frame = (_frame + 1) % _frameCount);
+        }
+      });
+    }
   }
 
   @override
@@ -52,22 +56,24 @@ class _P5rDynamicBackgroundState extends State<P5rDynamicBackground> {
     final angle = _rotationForFrame(_frame);
     final skew = _skewForFrame(_frame);
 
-    return Transform(
-      alignment: Alignment.center,
-      transform: Matrix4.identity()
-        ..rotateZ(angle)
-        ..setEntry(0, 1, skew),
-      child: ClipPath(
-        clipper: _P5rShapeClipper(_frame),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: widget.backgroundColor,
-            border: widget.borderWidth > 0 && widget.borderColor != null
-                ? Border.all(
-                    color: widget.borderColor!,
-                    width: widget.borderWidth,
-                  )
-                : null,
+    return RepaintBoundary(
+      child: Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()
+          ..rotateZ(angle)
+          ..setEntry(0, 1, skew),
+        child: ClipPath(
+          clipper: _P5rShapeClipper(_frame),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: widget.backgroundColor,
+              border: widget.borderWidth > 0 && widget.borderColor != null
+                  ? Border.all(
+                      color: widget.borderColor!,
+                      width: widget.borderWidth,
+                    )
+                  : null,
+            ),
           ),
         ),
       ),

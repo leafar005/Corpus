@@ -280,15 +280,22 @@ class _HeroShowcaseState extends State<HeroShowcase>
     String? screenshotUrl,
     double panValue,
   ) {
+    final sw = MediaQuery.sizeOf(context).width;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final targetCacheWidth = (sw * dpr).round().clamp(480, 1280);
     return ClipRect(
       child: Stack(
         fit: StackFit.expand,
         children: [
           if (screenshotUrl != null)
             _buildPanningImageLayer(
-              NetworkImage(screenshotUrl),
+              ResizeImage.resizeIfNeeded(
+                targetCacheWidth,
+                null,
+                NetworkImage(screenshotUrl),
+              ),
               panValue,
-              MediaQuery.sizeOf(context).width,
+              sw,
             )
           else
             Container(color: Colors.black),
@@ -349,13 +356,195 @@ class _HeroShowcaseState extends State<HeroShowcase>
       return Container(color: Colors.black);
     }
 
-    // La UI de texto (carátula, título, botón...) se pasa como `child` del
-    // AnimatedBuilder exterior para no reconstruirse en cada frame del paneo.
-    // Las barras de progreso se envuelven en su propio AnimatedBuilder para que
-    // se animen y llenen gradualmente al ritmo de _panController.
+    final gameData = _currentGame!['games'] ?? {};
+    final coverUrl = gameData['cover_url'] as String? ?? '';
+    final title = gameData['title'] as String? ?? 'Desconocido';
+
+    // La UI de texto (carátula, título, botón...) y los controles se pasan como
+    // `child` del AnimatedBuilder exterior para no reconstruirse a 60 fps.
+    // Las barras de progreso conservan su propio AnimatedBuilder para rellenarse.
     final staticOverlay = Stack(
+      clipBehavior: Clip.none,
       fit: StackFit.expand,
       children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _pickPreviousGame,
+                child: Container(),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _pickNextGame(manual: true),
+                child: Container(),
+              ),
+            ),
+          ],
+        ),
+        const _BottomFadeGradient(),
+        RepaintBoundary(
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isPortrait = constraints.maxHeight > constraints.maxWidth;
+
+                final textSection = SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CorpusHeroTitle(
+                        prefix: 'Bienvenido,',
+                        highlight: widget.userName,
+                        animated: true,
+                        instant: _titleTyped,
+                        onAnimationComplete: () {
+                          if (!_titleTyped && mounted) {
+                            setState(() => _titleTyped = true);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: isPortrait ? 56 : null,
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              onTap: () => _navigateToGameDetails(
+                                gameData,
+                                coverUrl,
+                                false,
+                              ),
+                              child: TypewriterText(
+                                baseCharDuration: const Duration(
+                                  milliseconds: 15,
+                                ),
+                                instant: false,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: CorpusTypography.fromTheme(
+                                  context,
+                                  fontSize: isPortrait ? 22 : 24,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                spans: [
+                                  TextSpan(
+                                    text: _randomPrefix,
+                                    style: CorpusTypography.fromTheme(
+                                      context,
+                                      fontSize: isPortrait ? 22 : 24,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: title,
+                                    style: CorpusTypography.fromTheme(
+                                      context,
+                                      fontSize: isPortrait ? 22 : 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: '?',
+                                    style: CorpusTypography.fromTheme(
+                                      context,
+                                      fontSize: isPortrait ? 22 : 24,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      CorpusPrimaryButton(
+                        onPressed: () =>
+                            _navigateToGameDetails(gameData, coverUrl, true),
+                        icon: CorpusIconKind.Edit,
+                        label: 'Editar reseña',
+                      ),
+                    ],
+                  ),
+                );
+
+                final coverSection = AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 600),
+                  child: _HoverableHeroCover(
+                    key: ValueKey(coverUrl),
+                    coverUrl: coverUrl,
+                    gameData: gameData,
+                    isPortrait: isPortrait,
+                    maxWidth: constraints.maxWidth,
+                    onTap: () =>
+                        _navigateToGameDetails(gameData, coverUrl, false),
+                  ),
+                );
+
+                if (isPortrait) {
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        top: constraints.maxHeight * 0.12,
+                        left: 24,
+                        right: 24,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: constraints.maxHeight * 0.88,
+                          ),
+                          child: textSection,
+                        ),
+                      ),
+                      Positioned(
+                        bottom: -40,
+                        right: 16,
+                        child: coverSection,
+                      ),
+                    ],
+                  );
+                } else {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 48.0,
+                      vertical: 32.0,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: textSection,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: coverSection,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+        ),
         RepaintBoundary(
           child: SafeArea(
             child: Align(
@@ -385,10 +574,6 @@ class _HeroShowcaseState extends State<HeroShowcase>
         // child NO se reconstruye en cada frame: contiene el overlay estático
         child: staticOverlay,
         builder: (context, child) {
-          final gameData = _currentGame!['games'] ?? {};
-          final coverUrl = gameData['cover_url'] as String? ?? '';
-          final title = gameData['title'] as String? ?? 'Desconocido';
-
           return Stack(
             clipBehavior: Clip.none,
             fit: StackFit.expand,
@@ -400,8 +585,8 @@ class _HeroShowcaseState extends State<HeroShowcase>
                   _previousPanValue,
                 ),
 
-              Opacity(
-                opacity: _fadeAnimation.value,
+              FadeTransition(
+                opacity: _fadeAnimation,
                 child: _buildShowcaseLayer(
                   _currentGame!,
                   _currentScreenshotUrl,
@@ -409,192 +594,6 @@ class _HeroShowcaseState extends State<HeroShowcase>
                 ),
               ),
 
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _pickPreviousGame,
-                      child: Container(),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _pickNextGame(manual: true),
-                      child: Container(),
-                    ),
-                  ),
-                ],
-              ),
-
-              const _BottomFadeGradient(),
-
-              RepaintBoundary(
-                child: SafeArea(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isPortrait =
-                          constraints.maxHeight > constraints.maxWidth;
-
-                      final textSection = SingleChildScrollView(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CorpusHeroTitle(
-                              prefix: 'Bienvenido,',
-                              highlight: widget.userName,
-                              animated: true,
-                              instant: _titleTyped,
-                              onAnimationComplete: () {
-                                if (!_titleTyped && mounted) {
-                                  setState(() => _titleTyped = true);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              height: isPortrait ? 56 : null,
-                              child: Align(
-                                alignment: Alignment.topLeft,
-                                child: MouseRegion(
-                                  cursor: SystemMouseCursors.click,
-                                  child: GestureDetector(
-                                    onTap: () => _navigateToGameDetails(
-                                      gameData,
-                                      coverUrl,
-                                      false,
-                                    ),
-                                    child: TypewriterText(
-                                      baseCharDuration: const Duration(
-                                        milliseconds: 15,
-                                      ),
-                                      instant: false,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: CorpusTypography.fromTheme(
-                                        context,
-                                        fontSize: isPortrait ? 22 : 24,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      spans: [
-                                        TextSpan(
-                                          text: _randomPrefix,
-                                          style: CorpusTypography.fromTheme(
-                                            context,
-                                            fontSize: isPortrait ? 22 : 24,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: title,
-                                          style: CorpusTypography.fromTheme(
-                                            context,
-                                            fontSize: isPortrait ? 22 : 24,
-                                            fontWeight: FontWeight.bold,
-                                            color: Theme.of(
-                                              context,
-                                            ).primaryColor,
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: '?',
-                                          style: CorpusTypography.fromTheme(
-                                            context,
-                                            fontSize: isPortrait ? 22 : 24,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            CorpusPrimaryButton(
-                              onPressed: () => _navigateToGameDetails(
-                                gameData,
-                                coverUrl,
-                                true,
-                              ),
-                              icon: CorpusIconKind.Edit,
-                              label: 'Editar reseña',
-                            ),
-                          ],
-                        ),
-                      );
-
-                      final coverSection = AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 600),
-                        child: _HoverableHeroCover(
-                          key: ValueKey(coverUrl),
-                          coverUrl: coverUrl,
-                          gameData: gameData,
-                          isPortrait: isPortrait,
-                          maxWidth: constraints.maxWidth,
-                          onTap: () =>
-                              _navigateToGameDetails(gameData, coverUrl, false),
-                        ),
-                      );
-
-                      if (isPortrait) {
-                        return Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned(
-                              top: constraints.maxHeight * 0.12,
-                              left: 24,
-                              right: 24,
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxHeight: constraints.maxHeight * 0.88,
-                                ),
-                                child: textSection,
-                              ),
-                            ),
-                            Positioned(
-                              bottom: -40,
-                              right: 16,
-                              child: coverSection,
-                            ),
-                          ],
-                        );
-                      } else {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 48.0,
-                            vertical: 32.0,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: textSection,
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: coverSection,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ),
               ?child,
             ],
           );
@@ -656,6 +655,7 @@ class _HoverableHeroCoverState extends State<_HoverableHeroCover> {
               child: widget.coverUrl.isNotEmpty
                   ? CorpusNetworkImage(
                       url: widget.coverUrl,
+                      cacheWidth: 480,
                       fit: BoxFit.cover,
                       width: widget.isPortrait ? widget.maxWidth * 0.38 : 240,
                     )
@@ -824,23 +824,33 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
               animation: Listenable.merge([_panController, _crossFadeController]),
               builder: (context, child) {
                 final sw = MediaQuery.sizeOf(context).width;
+                final dpr = MediaQuery.devicePixelRatioOf(context);
+                final targetCacheWidth = (sw * dpr).round().clamp(480, 1280);
                 return Stack(
                   fit: StackFit.expand,
                   children: [
                     if (_previousScreenshotUrl != null)
                       _buildPanningImageLayer(
-                        AssetImage(_previousScreenshotUrl!),
+                        ResizeImage.resizeIfNeeded(
+                          targetCacheWidth,
+                          null,
+                          AssetImage(_previousScreenshotUrl!),
+                        ),
                         _previousPanValue,
                         sw,
                         errorBuilder: (context, error, stackTrace) =>
                             Container(color: Colors.black),
                       ),
-                    Opacity(
+                    FadeTransition(
                       opacity: _previousScreenshotUrl == null
-                          ? 1.0
-                          : _fadeAnimation.value,
+                          ? const AlwaysStoppedAnimation<double>(1.0)
+                          : _fadeAnimation,
                       child: _buildPanningImageLayer(
-                        AssetImage(_currentScreenshotUrl!),
+                        ResizeImage.resizeIfNeeded(
+                          targetCacheWidth,
+                          null,
+                          AssetImage(_currentScreenshotUrl!),
+                        ),
                         _panController.value,
                         sw,
                         errorBuilder: (context, error, stackTrace) =>
@@ -1162,22 +1172,32 @@ class _EmptyPlayingHeroState extends State<EmptyPlayingHero>
             animation: Listenable.merge([_panController, _crossFadeController]),
             builder: (context, child) {
               final sw = MediaQuery.sizeOf(context).width;
+              final dpr = MediaQuery.devicePixelRatioOf(context);
+              final targetCacheWidth = (sw * dpr).round().clamp(480, 1280);
               return Stack(
                 fit: StackFit.expand,
                 children: [
                   if (_previousScreenshotUrl != null)
                     _buildPanningImageLayer(
-                      AssetImage(_previousScreenshotUrl!),
+                      ResizeImage.resizeIfNeeded(
+                        targetCacheWidth,
+                        null,
+                        AssetImage(_previousScreenshotUrl!),
+                      ),
                       _previousPanValue,
                       sw,
                       errorBuilder: (_, _, _) => Container(color: Colors.black),
                     ),
-                  Opacity(
+                  FadeTransition(
                     opacity: _previousScreenshotUrl == null
-                        ? 1.0
-                        : _fadeAnimation.value,
+                        ? const AlwaysStoppedAnimation<double>(1.0)
+                        : _fadeAnimation,
                     child: _buildPanningImageLayer(
-                      AssetImage(_currentScreenshotUrl!),
+                      ResizeImage.resizeIfNeeded(
+                        targetCacheWidth,
+                        null,
+                        AssetImage(_currentScreenshotUrl!),
+                      ),
                       _panController.value,
                       sw,
                       errorBuilder: (_, _, _) => Container(color: Colors.black),

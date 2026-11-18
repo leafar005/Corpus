@@ -36,12 +36,11 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
   void initState() {
     super.initState();
     _now = DateTime.now();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          _now = DateTime.now();
-        });
-      }
+    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (!mounted || !TickerMode.valuesOf(context).enabled) return;
+      setState(() {
+        _now = DateTime.now();
+      });
     });
   }
 
@@ -210,6 +209,7 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
                           ),
                           child: CorpusNetworkImage(
                             url: backgroundUrl,
+                            cacheWidth: 640,
                             fit: BoxFit.cover,
                           ),
                         ),

@@ -46,6 +46,13 @@ class CorpusNetworkImage extends StatelessWidget {
     final src = url?.trim() ?? '';
     if (src.isEmpty) return _empty(context);
 
+    final int? effectiveCacheWidth = cacheWidth ??
+        ((width != null && width!.isFinite && width! > 0)
+            ? (width! * MediaQuery.devicePixelRatioOf(context))
+                .round()
+                .clamp(64, 1280)
+            : null);
+
     // Web: CachedNetworkImage usa sqflite que no soporta web.
     // El navegador ya cachea automáticamente las respuestas HTTP.
     if (kIsWeb) {
@@ -55,15 +62,10 @@ class CorpusNetworkImage extends StatelessWidget {
         width: width,
         height: height,
         alignment: alignment,
-        cacheWidth: cacheWidth,
+        cacheWidth: effectiveCacheWidth,
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded) return child;
-          return AnimatedOpacity(
-            opacity: frame == null ? 0 : 1,
-            duration: _fadeDuration,
-            curve: Curves.easeOut,
-            child: child,
-          );
+          if (wasSynchronouslyLoaded || frame != null) return child;
+          return _empty(context);
         },
         errorBuilder: (context, error, stackTrace) => _empty(context),
       );
@@ -76,7 +78,7 @@ class CorpusNetworkImage extends StatelessWidget {
       width: width,
       height: height,
       alignment: alignment,
-      memCacheWidth: cacheWidth,
+      memCacheWidth: effectiveCacheWidth,
       fadeInDuration: _fadeDuration,
       fadeOutDuration: const Duration(milliseconds: 100),
       placeholder: (context, url) => _empty(context),

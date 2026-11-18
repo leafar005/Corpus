@@ -351,6 +351,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
         commentImage: null,
         attachedGame: null,
       );
+      if (!mounted) return;
       _commentController.clear();
       await _loadReviewInteractions();
     } catch (e) {
@@ -508,13 +509,16 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
               children: [
                 if (coverUrl != null)
                   Positioned.fill(
-                    child: ImageFiltered(
-                      imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                      child: CorpusNetworkImage(
-                        url: coverUrl,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
+                    child: RepaintBoundary(
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: CorpusNetworkImage(
+                          url: coverUrl,
+                          cacheWidth: 96,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
                       ),
                     ),
                   ),
@@ -722,6 +726,9 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     required String displayName,
     required String dateStr,
   }) {
+    final safeAvatar = (avatarUrl != null && avatarUrl.isNotEmpty)
+        ? avatarUrl
+        : null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 4, 0),
       child: Row(
@@ -733,10 +740,15 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
             child: CircleAvatar(
               radius: 18,
               backgroundColor: cs.surfaceContainerHighest,
-              backgroundImage: avatarUrl != null
-                  ? NetworkImage(avatarUrl)
+              backgroundImage: safeAvatar != null
+                  ? ResizeImage.resizeIfNeeded(
+                      72,
+                      null,
+                      NetworkImage(safeAvatar),
+                    )
                   : null,
-              child: avatarUrl == null
+              onBackgroundImageError: safeAvatar != null ? (_, _) {} : null,
+              child: safeAvatar == null
                   ? const CorpusTablerIcon(CorpusIconKind.Person, size: 18)
                   : null,
             ),
