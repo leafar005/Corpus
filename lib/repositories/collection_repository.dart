@@ -108,20 +108,27 @@ class CollectionRepository {
     final selected = selectedPlatforms.toSet();
     final currentSet = current.toSet();
 
-    for (final platform in selected.difference(currentSet)) {
-      await addPlatform(
-        userId: userId,
-        gameId: gameId,
-        platformName: platform,
-      );
-    }
-    for (final platform in currentSet.difference(selected)) {
-      await removePlatform(
-        userId: userId,
-        gameId: gameId,
-        platformName: platform,
-      );
-    }
+    final toAdd = selected.difference(currentSet);
+    final toRemove = currentSet.difference(selected);
+    if (toAdd.isEmpty && toRemove.isEmpty) return;
+
+    await Future.wait([
+      if (toAdd.isNotEmpty)
+        _client.from('user_game_platforms').upsert([
+          for (final platform in toAdd)
+            {
+              'user_id': userId,
+              'game_id': gameId,
+              'platform_name': platform,
+            },
+        ]),
+      for (final platform in toRemove)
+        removePlatform(
+          userId: userId,
+          gameId: gameId,
+          platformName: platform,
+        ),
+    ]);
   }
 
   /// Añade la misma plataforma a varios juegos en una sola petición.
@@ -149,20 +156,31 @@ class CollectionRepository {
 
   /// Juegos terminados de la biblioteca del usuario, con plataformas ya asignadas y sugerencias.
   Future<List<LibraryGameOption>> fetchLibraryForShelf(String userId) async {
-    final rows = await _client
-        .from('user_games')
-        .select('status, steam_owned, games(*)')
-        .eq('user_id', userId)
-        .inFilter('status', ['beaten', 'completed'])
-        .order('updated_at', ascending: false);
+    final results = await Future.wait([
+      _client
+          .from('user_games')
+          .select('status, steam_owned, games(*)')
+          .eq('user_id', userId)
+          .inFilter('status', ['beaten', 'completed'])
+          .order('updated_at', ascending: false),
+      _client
+          .from('user_game_platforms')
+          .select('game_id, platform_name')
+          .eq('user_id', userId),
+      _client
+          .from('reviews')
+          .select('game_id, platform')
+          .eq('user_id', userId)
+          .not('platform', 'is', null)
+          .order('created_at', ascending: false),
+    ]);
 
-    final platformRows = await _client
-        .from('user_game_platforms')
-        .select('game_id, platform_name')
-        .eq('user_id', userId);
+    final rows = results[0] as List;
+    final platformRows = results[1] as List;
+    final reviewRows = results[2] as List;
 
     final ownedByGame = <int, List<String>>{};
-    for (final row in platformRows as List) {
+    for (final row in platformRows) {
       final map = row as Map;
       final gameId = (map['game_id'] as num).toInt();
       ownedByGame.putIfAbsent(gameId, () => []).add(
@@ -170,15 +188,8 @@ class CollectionRepository {
           );
     }
 
-    final reviewRows = await _client
-        .from('reviews')
-        .select('game_id, platform')
-        .eq('user_id', userId)
-        .not('platform', 'is', null)
-        .order('created_at', ascending: false);
-
     final reviewPlatformByGame = <int, String>{};
-    for (final row in reviewRows as List) {
+    for (final row in reviewRows) {
       final map = row as Map;
       final gameId = (map['game_id'] as num).toInt();
       reviewPlatformByGame.putIfAbsent(
@@ -188,7 +199,7 @@ class CollectionRepository {
     }
 
     final options = <LibraryGameOption>[];
-    for (final row in rows as List) {
+    for (final row in rows) {
       final map = Map<String, dynamic>.from(row as Map);
       final gameData = map['games'];
       if (gameData == null) continue;

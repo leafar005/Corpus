@@ -62,4 +62,14 @@ void main() {
       expect(IGDBService.decodeHtmlEntities(''), '');
     });
   });
+
+  group('IGDBService Apicalypse Sanitization', () {
+    test('sanitizeApicalypseTerm elimina comillas, punto y coma y barras invertidas', () {
+      expect(
+        IGDBService.sanitizeApicalypseTerm('zelda"; where id > 0; \\test'),
+        'zelda where id > 0 test',
+      );
+      expect(IGDBService.sanitizeApicalypseTerm('   " ; \\  '), '');
+    });
+  });
 }

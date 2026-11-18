@@ -221,12 +221,13 @@ class GameGroupRepository {
   }
 
   Future<void> reorderGroups(List<String> orderedGroupIds) async {
-    for (var i = 0; i < orderedGroupIds.length; i++) {
-      await _client
-          .from('game_groups')
-          .update({'sort_order': i})
-          .eq('id', orderedGroupIds[i]);
-    }
+    await Future.wait([
+      for (var i = 0; i < orderedGroupIds.length; i++)
+        _client
+            .from('game_groups')
+            .update({'sort_order': i})
+            .eq('id', orderedGroupIds[i]),
+    ]);
   }
 
   /// Asegura que el juego exista en catálogo antes de añadirlo al grupo.
@@ -296,13 +297,14 @@ class GameGroupRepository {
   }
 
   Future<void> reorderItems(String groupId, List<String> orderedItemIds) async {
-    for (var i = 0; i < orderedItemIds.length; i++) {
-      await _client
-          .from('game_group_items')
-          .update({'sort_order': i})
-          .eq('id', orderedItemIds[i])
-          .eq('group_id', groupId);
-    }
+    await Future.wait([
+      for (var i = 0; i < orderedItemIds.length; i++)
+        _client
+            .from('game_group_items')
+            .update({'sort_order': i})
+            .eq('id', orderedItemIds[i])
+            .eq('group_id', groupId),
+    ]);
   }
 
   Future<void> updateItemNote(String itemId, String? note) async {

@@ -45,7 +45,10 @@ class GenreRadarCalculator {
             .map(
               (e) => GenreTimeStat(
                 genre: e.key,
-                totalHours: 0.0,
+                totalHours: e.value.fold<double>(
+                  0.0,
+                  (sum, item) => sum + item.hours,
+                ),
                 gameCount: e.value.length,
                 games: e.value,
               ),

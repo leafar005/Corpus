@@ -33,6 +33,8 @@ class StashStatsResult {
   StashStatsResult({required this.stats, required this.needsFetch});
 }
 
+typedef ImageUrlsDeleter = Future<void> Function(List<String> urls);
+
 /// Acceso a datos para reseñas y biblioteca del usuario.
 ///
 /// Extrae toda la lógica Supabase de [GameDetailsScreen] para que
@@ -45,9 +47,14 @@ class StashStatsResult {
 /// ```
 class ReviewRepository {
   final SupabaseClient _client;
+  final ImageUrlsDeleter _deleteImagesFromUrls;
 
-  ReviewRepository({SupabaseClient? client})
-    : _client = client ?? Supabase.instance.client;
+  ReviewRepository({
+    SupabaseClient? client,
+    ImageUrlsDeleter? deleteImagesFromUrls,
+  }) : _client = client ?? Supabase.instance.client,
+       _deleteImagesFromUrls =
+           deleteImagesFromUrls ?? StorageUtils.deleteImagesFromUrls;
 
   /// Acceso al cliente para operaciones de auth (currentUser, etc.)
   SupabaseClient get client => _client;
@@ -216,7 +223,68 @@ class ReviewRepository {
     return afterAchievements.difference(beforeAchievements);
   }
 
+  static String? _nonEmptyString(dynamic value) {
+    final str = value?.toString().trim();
+    if (str == null || str.isEmpty || str == 'null') return null;
+    return str;
+  }
+
+  static bool _isValidDeveloper(dynamic value) {
+    final str = _nonEmptyString(value);
+    return str != null &&
+        str != 'Desconocido' &&
+        str != 'Desarrollador desconocido';
+  }
+
+  static List<dynamic>? _nonEmptyList(dynamic value) {
+    if (value is List && value.isNotEmpty) return value;
+    return null;
+  }
+
+  static int? _resolveCatalogCategory(
+    Map<String, dynamic> primary,
+    Map<String, dynamic> secondary, {
+    int? fallback = 0,
+  }) {
+    final dynamic rawCat =
+        primary['game_type'] ??
+        primary['category'] ??
+        secondary['game_type'] ??
+        secondary['category'];
+    final int? catId = (rawCat is num)
+        ? rawCat.toInt()
+        : int.tryParse(rawCat?.toString() ?? '');
+    if (rawCat == null &&
+        primary['parent_game'] == null &&
+        secondary['parent_game'] == null &&
+        primary['version_parent'] == null &&
+        secondary['version_parent'] == null) {
+      return fallback;
+    }
+    final String title =
+        _nonEmptyString(primary['title']) ??
+        _nonEmptyString(secondary['title']) ??
+        'Desconocido';
+    final bool hasParent =
+        primary['parent_game'] != null || secondary['parent_game'] != null;
+    final bool hasVersion =
+        primary['version_parent'] != null ||
+        secondary['version_parent'] != null;
+    return IgdbConstants.resolveCategory(
+          catId,
+          title,
+          hasParentGame: hasParent,
+          hasVersionParent: hasVersion,
+          summary:
+              _nonEmptyString(primary['summary']) ??
+              _nonEmptyString(secondary['summary']),
+        ) ??
+        fallback;
+  }
+
   /// Persiste el catálogo de juego en Supabase (upsert por igdb_id).
+  /// Si ya existía una fila esqueleto sin portada/metadatos, lanza también el
+  /// backfill via `igdb-proxy` (`service_role`).
   /// No lanza si hay error — registra y continúa.
   Future<void> upsertGame({
     required dynamic igdbId,
@@ -224,50 +292,53 @@ class ReviewRepository {
     required Map<String, dynamic> enrichedData,
   }) async {
     try {
+      final resolvedCover =
+          _nonEmptyString(gameData['cover_url']) ??
+          _nonEmptyString(enrichedData['cover_url']);
+      final resolvedReleaseDate =
+          (_nonEmptyString(gameData['release_date']) ??
+                  _nonEmptyString(enrichedData['release_date']))
+              ?.split('T')[0];
+      final resolvedDeveloper = _isValidDeveloper(gameData['developer'])
+          ? gameData['developer']
+          : (_isValidDeveloper(enrichedData['developer'])
+                ? enrichedData['developer']
+                : null);
+      final resolvedSummary =
+          _nonEmptyString(gameData['summary']) ??
+          _nonEmptyString(enrichedData['summary']);
+      final resolvedGenres =
+          _nonEmptyList(gameData['genres']) ??
+          _nonEmptyList(enrichedData['genres']);
+      final resolvedPlatforms =
+          _nonEmptyList(gameData['platforms']) ??
+          _nonEmptyList(enrichedData['platforms']);
+      final resolvedThemes =
+          _nonEmptyList(gameData['themes']) ??
+          _nonEmptyList(enrichedData['themes']);
+      final resolvedGameModes =
+          _nonEmptyList(gameData['game_modes']) ??
+          _nonEmptyList(enrichedData['game_modes']);
+      final resolvedPerspectives =
+          _nonEmptyList(gameData['player_perspectives']) ??
+          _nonEmptyList(enrichedData['player_perspectives']);
+      final resolvedCategory = _resolveCatalogCategory(gameData, enrichedData);
+
       await _client
           .from('games')
           .upsert(
             {
               'igdb_id': igdbId,
               'title':
-                  gameData['title'] ??
-                  gameData['name'] ??
-                  enrichedData['title'] ??
-                  enrichedData['name'] ??
+                  _nonEmptyString(gameData['title']) ??
+                  _nonEmptyString(gameData['name']) ??
+                  _nonEmptyString(enrichedData['title']) ??
+                  _nonEmptyString(enrichedData['name']) ??
                   'Desconocido',
-              'cover_url': gameData['cover_url'] ?? enrichedData['cover_url'],
-              'release_date':
-                  (gameData['release_date'] ?? enrichedData['release_date'])
-                      ?.toString()
-                      .split('T')[0],
-              'genres': gameData['genres'] ?? enrichedData['genres'],
-              'category': () {
-                final dynamic rawCat =
-                    gameData['game_type'] ??
-                    gameData['category'] ??
-                    enrichedData['game_type'] ??
-                    enrichedData['category'];
-                final int? catId = (rawCat is num)
-                    ? rawCat.toInt()
-                    : int.tryParse(rawCat?.toString() ?? '');
-                final String title = gameData['title'] ?? 'Desconocido';
-                final bool hasParent =
-                    gameData['parent_game'] != null ||
-                    enrichedData['parent_game'] != null;
-                final bool hasVersion =
-                    gameData['version_parent'] != null ||
-                    enrichedData['version_parent'] != null;
-                return IgdbConstants.resolveCategory(
-                      catId,
-                      title,
-                      hasParentGame: hasParent,
-                      hasVersionParent: hasVersion,
-                      summary:
-                          gameData['summary']?.toString() ??
-                          enrichedData['summary']?.toString(),
-                    ) ??
-                    0;
-              }(),
+              'cover_url': resolvedCover,
+              'release_date': resolvedReleaseDate,
+              'genres': resolvedGenres,
+              'category': resolvedCategory,
               'parent_game': () {
                 final pg =
                     gameData['parent_game'] ?? enrichedData['parent_game'];
@@ -281,23 +352,12 @@ class ReviewRepository {
                 if (vp is Map) return vp['id'] ?? vp['igdb_id'];
                 return vp;
               }(),
-              'themes': gameData['themes'] ?? enrichedData['themes'],
-              'game_modes':
-                  gameData['game_modes'] ?? enrichedData['game_modes'],
-              'player_perspectives':
-                  gameData['player_perspectives'] ??
-                  enrichedData['player_perspectives'],
-              'platforms': gameData['platforms'] ?? enrichedData['platforms'],
-              'summary': gameData['summary'] ?? enrichedData['summary'],
-              'developer': () {
-                final dev = gameData['developer'];
-                if (dev != null &&
-                    dev != 'Desconocido' &&
-                    dev != 'Desarrollador desconocido') {
-                  return dev;
-                }
-                return enrichedData['developer'];
-              }(),
+              'themes': resolvedThemes,
+              'game_modes': resolvedGameModes,
+              'player_perspectives': resolvedPerspectives,
+              'platforms': resolvedPlatforms,
+              'summary': resolvedSummary,
+              'developer': resolvedDeveloper,
               'collection': () {
                 dynamic col =
                     gameData['collection'] ?? enrichedData['collection'];
@@ -332,6 +392,28 @@ class ReviewRepository {
             onConflict: 'igdb_id',
             ignoreDuplicates: true,
           );
+
+      final int? parsedIgdbId = igdbId is int
+          ? igdbId
+          : int.tryParse(igdbId.toString());
+      if (parsedIgdbId != null && resolvedCover != null) {
+        await backfillCoverUrl(
+          igdbId: parsedIgdbId,
+          enrichedData: {
+            'cover_url': resolvedCover,
+            'release_date': ?resolvedReleaseDate,
+            'summary': ?resolvedSummary,
+            'developer': ?resolvedDeveloper,
+            'platforms': ?resolvedPlatforms,
+            'genres': ?resolvedGenres,
+            'themes': ?resolvedThemes,
+            'game_modes': ?resolvedGameModes,
+            'player_perspectives': ?resolvedPerspectives,
+            'category': ?resolvedCategory,
+          },
+          currentCoverUrl: null,
+        );
+      }
     } catch (e) {
       debugPrint('[ReviewRepository] Game catalog upsert error: $e');
     }
@@ -563,175 +645,347 @@ class ReviewRepository {
   // Borrado
   // ──────────────────────────────────────────────────────────────────
 
+  Future<T?> _safeQuery<T>(Future<T> Function() query, String label) async {
+    try {
+      return await query();
+    } catch (e) {
+      debugPrint('[ReviewRepository] Error en $label: $e');
+      return null;
+    }
+  }
+
+  void _addNonEmptyUrls(Set<String> target, Iterable<dynamic> values) {
+    for (final v in values) {
+      final url = v?.toString();
+      if (url != null && url.isNotEmpty) {
+        target.add(url);
+      }
+    }
+  }
+
+  bool _willActivityRowBeDeleted(
+    Map<String, dynamic> row, {
+    required Set<String> deletedReviewIds,
+    required String userId,
+    required dynamic gameId,
+    required bool deletesUserGame,
+    String? fallbackReviewId,
+    String? fallbackUserId,
+    dynamic fallbackGameId,
+  }) {
+    final actionType = row['action_type'] as String?;
+    final rowReviewId = row['review_id']?.toString() ?? fallbackReviewId;
+
+    if (rowReviewId != null &&
+        deletedReviewIds.contains(rowReviewId) &&
+        (actionType == 'reviewed' || actionType == null)) {
+      return true;
+    }
+
+    if (deletesUserGame && gameId != null) {
+      final rowUserId = row['user_id']?.toString() ?? fallbackUserId;
+      final rowGameId = row['game_id'] ?? fallbackGameId;
+      if (rowUserId == userId && rowGameId?.toString() == gameId.toString()) {
+        return actionType == 'status_change' ||
+            actionType == 'reviewed' ||
+            actionType == null;
+      }
+    }
+
+    return false;
+  }
+
+  Future<Set<String>> _collectOrphanedCommentImageUrls({
+    required Set<String> deletedReviewIds,
+    required String userId,
+    required dynamic gameId,
+    required bool deletesUserGame,
+    List<Map<String, dynamic>>? preloadedActivityByGame,
+  }) async {
+    final urls = <String>{};
+
+    final singleReviewId = deletedReviewIds.length == 1
+        ? deletedReviewIds.first
+        : null;
+    final reviewIdList = deletedReviewIds.toList();
+
+    final activityByReviewsFuture = deletedReviewIds.isEmpty
+        ? Future<List<Map<String, dynamic>>?>.value(const [])
+        : _safeQuery<List<Map<String, dynamic>>>(() async {
+            final base = _client
+                .from('activity_feed')
+                .select('post_id, action_type, user_id, game_id, review_id');
+            return singleReviewId != null
+                ? await base.eq('review_id', singleReviewId)
+                : await base.inFilter('review_id', reviewIdList);
+          }, 'activity_feed por review_id');
+
+    final activityByGameFuture =
+        (!deletesUserGame || gameId == null || preloadedActivityByGame != null)
+        ? Future<List<Map<String, dynamic>>?>.value(
+            preloadedActivityByGame ?? const [],
+          )
+        : _safeQuery<List<Map<String, dynamic>>>(
+            () async => await _client
+                .from('activity_feed')
+                .select('post_id, action_type, user_id, game_id, review_id')
+                .eq('user_id', userId)
+                .eq('game_id', gameId),
+            'activity_feed por user_id/game_id',
+          );
+
+    final implicitPostsFuture = deletedReviewIds.isEmpty
+        ? Future<List<Map<String, dynamic>>?>.value(const [])
+        : _safeQuery<List<Map<String, dynamic>>>(() async {
+            final base = _client.from('feed_posts').select('id');
+            return singleReviewId != null
+                ? await base.eq('review_id', singleReviewId)
+                : await base.inFilter('review_id', reviewIdList);
+          }, 'feed_posts implícitos');
+
+    final commentsByReviewsFuture = deletedReviewIds.isEmpty
+        ? Future<List<Map<String, dynamic>>?>.value(const [])
+        : _safeQuery<List<Map<String, dynamic>>>(() async {
+            final base = _client.from('review_comments').select('image_url');
+            return singleReviewId != null
+                ? await base.eq('review_id', singleReviewId)
+                : await base.inFilter('review_id', reviewIdList);
+          }, 'review_comments por review_id');
+
+    final batchResults = await Future.wait<List<Map<String, dynamic>>?>([
+      activityByReviewsFuture,
+      activityByGameFuture,
+      implicitPostsFuture,
+      commentsByReviewsFuture,
+    ]);
+
+    final activityByReviews = batchResults[0] ?? const [];
+    final activityByGame = batchResults[1] ?? const [];
+    final implicitPosts = batchResults[2] ?? const [];
+    final commentsByReviews = batchResults[3] ?? const [];
+
+    _addNonEmptyUrls(urls, commentsByReviews.map((c) => c['image_url']));
+
+    final candidatePostIds = <String>{};
+    for (final row in activityByReviews) {
+      final pid = row['post_id'] as String?;
+      if (pid != null &&
+          pid.isNotEmpty &&
+          _willActivityRowBeDeleted(
+            row,
+            deletedReviewIds: deletedReviewIds,
+            userId: userId,
+            gameId: gameId,
+            deletesUserGame: deletesUserGame,
+            fallbackReviewId: singleReviewId,
+          )) {
+        candidatePostIds.add(pid);
+      }
+    }
+
+    if (deletesUserGame && gameId != null) {
+      for (final row in activityByGame) {
+        final pid = row['post_id'] as String?;
+        if (pid != null &&
+            pid.isNotEmpty &&
+            _willActivityRowBeDeleted(
+              row,
+              deletedReviewIds: deletedReviewIds,
+              userId: userId,
+              gameId: gameId,
+              deletesUserGame: true,
+              fallbackUserId: userId,
+              fallbackGameId: gameId,
+            )) {
+          candidatePostIds.add(pid);
+        }
+      }
+    }
+
+    final implicitPostIds = <String>{};
+    for (final row in implicitPosts) {
+      final pid = row['id'] as String?;
+      if (pid != null && pid.isNotEmpty) {
+        implicitPostIds.add(pid);
+      }
+    }
+
+    // Only clean comment images for post_ids that have NO remaining events
+    // in activity_feed outside the deleted review(s)/game. On query error,
+    // fail safe and treat none as orphaned to preserve grouped post images.
+    final orphanedPostIds = <String>{};
+    if (candidatePostIds.isNotEmpty) {
+      final sharedCheck = await _safeQuery<List<Map<String, dynamic>>>(
+        () async => await _client
+            .from('activity_feed')
+            .select('post_id, action_type, user_id, game_id, review_id')
+            .inFilter('post_id', candidatePostIds.toList()),
+        'activity_feed compartidos por post_id',
+      );
+
+      if (sharedCheck != null) {
+        final nonOrphanPostIds = <String>{};
+        for (final row in sharedCheck) {
+          final pid = row['post_id'] as String?;
+          if (pid == null || pid.isEmpty) continue;
+          if (!_willActivityRowBeDeleted(
+            row,
+            deletedReviewIds: deletedReviewIds,
+            userId: userId,
+            gameId: gameId,
+            deletesUserGame: deletesUserGame,
+          )) {
+            nonOrphanPostIds.add(pid);
+          }
+        }
+        orphanedPostIds.addAll(candidatePostIds.difference(nonOrphanPostIds));
+      }
+    }
+
+    final postIdsToClean = <String>{...orphanedPostIds, ...implicitPostIds};
+    if (postIdsToClean.isNotEmpty) {
+      final commentsByPost = await _safeQuery<List<Map<String, dynamic>>>(
+        () async => await _client
+            .from('review_comments')
+            .select('image_url')
+            .inFilter('post_id', postIdsToClean.toList()),
+        'review_comments por post_id',
+      );
+      if (commentsByPost != null) {
+        _addNonEmptyUrls(urls, commentsByPost.map((c) => c['image_url']));
+      }
+    }
+
+    return urls;
+  }
+
   /// Elimina el juego de la biblioteca del usuario (user_games + reviews + imágenes).
   Future<void> deleteFromLibrary({
     required String userId,
     required dynamic gameId,
   }) async {
-    // 1. Borrar entry de user_games
+    // 1. Recopilar reseñas y eventos del juego en paralelo ANTES de borrar
+    // `user_games` o `reviews`, evitando que los triggers cascading eliminen
+    // `feed_posts` / `review_comments` antes de leer sus `image_url`.
+    final initialResults = await Future.wait<List<Map<String, dynamic>>>([
+      _client
+          .from('reviews')
+          .select('id, image_urls')
+          .eq('user_id', userId)
+          .eq('game_id', gameId),
+      _safeQuery<List<Map<String, dynamic>>>(
+        () async => await _client
+            .from('activity_feed')
+            .select('post_id, action_type, user_id, game_id, review_id')
+            .eq('user_id', userId)
+            .eq('game_id', gameId),
+        'activity_feed por user_id/game_id',
+      ).then((rows) => rows ?? const []),
+    ]);
+
+    final reviewsResponse = initialResults[0];
+    final activityByGame = initialResults[1];
+
+    final reviewIds = <String>{};
+    final urlsToDelete = <String>{};
+
+    for (final r in reviewsResponse) {
+      final id = r['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        reviewIds.add(id);
+      }
+      if (r['image_urls'] is List) {
+        _addNonEmptyUrls(urlsToDelete, r['image_urls'] as List);
+      }
+    }
+
+    final commentUrls = await _collectOrphanedCommentImageUrls(
+      deletedReviewIds: reviewIds,
+      userId: userId,
+      gameId: gameId,
+      deletesUserGame: true,
+      preloadedActivityByGame: activityByGame,
+    );
+    urlsToDelete.addAll(commentUrls);
+
+    // 2. Borrar imágenes de Storage antes de eliminar registros en BD
+    if (urlsToDelete.isNotEmpty) {
+      await _deleteImagesFromUrls(urlsToDelete.toList());
+    }
+
+    // 3. Borrar reseñas y finalmente user_games
+    await _client
+        .from('reviews')
+        .delete()
+        .eq('user_id', userId)
+        .eq('game_id', gameId);
+
     await _client
         .from('user_games')
         .delete()
         .eq('user_id', userId)
         .eq('game_id', gameId);
-
-    // 2. Recopilar URLs de imágenes (reseñas + comentarios)
-    final reviewsResponse = await _client
-        .from('reviews')
-        .select('id, image_urls')
-        .eq('user_id', userId)
-        .eq('game_id', gameId);
-
-    final List<String> reviewIds = [];
-    final List<String> allImageUrls = [];
-
-    for (var r in reviewsResponse) {
-      reviewIds.add(r['id']);
-      if (r['image_urls'] != null) {
-        allImageUrls.addAll((r['image_urls'] as List).map((e) => e.toString()));
-      }
-    }
-
-    if (reviewIds.isNotEmpty) {
-      final postIdsForReviews = <String>{};
-      final feedPostsResp = await _client
-          .from('activity_feed')
-          .select('post_id')
-          .inFilter('review_id', reviewIds);
-      for (final row in feedPostsResp) {
-        final pid = row['post_id'] as String?;
-        if (pid != null && pid.isNotEmpty) postIdsForReviews.add(pid);
-      }
-      final implicitPostsResp = await _client
-          .from('feed_posts')
-          .select('id')
-          .inFilter('review_id', reviewIds);
-      for (final row in implicitPostsResp) {
-        final pid = row['id'] as String?;
-        if (pid != null && pid.isNotEmpty) postIdsForReviews.add(pid);
-      }
-      if (postIdsForReviews.isNotEmpty) {
-        final commentsByPost = await _client
-            .from('review_comments')
-            .select('image_url')
-            .inFilter('post_id', postIdsForReviews.toList());
-        for (var c in commentsByPost) {
-          if (c['image_url'] != null &&
-              !allImageUrls.contains(c['image_url'])) {
-            allImageUrls.add(c['image_url']);
-          }
-        }
-      }
-
-      final commentsResponse = await _client
-          .from('review_comments')
-          .select('image_url')
-          .inFilter('review_id', reviewIds);
-      for (var c in commentsResponse) {
-        if (c['image_url'] != null && !allImageUrls.contains(c['image_url'])) {
-          allImageUrls.add(c['image_url']);
-        }
-      }
-    }
-
-    // 3. Borrar imágenes del storage
-    if (allImageUrls.isNotEmpty) {
-      await StorageUtils.deleteImagesFromUrls(allImageUrls);
-    }
-
-    // 4. Borrar reseñas
-    await _client
-        .from('reviews')
-        .delete()
-        .eq('user_id', userId)
-        .eq('game_id', gameId);
   }
 
-  /// Elimina una reseña individual y sus imágenes.
-  /// Devuelve `true` si el usuario ya no tiene más reseñas para ese juego
-  /// (para que el screen pueda actualizar `_inLibrary`).
-  Future<bool> deleteReview({
+  /// Elimina una reseña y sus imágenes de Storage para un [userId] concreto.
+  ///
+  /// Protege las imágenes de comentarios de posts agrupados que sigan teniendo
+  /// otros eventos en `activity_feed`. Devuelve `true` si ya no quedan más
+  /// reseñas del usuario para ese juego y también se eliminó `user_games`.
+  Future<bool> deleteReviewForUser({
     required String reviewId,
-    required Review reviewData,
     required dynamic gameId,
+    required String userId,
+    List<String> currentImageUrls = const [],
   }) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return false;
+    final urlsToDelete = <String>{};
+    _addNonEmptyUrls(urlsToDelete, currentImageUrls);
 
-    // Recopilar URLs de imágenes desde BD para garantizar la limpieza total en Storage
-    final List<String> urlsToDelete = [];
-    try {
-      final dbReview = await _client
-          .from('reviews')
-          .select('image_urls')
-          .eq('id', reviewId)
-          .maybeSingle();
-      if (dbReview != null && dbReview['image_urls'] != null) {
-        urlsToDelete.addAll(
-          (dbReview['image_urls'] as List).map((e) => e.toString()),
-        );
-      }
-    } catch (e) {
-      debugPrint(
-        '[ReviewRepository] Error recogiendo image_urls de la reseña al borrar: $e',
-      );
+    // Leer en paralelo las image_urls actuales y si esta reseña es la última
+    // del juego para determinar si también caerá `user_games`.
+    final metadataResults = await Future.wait<dynamic>([
+      _safeQuery<Map<String, dynamic>?>(
+        () async => await _client
+            .from('reviews')
+            .select('image_urls')
+            .eq('id', reviewId)
+            .maybeSingle(),
+        'image_urls de la reseña al borrar',
+      ),
+      if (gameId != null)
+        _safeQuery<List<Map<String, dynamic>>>(
+          () async => await _client
+              .from('reviews')
+              .select('id')
+              .eq('game_id', gameId)
+              .eq('user_id', userId),
+          'otras reseñas del juego al borrar',
+        )
+      else
+        Future<List<Map<String, dynamic>>?>.value(null),
+    ]);
+
+    final dbReview = metadataResults[0] as Map<String, dynamic>?;
+    if (dbReview != null && dbReview['image_urls'] is List) {
+      _addNonEmptyUrls(urlsToDelete, dbReview['image_urls'] as List);
     }
 
-    final reviewImageUrls = reviewData.imageUrls;
-    for (var url in reviewImageUrls) {
-      if (!urlsToDelete.contains(url.toString())) {
-        urlsToDelete.add(url.toString());
-      }
-    }
+    final otherReviews = metadataResults[1] as List<Map<String, dynamic>>?;
+    final deletesUserGame =
+        gameId != null &&
+        otherReviews != null &&
+        !otherReviews.any((r) => r['id']?.toString() != reviewId);
 
-    final postIdsForReview = <String>{};
-    try {
-      final feedPostsResp = await _client
-          .from('activity_feed')
-          .select('post_id')
-          .eq('review_id', reviewId);
-      for (final row in feedPostsResp) {
-        final pid = row['post_id'] as String?;
-        if (pid != null && pid.isNotEmpty) postIdsForReview.add(pid);
-      }
-      final implicitPostsResp = await _client
-          .from('feed_posts')
-          .select('id')
-          .eq('review_id', reviewId);
-      for (final row in implicitPostsResp) {
-        final pid = row['id'] as String?;
-        if (pid != null && pid.isNotEmpty) postIdsForReview.add(pid);
-      }
-      if (postIdsForReview.isNotEmpty) {
-        final commentsByPost = await _client
-            .from('review_comments')
-            .select('image_url')
-            .inFilter('post_id', postIdsForReview.toList());
-        for (var c in commentsByPost) {
-          if (c['image_url'] != null &&
-              !urlsToDelete.contains(c['image_url'])) {
-            urlsToDelete.add(c['image_url']);
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint(
-        '[ReviewRepository] Error recogiendo imágenes por post_id al borrar reseña: $e',
-      );
-    }
-
-    final commentsResponse = await _client
-        .from('review_comments')
-        .select('image_url')
-        .eq('review_id', reviewId);
-    for (var c in commentsResponse) {
-      if (c['image_url'] != null && !urlsToDelete.contains(c['image_url'])) {
-        urlsToDelete.add(c['image_url']);
-      }
-    }
+    final commentUrls = await _collectOrphanedCommentImageUrls(
+      deletedReviewIds: {reviewId},
+      userId: userId,
+      gameId: gameId,
+      deletesUserGame: deletesUserGame,
+    );
+    urlsToDelete.addAll(commentUrls);
 
     if (urlsToDelete.isNotEmpty) {
-      await StorageUtils.deleteImagesFromUrls(urlsToDelete);
+      await _deleteImagesFromUrls(urlsToDelete.toList());
       debugPrint(
         '[ReviewRepository] Eliminadas ${urlsToDelete.length} imágenes al borrar la reseña.',
       );
@@ -757,6 +1011,25 @@ class ReviewRepository {
       }
     }
     return false;
+  }
+
+  /// Elimina una reseña individual y sus imágenes.
+  /// Devuelve `true` si el usuario ya no tiene más reseñas para ese juego
+  /// (para que el screen pueda actualizar `_inLibrary`).
+  Future<bool> deleteReview({
+    required String reviewId,
+    required Review reviewData,
+    required dynamic gameId,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+
+    return deleteReviewForUser(
+      reviewId: reviewId,
+      gameId: gameId,
+      userId: userId,
+      currentImageUrls: reviewData.imageUrls.map((e) => e.toString()).toList(),
+    );
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -1086,37 +1359,64 @@ class ReviewRepository {
 
   // ── Backfill ──────────────────────────────────────────────────────────────
 
-  /// Persiste campos enriquecidos (cover_url, summary, developer) en la tabla
-  /// `games` para que listas y carruseles dejen de mostrar placeholders.
-  ///
-  /// Solo actualiza si la fila actual carece de `cover_url`.
-  /// See: audit hallazgo C-02 (Fase 2).
+  /// Persiste campos enriquecidos (cover_url, release_date, summary, developer,
+  /// platforms, etc.) en la tabla `games` a través de `igdb-proxy`
+  /// (`service_role`), evitando el bloqueo RLS de `UPDATE` en `public.games`.
   Future<void> backfillCoverUrl({
     required int igdbId,
     required Map<String, dynamic> enrichedData,
     required String? currentCoverUrl,
   }) async {
+    if (_client.auth.currentUser == null) return;
+
     final missingCover = currentCoverUrl == null || currentCoverUrl.isEmpty;
-    final enrichedPlatforms = enrichedData['platforms'];
-    final hasPlatforms =
-        enrichedPlatforms is List && enrichedPlatforms.isNotEmpty;
-    if ((!missingCover || enrichedData['cover_url'] == null) && !hasPlatforms) {
+    final enrichedPlatforms = _nonEmptyList(enrichedData['platforms']);
+    final hasPlatforms = enrichedPlatforms != null;
+    if ((!missingCover || _nonEmptyString(enrichedData['cover_url']) == null) &&
+        !hasPlatforms) {
       return;
     }
 
+    final coverUrl =
+        _nonEmptyString(enrichedData['cover_url']) ??
+        (!missingCover ? currentCoverUrl : null);
+    final releaseDate = _nonEmptyString(
+      enrichedData['release_date'],
+    )?.split('T')[0];
+    final summary = _nonEmptyString(enrichedData['summary']);
+    final developer = _isValidDeveloper(enrichedData['developer'])
+        ? enrichedData['developer']
+        : null;
+    final genres = _nonEmptyList(enrichedData['genres']);
+    final themes = _nonEmptyList(enrichedData['themes']);
+    final gameModes = _nonEmptyList(enrichedData['game_modes']);
+    final perspectives = _nonEmptyList(enrichedData['player_perspectives']);
+    final category = _resolveCatalogCategory(
+      enrichedData,
+      const {},
+      fallback: null,
+    );
+
+    final payload = <String, dynamic>{
+      'igdb_id': igdbId,
+      'cover_url': ?coverUrl,
+      'release_date': ?releaseDate,
+      'summary': ?summary,
+      'developer': ?developer,
+      'platforms': ?enrichedPlatforms,
+      'genres': ?genres,
+      'themes': ?themes,
+      'game_modes': ?gameModes,
+      'player_perspectives': ?perspectives,
+      'category': ?category,
+    };
+    if (payload.length <= 1) return;
+
     try {
-      await _client
-          .from('games')
-          .update({
-            if (missingCover && enrichedData['cover_url'] != null)
-              'cover_url': enrichedData['cover_url'],
-            if (enrichedData['summary'] != null)
-              'summary': enrichedData['summary'],
-            if (enrichedData['developer'] != null)
-              'developer': enrichedData['developer'],
-            if (hasPlatforms) 'platforms': enrichedPlatforms,
-          })
-          .eq('igdb_id', igdbId);
+      await _client.functions.invoke(
+        'igdb-proxy',
+        body: {'endpoint': 'backfill_game', 'game': payload},
+      );
     } catch (e) {
       debugPrint('[ReviewRepository] Error en backfill de cover_url: $e');
     }
@@ -1214,7 +1514,7 @@ class ReviewRepository {
     }
 
     final res = await query
-        .order(orderColumn, ascending: false)
+        .order(orderColumn, ascending: false, nullsFirst: false)
         .range(from, to);
 
     return List<Map<String, dynamic>>.from(
@@ -1231,7 +1531,8 @@ class ReviewRepository {
         .from('reviews')
         .select(orderColumn)
         .eq('user_id', userId)
-        .inFilter('status', ['playing', 'beaten', 'completed']);
+        .inFilter('status', ['playing', 'beaten', 'completed'])
+        .not(orderColumn, 'is', null);
 
     final Set<int> years = {};
     for (final r in res) {

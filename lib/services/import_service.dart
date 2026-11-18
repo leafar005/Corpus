@@ -359,9 +359,7 @@ class ImportService {
           }
         }
         if (coverUrl != null && coverUrl.isNotEmpty) {
-          coverUrl = coverUrl
-              .replaceAll('t_cover_big', 't_1080p')
-              .replaceAll('t_thumb', 't_1080p');
+          coverUrl = coverUrl.replaceAll('t_thumb', 't_cover_big');
         }
 
         // 2. EXTRACCIÓN DE DESARROLLADOR PARA ACTIVAR LOGROS DE COMPAÑÍA:

@@ -105,8 +105,25 @@ class Game {
   /// Resuelve la categoría final, priorizando gameType sobre el category obsoleto.
   int? get resolvedCategory => gameType ?? category;
 
-  /// Construye un [Game] desde una fila de Supabase.
+  /// Construye un [Game] desde una fila de Supabase o un objeto de IGDB.
   factory Game.fromMap(Map<String, dynamic> map) {
+    final rawDev = map['developer'] as String?;
+    final hasExplicitDev =
+        rawDev != null &&
+        rawDev.isNotEmpty &&
+        rawDev != 'Desconocido' &&
+        rawDev != 'Desarrollador desconocido';
+    final rawPub = map['publisher'] as String?;
+    final parsedCompanies =
+        (!hasExplicitDev || rawPub == null || rawPub.isEmpty)
+        ? _parseInvolvedCompanies(map['involved_companies'])
+        : (
+            developer: null,
+            developerId: null,
+            publisher: null,
+            publisherId: null,
+          );
+
     return Game(
       igdbId: (map['igdb_id'] ?? map['id']) as int,
       title: map['title'] as String? ?? map['name'] as String? ?? '',
@@ -125,7 +142,9 @@ class Game {
       themes: _parseStringList(map['themes']),
       gameModes: _parseStringList(map['game_modes']),
       platforms: _parseStringList(map['platforms']),
-      developer: map['developer'] as String?,
+      developer: hasExplicitDev
+          ? rawDev
+          : (parsedCompanies.developer ?? rawDev),
       gameEngines: _parseStringList(map['game_engines']),
       franchises: _parseStringList(map['franchises']),
       collection: _parseCollectionName(map['collection']),
@@ -154,9 +173,13 @@ class Game {
       artworks: _parseStringList(map['artworks'], isImage: true),
       videos: _parseStringList(map['videos'], isVideo: true),
       websites: map['websites'] is List ? map['websites'] as List : [],
-      publisher: map['publisher'] as String?,
-      publisherId: (map['publisher_id'] as num?)?.toInt(),
-      developerId: (map['developer_id'] as num?)?.toInt(),
+      publisher: (rawPub != null && rawPub.isNotEmpty)
+          ? rawPub
+          : parsedCompanies.publisher,
+      publisherId:
+          (map['publisher_id'] as num?)?.toInt() ?? parsedCompanies.publisherId,
+      developerId:
+          (map['developer_id'] as num?)?.toInt() ?? parsedCompanies.developerId,
       playerPerspectives: _parseStringList(map['player_perspectives']),
       aggregatedRating: (map['aggregated_rating'] as num?)?.toDouble(),
       url: map['url'] as String?,
@@ -265,6 +288,69 @@ class Game {
       return raw.isNotEmpty ? raw : null;
     }
     return raw.toString();
+  }
+
+  static ({
+    String? developer,
+    int? developerId,
+    String? publisher,
+    int? publisherId,
+  }) _parseInvolvedCompanies(dynamic raw) {
+    if (raw is! List || raw.isEmpty) {
+      return (
+        developer: null,
+        developerId: null,
+        publisher: null,
+        publisherId: null,
+      );
+    }
+
+    String? developer;
+    int? developerId;
+    String? publisher;
+    int? publisherId;
+    String? firstCompanyName;
+    int? firstCompanyId;
+
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final company = item['company'];
+      if (company is! Map) continue;
+      final name = company['name']?.toString();
+      if (name == null || name.isEmpty) continue;
+      final id = (company['id'] as num?)?.toInt();
+
+      firstCompanyName ??= name;
+      firstCompanyId ??= id;
+
+      if (developer == null && item['developer'] == true) {
+        developer = name;
+        developerId = id;
+      }
+      if (publisher == null && item['publisher'] == true) {
+        publisher = name;
+        publisherId = id;
+      }
+    }
+
+    if (developer == null && firstCompanyName != null) {
+      developer = firstCompanyName;
+      developerId = firstCompanyId;
+    }
+
+    if (publisher != null &&
+        developer != null &&
+        publisher.trim().toLowerCase() == developer.trim().toLowerCase()) {
+      publisher = null;
+      publisherId = null;
+    }
+
+    return (
+      developer: developer,
+      developerId: developerId,
+      publisher: publisher,
+      publisherId: publisherId,
+    );
   }
 
   @override

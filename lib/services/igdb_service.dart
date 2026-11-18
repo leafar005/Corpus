@@ -1,34 +1,100 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class IGDBService {
+  static const Duration _cacheTtl = Duration(minutes: 10);
+  static const int _maxCacheEntries = 150;
+  static final LinkedHashMap<String, ({DateTime expiresAt, String body})>
+      _queryCache = LinkedHashMap<String, ({DateTime expiresAt, String body})>();
+  static final Map<String, Future<String>> _inFlightQueries = {};
+
+  /// Limpia la caché LRU en memoria y las consultas en curso.
+  @visibleForTesting
+  static void clearCache() {
+    _queryCache.clear();
+    _inFlightQueries.clear();
+  }
+
+  /// Sanitiza términos libres antes de interpolarlos en expresiones Apicalypse.
+  static String sanitizeApicalypseTerm(String term) {
+    return term
+        .replaceAll(r'\', '')
+        .replaceAll('"', '')
+        .replaceAll(';', '')
+        .trim();
+  }
+
+  static http.Response _jsonResponse(String bodyString) {
+    return http.Response.bytes(
+      utf8.encode(bodyString),
+      200,
+      headers: {'content-type': 'application/json; charset=utf-8'},
+    );
+  }
+
   // 1. Helper centralizado: Llama a la Edge Function igdb-proxy de Supabase.
   // Ya no hacemos fallback directo a la API de Twitch desde el cliente
   // porque expondría el Client Secret. Toda llamada pasa por el proxy.
   static Future<http.Response> _postQuery(String endpoint, String query) async {
-    try {
-      final res = await Supabase.instance.client.functions
-          .invoke('igdb-proxy', body: {'endpoint': endpoint, 'query': query})
-          .timeout(const Duration(seconds: 15));
+    final cacheKey = '$endpoint::$query';
+    final now = DateTime.now();
 
-      if (res.status == 200 && res.data != null) {
-        final bodyString = res.data is String ? res.data : jsonEncode(res.data);
-        return http.Response.bytes(
-          utf8.encode(bodyString),
-          200,
-          headers: {'content-type': 'application/json; charset=utf-8'},
-        );
-      } else {
-        throw Exception(
-          'Error del proxy IGDB: status ${res.status}, data: ${res.data}',
-        );
+    final cached = _queryCache[cacheKey];
+    if (cached != null) {
+      if (now.isBefore(cached.expiresAt)) {
+        _queryCache.remove(cacheKey);
+        _queryCache[cacheKey] = cached;
+        return _jsonResponse(cached.body);
       }
-    } catch (e) {
-      debugPrint('[IGDB Proxy] Error de conexión: $e');
-      rethrow;
+      _queryCache.remove(cacheKey);
     }
+
+    final existingFuture = _inFlightQueries[cacheKey];
+    if (existingFuture != null) {
+      final bodyString = await existingFuture;
+      return _jsonResponse(bodyString);
+    }
+
+    late final Future<String> future;
+    future = () async {
+      try {
+        final res = await Supabase.instance.client.functions
+            .invoke('igdb-proxy', body: {'endpoint': endpoint, 'query': query})
+            .timeout(const Duration(seconds: 15));
+
+        if (res.status == 200 && res.data != null) {
+          final bodyString =
+              res.data is String ? res.data as String : jsonEncode(res.data);
+          _queryCache.remove(cacheKey);
+          _queryCache[cacheKey] = (
+            expiresAt: DateTime.now().add(_cacheTtl),
+            body: bodyString,
+          );
+          while (_queryCache.length > _maxCacheEntries) {
+            _queryCache.remove(_queryCache.keys.first);
+          }
+          return bodyString;
+        } else {
+          throw Exception(
+            'Error del proxy IGDB: status ${res.status}, data: ${res.data}',
+          );
+        }
+      } catch (e) {
+        debugPrint('[IGDB Proxy] Error de conexión: $e');
+        rethrow;
+      }
+    }().whenComplete(() {
+      if (identical(_inFlightQueries[cacheKey], future)) {
+        _inFlightQueries.remove(cacheKey);
+      }
+    });
+
+    _inFlightQueries[cacheKey] = future;
+    final bodyString = await future;
+    return _jsonResponse(bodyString);
   }
 
   /// Obtiene los juegos más anticipados ordenados por 'hype'
@@ -173,19 +239,22 @@ class IGDBService {
       final words = cleanQuery
           .toLowerCase()
           .split(' ')
+          .map(sanitizeApicalypseTerm)
           .where((w) => w.isNotEmpty)
           .toList();
 
-      final wordConditions = words.map((w) {
-        final romanEquivalent = romanMap[w];
-        if (romanEquivalent != null) {
-          return '(name ~ *"$w"* | name ~ *"$romanEquivalent"* | alternative_names.name ~ *"$w"* | alternative_names.name ~ *"$romanEquivalent"*)';
-        } else {
-          return '(name ~ *"$w"* | alternative_names.name ~ *"$w"*)';
-        }
-      });
+      if (words.isNotEmpty) {
+        final wordConditions = words.map((w) {
+          final romanEquivalent = romanMap[w];
+          if (romanEquivalent != null) {
+            return '(name ~ *"$w"* | name ~ *"$romanEquivalent"* | alternative_names.name ~ *"$w"* | alternative_names.name ~ *"$romanEquivalent"*)';
+          } else {
+            return '(name ~ *"$w"* | alternative_names.name ~ *"$w"*)';
+          }
+        });
 
-      whereConditions += ' & ${wordConditions.join(' & ')}';
+        whereConditions += ' & ${wordConditions.join(' & ')}';
+      }
     }
 
     if (genres != null && genres.isNotEmpty) {
@@ -683,32 +752,43 @@ class IGDBService {
   }
 
   /// Datos completos (con cover, para GameCard) de una lista de IGDB IDs,
-  /// en lotes para no exceder los límites de IGDB.
+  /// en lotes concurrentes para no exceder los límites de IGDB.
   static Future<List<dynamic>> getGamesByIdsFull(List<int> igdbIds) async {
     if (igdbIds.isEmpty) return [];
 
     final List<dynamic> allResults = [];
     const chunkSize = 200;
+    const concurrency = 3;
 
+    final chunks = <List<int>>[];
     for (var i = 0; i < igdbIds.length; i += chunkSize) {
-      final chunk = igdbIds.skip(i).take(chunkSize).toList();
-      final idsString = chunk.join(',');
-      final body =
-          'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name, url; where id = ($idsString); limit ${chunk.length};';
+      chunks.add(igdbIds.skip(i).take(chunkSize).toList());
+    }
 
-      final response = await _postQuery('games', body);
+    for (var i = 0; i < chunks.length; i += concurrency) {
+      final batch = chunks.skip(i).take(concurrency).toList();
+      final responses = await Future.wait(
+        batch.map((chunk) {
+          final idsString = chunk.join(',');
+          final body =
+              'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name, url; where id = ($idsString); limit ${chunk.length};';
+          return _postQuery('games', body);
+        }),
+      );
 
-      if (kDebugMode) {
-        debugPrint('[IGDB BATCH getGamesByIdsFull] status=${response.statusCode}');
-        if (response.statusCode != 200) {
-          debugPrint(
-            '[IGDB BATCH getGamesByIdsFull] Error response: ${response.body}',
-          );
+      for (final response in responses) {
+        if (kDebugMode) {
+          debugPrint('[IGDB BATCH getGamesByIdsFull] status=${response.statusCode}');
+          if (response.statusCode != 200) {
+            debugPrint(
+              '[IGDB BATCH getGamesByIdsFull] Error response: ${response.body}',
+            );
+          }
         }
-      }
 
-      if (response.statusCode == 200) {
-        allResults.addAll(jsonDecode(response.body) as List);
+        if (response.statusCode == 200) {
+          allResults.addAll(jsonDecode(response.body) as List);
+        }
       }
     }
 

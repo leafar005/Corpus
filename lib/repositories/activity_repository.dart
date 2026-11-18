@@ -68,10 +68,15 @@ class ReviewInteractionsResult {
 
 /// Acceso a datos para el feed de actividad y el detalle de reseñas.
 class ActivityRepository {
-  ActivityRepository({SupabaseClient? client})
-    : _client = client ?? Supabase.instance.client;
+  ActivityRepository({
+    SupabaseClient? client,
+    ImageUrlsDeleter? deleteImagesFromUrls,
+  }) : _client = client ?? Supabase.instance.client,
+       _deleteImagesFromUrls =
+           deleteImagesFromUrls ?? StorageUtils.deleteImagesFromUrls;
 
   final SupabaseClient _client;
+  final ImageUrlsDeleter _deleteImagesFromUrls;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Feed de actividad (ActivityScreen)
@@ -102,6 +107,7 @@ class ActivityRepository {
             games!activity_feed_game_id_fkey(igdb_id, title, cover_url)
           ''')
         .order('created_at', ascending: false)
+        .order('id', ascending: false)
         .range(from, to);
 
     final feedItems = List<Map<String, dynamic>>.from(response);
@@ -117,28 +123,6 @@ class ActivityRepository {
         .toList();
 
     final Map<String, Map<String, dynamic>> reviewsById = {};
-    if (reviewIds.isNotEmpty) {
-      try {
-        final reviewsResp = await _client
-            .from('reviews')
-            .select('*')
-            .inFilter('id', reviewIds);
-        final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
-        await ReviewRepository(client: _client).injectPartners(reviewsList);
-        for (final r in reviewsList) {
-          reviewsById[r['id'] as String] = r;
-        }
-      } catch (e) {
-        debugPrint(
-          '[ActivityRepository] Error enriqueciendo reviews del feed: $e',
-        );
-      }
-    }
-
-    // 2b. Estadísticas de posts y post vigente por review_id — batch paralelo
-    await _enrichPostStatsAndCurrentPostIds(feedItems, reviewsById);
-
-    // 3. Partners (user_games) — batch único
     final Map<String, List<dynamic>> partnersByUserGame = {};
     final userIds = feedItems
         .map((e) => e['user_id'] as String?)
@@ -151,42 +135,66 @@ class ActivityRepository {
         .toSet()
         .toList();
 
-    if (userIds.isNotEmpty && gameIds.isNotEmpty) {
-      try {
-        final ugResp = await _client
-            .from('user_games')
-            .select('user_id, game_id, partner_ids')
-            .inFilter('user_id', userIds)
-            .inFilter('game_id', gameIds);
-
-        final items = List<Map<String, dynamic>>.from(ugResp);
-        final Set<String> allPartnerIds = {};
-        for (var ug in items) {
-          final ids = ug['partner_ids'];
-          if (ids is List) allPartnerIds.addAll(ids.map((e) => e.toString()));
-        }
-
-        final usersData = allPartnerIds.isNotEmpty
-            ? await _client
-                  .from('users')
-                  .select('id, username, avatar_url')
-                  .inFilter('id', allPartnerIds.toList())
-            : <dynamic>[];
-        final userMap = {for (var u in usersData) u['id'] as String: u};
-
-        for (final ug in items) {
-          final ids = ug['partner_ids'];
-          if (ids is List && ids.isNotEmpty) {
-            partnersByUserGame['${ug['user_id']}_${ug['game_id']}'] = ids
-                .map((id) => userMap[id.toString()])
-                .where((u) => u != null)
-                .toList();
+    // 2 + 2b + 3 en paralelo: reseñas + stats de posts junto con partners
+    await Future.wait([
+      () async {
+        if (reviewIds.isNotEmpty) {
+          try {
+            final reviewsResp = await _client
+                .from('reviews')
+                .select('*')
+                .inFilter('id', reviewIds);
+            final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
+            await ReviewRepository(client: _client).injectPartners(reviewsList);
+            for (final r in reviewsList) {
+              reviewsById[r['id'] as String] = r;
+            }
+          } catch (e) {
+            debugPrint(
+              '[ActivityRepository] Error enriqueciendo reviews del feed: $e',
+            );
           }
         }
-      } catch (e) {
-        debugPrint('[ActivityRepository] Error cargando partners del feed: $e');
-      }
-    }
+        await _enrichPostStatsAndCurrentPostIds(feedItems, reviewsById);
+      }(),
+      () async {
+        if (userIds.isEmpty || gameIds.isEmpty) return;
+        try {
+          final ugResp = await _client
+              .from('user_games')
+              .select('user_id, game_id, partner_ids')
+              .inFilter('user_id', userIds)
+              .inFilter('game_id', gameIds);
+
+          final items = List<Map<String, dynamic>>.from(ugResp);
+          final Set<String> allPartnerIds = {};
+          for (var ug in items) {
+            final ids = ug['partner_ids'];
+            if (ids is List) allPartnerIds.addAll(ids.map((e) => e.toString()));
+          }
+
+          final usersData = allPartnerIds.isNotEmpty
+              ? await _client
+                    .from('users')
+                    .select('id, username, avatar_url')
+                    .inFilter('id', allPartnerIds.toList())
+              : <dynamic>[];
+          final userMap = {for (var u in usersData) u['id'] as String: u};
+
+          for (final ug in items) {
+            final ids = ug['partner_ids'];
+            if (ids is List && ids.isNotEmpty) {
+              partnersByUserGame['${ug['user_id']}_${ug['game_id']}'] = ids
+                  .map((id) => userMap[id.toString()])
+                  .where((u) => u != null)
+                  .toList();
+            }
+          }
+        } catch (e) {
+          debugPrint('[ActivityRepository] Error cargando partners del feed: $e');
+        }
+      }(),
+    ]);
 
     // 4. Enriquecer + merge (24h usuario+juego) + agrupación (60m usuario+estado)
     final mergedByGame = _mergeActivityItems(
@@ -262,7 +270,9 @@ class ActivityRepository {
           ''')
         .inFilter('user_id', userIds)
         .gte('created_at', since)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .order('id', ascending: false)
+        .limit(200);
 
     final feedItems = List<Map<String, dynamic>>.from(response);
 
@@ -277,27 +287,6 @@ class ActivityRepository {
         .toList();
 
     final Map<String, Map<String, dynamic>> reviewsById = {};
-    if (reviewIds.isNotEmpty) {
-      try {
-        final reviewsResp = await _client
-            .from('reviews')
-            .select('*')
-            .inFilter('id', reviewIds);
-        final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
-        await ReviewRepository(client: _client).injectPartners(reviewsList);
-        for (final r in reviewsList) {
-          reviewsById[r['id'] as String] = r;
-        }
-      } catch (e) {
-        debugPrint(
-          '[ActivityRepository] Error enriqueciendo reviews de stories: $e',
-        );
-      }
-    }
-
-    await _enrichPostStatsAndCurrentPostIds(feedItems, reviewsById);
-
-    // Partners (misma lógica que fetchActivityPage)
     final Map<String, List<dynamic>> partnersByUserGame = {};
     final storyUserIds = feedItems
         .map((e) => e['user_id'] as String?)
@@ -310,44 +299,67 @@ class ActivityRepository {
         .toSet()
         .toList();
 
-    if (storyUserIds.isNotEmpty && storyGameIds.isNotEmpty) {
-      try {
-        final ugResp = await _client
-            .from('user_games')
-            .select('user_id, game_id, partner_ids')
-            .inFilter('user_id', storyUserIds)
-            .inFilter('game_id', storyGameIds);
-
-        final items = List<Map<String, dynamic>>.from(ugResp);
-        final Set<String> allPartnerIds = {};
-        for (var ug in items) {
-          final ids = ug['partner_ids'];
-          if (ids is List) allPartnerIds.addAll(ids.map((e) => e.toString()));
-        }
-
-        final usersData = allPartnerIds.isNotEmpty
-            ? await _client
-                  .from('users')
-                  .select('id, username, avatar_url')
-                  .inFilter('id', allPartnerIds.toList())
-            : <dynamic>[];
-        final userMap = {for (var u in usersData) u['id'] as String: u};
-
-        for (final ug in items) {
-          final ids = ug['partner_ids'];
-          if (ids is List && ids.isNotEmpty) {
-            partnersByUserGame['${ug['user_id']}_${ug['game_id']}'] = ids
-                .map((id) => userMap[id.toString()])
-                .where((u) => u != null)
-                .toList();
+    await Future.wait([
+      () async {
+        if (reviewIds.isNotEmpty) {
+          try {
+            final reviewsResp = await _client
+                .from('reviews')
+                .select('*')
+                .inFilter('id', reviewIds);
+            final reviewsList = List<Map<String, dynamic>>.from(reviewsResp);
+            await ReviewRepository(client: _client).injectPartners(reviewsList);
+            for (final r in reviewsList) {
+              reviewsById[r['id'] as String] = r;
+            }
+          } catch (e) {
+            debugPrint(
+              '[ActivityRepository] Error enriqueciendo reviews de stories: $e',
+            );
           }
         }
-      } catch (e) {
-        debugPrint(
-          '[ActivityRepository] Error cargando partners de stories: $e',
-        );
-      }
-    }
+        await _enrichPostStatsAndCurrentPostIds(feedItems, reviewsById);
+      }(),
+      () async {
+        if (storyUserIds.isEmpty || storyGameIds.isEmpty) return;
+        try {
+          final ugResp = await _client
+              .from('user_games')
+              .select('user_id, game_id, partner_ids')
+              .inFilter('user_id', storyUserIds)
+              .inFilter('game_id', storyGameIds);
+
+          final items = List<Map<String, dynamic>>.from(ugResp);
+          final Set<String> allPartnerIds = {};
+          for (var ug in items) {
+            final ids = ug['partner_ids'];
+            if (ids is List) allPartnerIds.addAll(ids.map((e) => e.toString()));
+          }
+
+          final usersData = allPartnerIds.isNotEmpty
+              ? await _client
+                    .from('users')
+                    .select('id, username, avatar_url')
+                    .inFilter('id', allPartnerIds.toList())
+              : <dynamic>[];
+          final userMap = {for (var u in usersData) u['id'] as String: u};
+
+          for (final ug in items) {
+            final ids = ug['partner_ids'];
+            if (ids is List && ids.isNotEmpty) {
+              partnersByUserGame['${ug['user_id']}_${ug['game_id']}'] = ids
+                  .map((id) => userMap[id.toString()])
+                  .where((u) => u != null)
+                  .toList();
+            }
+          }
+        } catch (e) {
+          debugPrint(
+            '[ActivityRepository] Error cargando partners de stories: $e',
+          );
+        }
+      }(),
+    ]);
 
     return groupAndMergeByUser(
       feedItems: feedItems,
@@ -567,89 +579,15 @@ class ActivityRepository {
     required String userId,
     required List<String> currentImageUrls,
   }) async {
-    // Recoger todas las URLs de imágenes (reseña + comentarios)
-    final urlsToDelete = <String>{...currentImageUrls};
-
-    try {
-      final dbReview = await _client
-          .from('reviews')
-          .select('image_urls')
-          .eq('id', reviewId)
-          .maybeSingle();
-      if (dbReview != null && dbReview['image_urls'] != null) {
-        urlsToDelete.addAll(
-          (dbReview['image_urls'] as List).map((e) => e.toString()),
-        );
-      }
-    } catch (e) {
-      debugPrint(
-        '[ActivityRepository] Error recogiendo image_urls de la reseña al borrar: $e',
-      );
-    }
-
-    try {
-      final postIdsForReview = <String>{};
-      final feedPostsResp = await _client
-          .from('activity_feed')
-          .select('post_id')
-          .eq('review_id', reviewId);
-      for (final r in feedPostsResp) {
-        final pid = r['post_id'] as String?;
-        if (pid != null && pid.isNotEmpty) postIdsForReview.add(pid);
-      }
-      final implicitPostsResp = await _client
-          .from('feed_posts')
-          .select('id')
-          .eq('review_id', reviewId);
-      for (final r in implicitPostsResp) {
-        final pid = r['id'] as String?;
-        if (pid != null && pid.isNotEmpty) postIdsForReview.add(pid);
-      }
-
-      if (postIdsForReview.isNotEmpty) {
-        final commentsByPost = await _client
-            .from('review_comments')
-            .select('image_url')
-            .inFilter('post_id', postIdsForReview.toList());
-        for (final c in commentsByPost) {
-          if (c['image_url'] != null)
-            urlsToDelete.add(c['image_url'] as String);
-        }
-      }
-
-      final commentsResp = await _client
-          .from('review_comments')
-          .select('image_url')
-          .eq('review_id', reviewId);
-      for (final c in commentsResp) {
-        if (c['image_url'] != null) urlsToDelete.add(c['image_url'] as String);
-      }
-    } catch (e) {
-      debugPrint(
-        '[ActivityRepository] Error recogiendo imágenes de comentarios al borrar reseña: $e',
-      );
-    }
-
-    if (urlsToDelete.isNotEmpty) {
-      await StorageUtils.deleteImagesFromUrls(urlsToDelete.toList());
-    }
-
-    await _client.from('reviews').delete().eq('id', reviewId);
-
-    // Si era la última reseña del usuario para este juego → eliminar user_game
-    final remaining = await _client
-        .from('reviews')
-        .select('id')
-        .eq('game_id', gameId)
-        .eq('user_id', userId);
-
-    if (remaining.isEmpty) {
-      await _client
-          .from('user_games')
-          .delete()
-          .eq('game_id', gameId)
-          .eq('user_id', userId);
-    }
+    await ReviewRepository(
+      client: _client,
+      deleteImagesFromUrls: _deleteImagesFromUrls,
+    ).deleteReviewForUser(
+      reviewId: reviewId,
+      gameId: gameId,
+      userId: userId,
+      currentImageUrls: currentImageUrls,
+    );
   }
 
   /// Recarga la reseña actualizada después de editarla, preservando el JOIN de usuario.
@@ -1273,7 +1211,7 @@ class _ActivityGroupBuilder {
       }
 
       final gameMap = <String, dynamic>{
-        if (gId != null) 'igdb_id': gId,
+        'igdb_id': ?gId,
         'title': 'Juego desconocido',
         'review_id': it['review_id'] ?? (it['metadata'] as Map?)?['review_id'],
         ...?rawGameMap,
@@ -1295,7 +1233,7 @@ class _ActivityGroupBuilder {
       'game_id': first['game_id'],
       'metadata': <String, dynamic>{
         if (firstMeta != null) ...Map<String, dynamic>.from(firstMeta),
-        if (status != null) 'status': status,
+        'status': ?status,
       },
       '_is_group': true,
       '_grouped_items': List<Map<String, dynamic>>.unmodifiable(items),

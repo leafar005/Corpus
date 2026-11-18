@@ -3,9 +3,13 @@
 // Tests unitarios para el helper estático ActivityRepository.mergeActivityItems.
 // Prueba la lógica de enriquecimiento y merge de eventos sin necesitar Supabase.
 
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/models/post_stats.dart';
 import 'package:corpus/repositories/activity_repository.dart';
+import 'package:corpus/screens/activity/activity_controller.dart';
 import 'package:corpus/screens/activity/activity_formatters.dart';
 
 void main() {
@@ -636,8 +640,8 @@ void main() {
         'action_type': 'status_change',
         'user_id': userId,
         'game_id': gameId,
-        if (postId != null) 'post_id': postId,
-        if (postStats != null) '_post': postStats,
+        'post_id': ?postId,
+        '_post': ?postStats,
         'created_at': createdAt,
         'metadata': {'status': status},
         'users': {'id': userId, 'display_name': 'User $userId'},
@@ -646,8 +650,8 @@ void main() {
           'title': title ?? 'Juego $gameId',
           'cover_url': 'https://example.com/$gameId.jpg',
         },
-        if (review != null) '_review': review,
-        if (partners != null) '_partners': partners,
+        '_review': ?review,
+        '_partners': ?partners,
       };
     }
 
@@ -1004,4 +1008,581 @@ void main() {
       );
     });
   });
+
+  group('ActivityRepository.deleteReview (DATA-02)', () {
+    test(
+      'preserva imágenes de comentarios en post agrupado y limpia las del post implícito',
+      () async {
+        final db = _FakeActivityDb(
+          reviews: [
+            {
+              'id': 'rev-1',
+              'user_id': 'u1',
+              'game_id': 1,
+              'image_urls': ['https://cdn.example/rev1-db.jpg'],
+            },
+            {
+              'id': 'rev-2',
+              'user_id': 'u1',
+              'game_id': 2,
+              'image_urls': <String>[],
+            },
+          ],
+          userGames: [
+            {'user_id': 'u1', 'game_id': 1},
+            {'user_id': 'u1', 'game_id': 2},
+          ],
+          activityFeed: [
+            {
+              'id': 'af-1',
+              'post_id': 'post-group',
+              'user_id': 'u1',
+              'game_id': 1,
+              'review_id': 'rev-1',
+              'action_type': 'reviewed',
+            },
+            {
+              'id': 'af-2',
+              'post_id': 'post-group',
+              'user_id': 'u1',
+              'game_id': 2,
+              'review_id': 'rev-2',
+              'action_type': 'reviewed',
+            },
+          ],
+          feedPosts: [
+            {'id': 'post-group', 'review_id': null},
+            {'id': 'post-implicit-1', 'review_id': 'rev-1'},
+          ],
+          reviewComments: [
+            {
+              'id': 'c-group',
+              'post_id': 'post-group',
+              'review_id': null,
+              'image_url': 'https://cdn.example/group-comment.jpg',
+            },
+            {
+              'id': 'c-implicit',
+              'post_id': 'post-implicit-1',
+              'review_id': null,
+              'image_url': 'https://cdn.example/implicit-comment.jpg',
+            },
+          ],
+        );
+        final deletedUrls = <String>[];
+        final repo = ActivityRepository(
+          client: db.client,
+          deleteImagesFromUrls: (urls) async => deletedUrls.addAll(urls),
+        );
+
+        await repo.deleteReview(
+          reviewId: 'rev-1',
+          gameId: 1,
+          userId: 'u1',
+          currentImageUrls: const ['https://cdn.example/rev1-local.jpg'],
+        );
+
+        expect(
+          deletedUrls,
+          unorderedEquals([
+            'https://cdn.example/rev1-local.jpg',
+            'https://cdn.example/rev1-db.jpg',
+            'https://cdn.example/implicit-comment.jpg',
+          ]),
+        );
+        expect(
+          deletedUrls,
+          isNot(contains('https://cdn.example/group-comment.jpg')),
+        );
+      },
+    );
+
+    test(
+      'limpia imágenes de comentarios cuando el post del activity_feed es individual',
+      () async {
+        final db = _FakeActivityDb(
+          reviews: [
+            {
+              'id': 'rev-1',
+              'user_id': 'u1',
+              'game_id': 1,
+              'image_urls': ['https://cdn.example/rev1.jpg'],
+            },
+          ],
+          userGames: [
+            {'user_id': 'u1', 'game_id': 1},
+          ],
+          activityFeed: [
+            {
+              'id': 'af-1',
+              'post_id': 'post-indiv',
+              'user_id': 'u1',
+              'game_id': 1,
+              'review_id': 'rev-1',
+              'action_type': 'reviewed',
+            },
+          ],
+          feedPosts: [
+            {'id': 'post-indiv', 'review_id': null},
+          ],
+          reviewComments: [
+            {
+              'id': 'c-indiv',
+              'post_id': 'post-indiv',
+              'review_id': null,
+              'image_url': 'https://cdn.example/indiv-comment.jpg',
+            },
+          ],
+        );
+        final deletedUrls = <String>[];
+        final repo = ActivityRepository(
+          client: db.client,
+          deleteImagesFromUrls: (urls) async => deletedUrls.addAll(urls),
+        );
+
+        await repo.deleteReview(
+          reviewId: 'rev-1',
+          gameId: 1,
+          userId: 'u1',
+          currentImageUrls: const ['https://cdn.example/rev1.jpg'],
+        );
+
+        expect(
+          deletedUrls,
+          unorderedEquals([
+            'https://cdn.example/rev1.jpg',
+            'https://cdn.example/indiv-comment.jpg',
+          ]),
+        );
+        expect(db.tables['reviews'], isEmpty);
+        expect(db.tables['user_games'], isEmpty);
+      },
+    );
+
+    test(
+      'fail-safe: si falla la consulta de post_ids compartidos no borra imágenes de comentarios por post_id',
+      () async {
+        final db = _FakeActivityDb(
+          failSharedPostCheck: true,
+          reviews: [
+            {
+              'id': 'rev-1',
+              'user_id': 'u1',
+              'game_id': 1,
+              'image_urls': ['https://cdn.example/rev1.jpg'],
+            },
+          ],
+          userGames: [
+            {'user_id': 'u1', 'game_id': 1},
+          ],
+          activityFeed: [
+            {
+              'id': 'af-1',
+              'post_id': 'post-maybe-group',
+              'user_id': 'u1',
+              'game_id': 1,
+              'review_id': 'rev-1',
+              'action_type': 'reviewed',
+            },
+          ],
+          feedPosts: [
+            {'id': 'post-maybe-group', 'review_id': null},
+          ],
+          reviewComments: [
+            {
+              'id': 'c-1',
+              'post_id': 'post-maybe-group',
+              'review_id': null,
+              'image_url': 'https://cdn.example/maybe-group-comment.jpg',
+            },
+          ],
+        );
+        final deletedUrls = <String>[];
+        final repo = ActivityRepository(
+          client: db.client,
+          deleteImagesFromUrls: (urls) async => deletedUrls.addAll(urls),
+        );
+
+        await repo.deleteReview(
+          reviewId: 'rev-1',
+          gameId: 1,
+          userId: 'u1',
+          currentImageUrls: const [],
+        );
+
+        expect(deletedUrls, ['https://cdn.example/rev1.jpg']);
+      },
+    );
+  });
+
+  group('ActivityController Realtime lifecycle & debounce (UI1-09, UI2-13)', () {
+    test(
+      'debouncea ráfagas de INSERT realtime en un único refresco y limpia el canal con removeChannel en dispose',
+      () async {
+        final db = _FakeActivityDb(currentUserId: 'u1');
+        final mockRepo = _MockActivityRepository();
+        when(
+          () => mockRepo.fetchActivityPage(any(), limit: any(named: 'limit')),
+        ).thenAnswer(
+          (_) async => const ActivityFeedResult(
+            mergedActivities: [
+              {'id': 'a1'},
+            ],
+            hasMore: false,
+            nextOffset: 1,
+          ),
+        );
+        when(() => mockRepo.fetchFriendsStrip(any())).thenAnswer(
+          (_) async =>
+              const FriendsStripResult(friends: [], pendingCount: 0),
+        );
+        when(
+          () => mockRepo.fetchRecentStoriesForUsers(any()),
+        ).thenAnswer((_) async => {});
+
+        final controller = ActivityController(
+          client: db.client,
+          repo: mockRepo,
+          realtimeDebounceDuration: const Duration(milliseconds: 50),
+        );
+
+        controller.init();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        clearInteractions(mockRepo);
+
+        final channel = db.channels.single;
+        expect(channel.subscribed, isTrue);
+        expect(channel.insertCallback, isNotNull);
+
+        // Burst of 3 Realtime INSERT events within debounce window
+        channel.insertCallback!(_FakePostgresChangePayload());
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        channel.insertCallback!(_FakePostgresChangePayload());
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        channel.insertCallback!(_FakePostgresChangePayload());
+
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        verifyNever(
+          () => mockRepo.fetchActivityPage(any(), limit: any(named: 'limit')),
+        );
+        verifyNever(() => mockRepo.fetchFriendsStrip(any()));
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        verify(() => mockRepo.fetchActivityPage(0, limit: 1)).called(1);
+        verify(() => mockRepo.fetchFriendsStrip('u1')).called(1);
+
+        // Next burst cancelled cleanly by dispose() + removeChannel called
+        channel.insertCallback!(_FakePostgresChangePayload());
+        controller.dispose();
+        expect(controller.isDisposed, isTrue);
+        expect(db.removedChannels, [channel]);
+
+        await Future<void>.delayed(const Duration(milliseconds: 70));
+        verifyNever(
+          () => mockRepo.fetchActivityPage(any(), limit: any(named: 'limit')),
+        );
+        verifyNever(() => mockRepo.fetchFriendsStrip(any()));
+
+        // Calling onRealtimeEvent after dispose is also a safe no-op
+        controller.onRealtimeEvent();
+        await Future<void>.delayed(const Duration(milliseconds: 70));
+        verifyNever(
+          () => mockRepo.fetchActivityPage(any(), limit: any(named: 'limit')),
+        );
+      },
+    );
+
+    test(
+      'dispose ignora errores asíncronos o síncronos de removeChannel',
+      () async {
+        final db = _FakeActivityDb(
+          currentUserId: 'u1',
+          failRemoveChannel: true,
+        );
+        final mockRepo = _MockActivityRepository();
+        when(
+          () => mockRepo.fetchActivityPage(any(), limit: any(named: 'limit')),
+        ).thenAnswer(
+          (_) async => const ActivityFeedResult(
+            mergedActivities: [],
+            hasMore: false,
+            nextOffset: 0,
+          ),
+        );
+        when(() => mockRepo.fetchFriendsStrip(any())).thenAnswer(
+          (_) async =>
+              const FriendsStripResult(friends: [], pendingCount: 0),
+        );
+
+        final controller = ActivityController(
+          client: db.client,
+          repo: mockRepo,
+          realtimeDebounceDuration: const Duration(milliseconds: 40),
+        );
+        controller.init();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.dispose, returnsNormally);
+        expect(controller.isDisposed, isTrue);
+      },
+    );
+  });
+}
+
+typedef _ActivityRowPredicate = bool Function(Map<String, dynamic> row);
+
+class _MockActivityRepository extends Mock implements ActivityRepository {}
+
+class _MockActivityUser extends Mock implements User {}
+
+class _MockActivityGoTrueClient extends Mock implements GoTrueClient {}
+
+class _FakePostgresChangePayload extends Fake
+    implements PostgresChangePayload {}
+
+class _FakeRealtimeChannel extends Fake implements RealtimeChannel {
+  void Function(PostgresChangePayload payload)? insertCallback;
+  bool subscribed = false;
+
+  @override
+  RealtimeChannel onPostgresChanges({
+    required PostgresChangeEvent event,
+    String? schema,
+    String? table,
+    PostgresChangeFilter? filter,
+    List<PostgresChangeFilter>? filters,
+    List<String>? select,
+    required void Function(PostgresChangePayload payload) callback,
+  }) {
+    if (event == PostgresChangeEvent.insert && table == 'activity_feed') {
+      insertCallback = callback;
+    }
+    return this;
+  }
+
+  @override
+  RealtimeChannel subscribe([
+    void Function(RealtimeSubscribeStatus status, Object? error)? callback,
+    Duration? timeout,
+  ]) {
+    subscribed = true;
+    return this;
+  }
+}
+
+class _FakeActivityDb {
+  _FakeActivityDb({
+    this.currentUserId = 'u1',
+    this.failSharedPostCheck = false,
+    this.failRemoveChannel = false,
+    List<Map<String, dynamic>> reviews = const [],
+    List<Map<String, dynamic>> userGames = const [],
+    List<Map<String, dynamic>> activityFeed = const [],
+    List<Map<String, dynamic>> feedPosts = const [],
+    List<Map<String, dynamic>> reviewComments = const [],
+  }) : tables = {
+         'reviews': reviews.map((e) => Map<String, dynamic>.from(e)).toList(),
+         'user_games': userGames
+             .map((e) => Map<String, dynamic>.from(e))
+             .toList(),
+         'activity_feed': activityFeed
+             .map((e) => Map<String, dynamic>.from(e))
+             .toList(),
+         'feed_posts': feedPosts
+             .map((e) => Map<String, dynamic>.from(e))
+             .toList(),
+         'review_comments': reviewComments
+             .map((e) => Map<String, dynamic>.from(e))
+             .toList(),
+       } {
+    final user = _MockActivityUser();
+    when(() => user.id).thenReturn(currentUserId);
+    final auth = _MockActivityGoTrueClient();
+    when(() => auth.currentUser).thenReturn(user);
+    when(
+      () => auth.onAuthStateChange,
+    ).thenAnswer((_) => const Stream<AuthState>.empty());
+    client = _FakeActivitySupabaseClient(this, auth);
+  }
+
+  final String currentUserId;
+  final bool failSharedPostCheck;
+  final bool failRemoveChannel;
+  final Map<String, List<Map<String, dynamic>>> tables;
+  final List<_FakeRealtimeChannel> channels = [];
+  final List<RealtimeChannel> removedChannels = [];
+  late final SupabaseClient client;
+}
+
+class _FakeActivitySupabaseClient extends Fake implements SupabaseClient {
+  _FakeActivitySupabaseClient(this._db, this._auth);
+
+  final _FakeActivityDb _db;
+  final GoTrueClient _auth;
+
+  @override
+  GoTrueClient get auth => _auth;
+
+  @override
+  RealtimeChannel channel(
+    String name, {
+    RealtimeChannelConfig opts = const RealtimeChannelConfig(),
+  }) {
+    final ch = _FakeRealtimeChannel();
+    _db.channels.add(ch);
+    return ch;
+  }
+
+  @override
+  Future<String> removeChannel(RealtimeChannel channel) async {
+    _db.removedChannels.add(channel);
+    if (_db.failRemoveChannel) {
+      throw Exception('removeChannel error');
+    }
+    return 'ok';
+  }
+
+  @override
+  SupabaseQueryBuilder from(String table) =>
+      _FakeActivityQueryBuilder(_db, table);
+}
+
+class _FakeActivityQueryBuilder extends Fake implements SupabaseQueryBuilder {
+  _FakeActivityQueryBuilder(this._db, this._table);
+
+  final _FakeActivityDb _db;
+  final String _table;
+
+  @override
+  PostgrestFilterBuilder<PostgrestList> select([String columns = '*']) {
+    return _FakeActivityFilterBuilder<PostgrestList>((filters, usedInPostId) async {
+      if (_table == 'activity_feed' &&
+          usedInPostId &&
+          _db.failSharedPostCheck) {
+        throw Exception('simulated network failure');
+      }
+      final rows = _db.tables[_table] ?? const [];
+      return rows
+          .where((row) => filters.every((f) => f(row)))
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    });
+  }
+
+  @override
+  PostgrestFilterBuilder<dynamic> delete() {
+    return _FakeActivityFilterBuilder<dynamic>((filters, _) async {
+      final rows = _db.tables[_table] ?? [];
+      rows.removeWhere((row) => filters.every((f) => f(row)));
+      return const <Map<String, dynamic>>[];
+    });
+  }
+}
+
+class _FakeActivityFilterBuilder<T> extends Fake
+    implements PostgrestFilterBuilder<T> {
+  _FakeActivityFilterBuilder(
+    this._execute, {
+    List<_ActivityRowPredicate>? filters,
+    this.usedInPostId = false,
+  }) : _filters = filters ?? const [];
+
+  final Future<T> Function(
+    List<_ActivityRowPredicate> filters,
+    bool usedInPostId,
+  )
+  _execute;
+  final List<_ActivityRowPredicate> _filters;
+  final bool usedInPostId;
+
+  @override
+  PostgrestFilterBuilder<T> eq(String column, Object value) {
+    return _FakeActivityFilterBuilder<T>(
+      _execute,
+      filters: [
+        ..._filters,
+        (row) => row[column]?.toString() == value.toString(),
+      ],
+      usedInPostId: usedInPostId,
+    );
+  }
+
+  @override
+  PostgrestFilterBuilder<T> inFilter(String column, List<dynamic> values) {
+    final valueSet = values.map((v) => v?.toString()).toSet();
+    return _FakeActivityFilterBuilder<T>(
+      _execute,
+      filters: [
+        ..._filters,
+        (row) => valueSet.contains(row[column]?.toString()),
+      ],
+      usedInPostId: usedInPostId || column == 'post_id',
+    );
+  }
+
+  @override
+  PostgrestTransformBuilder<PostgrestMap?> maybeSingle() {
+    return _FakeActivityTransformBuilder<PostgrestMap?>(() async {
+      final result = await _execute(_filters, usedInPostId);
+      if (result is List && result.isNotEmpty) {
+        return Map<String, dynamic>.from(result.first as Map);
+      }
+      return null;
+    });
+  }
+
+  @override
+  Future<R> then<R>(
+    FutureOr<R> Function(T value) onValue, {
+    Function? onError,
+  }) => _execute(_filters, usedInPostId).then(onValue, onError: onError);
+
+  @override
+  Future<T> catchError(
+    Function onError, {
+    bool Function(Object error)? test,
+  }) => _execute(_filters, usedInPostId).catchError(onError, test: test);
+
+  @override
+  Future<T> whenComplete(FutureOr<void> Function() action) =>
+      _execute(_filters, usedInPostId).whenComplete(action);
+
+  @override
+  Future<T> timeout(Duration timeLimit, {FutureOr<T> Function()? onTimeout}) =>
+      _execute(_filters, usedInPostId)
+          .timeout(timeLimit, onTimeout: onTimeout);
+
+  @override
+  Stream<T> asStream() => _execute(_filters, usedInPostId).asStream();
+}
+
+class _FakeActivityTransformBuilder<T> extends Fake
+    implements PostgrestTransformBuilder<T> {
+  _FakeActivityTransformBuilder(this._execute);
+
+  final Future<T> Function() _execute;
+
+  @override
+  Future<R> then<R>(
+    FutureOr<R> Function(T value) onValue, {
+    Function? onError,
+  }) => _execute().then(onValue, onError: onError);
+
+  @override
+  Future<T> catchError(
+    Function onError, {
+    bool Function(Object error)? test,
+  }) => _execute().catchError(onError, test: test);
+
+  @override
+  Future<T> whenComplete(FutureOr<void> Function() action) =>
+      _execute().whenComplete(action);
+
+  @override
+  Future<T> timeout(Duration timeLimit, {FutureOr<T> Function()? onTimeout}) =>
+      _execute().timeout(timeLimit, onTimeout: onTimeout);
+
+  @override
+  Stream<T> asStream() => _execute().asStream();
 }

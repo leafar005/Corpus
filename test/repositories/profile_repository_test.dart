@@ -4,7 +4,9 @@
 // Prueban la lógica de parseo y ordenado sin necesitar Supabase real.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:corpus/models/genre_radar_entry.dart';
 import 'package:corpus/repositories/profile_repository.dart';
+import 'package:corpus/utils/genre_radar_calculator.dart';
 
 void main() {
   Map<String, dynamic> makeRow({
@@ -135,6 +137,38 @@ void main() {
       final result = ProfileRepository.parseHallOfFame(raw);
       result[0]!['extra_field'] = 'test';
       expect(originalGame.containsKey('extra_field'), isFalse);
+    });
+  });
+
+  group('GenreRadarCalculator.aggregate', () {
+    test('suma totalHours y conteos de juegos por género', () {
+      final entries = [
+        GenreRadarEntry(
+          gameId: 1,
+          gameTitle: 'Hollow Knight',
+          coverUrl: null,
+          genres: const ['Metroidvania', 'Adventure'],
+          hours: 25.5,
+          effectiveDate: DateTime(2025, 4, 1),
+        ),
+        GenreRadarEntry(
+          gameId: 2,
+          gameTitle: 'Ori',
+          coverUrl: null,
+          genres: const ['Metroidvania'],
+          hours: 12.0,
+          effectiveDate: DateTime(2025, 6, 15),
+        ),
+      ];
+
+      final stats = GenreRadarCalculator.aggregate(entries);
+      final metroidvania = stats.firstWhere((s) => s.genre == 'Metroidvania');
+      final adventure = stats.firstWhere((s) => s.genre == 'Adventure');
+
+      expect(metroidvania.gameCount, 2);
+      expect(metroidvania.totalHours, closeTo(37.5, 0.001));
+      expect(adventure.gameCount, 1);
+      expect(adventure.totalHours, closeTo(25.5, 0.001));
     });
   });
 }
