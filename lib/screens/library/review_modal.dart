@@ -164,7 +164,6 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
   late bool reviewIsReplay;
   late int reviewReplayNumber;
   String? reviewPlatform;
-  late String playTimeText;
   DateTime? reviewPlayedFrom;
   DateTime? reviewPlayedUntil;
   late int reviewProgressPercent;
@@ -174,12 +173,14 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
 
   late final TextEditingController reviewCommentController;
   late final TextEditingController partnerSearchController;
+  late final TextEditingController replayNumberController;
+  late final TextEditingController playTimeController;
   late final ScrollController scrollController;
   late List<String> reviewPartnerIds;
   late final Future<List<UserProfile>> friendsFuture;
   late List<XFile> newImages;
   late List<String> existingImages;
-  late final List<dynamic> platforms;
+  late final List<String> platforms;
   late bool statusStepConfirmed;
   bool isLocalSaving = false;
   late final String? reviewId;
@@ -210,9 +211,6 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
     reviewIsReplay = hasReview && r!.isReplay;
     reviewReplayNumber = (hasReview ? r!.replayNumber : null) ?? 1;
     reviewPlatform = hasReview ? r!.platform : null;
-    playTimeText = hasReview && r!.playTimeHours != null
-        ? r.playTimeHours.toString()
-        : '';
     reviewPlayedFrom = hasReview ? r!.playedFrom : null;
     reviewPlayedUntil = hasReview ? r!.playedUntil : null;
     reviewProgressPercent = hasReview ? (r!.progressPercent ?? 0) : 0;
@@ -225,6 +223,14 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
     );
     reviewId = hasReview ? r!.id : null;
     partnerSearchController = TextEditingController();
+    replayNumberController = TextEditingController(
+      text: reviewReplayNumber.toString(),
+    );
+    playTimeController = TextEditingController(
+      text: hasReview && r!.playTimeHours != null
+          ? r.playTimeHours.toString()
+          : '',
+    );
     reviewPartnerIds = List<String>.from(widget.currentPartnerIds ?? []);
     friendsFuture = _fetchFriends();
 
@@ -233,10 +239,17 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
         ? List<String>.from(r!.imageUrls)
         : [];
 
-    platforms =
+    final rawPlatforms =
         (widget.gameData['platforms'] as List?)?.isNotEmpty == true
-        ? widget.gameData['platforms']
-        : (widget.enrichedData['platforms'] as List? ?? []);
+        ? widget.gameData['platforms'] as List
+        : (widget.enrichedData['platforms'] as List? ?? const []);
+    platforms = rawPlatforms
+        .map((p) => p is Map ? p['name']?.toString() : p?.toString())
+        .whereType<String>()
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toSet()
+        .toList();
 
     statusStepConfirmed = hasReview || widget.inLibrary;
     scrollController = ScrollController();
@@ -246,8 +259,60 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
   void dispose() {
     reviewCommentController.dispose();
     partnerSearchController.dispose();
+    replayNumberController.dispose();
+    playTimeController.dispose();
     scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImages() async {
+    final picker = ImagePicker();
+    final pickedFiles = await picker.pickMultiImage(
+      imageQuality: 70,
+      maxWidth: 1080,
+    );
+    if (!mounted) return;
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        final remaining = 4 - existingImages.length - newImages.length;
+        if (remaining > 0) {
+          newImages.addAll(pickedFiles.take(remaining));
+        }
+      });
+    }
+  }
+
+  Widget _buildExistingImagePreview(
+    String url, {
+    double? width,
+    double? height,
+  }) {
+    return CorpusNetworkImage(
+      url: url,
+      fit: BoxFit.cover,
+      width: width,
+      height: height,
+      cacheWidth: 400,
+    );
+  }
+
+  Widget _buildNewImagePreview(XFile file, {double? width, double? height}) {
+    if (kIsWeb) {
+      return CorpusNetworkImage(
+        url: file.path,
+        fit: BoxFit.cover,
+        width: width,
+        height: height,
+        cacheWidth: 400,
+      );
+    }
+    return Image.file(
+      File(file.path),
+      fit: BoxFit.cover,
+      width: width,
+      height: height,
+      cacheWidth: 400,
+    );
   }
 
   /// Aplica un cambio de estado desde los chips de "Estado".
@@ -482,13 +547,11 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                   vertical: 8,
                                 ),
                               ),
-                              controller: TextEditingController(
-                                text: reviewReplayNumber.toString(),
-                              ),
+                              controller: replayNumberController,
                               onChanged: (val) {
-                                final n = int.tryParse(val);
+                                final n = int.tryParse(val.trim());
                                 if (n != null) {
-                                  setState(() => reviewReplayNumber = n);
+                                  reviewReplayNumber = n;
                                 }
                               },
                             ),
@@ -626,7 +689,9 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      initialValue: reviewPlatform,
+                      initialValue: platforms.contains(reviewPlatform)
+                          ? reviewPlatform
+                          : null,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(
@@ -639,10 +704,10 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                       ).colorScheme.surfaceContainerHighest,
                       items: platforms
                           .map(
-                            (p) => DropdownMenuItem(
-                              value: p.toString(),
+                            (p) => DropdownMenuItem<String>(
+                              value: p,
                               child: Text(
-                                p.toString(),
+                                p,
                                 style: const TextStyle(fontSize: 14),
                               ),
                             ),
@@ -663,6 +728,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                   ),
                   const SizedBox(height: 8),
                   TextField(
+                    controller: playTimeController,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -674,7 +740,6 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         vertical: 8,
                       ),
                     ),
-                    onChanged: (val) => setState(() => playTimeText = val),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -705,6 +770,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                 const Duration(days: 365),
                               ),
                             );
+                            if (!mounted) return;
                             if (d != null) {
                               setState(() => reviewPlayedFrom = d);
                             }
@@ -740,6 +806,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                 const Duration(days: 365),
                               ),
                             );
+                            if (!mounted) return;
                             if (d != null) {
                               setState(() => reviewPlayedUntil = d);
                             }
@@ -794,66 +861,30 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
             Color statusColor(String s) =>
                 GameStatus.colorForString(context, s);
 
-            /// Los 4 botones de selección de estado (Paso 1). Se extraen a una
+            /// Los botones de selección de estado (Paso 1). Se extraen a una
             /// función para poder mostrarlos apilados en móvil o en fila en
             /// escritorio sin duplicar la lógica de cada botón.
             List<Widget> buildStatusButtons() {
+              const statusOptions = [
+                GameStatus.wishlist,
+                GameStatus.toPlay,
+                GameStatus.playing,
+                GameStatus.beaten,
+                GameStatus.abandoned,
+              ];
               return [
-                statusButton(
-                  'wishlist',
-                  GameStatus.wishlist.shortLabel,
-                  CorpusIconKind.Favorite,
-                  '',
-                  statusColor('wishlist'),
-                  (v) {
-                    applyStatusChange(v);
-                    statusStepConfirmed = true;
-                  },
-                ),
-                statusButton(
-                  'to_play',
-                  GameStatus.toPlay.shortLabel,
-                  CorpusIconKind.Bookmark,
-                  '',
-                  statusColor('to_play'),
-                  (v) {
-                    applyStatusChange(v);
-                    statusStepConfirmed = true;
-                  },
-                ),
-                statusButton(
-                  'playing',
-                  GameStatus.playing.shortLabel,
-                  CorpusIconKind.VideogameAsset,
-                  '',
-                  statusColor('playing'),
-                  (v) {
-                    applyStatusChange(v);
-                    statusStepConfirmed = true;
-                  },
-                ),
-                statusButton(
-                  'beaten',
-                  GameStatus.beaten.shortLabel,
-                  CorpusIconKind.CheckCircle,
-                  '',
-                  statusColor('beaten'),
-                  (v) {
-                    applyStatusChange(v);
-                    statusStepConfirmed = true;
-                  },
-                ),
-                statusButton(
-                  'abandoned',
-                  GameStatus.abandoned.shortLabel,
-                  CorpusIconKind.CancelOutlined,
-                  '',
-                  statusColor('abandoned'),
-                  (v) {
-                    applyStatusChange(v);
-                    statusStepConfirmed = true;
-                  },
-                ),
+                for (final statusOption in statusOptions)
+                  statusButton(
+                    statusOption.dbValue,
+                    statusOption.shortLabel,
+                    statusOption.icon,
+                    reviewStatus,
+                    statusColor(statusOption.dbValue),
+                    (v) {
+                      applyStatusChange(v);
+                      statusStepConfirmed = true;
+                    },
+                  ),
               ];
             }
 
@@ -1091,9 +1122,8 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                         children: [
                           ...existingImages.map(
                             (url) => RemovableImageCard(
-                              imageWidget: CorpusNetworkImage(
-                                url: url,
-                                fit: BoxFit.cover,
+                              imageWidget: _buildExistingImagePreview(
+                                url,
                                 width: 80,
                                 height: 80,
                               ),
@@ -1104,19 +1134,11 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                           ),
                           ...newImages.map(
                             (file) => RemovableImageCard(
-                              imageWidget: kIsWeb
-                                  ? CorpusNetworkImage(
-                                      url: file.path,
-                                      fit: BoxFit.cover,
-                                      width: 80,
-                                      height: 80,
-                                    )
-                                  : Image.file(
-                                      File(file.path),
-                                      fit: BoxFit.cover,
-                                      width: 80,
-                                      height: 80,
-                                    ),
+                              imageWidget: _buildNewImagePreview(
+                                file,
+                                width: 80,
+                                height: 80,
+                              ),
                               onRemove: () =>
                                   setState(() => newImages.remove(file)),
                             ),
@@ -1130,20 +1152,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                     OutlinedButton.icon(
                       icon: const CorpusTablerIcon(CorpusIconKind.AddPhotoAlternate, size: 18),
                       label: const Text('Adjuntar imagen (máx 4)'),
-                      onPressed: () async {
-                        final picker = ImagePicker();
-                        final pickedFiles = await picker.pickMultiImage(
-                          imageQuality: 70,
-                          maxWidth: 1080,
-                        );
-                        if (pickedFiles.isNotEmpty) {
-                          setState(() {
-                            final remaining =
-                                4 - existingImages.length - newImages.length;
-                            newImages.addAll(pickedFiles.take(remaining));
-                          });
-                        }
-                      },
+                      onPressed: _pickImages,
                     ),
                 ],
               );
@@ -1245,6 +1254,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                 const Duration(days: 1),
                               ),
                             );
+                            if (!mounted) return;
                             if (d != null) {
                               setState(() => reviewDate = d);
                             }
@@ -1587,9 +1597,9 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           children: [
                                             ...existingImages.map(
                                               (url) => RemovableImageCard(
-                                                imageWidget: CorpusNetworkImage(
-                                                  url: url,
-                                                  fit: BoxFit.cover,
+                                                imageWidget:
+                                                    _buildExistingImagePreview(
+                                                  url,
                                                   width: double.infinity,
                                                   height: double.infinity,
                                                 ),
@@ -1600,19 +1610,12 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                             ),
                                             ...newImages.map(
                                               (file) => RemovableImageCard(
-                                                imageWidget: kIsWeb
-                                                    ? CorpusNetworkImage(
-                                                        url: file.path,
-                                                        fit: BoxFit.cover,
-                                                        width: double.infinity,
-                                                        height: double.infinity,
-                                                      )
-                                                    : Image.file(
-                                                        File(file.path),
-                                                        fit: BoxFit.cover,
-                                                        width: double.infinity,
-                                                        height: double.infinity,
-                                                      ),
+                                                imageWidget:
+                                                    _buildNewImagePreview(
+                                                  file,
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                ),
                                                 onRemove: () => setState(
                                                   () => newImages.remove(file),
                                                 ),
@@ -1633,25 +1636,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                           label: const Text(
                                             'Adjuntar imagen (máx 4)',
                                           ),
-                                          onPressed: () async {
-                                            final picker = ImagePicker();
-                                            final pickedFiles = await picker
-                                                .pickMultiImage(
-                                                  imageQuality: 70,
-                                                  maxWidth: 1080,
-                                                );
-                                            if (pickedFiles.isNotEmpty) {
-                                              setState(() {
-                                                final remaining =
-                                                    4 -
-                                                    existingImages.length -
-                                                    newImages.length;
-                                                newImages.addAll(
-                                                  pickedFiles.take(remaining),
-                                                );
-                                              });
-                                            }
-                                          },
+                                          onPressed: _pickImages,
                                         ),
                                       const SizedBox(height: 12),
                                     ],
@@ -1760,11 +1745,17 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                         !isCollectionOnlyStatus(reviewStatus) &&
                                         reviewIsReplay,
                                     replayNumber: reviewIsReplay
-                                        ? reviewReplayNumber
+                                        ? (int.tryParse(
+                                                replayNumberController.text
+                                                    .trim(),
+                                              ) ??
+                                              reviewReplayNumber)
                                         : null,
                                     platform: reviewPlatform,
                                     playTimeHours: double.tryParse(
-                                      playTimeText,
+                                      playTimeController.text
+                                          .trim()
+                                          .replaceAll(',', '.'),
                                     ),
                                     playedFrom: reviewPlayedFrom,
                                     playedUntil: reviewPlayedUntil,
@@ -1776,19 +1767,18 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                                     existingImages: existingImages,
                                     partnerIds: reviewPartnerIds,
                                   );
-                                  if (context.mounted) {
-                                    if (success) {
-                                      final route = ModalRoute.of(context);
-                                      if (route != null && route.isCurrent) {
-                                        Navigator.of(context).pop();
-                                        AppNavigationController.instance
-                                            .syncBrowserHistoryAfterProgrammaticPop();
-                                      }
-                                    } else {
-                                      setState(
-                                        () => isLocalSaving = false,
-                                      );
+                                  if (!mounted || !context.mounted) return;
+                                  if (success) {
+                                    final route = ModalRoute.of(context);
+                                    if (route != null && route.isCurrent) {
+                                      Navigator.of(context).pop();
+                                      AppNavigationController.instance
+                                          .syncBrowserHistoryAfterProgrammaticPop();
                                     }
+                                  } else {
+                                    setState(
+                                      () => isLocalSaving = false,
+                                    );
                                   }
                                 },
                           style: ElevatedButton.styleFrom(

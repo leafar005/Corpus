@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
@@ -18,6 +20,8 @@ class IntegrationsScreen extends StatefulWidget {
 }
 
 class _IntegrationsScreenState extends State<IntegrationsScreen> {
+  static const int _maxStashImportBytes = 25 * 1024 * 1024; // 25 MB
+
   final _steamInputController = TextEditingController();
   bool _isLinkingSteam = false;
   String? _steamId;
@@ -28,6 +32,12 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
   void initState() {
     super.initState();
     _fetchUserData();
+  }
+
+  @override
+  void dispose() {
+    _steamInputController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchUserData() async {
@@ -63,19 +73,18 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
         'resolve-steam-id',
         body: {'urlOrId': input},
       );
+      if (!mounted) return;
       final data = res.data;
       if (data != null && data['success'] == true) {
         setState(() {
           _steamId = data['steamId'];
           _steamName = data['steamName'];
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cuenta de Steam vinculada con éxito.'),
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cuenta de Steam vinculada con éxito.'),
+          ),
+        );
       }
     } on FunctionException catch (e) {
       if (mounted) {
@@ -104,17 +113,16 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
           .from('users')
           .update({'steam_id': null, 'steam_name': null})
           .eq('id', userId);
+      if (!mounted) return;
 
       setState(() {
         _steamId = null;
         _steamName = null;
         _steamInputController.clear();
       });
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Cuenta desvinculada.')));
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Cuenta desvinculada.')));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -123,6 +131,188 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLinkingSteam = false);
+    }
+  }
+
+  Future<void> _importFromStash() async {
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv', 'json', 'har'],
+        withData: true,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al seleccionar archivo: $e')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted || result == null || result.files.isEmpty) return;
+
+    final pickedFile = result.files.single;
+    final fileBytes = pickedFile.bytes;
+    if (fileBytes == null || fileBytes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El archivo seleccionado está vacío.')),
+      );
+      return;
+    }
+
+    if (fileBytes.length > _maxStashImportBytes) {
+      final sizeMb = (fileBytes.length / (1024 * 1024)).toStringAsFixed(1);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'El archivo es demasiado grande ($sizeMb MB). El máximo permitido es 25 MB.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    var isCancelled = false;
+    var loadingDialogOpen = false;
+    var notifiersClosed = false;
+    final progressNotifier = ValueNotifier<double>(0.0);
+    final statusNotifier = ValueNotifier<String>('Preparando datos...');
+    Future<void>? dialogFuture;
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+
+    void closeLoadingDialog() {
+      notifiersClosed = true;
+      if (!loadingDialogOpen) return;
+      loadingDialogOpen = false;
+      if (rootNavigator.mounted && rootNavigator.canPop()) {
+        rootNavigator.pop();
+      }
+    }
+
+    try {
+      if (!mounted) return;
+      loadingDialogOpen = true;
+      dialogFuture = showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        routeSettings: const RouteSettings(name: 'loading_dialog'),
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Procesando juegos'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ValueListenableBuilder<double>(
+                  valueListenable: progressNotifier,
+                  builder: (ctx, progress, child) {
+                    return Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: progress > 0 ? progress : null,
+                          minHeight: 8,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '${(progress * 100).toStringAsFixed(1)}% completado',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                ValueListenableBuilder<String>(
+                  valueListenable: statusNotifier,
+                  builder: (ctx, status, child) => Text(
+                    status,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  isCancelled = true;
+                  notifiersClosed = true;
+                  if (loadingDialogOpen && dialogContext.mounted) {
+                    loadingDialogOpen = false;
+                    Navigator.of(dialogContext).pop();
+                  }
+                },
+                child: const Text('Cancelar'),
+              ),
+            ],
+          );
+        },
+      ).whenComplete(() {
+        loadingDialogOpen = false;
+      });
+
+      // Cede un frame para que el diálogo se pinte antes de decodificar JSON/HAR/CSV.
+      if (!notifiersClosed) {
+        statusNotifier.value = 'Leyendo archivo...';
+      }
+      await Future<void>.delayed(Duration.zero);
+      if (isCancelled || !mounted) return;
+
+      final fileName = pickedFile.name.toLowerCase();
+      final rows = fileName.endsWith('.csv')
+          ? ImportService.parseCsv(fileBytes)
+          : ImportService.parseStashJson(fileBytes);
+
+      if (isCancelled || !mounted) return;
+      if (!notifiersClosed) {
+        statusNotifier.value =
+            'Buscando coincidencias (${rows.length} juegos)...';
+      }
+      await Future<void>.delayed(Duration.zero);
+      if (isCancelled || !mounted) return;
+
+      await ImportService.matchGamesWithIGDB(
+        rows,
+        (p, t) {
+          if (isCancelled || notifiersClosed || !mounted) return;
+          if (t > 0) {
+            progressNotifier.value = p / t;
+            statusNotifier.value = 'Buscando coincidencias ($p de $t)...';
+          }
+        },
+        isCancelled: () => isCancelled || !mounted,
+      );
+
+      if (!isCancelled && mounted) {
+        closeLoadingDialog();
+        context.pushImportPreview(rows);
+      }
+    } catch (e) {
+      closeLoadingDialog();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      notifiersClosed = true;
+      closeLoadingDialog();
+      if (dialogFuture != null) {
+        unawaited(
+          dialogFuture.whenComplete(() {
+            progressNotifier.dispose();
+            statusNotifier.dispose();
+          }),
+        );
+      } else {
+        progressNotifier.dispose();
+        statusNotifier.dispose();
+      }
     }
   }
 
@@ -288,154 +478,11 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
-                            icon: const CorpusTablerIcon(CorpusIconKind.FileUploadOutlined),
+                            icon: const CorpusTablerIcon(
+                              CorpusIconKind.FileUploadOutlined,
+                            ),
                             label: const Text('Importar desde Stash'),
-                            onPressed: () async {
-                              try {
-                                final result = await FilePicker.pickFiles(
-                                  type: FileType.custom,
-                                  allowedExtensions: ['csv', 'json', 'har'],
-                                  withData: true,
-                                );
-
-                                if (result != null) {
-                                  final fileBytes = result.files.single.bytes;
-
-                                  if (fileBytes != null &&
-                                      fileBytes.isNotEmpty) {
-                                    bool isCancelled = false;
-                                    ValueNotifier<double> progressNotifier =
-                                        ValueNotifier(0.0);
-                                    ValueNotifier<String> statusNotifier =
-                                        ValueNotifier("Preparando datos...");
-
-                                    if (context.mounted) {
-                                      showDialog(
-                                        context: context,
-                                        barrierDismissible: false,
-                                        routeSettings: const RouteSettings(
-                                          name: 'loading_dialog',
-                                        ),
-                                        builder: (context) {
-                                          return AlertDialog(
-                                            title: const Text(
-                                              'Procesando juegos',
-                                            ),
-                                            content: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                ValueListenableBuilder<double>(
-                                                  valueListenable:
-                                                      progressNotifier,
-                                                  builder: (context, progress, child) {
-                                                    return Column(
-                                                      children: [
-                                                        LinearProgressIndicator(
-                                                          value: progress > 0
-                                                              ? progress
-                                                              : null,
-                                                          minHeight: 8,
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                4,
-                                                              ),
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 16,
-                                                        ),
-                                                        Text(
-                                                          '${(progress * 100).toStringAsFixed(1)}% completado',
-                                                          style:
-                                                              const TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                        ),
-                                                      ],
-                                                    );
-                                                  },
-                                                ),
-                                                const SizedBox(height: 12),
-                                                ValueListenableBuilder<String>(
-                                                  valueListenable:
-                                                      statusNotifier,
-                                                  builder:
-                                                      (
-                                                        context,
-                                                        status,
-                                                        child,
-                                                      ) => Text(
-                                                        status,
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                        style: TextStyle(
-                                                          fontSize: 13,
-                                                          color: Theme.of(context)
-                                                              .colorScheme
-                                                              .onSurfaceVariant,
-                                                        ),
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () {
-                                                  isCancelled = true;
-                                                  Navigator.pop(context);
-                                                },
-                                                child: const Text('Cancelar'),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    }
-
-                                    final fileName = result.files.single.name
-                                        .toLowerCase();
-                                    final rows = fileName.endsWith('.csv')
-                                        ? ImportService.parseCsv(fileBytes)
-                                        : ImportService.parseStashJson(
-                                            fileBytes,
-                                          );
-
-                                    await ImportService.matchGamesWithIGDB(rows, (
-                                      p,
-                                      t,
-                                    ) {
-                                      if (t > 0) {
-                                        progressNotifier.value = p / t;
-                                        statusNotifier.value =
-                                            "Buscando coincidencias ($p de $t)...";
-                                      }
-                                    }, isCancelled: () => isCancelled);
-
-                                    if (!isCancelled && context.mounted) {
-                                      Navigator.of(
-                                        context,
-                                        rootNavigator: true,
-                                      ).pop();
-                                    }
-
-                                    if (!isCancelled && context.mounted) {
-                                      context.pushImportPreview(rows);
-                                    }
-                                  }
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  Navigator.of(
-                                    context,
-                                    rootNavigator: true,
-                                  ).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Error: $e')),
-                                  );
-                                }
-                              }
-                            },
+                            onPressed: _importFromStash,
                           ),
                         ),
                       ],

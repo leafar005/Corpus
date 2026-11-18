@@ -6,9 +6,11 @@ import '../../widgets/corpus_network_image.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import '../../utils/image_compressor.dart';
+import '../../utils/web_js.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 
@@ -21,6 +23,21 @@ class EditProfileScreen extends StatefulWidget {
     required this.userProfile,
     required this.hallOfFame,
   });
+
+  /// Desktop native always uses immediate drag; Web uses immediate drag only
+  /// on desktop platforms with desktop viewport widths so mobile WebKit/touch
+  /// keeps [ReorderableDelayedDragStartListener].
+  static bool isDesktopDragEnvironment({
+    required bool isWeb,
+    required TargetPlatform platform,
+    required double screenWidth,
+  }) {
+    final isDesktopPlatform =
+        platform == TargetPlatform.macOS ||
+        platform == TargetPlatform.windows ||
+        platform == TargetPlatform.linux;
+    return isDesktopPlatform && (!isWeb || screenWidth > 800);
+  }
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -135,9 +152,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _pickImage(bool isAvatar) async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
 
     if (image != null) {
+      if (!mounted) return;
+      await ensureCropperJsLoaded();
       if (!mounted) return;
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: image.path,
@@ -175,12 +198,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ],
       );
+      if (!mounted) return;
 
       if (croppedFile != null) {
         final bytes = await ImageCompressor.compressImage(
           XFile(croppedFile.path),
         );
-        if (bytes == null) return;
+        if (!mounted || bytes == null) return;
 
         String ext = croppedFile.path.split('.').last.toLowerCase();
         if (ext.contains('blob') ||
@@ -324,8 +348,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Perfil guardado correctamente')),
         );
-        Navigator.pop(context); // Cierra EditProfileScreen
-        Navigator.pop(context); // Cierra SettingsScreen
+        Navigator.pop(context, true);
+        AppNavigationController.instance
+            .syncBrowserHistoryAfterProgrammaticPop();
       }
     } catch (e) {
       debugPrint('[CORPUS DEBUG] Error saving profile: $e');
@@ -456,18 +481,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     backgroundImage: _newAvatarBytes != null
                                         ? MemoryImage(_newAvatarBytes!)
                                               as ImageProvider
-                                        : _avatarUrl != null
+                                        : (_avatarUrl != null &&
+                                              _avatarUrl!.isNotEmpty)
                                         ? NetworkImage(_avatarUrl!)
                                         : null,
-                                    onBackgroundImageError: (e, s) {
-                                      debugPrint(
-                                        '[CORPUS] Error cargando preview de avatar: $e',
-                                      );
-                                    },
+                                    onBackgroundImageError:
+                                        (_newAvatarBytes != null ||
+                                            (_avatarUrl != null &&
+                                                _avatarUrl!.isNotEmpty))
+                                        ? (e, s) {
+                                            debugPrint(
+                                              '[CORPUS] Error cargando preview de avatar: $e',
+                                            );
+                                          }
+                                        : null,
                                     child:
                                         _newAvatarBytes == null &&
-                                            _avatarUrl == null
-                                        ? const CorpusTablerIcon(CorpusIconKind.Person, size: 50)
+                                            (_avatarUrl == null ||
+                                                _avatarUrl!.isEmpty)
+                                        ? const CorpusTablerIcon(
+                                            CorpusIconKind.Person,
+                                            size: 50,
+                                          )
                                         : null,
                                   ),
                                   Container(
@@ -802,13 +837,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                             }
 
                                             final isDesktop =
-                                                kIsWeb ||
-                                                defaultTargetPlatform ==
-                                                    TargetPlatform.macOS ||
-                                                defaultTargetPlatform ==
-                                                    TargetPlatform.windows ||
-                                                defaultTargetPlatform ==
-                                                    TargetPlatform.linux;
+                                                EditProfileScreen
+                                                    .isDesktopDragEnvironment(
+                                                      isWeb: kIsWeb,
+                                                      platform:
+                                                          defaultTargetPlatform,
+                                                      screenWidth: screenWidth,
+                                                    );
 
                                             if (isDesktop) {
                                               return ReorderableDragStartListener(
@@ -1012,10 +1047,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               7,
                                             ),
                                             child: CorpusNetworkImage(
-                                              url: game['cover_url'].replaceAll(
-                                                't_cover_big',
-                                                't_1080p',
-                                              ),
+                                              url: game['cover_url']?.toString(),
+                                              cacheWidth: 240,
                                               fit: BoxFit.cover,
                                               width: double.infinity,
                                               height: double.infinity,
@@ -1116,6 +1149,16 @@ class _WebCropperPageState extends State<_WebCropperPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const CorpusTablerIcon(CorpusIconKind.ArrowBack),
+          onPressed: _processing
+              ? null
+              : () {
+                  Navigator.of(context).pop();
+                  AppNavigationController.instance
+                      .syncBrowserHistoryAfterProgrammaticPop();
+                },
+        ),
         title: const Text('Recortar Imagen'),
         actions: [
           if (_processing)
@@ -1137,9 +1180,10 @@ class _WebCropperPageState extends State<_WebCropperPage> {
                 setState(() => _processing = true);
                 try {
                   final result = await widget.crop();
-                  if (context.mounted) {
-                    Navigator.of(context).pop(result);
-                  }
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop(result);
+                  AppNavigationController.instance
+                      .syncBrowserHistoryAfterProgrammaticPop();
                 } catch (e) {
                   if (mounted) {
                     setState(() => _processing = false);

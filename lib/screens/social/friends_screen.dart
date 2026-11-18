@@ -7,12 +7,14 @@ import '../../widgets/corpus_section_title.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import '../../repositories/social_repository.dart';
+import '../../utils/debouncer.dart';
 
 /// Pantalla de gestión de amigos: buscar por username, ver solicitudes,
 /// ver amigos aceptados y eliminar amistades.
 class FriendsScreen extends StatefulWidget {
   final int initialIndex;
-  const FriendsScreen({super.key, this.initialIndex = 2});
+  final SocialRepository? repository;
+  const FriendsScreen({super.key, this.initialIndex = 2, this.repository});
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
@@ -21,10 +23,14 @@ class FriendsScreen extends StatefulWidget {
 class _FriendsScreenState extends State<FriendsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  final _repo = SocialRepository();
+  late final SocialRepository _repo = widget.repository ?? SocialRepository();
 
   // Estado de la pestaña "Buscar"
   final TextEditingController _searchController = TextEditingController();
+  final Debouncer _searchDebouncer = Debouncer(
+    duration: const Duration(milliseconds: 300),
+  );
+  int _searchToken = 0;
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
   String? _searchError;
@@ -57,6 +63,7 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   @override
   void dispose() {
+    _searchDebouncer.dispose();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -114,12 +121,30 @@ class _FriendsScreenState extends State<FriendsScreen>
   // ACCIONES
   // ──────────────────────────────────────────
 
-  Future<void> _searchUsers(String query) async {
-    if (query.trim().isEmpty) {
+  void _searchUsers(String query) {
+    final trimmed = query.trim();
+    final token = ++_searchToken;
+    if (trimmed.isEmpty) {
+      _searchDebouncer.cancel();
       setState(() {
         _searchResults = [];
         _searchError = null;
+        _isSearching = false;
       });
+      return;
+    }
+
+    setState(() {
+      _searchError = null;
+    });
+
+    _searchDebouncer.run(() => _performSearch(trimmed, token));
+  }
+
+  Future<void> _performSearch(String query, int token) async {
+    if (!mounted ||
+        token != _searchToken ||
+        _searchController.text.trim() != query) {
       return;
     }
     setState(() {
@@ -128,19 +153,25 @@ class _FriendsScreenState extends State<FriendsScreen>
     });
     try {
       final results = await _repo.searchUsers(query);
-      if (mounted) {
-        setState(() {
-          _searchResults = results;
-          _isSearching = false;
-        });
+      if (!mounted ||
+          token != _searchToken ||
+          _searchController.text.trim() != query) {
+        return;
       }
+      setState(() {
+        _searchResults = results;
+        _isSearching = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _searchError = 'Error al buscar: $e';
-          _isSearching = false;
-        });
+      if (!mounted ||
+          token != _searchToken ||
+          _searchController.text.trim() != query) {
+        return;
       }
+      setState(() {
+        _searchError = 'Error al buscar: $e';
+        _isSearching = false;
+      });
     }
   }
 
@@ -242,11 +273,15 @@ class _FriendsScreenState extends State<FriendsScreen>
   // ──────────────────────────────────────────
 
   Widget _buildUserAvatar(String? avatarUrl, {double radius = 22}) {
+    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
     return CircleAvatar(
       radius: radius,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-      backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-      child: avatarUrl == null ? CorpusTablerIcon(CorpusIconKind.Person, size: radius) : null,
+      backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
+      onBackgroundImageError: hasAvatar ? (_, _) {} : null,
+      child: !hasAvatar
+          ? CorpusTablerIcon(CorpusIconKind.Person, size: radius)
+          : null,
     );
   }
 
@@ -259,7 +294,7 @@ class _FriendsScreenState extends State<FriendsScreen>
             controller: _searchController,
             decoration: InputDecoration(
               hintText: 'Buscar por nombre de usuario…',
-              prefixIcon: const CorpusTablerIcon(CorpusIconKind.Search),
+              prefixIcon: corpusInputPrefixIcon(CorpusIconKind.Search),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: const CorpusTablerIcon(CorpusIconKind.Clear),

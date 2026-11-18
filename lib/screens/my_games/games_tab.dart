@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/models/models.dart';
+import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
@@ -29,6 +31,7 @@ class GamesTabState extends State<GamesTab> {
   List<Map<String, dynamic>> _playing = [];
   List<Map<String, dynamic>> _toPlay = [];
   Map<int, String> _completionTypeMap = {};
+  final Set<int> _healedGameIds = <int>{};
   bool _loading = true;
   String? _error;
 
@@ -101,18 +104,72 @@ class GamesTabState extends State<GamesTab> {
         }
       }
 
+      final playingList = List<Map<String, dynamic>>.from(results[0] as List);
+      final toPlayList = List<Map<String, dynamic>>.from(results[1] as List);
+
       setState(() {
-        _playing = List<Map<String, dynamic>>.from(results[0] as List);
-        _toPlay = List<Map<String, dynamic>>.from(results[1] as List);
+        _playing = playingList;
+        _toPlay = toPlayList;
         _completionTypeMap = completionMap;
         _loading = false;
       });
+
+      unawaited(_healIncompleteGames([...playingList, ...toPlayList]));
     } catch (_) {
       if (mounted) {
         setState(() {
           _loading = false;
           _error = 'No se pudieron cargar tus juegos.';
         });
+      }
+    }
+  }
+
+  Future<void> _healIncompleteGames(List<Map<String, dynamic>> entries) async {
+    final incompleteItems = <int, List<Map<String, dynamic>>>{};
+    for (final item in entries) {
+      final gameMap = item['games'];
+      if (gameMap is! Map) continue;
+      final cover = gameMap['cover_url'] as String?;
+      if (cover != null && cover.isNotEmpty) continue;
+      final rawId = gameMap['igdb_id'] ?? gameMap['id'];
+      final igdbId = rawId is num
+          ? rawId.toInt()
+          : int.tryParse(rawId?.toString() ?? '');
+      if (igdbId == null || _healedGameIds.contains(igdbId)) continue;
+      incompleteItems.putIfAbsent(igdbId, () => []).add(item);
+    }
+
+    if (incompleteItems.isEmpty) return;
+
+    for (final entry in incompleteItems.entries) {
+      if (!mounted) return;
+      final igdbId = entry.key;
+      _healedGameIds.add(igdbId);
+      try {
+        final igdbGame = await IGDBService.getGameById(igdbId);
+        if (igdbGame == null || !mounted) continue;
+        final healedMap = Game.fromMap(igdbGame).toMap();
+        if (healedMap['release_date'] is String) {
+          healedMap['release_date'] =
+              (healedMap['release_date'] as String).split('T').first;
+        }
+        for (final item in entry.value) {
+          final merged = Map<String, dynamic>.from(item['games'] as Map);
+          healedMap.forEach((key, value) {
+            if (value != null &&
+                (value is! String || value.isNotEmpty) &&
+                (value is! List || value.isNotEmpty)) {
+              merged[key] = value;
+            }
+          });
+          item['games'] = merged;
+        }
+        if (mounted) {
+          setState(() {});
+        }
+      } catch (e) {
+        debugPrint('[GamesTab] Error reparando juego $igdbId: $e');
       }
     }
   }

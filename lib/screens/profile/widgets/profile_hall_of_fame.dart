@@ -126,10 +126,8 @@ class ProfileHallOfFame extends StatelessWidget {
                                               7,
                                             ),
                                             child: CorpusNetworkImage(
-                                              url: game['cover_url'].replaceAll(
-                                                't_cover_big',
-                                                't_1080p',
-                                              ),
+                                              url: game['cover_url']?.toString(),
+                                              cacheWidth: 280,
                                               fit: BoxFit.cover,
                                               width: double.infinity,
                                               height: double.infinity,

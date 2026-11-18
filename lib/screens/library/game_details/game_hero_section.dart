@@ -19,6 +19,7 @@ import '../../../utils/igdb_constants.dart';
 import '../../../widgets/p5r_dynamic_frame.dart';
 import '../../../globals.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameHeroSection extends StatefulWidget {
   final Game gameData;
@@ -327,6 +328,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                               ? Container(
                                   width: 28,
                                   height: 28,
+                                  padding: const EdgeInsets.all(2),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF2EAE9),
                                     shape: BoxShape.circle,
@@ -336,12 +338,18 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                                     ),
                                   ),
                                   alignment: Alignment.center,
-                                  child: Text(
-                                    formattedRating,
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 12,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      formattedRating,
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      style: const TextStyle(
+                                        color: Colors.black87,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                        height: 1.0,
+                                      ),
                                     ),
                                   ),
                                 )
@@ -368,6 +376,90 @@ class _GameHeroSectionState extends State<GameHeroSection> {
         ),
       ),
     );
+  }
+
+  String _resolveCurrentUserId() =>
+      widget.userData?.id ??
+      Supabase.instance.client.auth.currentUser?.id ??
+      '';
+
+  Review _buildFallbackReview(String userId) => Review(
+    id: '',
+    userId: userId,
+    gameId: widget.gameData.igdbId,
+    rating: 0,
+    ratingGameplay: 0,
+    ratingNarrative: 0,
+    ratingSoundtrack: 0,
+    ratingVisuals: 0,
+    status: GameStatus.fromStringOrDefault(widget.status),
+    completionType: '',
+    isReplay: false,
+    createdAt: DateTime.now(),
+    updatedAt: DateTime.now(),
+  );
+
+  void _openEditOrFallbackReview() {
+    if (widget.reviews.isNotEmpty) {
+      widget.onEditReview(widget.reviews.first);
+      return;
+    }
+    final userId = _resolveCurrentUserId();
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo identificar tu sesión. Inicia sesión de nuevo.',
+          ),
+        ),
+      );
+      return;
+    }
+    widget.onEditReview(_buildFallbackReview(userId));
+  }
+
+  Future<void> _confirmAndDeleteFromLibrary() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Borrar juego'),
+        content: const Text(
+          '¿Estás seguro de que quieres eliminar este juego de tu biblioteca? Se borrarán todas las reseñas y rejugadas asociadas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, true);
+              AppNavigationController.instance
+                  .syncBrowserHistoryAfterProgrammaticPop();
+            },
+            child: const Text(
+              'Borrar',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await widget.controller.deleteFromLibrary();
+      libraryUpdateNotifier.value++;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Juego eliminado de la biblioteca')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar de la biblioteca: $e')),
+      );
+    }
   }
 
   Widget _buildStatusButton() {
@@ -422,25 +514,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
           child: CorpusPrimaryButton(
             onPressed: () {
               if (widget.inLibrary) {
-                widget.onEditReview(
-                  widget.reviews.isNotEmpty
-                      ? widget.reviews.first
-                      : Review(
-                          id: '',
-                          userId: widget.userData!.id,
-                          gameId: widget.gameData.igdbId,
-                          rating: 0,
-                          ratingGameplay: 0,
-                          ratingNarrative: 0,
-                          ratingSoundtrack: 0,
-                          ratingVisuals: 0,
-                          status: GameStatus.fromStringOrDefault(widget.status),
-                          completionType: '',
-                          isReplay: false,
-                          createdAt: DateTime.now(),
-                          updatedAt: DateTime.now(),
-                        ),
-                );
+                _openEditOrFallbackReview();
               } else {
                 widget.onShowReviewModal();
               }
@@ -510,70 +584,13 @@ class _GameHeroSectionState extends State<GameHeroSection> {
                 }
               },
             ),
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'add') {
                 widget.onShowReviewModal();
-              } else {
-                late final Review review;
-                if (widget.reviews.isNotEmpty) {
-                  review = widget.reviews.first;
-                } else {
-                  review = Review(
-                    id: '',
-                    userId: widget.userData?.id ?? '',
-                    gameId: widget.gameData.igdbId,
-                    rating: 0,
-                    ratingGameplay: 0,
-                    ratingNarrative: 0,
-                    ratingSoundtrack: 0,
-                    ratingVisuals: 0,
-                    status: GameStatus.fromStringOrDefault(widget.status),
-                    completionType: '',
-                    isReplay: false,
-                    createdAt: DateTime.now(),
-                    updatedAt: DateTime.now(),
-                  );
-                }
-
-                if (value == 'edit') {
-                  widget.onEditReview(review);
-                } else if (value == 'delete') {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Borrar juego'),
-                      content: const Text(
-                        '¿Estás seguro de que quieres eliminar este juego de tu biblioteca? Se borrarán todas las reseñas y rejugadas asociadas.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancelar'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            AppNavigationController.instance
-                                .syncBrowserHistoryAfterProgrammaticPop();
-                            widget.controller.deleteFromLibrary();
-                            libraryUpdateNotifier.value++;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Juego eliminado de la biblioteca',
-                                ),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Borrar',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+              } else if (value == 'edit') {
+                _openEditOrFallbackReview();
+              } else if (value == 'delete') {
+                await _confirmAndDeleteFromLibrary();
               }
             },
             itemBuilder: (context) => <PopupMenuEntry<String>>[

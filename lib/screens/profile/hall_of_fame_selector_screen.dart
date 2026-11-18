@@ -4,6 +4,7 @@ import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
+import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import '../../widgets/corpus_network_image.dart';
 
@@ -34,25 +35,30 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
-    final response = await Supabase.instance.client
-        .from('user_games')
-        .select('*, games(*)')
-        .eq('user_id', userId)
-        .eq('status', 'beaten')
-        .order('updated_at', ascending: false);
+    try {
+      final response = await Supabase.instance.client
+          .from('user_games')
+          .select('*, games(*)')
+          .eq('user_id', userId)
+          .eq('status', 'beaten')
+          .order('updated_at', ascending: false);
 
-    final gamesList = <Map<String, dynamic>>[];
-    for (var row in response) {
-      if (row['games'] != null) {
-        gamesList.add(row['games']);
+      final gamesList = <Map<String, dynamic>>[];
+      for (var row in response) {
+        if (row['games'] != null) {
+          gamesList.add(row['games']);
+        }
       }
-    }
 
-    if (mounted) {
-      setState(() {
-        _beatenGames = gamesList;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _beatenGames = gamesList;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[HallOfFameSelector] Error cargando completados: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -71,7 +77,11 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
         'pin_order': widget.pinOrder,
       }, onConflict: 'user_id, pin_order');
 
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppNavigationController.instance
+            .syncBrowserHistoryAfterProgrammaticPop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -97,7 +107,11 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
           .eq('user_id', userId)
           .eq('pin_order', widget.pinOrder);
 
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+        AppNavigationController.instance
+            .syncBrowserHistoryAfterProgrammaticPop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -176,12 +190,7 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                       itemCount: filteredGames.length,
                       itemBuilder: (context, index) {
                         final game = filteredGames[index];
-                        final coverUrl =
-                            game['cover_url']?.replaceAll(
-                              't_cover_big',
-                              't_1080p',
-                            ) ??
-                            '';
+                        final coverUrl = (game['cover_url'] as String?) ?? '';
 
                         return GestureDetector(
                           onTap: () =>
@@ -193,6 +202,7 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                             child: coverUrl.isNotEmpty
                                 ? CorpusNetworkImage(
                                     url: coverUrl,
+                                    cacheWidth: 280,
                                     fit: BoxFit.cover,
                                   )
                                 : Container(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
@@ -234,7 +235,41 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 const SizedBox(height: 24),
                 const Divider(height: 1, indent: 16, endIndent: 16),
 
-                // ── Prueba ────────────────────────────────────────────────
+                // ── Permisos web + Prueba ─────────────────────────────────
+                if (kIsWeb)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        await NotificationService().requestPermissions();
+                        await NotificationService().saveFcmToken();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Solicitud de notificaciones procesada.',
+                              ),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const CorpusTablerIcon(
+                        CorpusIconKind.NotificationsActiveOutlined,
+                      ),
+                      label: const Text(
+                        'Activar notificaciones en este navegador',
+                      ),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: Theme.of(
+                            context,
+                          ).extension<CorpusThemeExtension>()!.radiusMedium,
+                        ),
+                      ),
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: OutlinedButton.icon(
@@ -266,7 +301,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
-                    'Las notificaciones de amigos y comentarios se envían incluso con la app cerrada en Android. En Windows, solo funcionan con la app abierta.',
+                    kIsWeb
+                        ? 'En iPhone (iOS 16.4+) las notificaciones Web Push solo funcionan tras añadir Corpus a la pantalla de inicio (PWA) y activarlas con el botón superior.'
+                        : 'Las notificaciones de amigos y comentarios se envían incluso con la app cerrada en Android. En Windows, solo funcionan con la app abierta.',
                     style: TextStyle(
                       fontSize: 12,
                       color: colorScheme.onSurfaceVariant,

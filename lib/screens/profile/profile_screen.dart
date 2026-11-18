@@ -374,7 +374,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )
           else
             CorpusNetworkImage(
-              url: bannerUrl.replaceAll('t_cover_big', 't_1080p'),
+              url: bannerUrl.toString(),
+              cacheWidth: 960,
               fit: BoxFit.cover,
               alignment: Alignment.center,
               placeholder: DecoratedBox(
@@ -610,7 +611,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-          if (!isMe)
+          if (!isMe && _userProfile?['id'] != null)
             Positioned(
               top:
                   MediaQuery.of(context).padding.top + (isDesktop ? 10.0 : 4.0),
@@ -621,7 +622,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: FriendshipButton(
-                  targetUserId: _userProfile!['id'] as String,
+                  targetUserId: _userProfile!['id'].toString(),
                 ),
               ),
             ),

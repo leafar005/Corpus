@@ -130,7 +130,7 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
         to: _reviews.length - 1,
         searchQuery: _searchQuery,
       );
-      if (mounted && newItems.isNotEmpty) {
+      if (mounted) {
         setState(() {
           _reviews
             ..clear()
@@ -143,15 +143,19 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
   }
 
   void _openReview(Map<String, dynamic> review) {
+    final rawGame = review['games'];
+    if (rawGame is! Map<String, dynamic>) return;
     final postStats = PostStats.fromDynamic(review['_post']);
     context
         .pushReviewDetails(
-          Game.fromMap(review['games']),
+          Game.fromMap(rawGame),
           widget.userData,
           review,
           postId: postStats?.postId,
         )
-        .then((_) => _refreshInPlace());
+        .then((_) {
+          if (mounted) _refreshInPlace();
+        });
   }
 
   @override
@@ -295,7 +299,11 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
                   color: Theme.of(context).primaryColorDark,
                   image: coverUrl.isNotEmpty
                       ? DecorationImage(
-                          image: NetworkImage(coverUrl),
+                          image: ResizeImage.resizeIfNeeded(
+                            168,
+                            null,
+                            NetworkImage(coverUrl),
+                          ),
                           fit: BoxFit.cover,
                         )
                       : null,

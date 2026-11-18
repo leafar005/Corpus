@@ -172,7 +172,24 @@ class _SteamImportProgressScreenState extends State<SteamImportProgressScreen> {
 
   @override
   void dispose() {
-    _subscription?.unsubscribe();
+    final channel = _subscription;
+    _subscription = null;
+    if (channel != null) {
+      try {
+        unawaited(
+          Supabase.instance.client.removeChannel(channel).then<void>(
+            (_) {},
+            onError: (Object e) {
+              debugPrint(
+                '[SteamImportProgressScreen] Error removing channel: $e',
+              );
+            },
+          ),
+        );
+      } catch (e) {
+        debugPrint('[SteamImportProgressScreen] Error removing channel: $e');
+      }
+    }
     super.dispose();
   }
 

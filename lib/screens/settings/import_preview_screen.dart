@@ -269,9 +269,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
         String coverUrl =
             game['cover_url'] ?? IGDBService.getCoverUrl(coverId as String?);
         if (coverUrl.isNotEmpty) {
-          coverUrl = coverUrl
-              .replaceAll('t_cover_big', 't_1080p')
-              .replaceAll('t_thumb', 't_1080p');
+          coverUrl = coverUrl.replaceAll('t_thumb', 't_cover_big');
         }
 
         return Card(
@@ -285,6 +283,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                       url: coverUrl,
                       width: 45,
                       height: 60,
+                      cacheWidth: 120,
                       fit: BoxFit.cover,
                     )
                   : Container(
@@ -353,9 +352,10 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                           cand['cover_url'] ??
                           IGDBService.getCoverUrl(coverId as String?);
                       if (coverUrl.isNotEmpty) {
-                        coverUrl = coverUrl
-                            .replaceAll('t_cover_big', 't_1080p')
-                            .replaceAll('t_thumb', 't_1080p');
+                        coverUrl = coverUrl.replaceAll(
+                          't_thumb',
+                          't_cover_big',
+                        );
                       }
                       int? year;
                       if (cand['first_release_date'] != null) {
@@ -382,6 +382,7 @@ class _ImportPreviewScreenState extends State<ImportPreviewScreen>
                                   child: coverUrl.isNotEmpty
                                       ? CorpusNetworkImage(
                                           url: coverUrl,
+                                          cacheWidth: 240,
                                           fit: BoxFit.cover,
                                           width: double.infinity,
                                         )

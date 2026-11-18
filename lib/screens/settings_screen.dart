@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
@@ -6,9 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
+import '../services/notification_service.dart';
 import '../services/user_settings_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   final Map<String, dynamic> userProfile;
   final List<Map<String, dynamic>?> hallOfFame;
 
@@ -17,6 +19,138 @@ class SettingsScreen extends StatelessWidget {
     required this.userProfile,
     required this.hallOfFame,
   });
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late final Future<SharedPreferences> _prefsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefsFuture = SharedPreferences.getInstance();
+  }
+
+  Future<void> _handleDebugClearAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Theme.of(dialogContext).colorScheme.surface,
+        title: const Text('¿Vaciar cuenta por completo?'),
+        content: const Text(
+          'Esto borrará TODOS tus juegos y reseñas de la base de datos. Es una acción irreversible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('VACIAR CUENTA'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay sesión activa.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    var loadingDialogOpen = true;
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      routeSettings: const RouteSettings(name: 'loading_dialog'),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    ).whenComplete(() {
+      loadingDialogOpen = false;
+    });
+
+    Object? deleteError;
+    try {
+      Future<void> batchDelete(String table) async {
+        while (true) {
+          final response = await supabase
+              .from(table)
+              .select('id')
+              .eq('user_id', userId)
+              .limit(50);
+          if (response.isEmpty) break;
+
+          final ids = (response as List).map((e) => e['id']).toList();
+          await supabase.from(table).delete().inFilter('id', ids);
+        }
+      }
+
+      // Eliminar en lotes para evitar statement timeout por los triggers de XP
+      await batchDelete('reviews');
+
+      Future<void> batchDeleteUserGames() async {
+        while (true) {
+          final response = await supabase
+              .from('user_games')
+              .select('game_id')
+              .eq('user_id', userId)
+              .limit(50);
+          if (response.isEmpty) break;
+
+          final gameIds = (response as List).map((e) => e['game_id']).toList();
+          await supabase
+              .from('user_games')
+              .delete()
+              .eq('user_id', userId)
+              .inFilter('game_id', gameIds);
+        }
+      }
+
+      await batchDeleteUserGames();
+      libraryUpdateNotifier.value++; // Refrescar biblioteca
+    } catch (e) {
+      deleteError = e;
+    } finally {
+      if (loadingDialogOpen &&
+          rootNavigator.mounted &&
+          rootNavigator.canPop()) {
+        loadingDialogOpen = false;
+        rootNavigator.pop(); // Cerrar spinner
+      }
+    }
+
+    if (!mounted) return;
+    if (deleteError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al vaciar: $deleteError'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cuenta vaciada limpiamente.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +175,7 @@ class SettingsScreen extends StatelessWidget {
             title: 'Cuenta',
             subtitle: 'Editar perfil, nombre de usuario',
             onTap: () {
-              context.pushEditProfile(userProfile, hallOfFame);
+              context.pushEditProfile(widget.userProfile, widget.hallOfFame);
             },
           ),
           _buildSettingsTile(
@@ -104,7 +238,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           FutureBuilder<SharedPreferences>(
-            future: SharedPreferences.getInstance(),
+            future: _prefsFuture,
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 return const ListTile(
@@ -114,7 +248,7 @@ class SettingsScreen extends StatelessWidget {
               }
               final prefs = snapshot.data!;
               return StatefulBuilder(
-                builder: (context, setState) {
+                builder: (context, setLocalState) {
                   final localizeLinks = prefs.getBool('localize_links') ?? true;
                   final duracionDeEnabled =
                       (prefs.getString('time_source_pref') ?? 'igdb') ==
@@ -132,7 +266,7 @@ class SettingsScreen extends StatelessWidget {
                         onChanged: (bool value) {
                           prefs.setBool('localize_links', value);
                           UserSettingsService().push({'localize_links': value});
-                          setState(() {});
+                          setLocalState(() {});
                         },
                       ),
                       SwitchListTile(
@@ -149,7 +283,7 @@ class SettingsScreen extends StatelessWidget {
                           UserSettingsService().push({
                             'time_source_pref': prefValue,
                           });
-                          setState(() {});
+                          setLocalState(() {});
                         },
                       ),
                     ],
@@ -159,169 +293,67 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
 
-          Divider(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.24),
-            height: 32,
-          ),
-
-          ListTile(
-            leading: const CorpusTablerIcon.trashX(size: 20, color: Colors.orange),
-            title: const Text(
-              'DEBUG: Vaciar cuenta',
-              style: TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.bold,
-              ),
+          if (kDebugMode) ...[
+            Divider(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.24),
+              height: 32,
             ),
-            onTap: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  title: const Text('¿Vaciar cuenta por completo?'),
-                  content: const Text(
-                    'Esto borrará TODOS tus juegos y reseñas de la base de datos. Es una acción irreversible.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancelar'),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('VACIAR CUENTA'),
-                    ),
-                  ],
+
+            ListTile(
+              leading: const CorpusTablerIcon.trashX(
+                size: 20,
+                color: Colors.orange,
+              ),
+              title: const Text(
+                'DEBUG: Vaciar cuenta',
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontWeight: FontWeight.bold,
                 ),
-              );
+              ),
+              onTap: _handleDebugClearAccount,
+            ),
 
-              if (confirm == true) {
-                if (!context.mounted) return;
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  routeSettings: const RouteSettings(name: 'loading_dialog'),
-                  builder: (context) =>
-                      const Center(child: CircularProgressIndicator()),
-                );
-
+            ListTile(
+              leading: const CorpusTablerIcon.broom(
+                size: 20,
+                color: Colors.orange,
+              ),
+              title: const Text(
+                'DEBUG: Limpiar caché de Bundles',
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onTap: () async {
                 try {
-                  final supabase = Supabase.instance.client;
-                  final userId = supabase.auth.currentUser?.id;
-                  if (userId == null) return;
-
-                  Future<void> batchDelete(String table) async {
-                    while (true) {
-                      final response = await supabase
-                          .from(table)
-                          .select('id')
-                          .eq('user_id', userId)
-                          .limit(50);
-                      if (response.isEmpty) break;
-
-                      final ids = (response as List)
-                          .map((e) => e['id'])
-                          .toList();
-                      await supabase.from(table).delete().inFilter('id', ids);
-                    }
-                  }
-
-                  // Eliminar en lotes para evitar statement timeout por los triggers de XP
-                  await batchDelete('reviews');
-
-                  Future<void> batchDeleteUserGames() async {
-                    while (true) {
-                      final response = await supabase
-                          .from('user_games')
-                          .select('game_id')
-                          .eq('user_id', userId)
-                          .limit(50);
-                      if (response.isEmpty) break;
-
-                      final gameIds = (response as List)
-                          .map((e) => e['game_id'])
-                          .toList();
-                      await supabase
-                          .from('user_games')
-                          .delete()
-                          .eq('user_id', userId)
-                          .inFilter('game_id', gameIds);
-                    }
-                  }
-
-                  await batchDeleteUserGames();
-                  libraryUpdateNotifier.value++; // Refrescar biblioteca
-
+                  final prefs = await _prefsFuture;
+                  await prefs.remove('bundles_full_cache');
+                  await prefs.remove('bundles_full_cache_time');
                   if (context.mounted) {
-                    Navigator.of(
-                      context,
-                      rootNavigator: true,
-                    ).pop(); // Cerrar spinner
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Cuenta vaciada limpiamente.'),
+                        content: Text('Caché de bundles eliminada.'),
                         backgroundColor: Colors.orange,
                       ),
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    Navigator.of(
-                      context,
-                      rootNavigator: true,
-                    ).pop(); // Cerrar spinner
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Error al vaciar: $e'),
+                        content: Text('Error al limpiar caché: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
-              }
-            },
-          ),
-
-          ListTile(
-            leading: const CorpusTablerIcon.broom(size: 20, color: Colors.orange),
-            title: const Text(
-              'DEBUG: Limpiar caché de Bundles',
-              style: TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.bold,
-              ),
+              },
             ),
-            onTap: () async {
-              try {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.remove('bundles_full_cache');
-                await prefs.remove('bundles_full_cache_time');
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Caché de bundles eliminada.'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error al limpiar caché: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-          ),
+          ],
 
           Divider(
             color: Theme.of(
@@ -343,8 +375,9 @@ class SettingsScreen extends StatelessWidget {
             ),
             onTap: () async {
               Navigator.pop(context); // Cierra los ajustes
-              final prefs = await SharedPreferences.getInstance();
+              final prefs = await _prefsFuture;
               await prefs.setInt('main_tab_index', 0);
+              await NotificationService().deleteFcmToken();
               await Supabase.instance.client.auth.signOut();
             },
           ),

@@ -23,6 +23,9 @@ import 'package:corpus/globals.dart';
 class GameDetailsController extends SafeChangeNotifier {
   GameDetailsController(this.game) : _repo = ReviewRepository();
 
+  static final Map<int, Map<String, dynamic>> _sessionEnrichedData =
+      <int, Map<String, dynamic>>{};
+
   final Game game;
   final ReviewRepository _repo;
 
@@ -116,8 +119,9 @@ class GameDetailsController extends SafeChangeNotifier {
 
     // ── Batch "juego": no depende de auth ──────────────────────────────────
     Future.wait([
-      enrichGameData(onScreenshotsEnriched: onScreenshotsEnriched),
-      fetchMetacritic(),
+      enrichGameData(onScreenshotsEnriched: onScreenshotsEnriched).then((_) {
+        if (!isDisposed) return fetchMetacritic();
+      }),
       fetchTimeToBeat(),
       fetchRelatedGames(),
     ]);
@@ -229,6 +233,8 @@ class GameDetailsController extends SafeChangeNotifier {
       metacriticScore = gameModel.metacriticScore;
       metacriticUrl = gameModel.metacriticUrl;
       metacriticUserScore = gameModel.metacriticUserScore;
+      metacriticCriticCount = gameModel.metacriticCriticCount;
+      metacriticUserRatingCount = gameModel.metacriticUserRatingCount;
       notify();
       return;
     }
@@ -396,6 +402,8 @@ class GameDetailsController extends SafeChangeNotifier {
     void Function(List enrichedScreenshots, bool forceInitialSwap)?
     onScreenshotsEnriched,
   }) async {
+    final hasCover = game.coverUrl?.isNotEmpty == true;
+    final hasReleaseDate = game.releaseDate?.isNotEmpty == true;
     final hasSummary = game.summary?.isNotEmpty == true;
     final hasDeveloper =
         game.developer != null &&
@@ -404,18 +412,35 @@ class GameDetailsController extends SafeChangeNotifier {
     final hasCategory = game.category != null || game.gameType != null;
     final hasScreenshots = game.screenshots.isNotEmpty;
 
-    final hasGameEngines = game.gameEngines.isNotEmpty;
-    final hasCollection = game.collection?.isNotEmpty == true;
-    final hasFranchises = game.franchises.isNotEmpty;
+    final cached = _sessionEnrichedData[game.igdbId];
+    if (cached != null) {
+      enrichedData = Map<String, dynamic>.from(cached);
+      isEnriching = false;
+      notify();
+      if (!hasCover || !hasDeveloper || !hasSummary || !hasReleaseDate) {
+        await _repo.backfillCoverUrl(
+          igdbId: game.igdbId,
+          enrichedData: enrichedData,
+          currentCoverUrl: null,
+        );
+      }
+      final cachedScreenshots = enrichedData['screenshots'];
+      if (cachedScreenshots is List && cachedScreenshots.isNotEmpty) {
+        onScreenshotsEnriched?.call(cachedScreenshots, true);
+      }
+      return;
+    }
 
-    // Solo omitir la llamada si tenemos TODOS los datos (primarios + secundarios)
-    if (hasSummary &&
+    // Omitir si ya tiene metadatos esenciales
+    // (evita re-consultar indies sin motor o franquicia en cada apertura).
+    if (hasCover &&
+        hasReleaseDate &&
+        hasSummary &&
         hasDeveloper &&
         hasCategory &&
         hasScreenshots &&
-        hasGameEngines &&
-        hasCollection &&
-        hasFranchises) {
+        game.genres.isNotEmpty &&
+        game.platforms.isNotEmpty) {
       isEnriching = false;
       notify();
       return;
@@ -546,6 +571,7 @@ class GameDetailsController extends SafeChangeNotifier {
               ? (game['game_engines'] as List).map((e) => e['name']).toList()
               : [],
         };
+        _sessionEnrichedData[igdbId] = Map<String, dynamic>.from(enrichedData);
         notify();
 
         // Backfill perezoso: si la fila de `games` no tenía cover_url (u otros
@@ -722,6 +748,17 @@ class GameDetailsController extends SafeChangeNotifier {
     final igdbId = game.igdbId;
 
     try {
+      if (enrichedData.isEmpty &&
+          (game.coverUrl == null ||
+              game.coverUrl!.isEmpty ||
+              game.developer == null ||
+              game.developer == 'Desconocido' ||
+              game.developer == 'Desarrollador desconocido' ||
+              game.releaseDate == null ||
+              game.releaseDate!.isEmpty)) {
+        await enrichGameData();
+      }
+
       final result = await _repo.saveReview(
         userId: userId,
         igdbId: igdbId,

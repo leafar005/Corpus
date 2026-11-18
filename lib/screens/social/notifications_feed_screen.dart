@@ -26,7 +26,9 @@ import '../../widgets/paginated_scroll_mixin.dart';
 import '../activity/activity_formatters.dart';
 
 class NotificationsFeedScreen extends StatefulWidget {
-  const NotificationsFeedScreen({super.key});
+  const NotificationsFeedScreen({super.key, this.repository});
+
+  final NotificationsRepository? repository;
 
   @override
   State<NotificationsFeedScreen> createState() =>
@@ -35,11 +37,15 @@ class NotificationsFeedScreen extends StatefulWidget {
 
 class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
     with PaginatedScrollMixin {
-  final _repo = NotificationsRepository();
+  late final NotificationsRepository _repo =
+      widget.repository ?? NotificationsRepository();
 
   List<Map<String, dynamic>> _notifications = [];
+  final Set<String> _loadedIds = {};
   final Set<String> _unreadAtOpen = {};
   bool _isLoading = true;
+  String? _loadError;
+  String? _loadMoreError;
   int _offset = 0;
 
   bool get _isGuest => _repo.isGuest;
@@ -63,50 +69,100 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
       return;
     }
 
-    final result = await _repo.fetchNotificationsPage(0);
-    if (!mounted) return;
+    if (!_isLoading && mounted) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+        _loadMoreError = null;
+      });
+    }
 
-    setState(() {
-      _notifications = result.notifications;
-      _offset = result.nextOffset;
-      hasMore = result.hasMore;
-      _unreadAtOpen
-        ..clear()
-        ..addAll(
-          result.notifications
-              .where((n) => n['read_at'] == null)
-              .map((n) => n['id'] as String),
-        );
-      _isLoading = false;
-    });
-    triggerScrollCheck();
+    try {
+      final result = await _repo.fetchNotificationsPage(0);
+      if (!mounted) return;
 
-    // Reset optimista del badge global + persistencia en servidor. El
-    // estilo "nuevo" de esta pantalla sigue usando _unreadAtOpen (foto
-    // fija tomada arriba), no el read_at ya actualizado.
-    unreadNotificationsCount.value = 0;
-    _repo.markAllRead();
+      _loadedIds.clear();
+      final uniqueItems = <Map<String, dynamic>>[];
+      for (final item in result.notifications) {
+        final id = item['id']?.toString();
+        if (id == null || _loadedIds.add(id)) {
+          uniqueItems.add(item);
+        }
+      }
+
+      setState(() {
+        _notifications = uniqueItems;
+        _offset = result.nextOffset;
+        hasMore = result.hasMore;
+        _loadError = null;
+        _loadMoreError = null;
+        _unreadAtOpen
+          ..clear()
+          ..addAll(
+            uniqueItems
+                .where((n) => n['read_at'] == null && n['id'] != null)
+                .map((n) => n['id'].toString()),
+          );
+        _isLoading = false;
+      });
+      triggerScrollCheck();
+
+      // Reset optimista del badge global + persistencia en servidor. El
+      // estilo "nuevo" de esta pantalla sigue usando _unreadAtOpen (foto
+      // fija tomada arriba), no el read_at ya actualizado.
+      unreadNotificationsCount.value = 0;
+      _repo.markAllRead();
+    } catch (e) {
+      debugPrint('[NotificationsFeedScreen] Error cargando notificaciones: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = 'No se pudieron cargar las notificaciones.';
+      });
+    }
   }
 
   @override
   Future<void> loadMore() async {
-    if (isLoadingMore || !hasMore || _isGuest) return;
-    setState(() => isLoadingMore = true);
-
-    final result = await _repo.fetchNotificationsPage(_offset);
-    if (!mounted) return;
-
+    if (isLoadingMore || !hasMore || _isGuest || _loadMoreError != null) return;
     setState(() {
-      _notifications.addAll(result.notifications);
-      _offset = result.nextOffset;
-      hasMore = result.hasMore;
-      isLoadingMore = false;
-      _unreadAtOpen.addAll(
-        result.notifications
-            .where((n) => n['read_at'] == null)
-            .map((n) => n['id'] as String),
-      );
+      isLoadingMore = true;
+      _loadMoreError = null;
     });
+
+    try {
+      final result = await _repo.fetchNotificationsPage(_offset);
+      if (!mounted) return;
+
+      final uniqueNew = <Map<String, dynamic>>[];
+      for (final item in result.notifications) {
+        final id = item['id']?.toString();
+        if (id == null || _loadedIds.add(id)) {
+          uniqueNew.add(item);
+        }
+      }
+
+      setState(() {
+        _notifications.addAll(uniqueNew);
+        _offset = result.nextOffset;
+        hasMore = result.hasMore;
+        isLoadingMore = false;
+        _loadMoreError = null;
+        _unreadAtOpen.addAll(
+          uniqueNew
+              .where((n) => n['read_at'] == null && n['id'] != null)
+              .map((n) => n['id'].toString()),
+        );
+      });
+      triggerScrollCheck();
+    } catch (e) {
+      debugPrint('[NotificationsFeedScreen] Error paginando notificaciones: $e');
+      if (!mounted) return;
+      setState(() {
+        isLoadingMore = false;
+        _loadMoreError = 'No se pudieron cargar más notificaciones.';
+      });
+    }
   }
 
   Future<void> _onNotificationTap(Map<String, dynamic> notification) async {
@@ -238,10 +294,14 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
                 CircleAvatar(
                   radius: 22,
                   backgroundColor: cs.surfaceContainerHighest,
-                  backgroundImage: avatarUrl != null
+                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
                       ? NetworkImage(avatarUrl)
                       : null,
-                  child: avatarUrl == null
+                  onBackgroundImageError:
+                      avatarUrl != null && avatarUrl.isNotEmpty
+                      ? (_, _) {}
+                      : null,
+                  child: avatarUrl == null || avatarUrl.isEmpty
                       ? const CorpusTablerIcon(CorpusIconKind.Person)
                       : null,
                 ),
@@ -299,7 +359,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
                 ],
               ),
             ),
-            if (coverUrl != null) ...[
+            if (coverUrl != null && coverUrl.isNotEmpty) ...[
               const SizedBox(width: 8),
               ClipRRect(
                 borderRadius: ext?.radiusSmall ?? BorderRadius.circular(6),
@@ -314,6 +374,69 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLoadErrorState(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CorpusTablerIcon(
+              CorpusIconKind.ErrorOutline,
+              size: 48,
+              color: cs.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _loadError ?? 'No se pudieron cargar las notificaciones.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: _loadFirstPage,
+              icon: const CorpusTablerIcon(CorpusIconKind.Refresh),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreFooter(BuildContext context) {
+    if (_loadMoreError != null) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _loadMoreError!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () {
+                setState(() => _loadMoreError = null);
+                loadMore();
+              },
+              icon: const CorpusTablerIcon(CorpusIconKind.Refresh),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+    return const Padding(
+      padding: EdgeInsets.all(16),
+      child: Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -349,18 +472,19 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
+            : _loadError != null
+            ? _buildLoadErrorState(context)
             : _notifications.isEmpty
             ? const Center(child: Text('No tienes notificaciones todavía'))
             : ListView.separated(
                 controller: scrollController,
-                itemCount: _notifications.length + (hasMore ? 1 : 0),
+                itemCount:
+                    _notifications.length +
+                    ((hasMore || _loadMoreError != null) ? 1 : 0),
                 separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   if (index >= _notifications.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
+                    return _buildLoadMoreFooter(context);
                   }
                   return _buildRow(_notifications[index]);
                 },

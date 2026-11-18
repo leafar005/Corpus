@@ -19,6 +19,12 @@ abstract class SafeChangeNotifier extends ChangeNotifier {
     super.dispose();
   }
 
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
   /// Safe wrapper around [notifyListeners] that silently no-ops after dispose.
   @protected
   void notify() {

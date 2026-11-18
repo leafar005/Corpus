@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
@@ -63,7 +64,24 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
 
   @override
   void dispose() {
-    _subscription?.unsubscribe();
+    final channel = _subscription;
+    _subscription = null;
+    if (channel != null) {
+      try {
+        unawaited(
+          Supabase.instance.client.removeChannel(channel).then<void>(
+            (_) {},
+            onError: (Object e) {
+              debugPrint(
+                '[CurrentlyPlayingBadge] Error removing channel: $e',
+              );
+            },
+          ),
+        );
+      } catch (e) {
+        debugPrint('[CurrentlyPlayingBadge] Error removing channel: $e');
+      }
+    }
     super.dispose();
   }
 

@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../../models/models.dart';
 import '../../repositories/game_group_repository.dart';
+import '../../utils/safe_change_notifier.dart';
 
-class GameGroupsController extends ChangeNotifier {
+class GameGroupsController extends SafeChangeNotifier {
   GameGroupsController({
     required this.userId,
     GameGroupRepository? repository,
@@ -21,14 +22,14 @@ class GameGroupsController extends ChangeNotifier {
   bool _isLoading = false;
 
   Future<void> load({bool silent = false}) async {
-    if (_isLoading) return;
+    if (isDisposed || _isLoading) return;
     _isLoading = true;
 
     if (!silent) {
       isLoading = true;
       hasError = false;
       errorMessage = null;
-      notifyListeners();
+      notify();
     }
 
     try {
@@ -43,7 +44,7 @@ class GameGroupsController extends ChangeNotifier {
     } finally {
       _isLoading = false;
     }
-    notifyListeners();
+    notify();
   }
 
   Future<GameGroup?> createGroup({
@@ -59,7 +60,7 @@ class GameGroupsController extends ChangeNotifier {
         isRanked: isRanked,
       );
       groups = [...groups, created];
-      notifyListeners();
+      notify();
       return created;
     } catch (e) {
       debugPrint('[GameGroupsController] createGroup: $e');
@@ -92,7 +93,7 @@ class GameGroupsController extends ChangeNotifier {
     try {
       await _repo.deleteGroup(groupId);
       groups = groups.where((g) => g.id != groupId).toList();
-      notifyListeners();
+      notify();
       return true;
     } catch (e) {
       debugPrint('[GameGroupsController] deleteGroup: $e');
@@ -106,7 +107,7 @@ class GameGroupsController extends ChangeNotifier {
     final item = updated.removeAt(oldIndex);
     updated.insert(newIndex, item);
     groups = updated;
-    notifyListeners();
+    notify();
 
     try {
       await _repo.reorderGroups(updated.map((g) => g.id).toList());

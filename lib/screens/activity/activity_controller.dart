@@ -15,12 +15,18 @@ import '../../utils/safe_change_notifier.dart';
 /// ciclo de vida de `State`. El screen llama a [fetchActivity] cuando
 /// el mixin detecta que el usuario ha scrolleado hasta el fondo.
 class ActivityController extends SafeChangeNotifier {
-  ActivityController() {
+  ActivityController({
+    SupabaseClient? client,
+    ActivityRepository? repo,
+    this.realtimeDebounceDuration = const Duration(milliseconds: 700),
+  }) : _supabase = client ?? Supabase.instance.client {
+    _repo = repo ?? ActivityRepository(client: _supabase);
     _userId = _supabase.auth.currentUser?.id;
   }
 
-  final _supabase = Supabase.instance.client;
-  final _repo = ActivityRepository();
+  final SupabaseClient _supabase;
+  late final ActivityRepository _repo;
+  final Duration realtimeDebounceDuration;
 
   String? _userId;
 
@@ -56,11 +62,13 @@ class ActivityController extends SafeChangeNotifier {
   // ── Realtime ─────────────────────────────────────────────────────────
   RealtimeChannel? _realtimeChannel;
   StreamSubscription<AuthState>? _authSub;
+  Timer? _realtimeDebounceTimer;
 
   // ── Ciclo de vida ────────────────────────────────────────────────────
 
   /// Inicializa el controller. Debe llamarse desde `initState`.
   void init() {
+    if (isDisposed) return;
     if (isGuest) {
       _isLoading = false;
       notifyListeners();
@@ -72,6 +80,7 @@ class ActivityController extends SafeChangeNotifier {
 
     // Si el invitado inicia sesión, cargamos el feed.
     _authSub = _supabase.auth.onAuthStateChange.listen((_) {
+      if (isDisposed) return;
       _userId = _supabase.auth.currentUser?.id;
       if (_userId == null) return;
       if (_realtimeChannel != null) return; // Ya activo.
@@ -85,8 +94,26 @@ class ActivityController extends SafeChangeNotifier {
 
   @override
   void dispose() {
-    _realtimeChannel?.unsubscribe();
+    _realtimeDebounceTimer?.cancel();
+    _realtimeDebounceTimer = null;
+    final channel = _realtimeChannel;
+    _realtimeChannel = null;
+    if (channel != null) {
+      try {
+        unawaited(
+          _supabase.removeChannel(channel).then<void>(
+            (_) {},
+            onError: (Object e) {
+              debugPrint('[ActivityController] Error removing channel: $e');
+            },
+          ),
+        );
+      } catch (e) {
+        debugPrint('[ActivityController] Error removing channel: $e');
+      }
+    }
     _authSub?.cancel();
+    _authSub = null;
     super.dispose();
   }
 
@@ -100,6 +127,7 @@ class ActivityController extends SafeChangeNotifier {
     bool isRefresh = false,
     bool silent = false,
   }) async {
+    if (isDisposed) return false;
     if (isRefresh) {
       _offset = 0;
       hasMore = true;
@@ -115,6 +143,7 @@ class ActivityController extends SafeChangeNotifier {
 
     try {
       final result = await _repo.fetchActivityPage(_offset);
+      if (isDisposed) return false;
 
       if (isRefresh) {
         _activities = result.mergedActivities;
@@ -134,6 +163,7 @@ class ActivityController extends SafeChangeNotifier {
       return hasMore;
     } catch (e) {
       debugPrint('[ActivityController] Error cargando actividad: $e');
+      if (isDisposed) return false;
       _isLoading = false;
       isLoadingMore = false;
       hasMore = false;
@@ -144,12 +174,14 @@ class ActivityController extends SafeChangeNotifier {
 
   /// Recarga in-place el rango ya cargado (sin cambiar offset/hasMore).
   Future<void> refreshInPlace() async {
+    if (isDisposed) return;
     if (_activities.isEmpty) {
       fetchActivity(isRefresh: true, silent: true);
       return;
     }
     try {
       final result = await _repo.fetchActivityPage(0, limit: _offset);
+      if (isDisposed) return;
       _activities = result.mergedActivities;
       notifyListeners();
     } catch (e) {
@@ -160,11 +192,13 @@ class ActivityController extends SafeChangeNotifier {
   // ── Friends strip ────────────────────────────────────────────────────
 
   Future<void> fetchFriendsStrip() async {
+    if (isDisposed) return;
     try {
       final myId = _userId;
       if (myId == null) return;
 
       final result = await _repo.fetchFriendsStrip(myId);
+      if (isDisposed) return;
       final friendIds = result.friends
           .map((f) => f['id'] as String?)
           .whereType<String>()
@@ -173,6 +207,7 @@ class ActivityController extends SafeChangeNotifier {
       final stories = friendIds.isNotEmpty
           ? await _repo.fetchRecentStoriesForUsers(friendIds)
           : <String, List<Map<String, dynamic>>>{};
+      if (isDisposed) return;
 
       _friendsStrip = result.friends;
       _userStories = stories;
@@ -183,6 +218,7 @@ class ActivityController extends SafeChangeNotifier {
       return; // Las viewed IDs se devuelven via retorno o se notifican
       // El screen las inyecta en viewedStoryIdsNotifier.
     } catch (e) {
+      if (isDisposed) return;
       _isLoadingFriendsStrip = false;
       notifyListeners();
     }
@@ -323,14 +359,26 @@ class ActivityController extends SafeChangeNotifier {
   // ── Realtime ─────────────────────────────────────────────────────────
 
   /// Callback para que el screen lo llame cuando reciba un evento realtime.
-  /// Recarga el rango acumulado para que la entrada nueva se incorpore al
-  /// grupo existente sin perder páginas ya cargadas.
+  /// Debouncea ráfagas de inserciones antes de recargar el rango acumulado
+  /// para evitar múltiples refrescos seguidos o tras hacer dispose.
   void onRealtimeEvent() {
+    if (isDisposed) return;
+    _realtimeDebounceTimer?.cancel();
+    _realtimeDebounceTimer = Timer(realtimeDebounceDuration, () {
+      _realtimeDebounceTimer = null;
+      if (isDisposed) return;
+      _triggerRealtimeRefresh();
+    });
+  }
+
+  void _triggerRealtimeRefresh() {
+    if (isDisposed) return;
     refreshInPlace();
     fetchFriendsStrip();
   }
 
   void _subscribeRealtime() {
+    if (isDisposed || _realtimeChannel != null) return;
     _realtimeChannel = _supabase
         .channel('activity_feed_changes')
         .onPostgresChanges(

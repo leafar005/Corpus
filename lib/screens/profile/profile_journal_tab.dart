@@ -52,6 +52,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
   final _repo = ReviewRepository();
 
   final List<Map<String, dynamic>> _reviews = [];
+  List<_JournalRow> _cachedRows = const [];
   int _page = 0;
   bool _isInitialLoading = true;
   String? _error;
@@ -145,6 +146,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       if (mounted) {
         setState(() {
           _reviews.addAll(newItems);
+          _cachedRows = _flatten();
           _page++;
           hasMore = newItems.length == _pageSize;
           isLoadingMore = false;
@@ -170,6 +172,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
   Future<void> _refresh() async {
     setState(() {
       _reviews.clear();
+      _cachedRows = const [];
       _page = 0;
       hasMore = true;
       _isInitialLoading = true;
@@ -192,11 +195,12 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
         searchQuery: _searchQuery,
         year: _selectedYear,
       );
-      if (mounted && newItems.isNotEmpty) {
+      if (mounted) {
         setState(() {
           _reviews
             ..clear()
             ..addAll(newItems);
+          _cachedRows = _flatten();
         });
       }
     } catch (e) {
@@ -224,19 +228,27 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
   }
 
   void _openReview(Map<String, dynamic> review) {
+    final rawGame = review['games'];
+    if (rawGame is! Map<String, dynamic>) return;
     context
         .pushReviewDetails(
-          Game.fromMap(review['games']),
+          Game.fromMap(rawGame),
           widget.userData,
           review,
         )
-        .then((_) => _refreshInPlace());
+        .then((_) {
+          if (mounted) _refreshInPlace();
+        });
   }
 
   void _openGame(Map<String, dynamic> review) {
+    final rawGame = review['games'];
+    if (rawGame is! Map<String, dynamic>) return;
     context
-        .pushGameDetails(Game.fromMap(review['games']))
-        .then((_) => _refreshInPlace());
+        .pushGameDetails(Game.fromMap(rawGame))
+        .then((_) {
+          if (mounted) _refreshInPlace();
+        });
   }
 
   /// Aplana [_reviews] en una lista de "filas" (cabecera de mes o entrada)
@@ -403,7 +415,7 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
       );
     }
 
-    final rows = _flatten();
+    final rows = _cachedRows;
 
     return SliverPadding(
       padding: const EdgeInsets.only(bottom: 24),
@@ -508,7 +520,11 @@ class _ProfileJournalTabState extends State<ProfileJournalTab>
                   color: Theme.of(context).primaryColorDark,
                   image: coverUrl.isNotEmpty
                       ? DecorationImage(
-                          image: NetworkImage(coverUrl),
+                          image: ResizeImage.resizeIfNeeded(
+                            168,
+                            null,
+                            NetworkImage(coverUrl),
+                          ),
                           fit: BoxFit.cover,
                         )
                       : null,

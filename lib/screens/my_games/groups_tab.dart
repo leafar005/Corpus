@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
@@ -73,72 +71,21 @@ class GroupsTabState extends State<GroupsTab> {
 
   Future<void> openCreateGroupDialog() async {
     if (!_isOwner) return;
-    final nameController = TextEditingController();
-    final descController = TextEditingController();
-    bool isRanked = false;
-
-    final created = await showDialog<bool>(
+    final result = await showDialog<_GroupFormResult>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setInner) => AlertDialog(
-          title: const Text('Nueva colección'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre',
-                  hintText: 'Ej. Saga Souls, Backlog PS5',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción (opcional)',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Colección rankeada'),
-                subtitle: const Text(
-                  'Los juegos tendrán un número de posición (#1, #2…)',
-                  style: TextStyle(fontSize: 12),
-                ),
-                value: isRanked,
-                onChanged: (v) => setInner(() => isRanked = v),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (nameController.text.trim().isEmpty) return;
-                Navigator.pop(ctx, true);
-              },
-              child: const Text('Crear'),
-            ),
-          ],
-        ),
+      builder: (_) => const _GroupFormDialog(
+        title: 'Nueva colección',
+        confirmLabel: 'Crear',
+        nameHintText: 'Ej. Saga Souls, Backlog PS5',
       ),
     );
 
-    if (created != true || !mounted) return;
+    if (result == null || !mounted) return;
 
     final group = await _controller.createGroup(
-      name: nameController.text.trim(),
-      description: descController.text.trim(),
-      isRanked: isRanked,
+      name: result.name,
+      description: result.description,
+      isRanked: result.isRanked,
     );
 
     if (!mounted) return;
@@ -155,72 +102,24 @@ class GroupsTabState extends State<GroupsTab> {
 
   Future<void> _openEditGroupDialog(GameGroup group) async {
     if (!_isOwner) return;
-    final nameController = TextEditingController(text: group.name);
-    final descController = TextEditingController(text: group.description ?? '');
-    bool isRanked = group.isRanked;
-
-    final saved = await showDialog<bool>(
+    final result = await showDialog<_GroupFormResult>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setInner) => AlertDialog(
-          title: const Text('Editar colección'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción (opcional)',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Colección rankeada'),
-                subtitle: const Text(
-                  'Los juegos tendrán un número de posición (#1, #2…)',
-                  style: TextStyle(fontSize: 12),
-                ),
-                value: isRanked,
-                onChanged: (v) => setInner(() => isRanked = v),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (nameController.text.trim().isEmpty) return;
-                Navigator.pop(ctx, true);
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
+      builder: (_) => _GroupFormDialog(
+        title: 'Editar colección',
+        confirmLabel: 'Guardar',
+        initialName: group.name,
+        initialDescription: group.description ?? '',
+        initialIsRanked: group.isRanked,
       ),
     );
 
-    if (saved != true || !mounted) return;
+    if (result == null || !mounted) return;
 
     final updated = await _controller.updateGroup(
       groupId: group.id,
-      name: nameController.text.trim(),
-      description: descController.text.trim(),
-      isRanked: isRanked,
+      name: result.name,
+      description: result.description,
+      isRanked: result.isRanked,
     );
 
     if (!mounted) return;
@@ -328,6 +227,7 @@ class GroupsTabState extends State<GroupsTab> {
   }
 
   Future<void> _openGroupDetail(GameGroup group) async {
+    var hasChanged = false;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         settings: RouteSettings(name: '/group-detail/${group.id}'),
@@ -336,11 +236,11 @@ class GroupsTabState extends State<GroupsTab> {
           groupId: group.id,
           initialName: group.name,
           isRanked: group.isRanked,
-          onChanged: () => _controller.load(silent: true),
+          onChanged: () => hasChanged = true,
         ),
       ),
     );
-    if (mounted) await _controller.load(silent: true);
+    if (mounted && hasChanged) await _controller.load(silent: true);
   }
 
   @override
@@ -839,6 +739,7 @@ class _CoverMosaic2x2 extends StatelessWidget {
             ? CorpusNetworkImage(
                 url: coverUrl,
                 fit: BoxFit.cover,
+                cacheWidth: 400,
               )
             : Container(
                 color: colorScheme.surfaceContainerHighest,
@@ -887,39 +788,20 @@ class _CoverMosaic2x2 extends StatelessWidget {
       );
     }
 
-    // Fondo ambiental desenfocado para composiciones de 2 y 3 juegos
-    final coverUrls = previews
-        .map((g) => g.coverUrl)
-        .whereType<String>()
-        .toList();
-
+    // Superposición degradada ligera para composiciones de 2 y 3 juegos (sin blur)
     Widget buildAmbientBackdrop() {
-      if (coverUrls.isEmpty) {
-        return ColoredBox(color: colorScheme.surfaceContainerHighest);
-      }
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          ColoredBox(color: colorScheme.surfaceContainerHighest),
-          Opacity(
-            opacity: 0.35,
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final url in coverUrls)
-                    Expanded(
-                      child: CorpusNetworkImage(
-                        url: url,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                ],
-              ),
-            ),
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colorScheme.surfaceContainerHighest,
+              colorScheme.surfaceContainerHigh,
+              colorScheme.primary.withValues(alpha: 0.14),
+            ],
           ),
-        ],
+        ),
       );
     }
 
@@ -987,6 +869,111 @@ class _CoverMosaic2x2 extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+typedef _GroupFormResult = ({String name, String description, bool isRanked});
+
+class _GroupFormDialog extends StatefulWidget {
+  const _GroupFormDialog({
+    required this.title,
+    required this.confirmLabel,
+    this.initialName = '',
+    this.initialDescription = '',
+    this.initialIsRanked = false,
+    this.nameHintText,
+  });
+
+  final String title;
+  final String confirmLabel;
+  final String initialName;
+  final String initialDescription;
+  final bool initialIsRanked;
+  final String? nameHintText;
+
+  @override
+  State<_GroupFormDialog> createState() => _GroupFormDialogState();
+}
+
+class _GroupFormDialogState extends State<_GroupFormDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _descController;
+  late bool _isRanked;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+    _descController = TextEditingController(text: widget.initialDescription);
+    _isRanked = widget.initialIsRanked;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return;
+    Navigator.pop<_GroupFormResult>(context, (
+      name: name,
+      description: _descController.text.trim(),
+      isRanked: _isRanked,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _nameController,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: 'Nombre',
+              hintText: widget.nameHintText,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _descController,
+            decoration: const InputDecoration(
+              labelText: 'Descripción (opcional)',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 2,
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Colección rankeada'),
+            subtitle: const Text(
+              'Los juegos tendrán un número de posición (#1, #2…)',
+              style: TextStyle(fontSize: 12),
+            ),
+            value: _isRanked,
+            onChanged: (v) => setState(() => _isRanked = v),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(widget.confirmLabel),
+        ),
+      ],
     );
   }
 }

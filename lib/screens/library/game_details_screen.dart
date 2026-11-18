@@ -43,7 +43,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   final TextEditingController _ratingController = TextEditingController();
 
   late final ScrollController _scrollController;
-  double _scrollOffset = 0.0;
 
   // Delegate getters & setters to _controller for UI backwards compatibility
   bool get _isGuest => _controller.isGuest;
@@ -77,24 +76,11 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   List<String> get _infoTabOrder => _controller.infoTabOrder;
   Set<String> get _infoTabHidden => _controller.infoTabHidden;
 
-  void _onScroll() {
-    if (!mounted) return;
-    final offset = _scrollController.hasClients
-        ? _scrollController.offset
-        : 0.0;
-    if ((offset - _scrollOffset).abs() > 2.0) {
-      setState(() {
-        _scrollOffset = offset;
-      });
-    }
-  }
-
   @override
   void initState() {
     super.initState();
     _controller = GameDetailsController(widget.gameData);
     _scrollController = widget.scrollController ?? ScrollController();
-    _scrollController.addListener(_onScroll);
 
     _controller.init(
       onUserDataLoaded: () {
@@ -122,7 +108,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   @override
   void dispose() {
     _controller.dispose();
-    _scrollController.removeListener(_onScroll);
     if (widget.scrollController == null) {
       _scrollController.dispose();
     }
@@ -255,7 +240,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             .eq('igdb_id', id)
             .maybeSingle();
 
-        if (localDbGame != null) {
+        if (localDbGame != null &&
+            (localDbGame['cover_url'] as String?)?.isNotEmpty == true) {
           cleanData.addAll(localDbGame);
         } else {
           showingSpinner = true;
@@ -341,7 +327,9 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     ReviewModal.show(
       context: context,
       gameData: widget.gameData.toMap(),
-      enrichedData: widget.gameData.toMap(),
+      enrichedData: _controller.enrichedData.isNotEmpty
+          ? _controller.enrichedData
+          : widget.gameData.toMap(),
       existingReview: existingReview,
       currentPartnerIds:
           existingReview?.partnerIds ?? _partnersData.map((e) => e.id).toList(),
@@ -716,69 +704,64 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
-    return ListenableBuilder(
-      listenable: _controller,
-      builder: (context, _) {
-        return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          body: CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              GameHeroSection(
-                gameData: widget.gameData,
-                controller: _controller,
-                isDesktop: isDesktop,
-                inLibrary: _inLibrary,
-                status: _status,
-                reviews: _reviews,
-                userData: _userData,
-                partnersData: _partnersData,
-                friendsWithGame: _friendsWithGame,
-                isGuest: _isGuest,
-                enrichedData: _enrichedData,
-                resolvedCategory: resolvedCategory,
-                categoryLabel: categoryLabel,
-                originalGame: originalGame,
-                onNavigateToGame: (game) =>
-                    _navigateToOriginalGame(game.id, game.name),
-                onShowReviewModal: () => _showReviewModal(),
-                onEditReview: (review) =>
-                    _showReviewModal(existingReview: review),
-                onDeleteReview: _controller.deleteReview,
-                tabsSliver: SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _GameDetailsTabBarDelegate(
-                    height: 56.0,
-                    child: _buildNavBar(
-                      isDesktop: isDesktop,
-                      infoTabIdx: infoTabIdx,
-                      communityTabIdx: communityTabIdx,
-                      mediaTabIdx: mediaTabIdx,
-                      relatedTabIdx: relatedTabIdx,
-                      linksTabIdx: linksTabIdx,
-                      hasMedia: hasMedia,
-                      hasRelated: hasRelated,
-                      hasLinks: hasLinks,
-                    ),
-                  ),
-                ),
-                tabContentSliver: SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      isDesktop ? 0 : 24.0,
-                      24.0,
-                      isDesktop ? 0 : 24.0,
-                      0,
-                    ),
-                    child: buildCurrentTabContent(),
-                  ),
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          GameHeroSection(
+            gameData: widget.gameData,
+            controller: _controller,
+            isDesktop: isDesktop,
+            inLibrary: _inLibrary,
+            status: _status,
+            reviews: _reviews,
+            userData: _userData,
+            partnersData: _partnersData,
+            friendsWithGame: _friendsWithGame,
+            isGuest: _isGuest,
+            enrichedData: _enrichedData,
+            resolvedCategory: resolvedCategory,
+            categoryLabel: categoryLabel,
+            originalGame: originalGame,
+            onNavigateToGame: (game) =>
+                _navigateToOriginalGame(game.id, game.name),
+            onShowReviewModal: () => _showReviewModal(),
+            onEditReview: (review) =>
+                _showReviewModal(existingReview: review),
+            onDeleteReview: _controller.deleteReview,
+            tabsSliver: SliverPersistentHeader(
+              pinned: true,
+              delegate: _GameDetailsTabBarDelegate(
+                height: 56.0,
+                child: _buildNavBar(
+                  isDesktop: isDesktop,
+                  infoTabIdx: infoTabIdx,
+                  communityTabIdx: communityTabIdx,
+                  mediaTabIdx: mediaTabIdx,
+                  relatedTabIdx: relatedTabIdx,
+                  linksTabIdx: linksTabIdx,
+                  hasMedia: hasMedia,
+                  hasRelated: hasRelated,
+                  hasLinks: hasLinks,
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 60)),
-            ],
+            ),
+            tabContentSliver: SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isDesktop ? 0 : 24.0,
+                  24.0,
+                  isDesktop ? 0 : 24.0,
+                  0,
+                ),
+                child: buildCurrentTabContent(),
+              ),
+            ),
           ),
-        );
-      },
+          const SliverToBoxAdapter(child: SizedBox(height: 60)),
+        ],
+      ),
     );
   }
 }
