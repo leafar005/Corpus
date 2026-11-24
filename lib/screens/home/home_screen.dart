@@ -15,6 +15,7 @@ import 'anticipated_games_section.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import '../../widgets/p5r_styled_panel.dart';
+import '../../widgets/system_chrome_wrapper.dart';
 
 import 'controller/home_controller.dart';
 
@@ -151,9 +152,16 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: kIsWeb
           ? null
           : AppBar(
-              title: const CorpusScreenTitle('Inicio'),
+              title: const CorpusScreenTitle('Inicio', color: Colors.white),
               backgroundColor: Colors.black.withValues(alpha: 0.5),
+              foregroundColor: Colors.white,
               elevation: 0,
+              systemOverlayStyle: corpusSystemUiOverlayStyle(
+                Theme.of(context).brightness,
+              ).copyWith(
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark,
+              ),
             ),
       body: FutureBuilder<HomePhaseOneData>(
         future: _controller.phaseOneFuture,

@@ -563,6 +563,7 @@ class _MainScreenState extends State<MainScreen>
 
   Widget _buildLiquidGlassNavBar(BuildContext context) {
     return SafeArea(
+      top: false,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final barWidth =
@@ -813,6 +814,7 @@ class _MainScreenState extends State<MainScreen>
               final showLabels = t < 0.5;
 
               return SafeArea(
+                top: false,
                 child: Container(
                   height: currentHeight,
                   margin: EdgeInsets.symmetric(
@@ -870,6 +872,7 @@ class _MainScreenState extends State<MainScreen>
 
   Widget _buildMinimalNavBar(BuildContext context) {
     return SafeArea(
+      top: false,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         child: Row(

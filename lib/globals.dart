@@ -60,7 +60,7 @@ final List<ValueNotifier<int>> tabScrollToTopNotifiers = List.generate(
 // Utilidad global para obtener el espaciado inferior en listas (móvil vs escritorio)
 double getBottomSpacer(BuildContext context) {
   final isDesktop = MediaQuery.sizeOf(context).width > kDesktopBreakpoint;
-  return isDesktop ? 32.0 : 120.0;
+  return isDesktop ? 32.0 : 104.0 + MediaQuery.paddingOf(context).bottom;
 }
 
 /// Espaciado inferior extra para modales/bottom sheets cuando el menú móvil es flotante,

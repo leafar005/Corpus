@@ -9,6 +9,7 @@ import 'style_pack_registry.dart';
 import 'corpus_theme_extension.dart';
 import 'corpus_typography.dart';
 import '../globals.dart';
+import '../widgets/system_chrome_wrapper.dart';
 
 /// Notificador global para cambiar el tema en tiempo real.
 ///
@@ -191,6 +192,7 @@ class AppTheme {
         backgroundColor: bgColor,
         elevation: 0,
         centerTitle: pack.useDynamicFrames,
+        systemOverlayStyle: corpusSystemUiOverlayStyle(Brightness.dark),
         iconTheme: const IconThemeData(color: Colors.white),
         titleTextStyle: TextStyle(
           color: Colors.white,
@@ -325,6 +327,7 @@ class AppTheme {
         backgroundColor: bgColor,
         elevation: 0,
         centerTitle: pack.useDynamicFrames,
+        systemOverlayStyle: corpusSystemUiOverlayStyle(Brightness.light),
         iconTheme: IconThemeData(color: colorScheme.onSurface),
         titleTextStyle: TextStyle(
           color: colorScheme.onSurface,

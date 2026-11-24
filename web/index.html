@@ -10,25 +10,46 @@
     <!-- iOS meta tags & icons -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Corpus">
     <link rel="apple-touch-icon" href="icons/Icon-512.png">
     <link rel="preload" as="image" href="splash_logo.png">
 
     <!-- Theme color for Safari/Chrome top and bottom bars -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F5F5F5">
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
 
     <style>
+      :root {
+        color-scheme: dark light;
+      }
       html, body {
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
         background-color: #000000;
         margin: 0;
         padding: 0;
+        overflow: hidden;
         overscroll-behavior-x: none;
         overscroll-behavior-y: none;
+        -webkit-tap-highlight-color: transparent;
       }
       @media (prefers-color-scheme: light) {
-        body { background-color: #ffffff; }
+        html, body { background-color: #F5F5F5; }
+      }
+      #corpus-safe-area-probe {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 0;
+        visibility: hidden;
+        pointer-events: none;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-right: env(safe-area-inset-right, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        padding-left: env(safe-area-inset-left, 0px);
       }
 
       /* ─── Splash / Loading screen ──────────────────────────────────────
@@ -143,8 +164,102 @@
     <link rel="apple-touch-startup-image" href="splash/apple-splash-1334-750.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
     <link rel="apple-touch-startup-image" href="splash/apple-splash-640-1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="splash/apple-splash-1136-640.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+    <script>
+      (function() {
+        var lastTheme = null;
+        function applyBodyBg() {
+          if (lastTheme && document.body) {
+            document.body.style.backgroundColor = lastTheme.bgHex;
+          }
+        }
+        window.__corpusSyncTheme = function(bgHex, isDark) {
+          lastTheme = { bgHex: bgHex, isDark: !!isDark };
+          document.documentElement.style.backgroundColor = bgHex;
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+          applyBodyBg();
+
+          var metas = document.head.querySelectorAll('meta[name="theme-color"]');
+          if (metas.length > 0) {
+            metas[0].removeAttribute('media');
+            metas[0].setAttribute('content', bgHex);
+            for (var i = 1; i < metas.length; i++) {
+              metas[i].remove();
+            }
+          } else {
+            var meta = document.createElement('meta');
+            meta.setAttribute('name', 'theme-color');
+            meta.setAttribute('content', bgHex);
+            document.head.appendChild(meta);
+          }
+
+          try {
+            window.localStorage.setItem('corpus_web_theme_bg', bgHex);
+            window.localStorage.setItem('corpus_web_theme_dark', isDark ? '1' : '0');
+          } catch (_) {}
+        };
+
+        try {
+          var savedBg = window.localStorage.getItem('corpus_web_theme_bg');
+          var savedDark = window.localStorage.getItem('corpus_web_theme_dark');
+          if (savedBg) {
+            window.__corpusSyncTheme(savedBg, savedDark === '1');
+          }
+        } catch (_) {}
+
+        document.addEventListener('DOMContentLoaded', applyBodyBg, { once: true });
+
+        function ensureViewportFitCover(meta) {
+          if (!meta || meta.nodeType !== 1 || meta.getAttribute('name') !== 'viewport') return;
+          var content = meta.getAttribute('content') || '';
+          if (!/viewport-fit\s*=\s*cover/i.test(content)) {
+            var next = content
+              ? content + ', viewport-fit=cover'
+              : 'width=device-width, initial-scale=1.0, viewport-fit=cover';
+            meta.setAttribute('content', next);
+            window.requestAnimationFrame(function() {
+              window.dispatchEvent(new Event('resize'));
+            });
+          }
+        }
+
+        ensureViewportFitCover(document.head.querySelector('meta[name="viewport"]'));
+        if (window.MutationObserver) {
+          var observer = new MutationObserver(function(mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+              var m = mutations[i];
+              if (m.type === 'attributes') {
+                ensureViewportFitCover(m.target);
+              } else if (m.addedNodes) {
+                for (var j = 0; j < m.addedNodes.length; j++) {
+                  ensureViewportFitCover(m.addedNodes[j]);
+                }
+              }
+            }
+          });
+          observer.observe(document.head, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['content']
+          });
+        }
+
+        window.__corpusGetSafeAreaInsets = function() {
+          var probe = document.getElementById('corpus-safe-area-probe');
+          if (!probe || !window.getComputedStyle) return [0, 0, 0, 0];
+          var s = window.getComputedStyle(probe);
+          return [
+            parseFloat(s.paddingTop) || 0,
+            parseFloat(s.paddingRight) || 0,
+            parseFloat(s.paddingBottom) || 0,
+            parseFloat(s.paddingLeft) || 0
+          ];
+        };
+      })();
+    </script>
   </head>
   <body>
+    <div id="corpus-safe-area-probe" aria-hidden="true"></div>
 
     <!-- Splash screen: visible mientras carga Flutter.
          Se oculta cuando Dart dispara el evento 'corpus-ready' (no en

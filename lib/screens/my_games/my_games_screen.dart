@@ -99,40 +99,44 @@ class _MyGamesScreenState extends State<MyGamesScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: CustomScrollView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  isDesktop ? 40 : 16,
-                  isDesktop ? 32 : MediaQuery.of(context).padding.top + 16,
-                  isDesktop ? 40 : 16,
-                  8,
-                ),
-                child: Text(
-                  'Mis juegos',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+      body: SafeArea(
+        top: !isDesktop,
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    isDesktop ? 40 : 16,
+                    isDesktop ? 32 : 16,
+                    isDesktop ? 40 : 16,
+                    8,
+                  ),
+                  child: Text(
+                    'Mis juegos',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
-            ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _MyGamesTabBarDelegate(
-                selectedTab: _selectedTab,
-                onTabSelected: (index) {
-                  setState(() => _selectedTab = index);
-                },
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _MyGamesTabBarDelegate(
+                  selectedTab: _selectedTab,
+                  onTabSelected: (index) {
+                    setState(() => _selectedTab = index);
+                  },
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                ),
               ),
-            ),
-            ..._buildTabContent(userId),
-          ],
+              ..._buildTabContent(userId),
+            ],
+          ),
         ),
       ),
     );

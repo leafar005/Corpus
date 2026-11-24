@@ -3,6 +3,7 @@ import 'package:corpus/routes/tab_url_sync.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/main_screen.dart';
@@ -19,10 +20,14 @@ import 'services/user_settings_service.dart';
 
 import 'package:corpus/globals.dart';
 import 'routes/app_root.dart';
+import 'widgets/system_chrome_wrapper.dart';
 
 void main() async {
   // 1. Asegura que los motores de Flutter están listos
   WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb) {
+    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
+  }
 
   // ErrorWidget personalizado: en debug muestra el detalle completo para
   // diagnosticar el bug; en release muestra un mensaje genérico para no
@@ -170,6 +175,11 @@ class _CorpusAppState extends State<CorpusApp> {
           ),
           themeMode: themeNotifier.currentMode,
           scrollBehavior: const AlwaysScrollbarBehavior(),
+          builder: (context, child) {
+            return SystemChromeWrapper(
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           home: const AppRoot(child: AuthGate()),
         );
       },

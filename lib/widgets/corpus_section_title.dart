@@ -13,12 +13,14 @@ class CorpusScreenTitle extends StatelessWidget {
 
   /// Width of trailing AppBar actions to balance visual centering (e.g. 56 per icon).
   final double trailingBalanceWidth;
+  final Color? color;
 
   const CorpusScreenTitle(
     this.text, {
     super.key,
     this.abbreviateIfLong = false,
     this.trailingBalanceWidth = 0,
+    this.color,
   });
 
   @override
@@ -27,6 +29,7 @@ class CorpusScreenTitle extends StatelessWidget {
     final title = CorpusPackAwareTitle(
       text,
       abbreviateIfLong: abbreviateIfLong,
+      color: color,
     );
 
     if (!ext.useDynamicFrames) return title;
