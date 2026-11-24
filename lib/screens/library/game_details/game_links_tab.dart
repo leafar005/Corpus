@@ -3,7 +3,6 @@ import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import '../../../theme/corpus_theme_extension.dart';
 import '../../../utils/url_utils.dart';
-import '../../../widgets/corpus_network_image.dart';
 
 class GameLinksTab extends StatelessWidget {
   const GameLinksTab({
@@ -259,23 +258,11 @@ class GameLinksTab extends StatelessWidget {
                 }
             }
 
-            String extractDomain(String rawUrl) {
-              String url = rawUrl.trim();
-              if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                url = 'https://$url';
-              }
-              return Uri.tryParse(url)?.host ?? '';
-            }
-
-            final domain = extractDomain(link['url'].toString());
-
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                 border: Border.all(
                   color: Theme.of(
                     context,
@@ -284,9 +271,7 @@ class GameLinksTab extends StatelessWidget {
               ),
               child: Material(
                 type: MaterialType.transparency,
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                 clipBehavior: Clip.antiAlias,
                 child: ListTile(
                   leading: Container(
@@ -298,24 +283,13 @@ class GameLinksTab extends StatelessWidget {
                           .colorScheme
                           .surfaceContainerHighest
                           .withValues(alpha: 0.5),
-                      borderRadius: Theme.of(
-                        context,
-                      ).extension<CorpusThemeExtension>()!.radiusSmall,
+                      borderRadius: CorpusThemeExtension.of(context).radiusSmall,
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: CorpusNetworkImage(
-                        // Usamos el proxy de images.weserv.nl para añadir las
-                        // cabeceras CORS necesarias (Access-Control-Allow-Origin: *)
-                        // a la API de Google Favicons.
-                        // Google siempre devuelve un PNG válido (resolviendo el
-                        // problema de los .ico de Steam/PS) y procesa bien los
-                        // subdominios (como www.igdb.com), pero originalmente
-                        // fallaba en Flutter Web por falta de CORS.
-                        url:
-                            'https://images.weserv.nl/?url=${Uri.encodeComponent('https://www.google.com/s2/favicons?domain=$domain&sz=64')}',
-                        fit: BoxFit.contain,
-                        placeholder: CorpusTablerIcon(itemIcon, size: 18),
+                    child: Center(
+                      child: CorpusTablerIcon(
+                        itemIcon,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),

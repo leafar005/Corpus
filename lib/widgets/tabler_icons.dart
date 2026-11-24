@@ -150,7 +150,6 @@ export 'package:tabler_icons_next/src/user.dart';
 export 'package:tabler_icons_next/src/user_filled.dart';
 export 'package:tabler_icons_next/src/user_minus.dart';
 export 'package:tabler_icons_next/src/user_plus.dart';
-export 'package:tabler_icons_next/src/users.dart';
 export 'package:tabler_icons_next/src/users_group.dart';
 export 'package:tabler_icons_next/src/vaccine.dart';
 export 'package:tabler_icons_next/src/vacuum_cleaner.dart';

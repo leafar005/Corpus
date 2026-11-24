@@ -7,7 +7,14 @@ import '../../theme/corpus_typography.dart';
 import '../p5r_dynamic_frame.dart';
 
 /// Visual variants for [CorpusButton].
-enum CorpusButtonVariant { primary, secondary, outline, ghost, accent }
+enum CorpusButtonVariant {
+  primary,
+  secondary,
+  outline,
+  ghost,
+  accent,
+  destructive,
+}
 
 /// Size presets for [CorpusButton].
 enum CorpusButtonSize { small, medium, large }
@@ -49,7 +56,7 @@ class _CorpusButtonState extends State<CorpusButton> {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final cs = Theme.of(context).colorScheme;
     final metrics = _metricsFor(widget.size);
     final colors = _colorsFor(widget.variant, cs, _enabled);
@@ -257,6 +264,10 @@ class _CorpusButtonState extends State<CorpusButton> {
       CorpusButtonVariant.accent => _ButtonColors(
         background: withOpacity(cs.secondary),
         foreground: withOpacity(cs.onSecondary),
+      ),
+      CorpusButtonVariant.destructive => _ButtonColors(
+        background: withOpacity(cs.error),
+        foreground: withOpacity(cs.onError),
       ),
     };
   }

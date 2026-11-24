@@ -266,6 +266,34 @@ void main() {
       expect(result.length, 2);
     });
 
+    test(
+      'tolera created_at nulo o inválido sin lanzar FormatException (BUG-04)',
+      () {
+        final withNullDate = {
+          'action_type': 'status_change',
+          'user_id': 'u1',
+          'game_id': 1,
+          'created_at': null,
+          'metadata': null,
+        };
+        final withBadDate = {
+          'action_type': 'status_change',
+          'user_id': 'u1',
+          'game_id': 1,
+          'created_at': 'not-a-valid-date',
+          'metadata': null,
+        };
+
+        final result = ActivityRepository.mergeActivityItems(
+          feedItems: [withNullDate, withBadDate],
+          reviewsById: {},
+          partnersByUserGame: {},
+        );
+
+        expect(result.length, 2);
+      },
+    );
+
     // ── Escenario integrado ────────────────────────────────────────────────
 
     test(

@@ -26,11 +26,51 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late final Future<SharedPreferences> _prefsFuture;
+  bool _isSigningOut = false;
 
   @override
   void initState() {
     super.initState();
     _prefsFuture = SharedPreferences.getInstance();
+  }
+
+  Future<void> _handleSignOut() async {
+    if (_isSigningOut) return;
+    setState(() => _isSigningOut = true);
+    try {
+      try {
+        await UserSettingsService().flushNow();
+      } catch (e) {
+        debugPrint('[SettingsScreen] Error flushing settings on signOut: $e');
+      }
+      try {
+        await NotificationService().deleteFcmToken();
+      } catch (e) {
+        debugPrint('[SettingsScreen] Error deleting FCM token on signOut: $e');
+      }
+      try {
+        final prefs = await _prefsFuture;
+        await prefs.setInt('main_tab_index', 0);
+      } catch (e) {
+        debugPrint('[SettingsScreen] Error resetting main_tab_index: $e');
+      }
+      await Supabase.instance.client.auth.signOut();
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo cerrar sesión. Inténtalo de nuevo.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSigningOut = false);
+      }
+    }
   }
 
   Future<void> _handleDebugClearAccount() async {
@@ -315,44 +355,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               onTap: _handleDebugClearAccount,
             ),
-
-            ListTile(
-              leading: const CorpusTablerIcon.broom(
-                size: 20,
-                color: Colors.orange,
-              ),
-              title: const Text(
-                'DEBUG: Limpiar caché de Bundles',
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              onTap: () async {
-                try {
-                  final prefs = await _prefsFuture;
-                  await prefs.remove('bundles_full_cache');
-                  await prefs.remove('bundles_full_cache_time');
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Caché de bundles eliminada.'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error al limpiar caché: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-            ),
           ],
 
           Divider(
@@ -373,13 +375,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            onTap: () async {
-              Navigator.pop(context); // Cierra los ajustes
-              final prefs = await _prefsFuture;
-              await prefs.setInt('main_tab_index', 0);
-              await NotificationService().deleteFcmToken();
-              await Supabase.instance.client.auth.signOut();
-            },
+            onTap: _isSigningOut ? null : _handleSignOut,
           ),
         ],
       ),
@@ -394,7 +390,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
     Widget? trailing,
   }) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(

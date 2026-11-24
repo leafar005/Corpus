@@ -6,6 +6,7 @@ import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/utils/igdb_constants.dart';
+import '../../utils/validation_utils.dart';
 import '../../widgets/corpus_network_image.dart';
 
 class HallOfFameSelectorScreen extends StatefulWidget {
@@ -63,6 +64,12 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
   }
 
   Future<void> _selectGame(int gameId) async {
+    if (widget.pinOrder < 1 || widget.pinOrder > 5 || gameId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selección no válida.')),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) {
@@ -83,16 +90,25 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
             .syncBrowserHistoryAfterProgrammaticPop();
       }
     } catch (e) {
+      debugPrint('[HallOfFameSelector] Error seleccionando juego: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              friendlyErrorMessage(
+                e,
+                fallback: 'No se pudo actualizar el Hall of Fame.',
+              ),
+            ),
+          ),
+        );
         setState(() => _isLoading = false);
       }
     }
   }
 
   Future<void> _removeGame() async {
+    if (widget.pinOrder < 1 || widget.pinOrder > 5) return;
     setState(() => _isLoading = true);
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) {
@@ -113,10 +129,18 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
             .syncBrowserHistoryAfterProgrammaticPop();
       }
     } catch (e) {
+      debugPrint('[HallOfFameSelector] Error quitando juego: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              friendlyErrorMessage(
+                e,
+                fallback: 'No se pudo quitar el juego del Hall of Fame.',
+              ),
+            ),
+          ),
+        );
         setState(() => _isLoading = false);
       }
     }
@@ -196,9 +220,7 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
                           onTap: () =>
                               _selectGame(game['igdb_id'] ?? game['id']),
                           child: ClipRRect(
-                            borderRadius: Theme.of(
-                              context,
-                            ).extension<CorpusThemeExtension>()!.radiusSmall,
+                            borderRadius: CorpusThemeExtension.of(context).radiusSmall,
                             child: coverUrl.isNotEmpty
                                 ? CorpusNetworkImage(
                                     url: coverUrl,

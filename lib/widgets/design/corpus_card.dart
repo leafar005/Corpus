@@ -20,7 +20,7 @@ class CorpusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final cs = Theme.of(context).colorScheme;
     final edgePadding = padding ?? const EdgeInsets.all(16);
     final bg = color ?? cs.surface;

@@ -18,4 +18,22 @@ class GenreTimeStat {
   final double totalHours;
   final int gameCount; // nº de juegos distintos que aportan a este género
   final List<GenreRadarEntry> games;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GenreTimeStat &&
+          runtimeType == other.runtimeType &&
+          genre == other.genre &&
+          totalHours == other.totalHours &&
+          gameCount == other.gameCount &&
+          listEquals(games, other.games);
+
+  @override
+  int get hashCode => Object.hash(
+    genre,
+    totalHours,
+    gameCount,
+    Object.hashAll(games),
+  );
 }

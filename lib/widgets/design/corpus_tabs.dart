@@ -31,7 +31,7 @@ class CorpusTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final cs = Theme.of(context).colorScheme;
 
     final borderColor = cs.outlineVariant;

@@ -184,9 +184,7 @@ class _InfoTabAppearanceScreenState extends State<InfoTabAppearanceScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.surface,
-                          borderRadius: Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()!.radiusMedium,
+                          borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                           border: Border.all(
                             color: isVisible
                                 ? Theme.of(

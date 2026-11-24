@@ -228,35 +228,59 @@ Deno.serve(async (req) => {
     const isServiceRole =
       SUPABASE_SERVICE_ROLE_KEY.length > 0 && token === SUPABASE_SERVICE_ROLE_KEY;
 
-    const { tokens, title, body, data } = await req.json();
-
-    if (!Array.isArray(tokens) || !title || !body) {
-      return new Response(
-        JSON.stringify({ error: "tokens[], title and body are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let authenticatedUserId: string | null = null;
+    if (!isServiceRole) {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseAdmin.auth.getUser(token);
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: "This function requires service_role access" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      authenticatedUserId = user.id;
     }
 
-    let targetTokens: string[] = tokens;
-    let targetTitle: string = title;
-    let targetBody: string = body;
+    const payload = await req.json();
+    const { tokens, title, body, data } = payload ?? {};
 
-    if (!isServiceRole) {
-      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (authError || !user || data?.type !== "test") {
+    let targetTokens: string[];
+    let targetTitle: string;
+    let targetBody: string;
+    let targetData: Record<string, string> | undefined;
+
+    if (isServiceRole) {
+      if (!Array.isArray(tokens) || !title || !body) {
+        return new Response(
+          JSON.stringify({ error: "tokens[], title and body are required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      targetTokens = tokens;
+      targetTitle = title;
+      targetBody = body;
+      targetData = data;
+    } else {
+      if (data?.type !== "test") {
         return new Response(
           JSON.stringify({ error: "This function requires service_role access" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Usuario autenticado probando sus propias notificaciones:
-      // restringir estrictamente a tokens registrados a nombre de `user.id`
-      const { data: ownedRows } = await supabaseAdmin
+      const candidateTokens = Array.isArray(tokens)
+        ? tokens.filter((t: unknown): t is string => typeof t === "string" && t.length > 0).slice(0, 5)
+        : [];
+      let query = supabaseAdmin
         .from("push_tokens")
         .select("token")
-        .eq("user_id", user.id)
-        .in("token", tokens);
+        .eq("user_id", authenticatedUserId!);
+      if (candidateTokens.length > 0) {
+        query = query.in("token", candidateTokens);
+      }
+      const { data: ownedRows } = await query;
 
       targetTokens = (ownedRows ?? []).map((r: any) => r.token);
       if (targetTokens.length === 0) {
@@ -267,9 +291,10 @@ Deno.serve(async (req) => {
       }
       targetTitle = "Corpus — Notificación de prueba";
       targetBody = "Las notificaciones funcionan correctamente.";
+      targetData = { type: "test" };
     }
 
-    const result = await sendToTokens(targetTokens, targetTitle, targetBody, data);
+    const result = await sendToTokens(targetTokens, targetTitle, targetBody, targetData);
 
     return new Response(JSON.stringify({ success: true, ...result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

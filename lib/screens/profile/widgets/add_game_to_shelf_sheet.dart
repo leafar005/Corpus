@@ -140,9 +140,7 @@ class _AddGameToShelfSheetState extends State<_AddGameToShelfSheet> {
               const SizedBox(height: 12),
               Builder(
                 builder: (context) {
-                  final ext = Theme.of(
-                    context,
-                  ).extension<CorpusThemeExtension>()!;
+                  final ext = CorpusThemeExtension.of(context);
                   final searchBorder = OutlineInputBorder(
                     borderRadius: ext.radiusMedium,
                     borderSide: BorderSide.none,

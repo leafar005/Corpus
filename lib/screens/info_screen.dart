@@ -75,9 +75,7 @@ class InfoScreen extends StatelessWidget {
             Card(
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
               ),
               child: Column(
                 children: [
@@ -154,9 +152,7 @@ class InfoScreen extends StatelessWidget {
             Card(
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
               ),
               child: Column(
                 children: [

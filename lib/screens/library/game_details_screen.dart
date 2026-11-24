@@ -16,6 +16,7 @@ import '../library/review_modal.dart';
 import '../../widgets/achievement_toast.dart';
 import '../../models/models.dart';
 import '../../utils/format_utils.dart';
+import '../../utils/validation_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameDetailsScreen extends StatefulWidget {
@@ -37,6 +38,7 @@ class GameDetailsScreen extends StatefulWidget {
 class _GameDetailsScreenState extends State<GameDetailsScreen> {
   late final GameDetailsController _controller;
   bool _isSaving = false;
+  bool _isDeletingReview = false;
   int _selectedMainTabIndex = 0;
 
   final TextEditingController _commentController = TextEditingController();
@@ -417,6 +419,63 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     }
   }
 
+  Future<void> _confirmAndDeleteReview(Review review) async {
+    if (_isDeletingReview) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar reseña'),
+        content: const Text(
+          '¿Estás seguro de que quieres eliminar esta reseña? Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeletingReview = true);
+    try {
+      final removedFromLibrary = await _controller.deleteReview(review);
+      if (!mounted) return;
+      libraryUpdateNotifier.value++;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            removedFromLibrary
+                ? 'Reseña eliminada y juego quitado de tu biblioteca'
+                : 'Reseña eliminada',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            friendlyErrorMessage(
+              e,
+              fallback: 'Error al eliminar la reseña. Inténtalo de nuevo.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isDeletingReview = false);
+    }
+  }
+
   Widget _buildTabButton(int index, String title) {
     final isSelected = _selectedMainTabIndex == index;
     return MouseRegion(
@@ -729,7 +788,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             onShowReviewModal: () => _showReviewModal(),
             onEditReview: (review) =>
                 _showReviewModal(existingReview: review),
-            onDeleteReview: _controller.deleteReview,
+            onDeleteReview: _confirmAndDeleteReview,
             tabsSliver: SliverPersistentHeader(
               pinned: true,
               delegate: _GameDetailsTabBarDelegate(

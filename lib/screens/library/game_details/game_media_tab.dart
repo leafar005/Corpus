@@ -118,13 +118,9 @@ class _GameMediaTabState extends State<GameMediaTab> {
                       .toList();
                   showFullScreenGallery(context, urls, index);
                 },
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                 child: ClipRRect(
-                  borderRadius: Theme.of(
-                    context,
-                  ).extension<CorpusThemeExtension>()!.radiusMedium,
+                  borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                   child: CorpusNetworkImage(url: url, fit: BoxFit.cover),
                 ),
               );
@@ -147,16 +143,12 @@ class _GameMediaTabState extends State<GameMediaTab> {
               final videoUrl = IGDBService.getVideoUrl(videoId);
               return InkWell(
                 onTap: () => openUrl(videoUrl),
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     ClipRRect(
-                      borderRadius: Theme.of(
-                        context,
-                      ).extension<CorpusThemeExtension>()!.radiusMedium,
+                      borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                       child: CorpusNetworkImage(
                         url: thumbUrl,
                         fit: BoxFit.cover,
@@ -165,9 +157,7 @@ class _GameMediaTabState extends State<GameMediaTab> {
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.3),
-                        borderRadius: Theme.of(
-                          context,
-                        ).extension<CorpusThemeExtension>()!.radiusMedium,
+                        borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                       ),
                       child: const Center(
                         child: CorpusTablerIcon(CorpusIconKind.PlayCircleFill,
@@ -203,13 +193,9 @@ class _GameMediaTabState extends State<GameMediaTab> {
                       .toList();
                   showFullScreenGallery(context, urls, index);
                 },
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                 child: ClipRRect(
-                  borderRadius: Theme.of(
-                    context,
-                  ).extension<CorpusThemeExtension>()!.radiusMedium,
+                  borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                   child: CorpusNetworkImage(url: url, fit: BoxFit.cover),
                 ),
               );

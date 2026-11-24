@@ -268,7 +268,7 @@ class GroupsTabState extends State<GroupsTab> {
     }
 
     if (_controller.groups.isEmpty) {
-      final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+      final ext = CorpusThemeExtension.of(context);
       final colorScheme = Theme.of(context).colorScheme;
       return SliverFillRemaining(
         hasScrollBody: false,
@@ -308,7 +308,7 @@ class GroupsTabState extends State<GroupsTab> {
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
     final horizontalPadding = isDesktop ? 40.0 : 16.0;
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final filtered = _filteredGroups;
 
@@ -527,7 +527,7 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final previews = group.previewGames;
 
     return Card(
@@ -713,7 +713,7 @@ class _CoverMosaic2x2 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
 
     if (previews.isEmpty) {
       return Container(

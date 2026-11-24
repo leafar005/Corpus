@@ -22,4 +22,26 @@ class GenreRadarEntry {
   final List<String> genres;
   final double hours;
   final DateTime effectiveDate;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GenreRadarEntry &&
+          runtimeType == other.runtimeType &&
+          gameId == other.gameId &&
+          gameTitle == other.gameTitle &&
+          coverUrl == other.coverUrl &&
+          hours == other.hours &&
+          effectiveDate == other.effectiveDate &&
+          listEquals(genres, other.genres);
+
+  @override
+  int get hashCode => Object.hash(
+    gameId,
+    gameTitle,
+    coverUrl,
+    hours,
+    effectiveDate,
+    Object.hashAll(genres),
+  );
 }

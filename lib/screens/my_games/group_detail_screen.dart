@@ -432,7 +432,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final allItems = _group?.items ?? [];
     final isDesktop = MediaQuery.of(context).size.width > 800;
     final horizontalPadding = isDesktop ? 40.0 : 16.0;
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final description = _group?.description?.trim() ?? '';
 

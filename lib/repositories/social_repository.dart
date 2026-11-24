@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/postgrest_utils.dart';
 
 /// Repositorio para toda la lógica social: amigos, solicitudes de amistad
 /// y búsqueda de usuarios.
@@ -20,12 +21,14 @@ class SocialRepository {
   /// Excluye al usuario actual.
   Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     final myId = currentUserId;
-    if (myId == null || query.trim().isEmpty) return [];
+    final trimmed = query.trim();
+    if (myId == null || trimmed.isEmpty) return [];
 
+    final escaped = escapeLikePattern(trimmed);
     final data = await _client
         .from('users')
         .select('id, username, avatar_url, display_name')
-        .ilike('username', '%${query.trim()}%')
+        .ilike('username', '%$escaped%')
         .neq('id', myId)
         .limit(20);
 
@@ -70,10 +73,21 @@ class SocialRepository {
   Future<void> sendFriendRequest(String targetId) async {
     final myId = currentUserId;
     if (myId == null) throw Exception('Not logged in');
+    final trimmedTarget = targetId.trim();
+    if (trimmedTarget.isEmpty) {
+      throw ArgumentError.value(targetId, 'targetId', 'ID de usuario vacío');
+    }
+    if (trimmedTarget == myId) {
+      throw ArgumentError.value(
+        targetId,
+        'targetId',
+        'No puedes enviarte una solicitud de amistad a ti mismo',
+      );
+    }
 
     await _client.from('friendships').insert({
       'requester_id': myId,
-      'addressee_id': targetId,
+      'addressee_id': trimmedTarget,
       'status': 'pending',
     });
   }
@@ -82,11 +96,19 @@ class SocialRepository {
   Future<void> acceptFriendRequest(String requesterId) async {
     final myId = currentUserId;
     if (myId == null) throw Exception('Not logged in');
+    final trimmedRequester = requesterId.trim();
+    if (trimmedRequester.isEmpty) {
+      throw ArgumentError.value(
+        requesterId,
+        'requesterId',
+        'ID de solicitante vacío',
+      );
+    }
 
     await _client
         .from('friendships')
         .update({'status': 'accepted'})
-        .eq('requester_id', requesterId)
+        .eq('requester_id', trimmedRequester)
         .eq('addressee_id', myId);
   }
 
@@ -94,11 +116,19 @@ class SocialRepository {
   Future<void> rejectFriendRequest(String requesterId) async {
     final myId = currentUserId;
     if (myId == null) throw Exception('Not logged in');
+    final trimmedRequester = requesterId.trim();
+    if (trimmedRequester.isEmpty) {
+      throw ArgumentError.value(
+        requesterId,
+        'requesterId',
+        'ID de solicitante vacío',
+      );
+    }
 
     await _client
         .from('friendships')
         .delete()
-        .eq('requester_id', requesterId)
+        .eq('requester_id', trimmedRequester)
         .eq('addressee_id', myId);
   }
 
@@ -106,10 +136,18 @@ class SocialRepository {
   Future<void> cancelSentRequest(String addresseeId) async {
     final myId = currentUserId;
     if (myId == null) throw Exception('Not logged in');
+    final trimmedAddressee = addresseeId.trim();
+    if (trimmedAddressee.isEmpty) {
+      throw ArgumentError.value(
+        addresseeId,
+        'addresseeId',
+        'ID de destinatario vacío',
+      );
+    }
 
     await _client.from('friendships').delete().match({
       'requester_id': myId,
-      'addressee_id': addresseeId,
+      'addressee_id': trimmedAddressee,
     });
   }
 
@@ -178,12 +216,14 @@ class SocialRepository {
   Future<void> removeFriend(String friendId) async {
     final myId = currentUserId;
     if (myId == null) throw Exception('Not logged in');
+    final safeMyId = requireValidUuid(myId, name: 'myId');
+    final safeFriendId = requireValidUuid(friendId, name: 'friendId');
 
     await _client
         .from('friendships')
         .delete()
         .or(
-          'and(requester_id.eq.$myId,addressee_id.eq.$friendId),and(requester_id.eq.$friendId,addressee_id.eq.$myId)',
+          'and(requester_id.eq.$safeMyId,addressee_id.eq.$safeFriendId),and(requester_id.eq.$safeFriendId,addressee_id.eq.$safeMyId)',
         );
   }
 }

@@ -7,7 +7,7 @@ import 'style_pack.dart';
 ///
 /// Access from any widget:
 /// ```dart
-/// final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+/// final ext = CorpusThemeExtension.of(context);
 /// ```
 @immutable
 class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
@@ -30,6 +30,15 @@ class CorpusThemeExtension extends ThemeExtension<CorpusThemeExtension> {
     this.navBarStyle = NavBarStyle.solid,
     this.useDynamicFrames = false,
   });
+
+  static final CorpusThemeExtension _fallback =
+      CorpusThemeExtension.fromPack(StylePack.defaultPack());
+
+  /// Returns the active [CorpusThemeExtension] from [context], falling back to
+  /// [StylePack.defaultPack] defaults when none is registered in the theme.
+  static CorpusThemeExtension of(BuildContext context) {
+    return Theme.of(context).extension<CorpusThemeExtension>() ?? _fallback;
+  }
 
   /// Build from a [StylePack].
   factory CorpusThemeExtension.fromPack(StylePack pack) {

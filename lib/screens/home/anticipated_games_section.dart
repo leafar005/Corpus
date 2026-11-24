@@ -8,6 +8,7 @@ import '../../widgets/corpus_section_title.dart';
 import '../../widgets/p5r_styled_panel.dart';
 import '../../widgets/p5r_dynamic_frame.dart';
 import '../../widgets/corpus_network_image.dart';
+import '../../globals.dart';
 
 class AnticipatedGamesSection extends StatefulWidget {
   final List<dynamic> games;
@@ -36,12 +37,14 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
   void initState() {
     super.initState();
     _now = DateTime.now();
-    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      if (!mounted || !TickerMode.valuesOf(context).enabled) return;
-      setState(() {
-        _now = DateTime.now();
+    if (!kDisableCarouselForTests) {
+      _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
+        if (!mounted || !TickerMode.valuesOf(context).enabled) return;
+        setState(() {
+          _now = DateTime.now();
+        });
       });
-    });
+    }
   }
 
   @override
@@ -312,9 +315,7 @@ class _AnticipatedGamesSectionState extends State<AnticipatedGamesSection> {
   }
 
   Widget _buildDigitBox(String digit) {
-    final isP5r = Theme.of(
-      context,
-    ).extension<CorpusThemeExtension>()!.useDynamicFrames;
+    final isP5r = CorpusThemeExtension.of(context).useDynamicFrames;
 
     if (isP5r) {
       return Padding(

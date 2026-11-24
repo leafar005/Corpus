@@ -71,5 +71,21 @@ void main() {
       );
       expect(IGDBService.sanitizeApicalypseTerm('   " ; \\  '), '');
     });
+
+    test(
+      'buildLenientSearchQuery sanitiza operadores e incluye juegos sin votos',
+      () {
+        final query = IGDBService.buildLenientSearchQuery(
+          'Hades"; where id > 0; &quot;II&quot; \\test',
+        );
+        expect(query, isNotNull);
+        expect(query, isNot(contains('where id > 0')));
+        expect(
+          query,
+          contains('(total_rating_count != null | total_rating_count = null)'),
+        );
+        expect(IGDBService.buildLenientSearchQuery('   " ; \\  '), isNull);
+      },
+    );
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../repositories/profile_repository.dart';
 import '../../../repositories/activity_repository.dart';
 import '../../../utils/safe_change_notifier.dart';
@@ -57,16 +58,51 @@ class ProfileController extends SafeChangeNotifier {
       fetchProfileData();
     }
 
-    _authSub = _repo.onAuthStateChange.listen((_) {
+    _authSub = _repo.onAuthStateChange.listen((authState) {
       if (isDisposed || userId != null) return;
+      final event = authState.event;
       final loggedInNow = _repo.currentUserId != null;
-      if (loggedInNow && userProfile == null) {
-        isLoading = true;
-        notify();
-        fetchProfileData();
-      } else {
+      if (event == AuthChangeEvent.signedOut) {
         userProfile = null;
+        wishlistGames = [];
+        wishlistCount = 0;
+        playingGames = [];
+        playingCount = 0;
+        toPlayGames = [];
+        toPlayCount = 0;
+        beatenGames = [];
+        beatenCount = 0;
+        platinumGames = [];
+        platinumCount = 0;
+        ratings = [];
+        hallOfFame = List.filled(5, null);
+        friendsCount = 0;
+        stories = [];
+        hasError = false;
+        errorMessage = null;
+        isLoading = false;
         notify();
+        return;
+      }
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.initialSession) {
+        if (loggedInNow &&
+            (userProfile == null ||
+                userProfile?['id']?.toString() != _repo.currentUserId)) {
+          isLoading = true;
+          notify();
+          fetchProfileData();
+        }
+        return;
+      }
+      if (event == AuthChangeEvent.userUpdated) {
+        if (loggedInNow) {
+          fetchProfileData();
+        }
+        return;
+      }
+      if (event == AuthChangeEvent.tokenRefreshed) {
+        return;
       }
     });
   }

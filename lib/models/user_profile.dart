@@ -6,6 +6,8 @@
 
 import 'package:flutter/foundation.dart';
 
+const Object _sentinel = Object();
+
 /// Perfil público de un usuario de Corpus.
 @immutable
 class UserProfile {
@@ -34,13 +36,17 @@ class UserProfile {
   /// Construye un [UserProfile] desde una fila de Supabase.
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
-      id: map['id'] as String,
-      username: map['username'] as String? ?? '',
-      displayName: map['display_name'] as String?,
-      avatarUrl: map['avatar_url'] as String?,
-      bio: map['bio'] as String?,
-      xp: (map['xp'] as num?)?.toInt(),
-      level: (map['level'] as num?)?.toInt(),
+      id: map['id']?.toString() ?? '',
+      username: map['username']?.toString() ?? '',
+      displayName: map['display_name']?.toString(),
+      avatarUrl: map['avatar_url']?.toString(),
+      bio: map['bio']?.toString(),
+      xp:
+          (map['xp'] as num?)?.toInt() ??
+          int.tryParse(map['xp']?.toString() ?? ''),
+      level:
+          (map['level'] as num?)?.toInt() ??
+          int.tryParse(map['level']?.toString() ?? ''),
     );
   }
 
@@ -56,20 +62,24 @@ class UserProfile {
 
   UserProfile copyWith({
     String? username,
-    String? displayName,
-    String? avatarUrl,
-    String? bio,
-    int? xp,
-    int? level,
+    Object? displayName = _sentinel,
+    Object? avatarUrl = _sentinel,
+    Object? bio = _sentinel,
+    Object? xp = _sentinel,
+    Object? level = _sentinel,
   }) {
     return UserProfile(
       id: id,
       username: username ?? this.username,
-      displayName: displayName ?? this.displayName,
-      avatarUrl: avatarUrl ?? this.avatarUrl,
-      bio: bio ?? this.bio,
-      xp: xp ?? this.xp,
-      level: level ?? this.level,
+      displayName: identical(displayName, _sentinel)
+          ? this.displayName
+          : displayName as String?,
+      avatarUrl: identical(avatarUrl, _sentinel)
+          ? this.avatarUrl
+          : avatarUrl as String?,
+      bio: identical(bio, _sentinel) ? this.bio : bio as String?,
+      xp: identical(xp, _sentinel) ? this.xp : xp as int?,
+      level: identical(level, _sentinel) ? this.level : level as int?,
     );
   }
 

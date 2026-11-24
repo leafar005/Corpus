@@ -4,15 +4,13 @@
 
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
+importScripts('/firebase-config.js');
 
-firebase.initializeApp({
-  apiKey: "AIzaSyAGjsQRsHKWe2C6HSn1IqVlqn91O2e6IVE",
-  authDomain: "corpus-games.firebaseapp.com",
-  projectId: "corpus-games",
-  storageBucket: "corpus-games.firebasestorage.app",
-  messagingSenderId: "1081828301308",
-  appId: "1:1081828301308:web:bb9580b5efd664baacba79"
-});
+if (self.__CORPUS_FIREBASE_CONFIG__ && self.__CORPUS_FIREBASE_CONFIG__.apiKey) {
+  firebase.initializeApp(self.__CORPUS_FIREBASE_CONFIG__);
+} else {
+  console.warn('[Corpus SW] Falta /firebase-config.js; Firebase no inicializado.');
+}
 
 // IMPORTANTE — por qué esto ya NO usa messaging.onBackgroundMessage():
 // ese hook del SDK de Firebase no se dispara de forma fiable en iOS Safari

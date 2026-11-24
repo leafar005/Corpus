@@ -430,9 +430,9 @@ class _GroupedPostDetailsScreenState extends State<GroupedPostDetailsScreen> {
                                                 .withValues(alpha: 0.1)
                                           : null,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: theme
-                                            .extension<CorpusThemeExtension>()!
-                                            .radiusLarge,
+                                        borderRadius: CorpusThemeExtension.of(
+                                          context,
+                                        ).radiusLarge,
                                       ),
                                     ),
                                   ),
@@ -457,9 +457,9 @@ class _GroupedPostDetailsScreenState extends State<GroupedPostDetailsScreen> {
                                             .surfaceContainerHighest,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: theme
-                                            .extension<CorpusThemeExtension>()!
-                                            .radiusLarge,
+                                        borderRadius: CorpusThemeExtension.of(
+                                          context,
+                                        ).radiusLarge,
                                       ),
                                     ),
                                   ),
@@ -556,9 +556,7 @@ class _GroupedGameTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: theme
-                    .extension<CorpusThemeExtension>()!
-                    .radiusSmall,
+                borderRadius: CorpusThemeExtension.of(context).radiusSmall,
                 child: SizedBox(
                   width: 100,
                   height: 140,

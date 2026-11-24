@@ -75,10 +75,16 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   Future<void> _loadRequests() async {
     if (_repo.currentUserId == null) {
-      if (mounted) setState(() => _isLoadingRequests = false);
+      if (mounted) {
+        setState(() {
+          _receivedRequests = [];
+          _sentRequests = [];
+          _isLoadingRequests = false;
+        });
+      }
       return;
     }
-    setState(() => _isLoadingRequests = true);
+    if (mounted) setState(() => _isLoadingRequests = true);
     try {
       final received = await _repo.fetchReceivedRequests();
       final sent = await _repo.fetchSentRequests();
@@ -91,16 +97,23 @@ class _FriendsScreenState extends State<FriendsScreen>
         });
       }
     } catch (e) {
+      debugPrint('[FriendsScreen] Error loading requests: $e');
       if (mounted) setState(() => _isLoadingRequests = false);
     }
   }
 
   Future<void> _loadFriends() async {
     if (_repo.currentUserId == null) {
-      if (mounted) setState(() => _isLoadingFriends = false);
+      if (mounted) {
+        setState(() {
+          _friends = [];
+          _sentOrAccepted = {};
+          _isLoadingFriends = false;
+        });
+      }
       return;
     }
-    setState(() => _isLoadingFriends = true);
+    if (mounted) setState(() => _isLoadingFriends = true);
     try {
       final friends = await _repo.fetchMyFriends();
       final sentOrAcceptedIds = await _repo.fetchSentOrAcceptedIds();
@@ -113,6 +126,7 @@ class _FriendsScreenState extends State<FriendsScreen>
         });
       }
     } catch (e) {
+      debugPrint('[FriendsScreen] Error loading friends: $e');
       if (mounted) setState(() => _isLoadingFriends = false);
     }
   }
@@ -209,12 +223,22 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 
   Future<void> _removeFriend(Map<String, dynamic> friendship) async {
+    final friendMap = friendship['friend'];
+    final friendUsername = friendMap is Map
+        ? (friendMap['username']?.toString() ?? 'usuario')
+        : 'usuario';
+    final friendId = friendMap is Map ? (friendMap['id']?.toString() ?? '') : '';
+    if (friendId.isEmpty) {
+      _showSnack('No se pudo identificar al amigo.');
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar amigo'),
         content: Text(
-          '¿Quieres eliminar a @${friendship['friend']['username']} de tu lista de amigos?',
+          '¿Quieres eliminar a @$friendUsername de tu lista de amigos?',
         ),
         actions: [
           TextButton(
@@ -228,10 +252,9 @@ class _FriendsScreenState extends State<FriendsScreen>
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     try {
-      final friendId = friendship['friend']['id'] as String;
       await _repo.removeFriend(friendId);
       _showSnack('Amigo eliminado');
       await _loadFriends();
@@ -305,9 +328,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                     )
                   : null,
               border: OutlineInputBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
               ),
               filled: true,
             ),

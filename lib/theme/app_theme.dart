@@ -36,9 +36,11 @@ class ThemeNotifier extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await _applyFromPrefs(prefs);
 
-    final urlPackId = StylePackUrlOverride.packIdFromUri(Uri.base);
-    if (urlPackId != null) {
-      _applyStylePack(urlPackId, persist: false);
+    if (kDebugMode) {
+      final urlPackId = StylePackUrlOverride.packIdFromUri(Uri.base);
+      if (urlPackId != null) {
+        _applyStylePack(urlPackId, persist: false);
+      }
     }
 
     notifyListeners();
@@ -69,9 +71,11 @@ class ThemeNotifier extends ChangeNotifier {
   Future<void> reloadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await _applyFromPrefs(prefs);
-    final urlPackId = StylePackUrlOverride.packIdFromUri(Uri.base);
-    if (urlPackId != null) {
-      _applyStylePack(urlPackId, persist: false);
+    if (kDebugMode) {
+      final urlPackId = StylePackUrlOverride.packIdFromUri(Uri.base);
+      if (urlPackId != null) {
+        _applyStylePack(urlPackId, persist: false);
+      }
     }
     notifyListeners();
   }

@@ -3,9 +3,9 @@
 // Modelo tipado para un juego del catálogo de Corpus.
 // Consolida los campos de IGDB + los campos propios de la tabla `games`.
 // No reemplaza GameDetailsScreen de golpe — este modelo se adopta
+// progresivamente: primero en repositorios, luego en pantallas.
 
 import 'dart:convert';
-// progresivamente: primero en repositorios, luego en pantallas.
 
 import 'package:flutter/foundation.dart';
 
@@ -26,7 +26,9 @@ class Game {
     this.developer,
     this.gameEngines = const [],
     this.franchises = const [],
+    this.franchiseIds = const {},
     this.collection,
+    this.collectionId,
     this.category,
     this.gameType,
     this.parentGameId,
@@ -65,7 +67,9 @@ class Game {
   final String? developer;
   final List<String> gameEngines;
   final List<String> franchises;
+  final Map<String, int> franchiseIds;
   final String? collection;
+  final int? collectionId;
   final int? category;
   final int? gameType;
   final int? parentGameId;
@@ -107,13 +111,20 @@ class Game {
 
   /// Construye un [Game] desde una fila de Supabase o un objeto de IGDB.
   factory Game.fromMap(Map<String, dynamic> map) {
-    final rawDev = map['developer'] as String?;
+    final parsedIgdbId = _parseInt(map['igdb_id'] ?? map['id']);
+    if (parsedIgdbId == null) {
+      throw ArgumentError(
+        'Game.fromMap requiere un igdb_id o id entero válido',
+      );
+    }
+
+    final rawDev = map['developer']?.toString();
     final hasExplicitDev =
         rawDev != null &&
         rawDev.isNotEmpty &&
         rawDev != 'Desconocido' &&
         rawDev != 'Desarrollador desconocido';
-    final rawPub = map['publisher'] as String?;
+    final rawPub = map['publisher']?.toString();
     final parsedCompanies =
         (!hasExplicitDev || rawPub == null || rawPub.isEmpty)
         ? _parseInvolvedCompanies(map['involved_companies'])
@@ -124,20 +135,39 @@ class Game {
             publisherId: null,
           );
 
+    final rawCover = map['cover'];
+    final coverImageId = rawCover is Map ? rawCover['image_id'] : null;
+    final firstReleaseTs = _parseInt(map['first_release_date']);
+    final String? releaseDate = firstReleaseTs != null
+        ? DateTime.fromMillisecondsSinceEpoch(
+            firstReleaseTs * 1000,
+            isUtc: true,
+          ).toIso8601String()
+        : (map['release_date'] is DateTime
+              ? (map['release_date'] as DateTime).toUtc().toIso8601String()
+              : map['release_date']?.toString());
+
+    final rawMcUser = _parseDouble(map['metacritic_user_score']);
+    final parsedMcUser = rawMcUser != null
+        ? (rawMcUser > 10 ? rawMcUser / 10 : rawMcUser)
+        : null;
+
+    final parsedCollection = _parseCollection(
+      map['collection'] ?? _firstListElement(map['collections']),
+      fallbackId: _parseInt(map['collection_id']),
+    );
+    final parsedFranchises = _parseFranchises(map['franchises']);
+
     return Game(
-      igdbId: (map['igdb_id'] ?? map['id']) as int,
-      title: map['title'] as String? ?? map['name'] as String? ?? '',
+      igdbId: parsedIgdbId,
+      title: map['title']?.toString() ?? map['name']?.toString() ?? '',
       coverUrl:
-          map['cover_url'] as String? ??
-          (map['cover'] != null && map['cover']['image_id'] != null
-              ? 'https://images.igdb.com/igdb/image/upload/t_cover_big/${map['cover']['image_id']}.jpg'
+          map['cover_url']?.toString() ??
+          (coverImageId != null
+              ? 'https://images.igdb.com/igdb/image/upload/t_cover_big/$coverImageId.jpg'
               : null),
-      releaseDate: map['first_release_date'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(
-              (map['first_release_date'] as num).toInt() * 1000,
-            ).toIso8601String()
-          : map['release_date'] as String?,
-      summary: map['summary'] as String?,
+      releaseDate: releaseDate,
+      summary: map['summary']?.toString(),
       genres: _parseStringList(map['genres']),
       themes: _parseStringList(map['themes']),
       gameModes: _parseStringList(map['game_modes']),
@@ -146,43 +176,40 @@ class Game {
           ? rawDev
           : (parsedCompanies.developer ?? rawDev),
       gameEngines: _parseStringList(map['game_engines']),
-      franchises: _parseStringList(map['franchises']),
-      collection: _parseCollectionName(map['collection']),
-      category: (map['category'] as num?)?.toInt(),
-      gameType: (map['game_type'] as num?)?.toInt(),
-      parentGameId: (map['parent_game'] as num?)?.toInt(),
-      versionParentId: (map['version_parent'] as num?)?.toInt(),
-      remakeOfId: (map['remake_of'] as num?)?.toInt(),
-      remasterOfId: (map['remaster_of'] as num?)?.toInt(),
+      franchises: parsedFranchises.names,
+      franchiseIds: parsedFranchises.ids,
+      collection: parsedCollection.name,
+      collectionId: parsedCollection.id,
+      category: _parseInt(map['category']),
+      gameType: _parseInt(map['game_type']),
+      parentGameId: _parseInt(map['parent_game']),
+      versionParentId: _parseInt(map['version_parent']),
+      remakeOfId: _parseInt(map['remake_of']),
+      remasterOfId: _parseInt(map['remaster_of']),
       isSteamOnly: map['is_steam_only'] == true,
-      metacriticScore: (map['metacritic_score'] as num?)?.toInt(),
-      metacriticUrl: map['metacritic_url'] as String?,
-      metacriticUserScore: (map['metacritic_user_score'] as num?) != null
-          ? ((map['metacritic_user_score'] as num).toDouble() > 10
-                ? (map['metacritic_user_score'] as num).toDouble() / 10
-                : (map['metacritic_user_score'] as num).toDouble())
-          : null,
-      metacriticSlug: map['metacritic_slug'] as String?,
-      metacriticUpdatedAt: map['metacritic_updated_at'] != null
-          ? DateTime.tryParse(map['metacritic_updated_at'] as String)
-          : null,
-      metacriticCriticCount: (map['metacritic_critic_count'] as num?)?.toInt(),
-      metacriticUserRatingCount: (map['metacritic_user_rating_count'] as num?)
-          ?.toInt(),
+      metacriticScore: _parseInt(map['metacritic_score']),
+      metacriticUrl: map['metacritic_url']?.toString(),
+      metacriticUserScore: parsedMcUser,
+      metacriticSlug: map['metacritic_slug']?.toString(),
+      metacriticUpdatedAt: _parseDateTime(map['metacritic_updated_at']),
+      metacriticCriticCount: _parseInt(map['metacritic_critic_count']),
+      metacriticUserRatingCount: _parseInt(map['metacritic_user_rating_count']),
       screenshots: _parseStringList(map['screenshots'], isImage: true),
       artworks: _parseStringList(map['artworks'], isImage: true),
       videos: _parseStringList(map['videos'], isVideo: true),
-      websites: map['websites'] is List ? map['websites'] as List : [],
+      websites: map['websites'] is List
+          ? List<dynamic>.unmodifiable(map['websites'] as List)
+          : const [],
       publisher: (rawPub != null && rawPub.isNotEmpty)
           ? rawPub
           : parsedCompanies.publisher,
       publisherId:
-          (map['publisher_id'] as num?)?.toInt() ?? parsedCompanies.publisherId,
+          _parseInt(map['publisher_id']) ?? parsedCompanies.publisherId,
       developerId:
-          (map['developer_id'] as num?)?.toInt() ?? parsedCompanies.developerId,
+          _parseInt(map['developer_id']) ?? parsedCompanies.developerId,
       playerPerspectives: _parseStringList(map['player_perspectives']),
-      aggregatedRating: (map['aggregated_rating'] as num?)?.toDouble(),
-      url: map['url'] as String?,
+      aggregatedRating: _parseDouble(map['aggregated_rating']),
+      url: map['url']?.toString(),
     );
   }
 
@@ -198,15 +225,27 @@ class Game {
     if (platforms.isNotEmpty) 'platforms': platforms,
     if (developer != null) 'developer': developer,
     if (gameEngines.isNotEmpty) 'game_engines': gameEngines,
-    if (franchises.isNotEmpty) 'franchises': franchises,
-    if (collection != null) 'collection': collection,
+    if (franchises.isNotEmpty)
+      'franchises': franchiseIds.isNotEmpty
+          ? [
+              for (final name in franchises)
+                if (franchiseIds.containsKey(name))
+                  {'id': franchiseIds[name], 'name': name}
+                else
+                  {'name': name},
+            ]
+          : franchises,
+    if (collection != null)
+      'collection': collectionId != null
+          ? {'id': collectionId, 'name': collection}
+          : collection,
     if (category != null) 'category': category,
     if (gameType != null) 'game_type': gameType,
     if (parentGameId != null) 'parent_game': parentGameId,
     if (versionParentId != null) 'version_parent': versionParentId,
     if (remakeOfId != null) 'remake_of': remakeOfId,
     if (remasterOfId != null) 'remaster_of': remasterOfId,
-    if (isSteamOnly) 'is_steam_only': true,
+    'is_steam_only': isSteamOnly,
     if (metacriticScore != null) 'metacritic_score': metacriticScore,
     if (metacriticUrl != null) 'metacritic_url': metacriticUrl,
     if (metacriticUserScore != null)
@@ -233,6 +272,33 @@ class Game {
 
   // ── Helpers de parsing ──────────────────────────────────────────────────────
 
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim());
+    return null;
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value.trim());
+    return null;
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
+  }
+
+  static dynamic _firstListElement(dynamic raw) {
+    if (raw is List && raw.isNotEmpty) return raw.first;
+    return null;
+  }
+
   static List<String> _parseStringList(
     dynamic raw, {
     bool isImage = false,
@@ -240,24 +306,28 @@ class Game {
   }) {
     if (raw == null) return const [];
     if (raw is List) {
-      return raw
-          .map((e) {
-            if (e is Map) {
-              if (isImage && e['image_id'] != null) {
-                return e['image_id'].toString();
-              }
-              if (isVideo && e['video_id'] != null) {
-                return e['video_id'].toString();
-              }
-              return e['name']?.toString() ?? '';
-            }
-            return e.toString();
-          })
-          .where((s) => s.isNotEmpty)
-          .toList();
+      final out = <String>[];
+      for (final e in raw) {
+        if (e == null) continue;
+        String value;
+        if (e is Map) {
+          if (isImage && e['image_id'] != null) {
+            value = e['image_id'].toString().trim();
+          } else if (isVideo && e['video_id'] != null) {
+            value = e['video_id'].toString().trim();
+          } else {
+            value = e['name']?.toString().trim() ?? '';
+          }
+        } else {
+          value = e.toString().trim();
+        }
+        if (value.isNotEmpty) out.add(value);
+      }
+      return out.isEmpty ? const [] : List<String>.unmodifiable(out);
     }
-    if (raw is String && raw.isNotEmpty) {
+    if (raw is String) {
       final trimmed = raw.trim();
+      if (trimmed.isEmpty) return const [];
       if (trimmed.startsWith('[')) {
         try {
           final decoded = jsonDecode(trimmed);
@@ -270,24 +340,71 @@ class Game {
           }
         } catch (_) {}
       }
-      return [raw];
+      return List<String>.unmodifiable([trimmed]);
     }
     return const [];
   }
 
-  static String? _parseCollectionName(dynamic raw) {
-    if (raw == null) return null;
-    if (raw is Map) return raw['name']?.toString();
+  static ({String? name, int? id}) _parseCollection(
+    dynamic raw, {
+    int? fallbackId,
+  }) {
+    if (raw == null) return (name: null, id: fallbackId);
+    if (raw is Map) {
+      final name = raw['name']?.toString().trim();
+      final id = _parseInt(raw['id']) ?? fallbackId;
+      return (name: (name != null && name.isNotEmpty) ? name : null, id: id);
+    }
     if (raw is String) {
-      if (raw.trim().startsWith('{')) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return (name: null, id: fallbackId);
+      if (trimmed.startsWith('{')) {
         try {
-          final decoded = jsonDecode(raw);
-          if (decoded is Map) return decoded['name']?.toString();
+          final decoded = jsonDecode(trimmed);
+          if (decoded is Map) {
+            return _parseCollection(decoded, fallbackId: fallbackId);
+          }
         } catch (_) {}
       }
-      return raw.isNotEmpty ? raw : null;
+      return (name: trimmed, id: fallbackId);
     }
-    return raw.toString();
+    final str = raw.toString().trim();
+    return (name: str.isNotEmpty ? str : null, id: fallbackId);
+  }
+
+  static ({List<String> names, Map<String, int> ids}) _parseFranchises(
+    dynamic raw,
+  ) {
+    final names = _parseStringList(raw);
+    if (names.isEmpty) return (names: const [], ids: const {});
+
+    dynamic listRaw = raw;
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          listRaw = jsonDecode(trimmed);
+        } catch (_) {}
+      }
+    }
+
+    final ids = <String, int>{};
+    if (listRaw is List) {
+      for (final item in listRaw) {
+        if (item is Map) {
+          final name = item['name']?.toString().trim();
+          final id = _parseInt(item['id']);
+          if (name != null && name.isNotEmpty && id != null) {
+            ids[name] = id;
+          }
+        }
+      }
+    }
+
+    return (
+      names: names,
+      ids: ids.isEmpty ? const {} : Map<String, int>.unmodifiable(ids),
+    );
   }
 
   static ({
@@ -296,7 +413,16 @@ class Game {
     String? publisher,
     int? publisherId,
   }) _parseInvolvedCompanies(dynamic raw) {
-    if (raw is! List || raw.isEmpty) {
+    dynamic listRaw = raw;
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          listRaw = jsonDecode(trimmed);
+        } catch (_) {}
+      }
+    }
+    if (listRaw is! List || listRaw.isEmpty) {
       return (
         developer: null,
         developerId: null,
@@ -312,13 +438,13 @@ class Game {
     String? firstCompanyName;
     int? firstCompanyId;
 
-    for (final item in raw) {
+    for (final item in listRaw) {
       if (item is! Map) continue;
       final company = item['company'];
       if (company is! Map) continue;
-      final name = company['name']?.toString();
+      final name = company['name']?.toString().trim();
       if (name == null || name.isEmpty) continue;
-      final id = (company['id'] as num?)?.toInt();
+      final id = _parseInt(company['id']);
 
       firstCompanyName ??= name;
       firstCompanyId ??= id;

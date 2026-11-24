@@ -10,6 +10,7 @@ import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import '../../utils/image_compressor.dart';
+import '../../utils/validation_utils.dart';
 import '../../utils/web_js.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
@@ -356,7 +357,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       debugPrint('[CORPUS DEBUG] Error saving profile: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al guardar el perfil: $e')),
+          SnackBar(
+            content: Text(
+              friendlyErrorMessage(
+                e,
+                fallback: 'No se pudo guardar el perfil. Inténtalo de nuevo.',
+              ),
+            ),
+          ),
         );
       }
     } finally {
@@ -366,7 +374,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final bannerHeight = (screenWidth / 3).clamp(120.0, 340.0);
     return Scaffold(
@@ -600,19 +608,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
-                                    validator: (value) {
-                                      if (value == null ||
-                                          value.trim().isEmpty) {
-                                        return 'El nombre de usuario no puede estar vacío';
-                                      }
-                                      if (value.trim().length < 3) {
-                                        return 'El nombre de usuario es muy corto';
-                                      }
-                                      if (value.contains(' ')) {
-                                        return 'No puede contener espacios';
-                                      }
-                                      return null;
-                                    },
+                                    validator: validateUsername,
                                   ),
                                   const SizedBox(height: 24),
 
@@ -645,14 +641,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         borderSide: BorderSide.none,
                                       ),
                                     ),
-                                    validator: (value) {
-                                      if (value == null ||
-                                          value.trim().isEmpty ||
-                                          !value.contains('@')) {
-                                        return 'Introduce un correo válido';
-                                      }
-                                      return null;
-                                    },
+                                    validator: validateEmail,
                                   ),
                                   const SizedBox(height: 24),
 

@@ -180,7 +180,17 @@ class _CorpusAppState extends State<CorpusApp> {
 // El AuthGate es un "vigilante". Comprueba en tiempo real si estás logueado o no.
 class AuthGate extends StatefulWidget {
   final Stream<AuthState>? authStream;
-  const AuthGate({super.key, this.authStream});
+  @visibleForTesting
+  final SupabaseClient? supabaseClient;
+  @visibleForTesting
+  final Widget Function(BuildContext context, Session? session)? mainBuilder;
+
+  const AuthGate({
+    super.key,
+    this.authStream,
+    this.supabaseClient,
+    this.mainBuilder,
+  });
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -188,8 +198,24 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   RealtimeChannel? _presenceChannel;
+  bool _settingUpPresence = false;
   StreamSubscription<AuthState>? _authSub;
+  late final Stream<AuthState> _authStream;
+  Future<void> _authQueue = Future<void>.value();
+  int _authEpoch = 0;
   String? _lastUserId;
+  String? _fcmRegisteredUserId;
+  bool _hasAuthSnapshot = false;
+  Session? _currentSession;
+
+  SupabaseClient? get _supabaseOrNull {
+    if (widget.supabaseClient != null) return widget.supabaseClient;
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -197,91 +223,161 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // Registramos el observador del ciclo de vida de la app
     WidgetsBinding.instance.addObserver(this);
 
-    // Escuchamos el estado de autenticación para rastrear o limpiar la presencia
-    _authSub =
-        (widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange)
-            .listen((data) async {
-              // El usuario volvió desde el link de reset de contraseña:
-              // Supabase valida el token y emite passwordRecovery.
-              // Navegamos a la pantalla de nueva contraseña por encima de todo.
-              if (data.event == AuthChangeEvent.passwordRecovery) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (DeepLinkService.navigatorKey.currentState != null) {
-                    DeepLinkService.navigatorKey.currentState!.push(
-                      MaterialPageRoute(
-                        builder: (_) => const ResetPasswordScreen(),
-                        fullscreenDialog: true,
-                      ),
-                    );
-                  }
-                });
-                return;
-              }
-              final newUserId = data.session?.user.id;
-              if (newUserId != null) {
-                final userChanged =
-                    _lastUserId != null && _lastUserId != newUserId;
-                _lastUserId = newUserId;
-                if (userChanged) {
-                  AppNavigationController.instance.resetForSessionChange();
-                }
-                UserSettingsService().pullAndApplyToLocalCache().then((_) {
-                  themeNotifier.reloadFromPrefs();
-                });
-                _setupPresence();
-              } else {
-                final wasLoggedIn =
-                    _lastUserId != null ||
-                    data.event == AuthChangeEvent.signedOut;
-                _lastUserId = null;
-                _cleanupPresenceChannel();
-                if (wasLoggedIn) {
-                  AppNavigationController.instance.resetForSessionChange();
-                  await resetAllGlobalState();
-                }
-              }
-            });
+    _authStream =
+        widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange;
+
+    // Escuchamos el estado de autenticación de forma serializada y única
+    _authSub = _authStream.listen(_enqueueAuthEvent);
   }
 
-  void _setupPresence() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    // Si no hay usuario o el canal ya está configurado, salimos temprano
-    if (userId == null || _presenceChannel != null) return;
+  void _enqueueAuthEvent(AuthState data) {
+    _authQueue = _authQueue
+        .then((_) => _handleAuthState(data))
+        .catchError((Object e, StackTrace st) {
+          debugPrint('[AuthGate] Error procesando estado de auth: $e');
+        });
+  }
 
+  Future<void> _handleAuthState(AuthState data) async {
+    if (!mounted) return;
+
+    // El usuario volvió desde el link de reset de contraseña:
+    // Supabase valida el token y emite passwordRecovery.
+    // Navegamos a la pantalla de nueva contraseña por encima de todo.
+    if (data.event == AuthChangeEvent.passwordRecovery) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (DeepLinkService.navigatorKey.currentState != null) {
+          DeepLinkService.navigatorKey.currentState!.push(
+            MaterialPageRoute(
+              builder: (_) => const ResetPasswordScreen(),
+              fullscreenDialog: true,
+            ),
+          );
+        }
+      });
+      return;
+    }
+
+    setState(() {
+      _hasAuthSnapshot = true;
+      _currentSession = data.session;
+    });
+
+    final newUserId = data.session?.user.id;
+    if (newUserId != null) {
+      final userChanged = _lastUserId != null && _lastUserId != newUserId;
+      final epoch = ++_authEpoch;
+
+      if (userChanged) {
+        _cleanupPresenceChannel();
+        _fcmRegisteredUserId = null;
+        await NotificationService().deleteFcmToken();
+        AppNavigationController.instance.resetForSessionChange();
+        await resetAllGlobalState();
+      }
+      if (!mounted || epoch != _authEpoch) return;
+
+      _lastUserId = newUserId;
+
+      // No refrescar ajustes desde remoto ante un simple tokenRefreshed
+      if (data.event != AuthChangeEvent.tokenRefreshed) {
+        try {
+          await UserSettingsService().pullAndApplyToLocalCache();
+          if (!mounted || epoch != _authEpoch) return;
+          await themeNotifier.reloadFromPrefs();
+        } catch (e) {
+          debugPrint('[AuthGate] Error sincronizando ajustes: $e');
+        }
+      }
+      if (!mounted || epoch != _authEpoch) return;
+
+      if (_fcmRegisteredUserId != newUserId) {
+        _fcmRegisteredUserId = newUserId;
+        unawaited(_registerFcmForUser(newUserId, epoch));
+      }
+      unawaited(_setupPresence(expectedUserId: newUserId));
+    } else {
+      final wasLoggedIn =
+          _lastUserId != null || data.event == AuthChangeEvent.signedOut;
+      _authEpoch++;
+      _lastUserId = null;
+      _fcmRegisteredUserId = null;
+      _cleanupPresenceChannel();
+      if (wasLoggedIn) {
+        await NotificationService().deleteFcmToken();
+        AppNavigationController.instance.resetForSessionChange();
+        await resetAllGlobalState();
+      }
+    }
+  }
+
+  Future<void> _registerFcmForUser(String userId, int epoch) async {
+    final notifService = NotificationService();
     // En nativo solicitamos permiso; en Web (especialmente iOS Safari 16.4+)
     // el permiso requiere gesto explícito del usuario en Ajustes -> Notificaciones.
-    final notifService = NotificationService();
     if (!kIsWeb) {
       try {
         await notifService.requestPermissions();
       } catch (_) {}
     }
-    unawaited(notifService.saveFcmToken());
+    if (!mounted || epoch != _authEpoch) return;
+    final currentUid = _supabaseOrNull?.auth.currentUser?.id;
+    if (currentUid != null && currentUid != userId) return;
+    try {
+      await notifService.saveFcmToken();
+    } catch (e) {
+      debugPrint('[AuthGate] Error guardando token FCM: $e');
+    }
+  }
 
-    // Inicializamos el canal de presencia en tiempo real
-    _presenceChannel = Supabase.instance.client.channel('online-users');
+  Future<void> _setupPresence({String? expectedUserId}) async {
+    if (_settingUpPresence || _presenceChannel != null || !mounted) return;
+    final client = _supabaseOrNull;
+    final userId =
+        expectedUserId ??
+        _currentSession?.user.id ??
+        client?.auth.currentUser?.id;
+    if (client == null || userId == null) return;
 
-    _presenceChannel!
-        .onPresenceSync((_) {
-          final state = _presenceChannel!.presenceState();
-          final onlineIds = <String>{};
+    _settingUpPresence = true;
+    try {
+      if (!mounted || _presenceChannel != null) return;
+      final currentAuthId = client.auth.currentUser?.id;
+      if (currentAuthId != null && currentAuthId != userId) return;
 
-          for (final presenceState in state) {
-            for (final presence in presenceState.presences) {
-              if (presence.payload['user_id'] != null) {
-                onlineIds.add(presence.payload['user_id'] as String);
+      // Inicializamos el canal de presencia en tiempo real capturando referencia local
+      final channel = client.channel('online-users');
+      _presenceChannel = channel;
+
+      channel
+          .onPresenceSync((_) {
+            if (!mounted || _presenceChannel != channel) return;
+            final state = channel.presenceState();
+            final onlineIds = <String>{};
+
+            for (final presenceState in state) {
+              for (final presence in presenceState.presences) {
+                final uid = presence.payload['user_id'];
+                if (uid != null) {
+                  onlineIds.add(uid.toString());
+                }
               }
             }
-          }
 
-          // Actualizamos el notificador global con los amigos conectados
-          onlineUsersNotifier.value = onlineIds;
-        })
-        .subscribe((status, [error]) async {
-          if (status == RealtimeSubscribeStatus.subscribed) {
-            await _presenceChannel!.track({'user_id': userId});
-          }
-        });
+            // Actualizamos el notificador global con los amigos conectados
+            onlineUsersNotifier.value = onlineIds;
+          })
+          .subscribe((status, [error]) async {
+            if (status == RealtimeSubscribeStatus.subscribed &&
+                mounted &&
+                _presenceChannel == channel) {
+              await channel.track({'user_id': userId});
+            }
+          });
+    } finally {
+      _settingUpPresence = false;
+    }
   }
 
   void _cleanupPresenceChannel() {
@@ -290,16 +386,21 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (channel != null) {
       try {
         channel.untrack();
-        unawaited(Supabase.instance.client.removeChannel(channel));
+      } catch (_) {}
+      try {
+        final client = _supabaseOrNull;
+        if (client != null) {
+          unawaited(client.removeChannel(channel));
+        }
       } catch (_) {}
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Si la app se vuelve a abrir, reconectamos. Si se minimiza o cierra, nos desconectamos.
+    // Al volver de segundo plano reconectamos solo presencia (sin re-subir FCM en cada resume).
     if (state == AppLifecycleState.resumed) {
-      _setupPresence();
+      unawaited(_setupPresence());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _cleanupPresenceChannel();
@@ -335,24 +436,23 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // Mantenemos tu UI original mientras verifica la sesión
-    return StreamBuilder<AuthState>(
-      stream:
-          widget.authStream ?? Supabase.instance.client.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // El HTML splash tapa la pantalla mientras Flutter carga.
-          // No mostramos nada propio para evitar el salto visual.
-          return const SizedBox.shrink();
-        }
-        final session = snapshot.hasData ? snapshot.data!.session : null;
-        if (session != null) {
-          return MainScreen(key: ValueKey(session.user.id));
-        } else {
-          return const MainScreen(key: ValueKey('guest'));
-        }
-      },
-    );
+    if (!_hasAuthSnapshot) {
+      // El HTML splash tapa la pantalla mientras Flutter carga.
+      // No mostramos nada propio para evitar el salto visual.
+      return const SizedBox.shrink();
+    }
+    final session = _currentSession;
+    if (widget.mainBuilder != null) {
+      return KeyedSubtree(
+        key: ValueKey(session?.user.id ?? 'guest'),
+        child: widget.mainBuilder!(context, session),
+      );
+    }
+    if (session != null) {
+      return MainScreen(key: ValueKey(session.user.id));
+    } else {
+      return const MainScreen(key: ValueKey('guest'));
+    }
   }
 }
 

@@ -23,7 +23,7 @@ class CorpusScreenTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final title = CorpusPackAwareTitle(
       text,
       abbreviateIfLong: abbreviateIfLong,
@@ -97,7 +97,7 @@ class CorpusPackAwareTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final titleStyle = Theme.of(context).appBarTheme.titleTextStyle;
     final resolvedColor = color ?? titleStyle?.color ?? Colors.white;
     final bool isDesktop = MediaQuery.sizeOf(context).width > 800;
@@ -142,7 +142,7 @@ class CorpusSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
 
     if (ext.useDynamicFrames) {
       return P5rRansomTitle(text: text, baseFontSize: fontSize ?? 24);
@@ -179,7 +179,7 @@ class CorpusHeroTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final size = MediaQuery.sizeOf(context);
     final isPortrait = size.height > size.width;
     final baseSize = isPortrait ? ext.heroFontSize * 0.85 : ext.heroFontSize;

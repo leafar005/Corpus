@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/storage_utils.dart';
 import '../utils/igdb_constants.dart';
 import '../utils/image_compressor.dart';
+import '../utils/postgrest_utils.dart';
 import '../models/models.dart';
 
 dynamic _firstOf(dynamic list) {
@@ -71,7 +72,7 @@ class ReviewRepository {
   }) async {
     final result = await _client
         .from('user_games')
-        .select('*, users!user_games_user_id_fkey(*)')
+        .select('*, users!user_games_user_id_fkey($kPublicUserProfileColumns)')
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .maybeSingle();
@@ -113,11 +114,11 @@ class ReviewRepository {
     }
   }
 
-  /// Devuelve el perfil del usuario (solo columnas de `users`).
+  /// Devuelve el perfil del usuario (solo columnas públicas de `users`).
   Future<UserProfile?> fetchUserProfile(String userId) async {
     final data = await _client
         .from('users')
-        .select()
+        .select(kPublicUserProfileColumns)
         .eq('id', userId)
         .maybeSingle();
     if (data == null) return null;
@@ -146,7 +147,18 @@ class ReviewRepository {
   // Escritura
   // ──────────────────────────────────────────────────────────────────
 
-  /// Sanitiza los datos de reseña, forzando a null notas y comentarios cuando status == 'wishlist' o 'to_play'.
+  static const Set<String> _allowedStatuses = <String>{
+    'wishlist',
+    'to_play',
+    'playing',
+    'beaten',
+    'completed',
+    'abandoned',
+    'on_hold',
+  };
+
+  /// Sanitiza y valida los datos de reseña, forzando a null notas y comentarios
+  /// cuando status == 'wishlist' o 'to_play'.
   static Map<String, dynamic> sanitizeReviewData({
     required String userId,
     required dynamic igdbId,
@@ -169,10 +181,66 @@ class ReviewRepository {
     required List<String> partnerIds,
     DateTime? reviewDate,
   }) {
+    final trimmedUserId = userId.trim();
+    if (trimmedUserId.isEmpty) {
+      throw ArgumentError.value(userId, 'userId', 'Usuario no válido');
+    }
+    final parsedGameId = igdbId is num
+        ? igdbId.toInt()
+        : int.tryParse(igdbId?.toString() ?? '');
+    if (parsedGameId == null || parsedGameId <= 0) {
+      throw ArgumentError.value(igdbId, 'igdbId', 'ID de juego no válido');
+    }
+    if (!_allowedStatuses.contains(status)) {
+      throw ArgumentError.value(status, 'status', 'Estado de juego no válido');
+    }
+
     final isWishlist = status == 'wishlist' || status == 'to_play';
+    if (!isWishlist) {
+      void checkRating(double value, String fieldName) {
+        if (!value.isFinite || value < 0 || value > 10) {
+          throw ArgumentError.value(
+            value,
+            fieldName,
+            'La puntuación debe estar entre 0 y 10',
+          );
+        }
+      }
+
+      checkRating(rating, 'rating');
+      checkRating(ratingGameplay, 'ratingGameplay');
+      checkRating(ratingNarrative, 'ratingNarrative');
+      checkRating(ratingSoundtrack, 'ratingSoundtrack');
+      checkRating(ratingVisuals, 'ratingVisuals');
+
+      if (progressPercent != null &&
+          (progressPercent < 0 || progressPercent > 100)) {
+        throw ArgumentError.value(
+          progressPercent,
+          'progressPercent',
+          'El porcentaje de progreso debe estar entre 0 y 100',
+        );
+      }
+      if (playTimeHours != null &&
+          (!playTimeHours.isFinite || playTimeHours < 0)) {
+        throw ArgumentError.value(
+          playTimeHours,
+          'playTimeHours',
+          'Las horas jugadas no pueden ser negativas',
+        );
+      }
+      if (playedFrom != null &&
+          playedUntil != null &&
+          playedFrom.isAfter(playedUntil)) {
+        throw ArgumentError(
+          'La fecha de inicio no puede ser posterior a la fecha de fin',
+        );
+      }
+    }
+
     return <String, dynamic>{
-      'user_id': userId,
-      'game_id': igdbId,
+      'user_id': trimmedUserId,
+      'game_id': parsedGameId,
       'rating': isWishlist ? null : (rating >= 1 ? rating : null),
       'rating_gameplay': isWishlist
           ? null
@@ -204,8 +272,8 @@ class ReviewRepository {
           ? null
           : playedUntil?.toIso8601String().split('T')[0],
       'progress_percent': isWishlist ? null : progressPercent,
-      'image_urls': isWishlist ? <String>[] : imageUrls,
-      'partner_ids': isWishlist ? [] : partnerIds,
+      'image_urls': isWishlist ? const <String>[] : imageUrls,
+      'partner_ids': isWishlist ? const <String>[] : partnerIds,
       // Fecha de finalización: solo se incluye cuando el usuario la elige o al
       // marcar como terminado (el trigger sincroniza last_played_at desde aquí).
       if (reviewDate != null) ...{
@@ -359,13 +427,19 @@ class ReviewRepository {
               'summary': resolvedSummary,
               'developer': resolvedDeveloper,
               'collection': () {
-                dynamic col =
-                    gameData['collection'] ?? enrichedData['collection'];
-                // Fallback al sistema nuevo de IGDB (collections, plural) si
-                // el campo legacy 'collection' viene vacío.
-                col ??=
-                    _firstOf(gameData['collections']) ??
+                final primaryCol =
+                    gameData['collection'] ?? _firstOf(gameData['collections']);
+                final fallbackCol =
+                    enrichedData['collection'] ??
                     _firstOf(enrichedData['collections']);
+                dynamic col;
+                if (primaryCol is Map && primaryCol['id'] != null) {
+                  col = primaryCol;
+                } else if (fallbackCol is Map && fallbackCol['id'] != null) {
+                  col = fallbackCol;
+                } else {
+                  col = primaryCol ?? fallbackCol;
+                }
                 if (col is Map && col['id'] != null) return col;
                 if (col is String && col != 'null' && col.isNotEmpty) {
                   return {'name': col};
@@ -373,8 +447,17 @@ class ReviewRepository {
                 return null;
               }(),
               'franchises': () {
-                final frs =
-                    gameData['franchises'] ?? enrichedData['franchises'];
+                final primaryFrs = gameData['franchises'];
+                final fallbackFrs = enrichedData['franchises'];
+                final hasPrimaryIds =
+                    primaryFrs is List &&
+                    primaryFrs.any((f) => f is Map && f['id'] != null);
+                final hasFallbackIds =
+                    fallbackFrs is List &&
+                    fallbackFrs.any((f) => f is Map && f['id'] != null);
+                final frs = (!hasPrimaryIds && hasFallbackIds)
+                    ? fallbackFrs
+                    : (primaryFrs ?? fallbackFrs);
                 if (frs is List && frs.isNotEmpty) {
                   return frs
                       .map(
@@ -384,7 +467,7 @@ class ReviewRepository {
                       )
                       .toList();
                 }
-                return [];
+                return const <Map<String, dynamic>>[];
               }(),
               'game_engines':
                   gameData['game_engines'] ?? enrichedData['game_engines'],
@@ -507,13 +590,17 @@ class ReviewRepository {
 
     DateTime? effectiveReviewDate = reviewDate;
 
+    final normalizedReviewId = (reviewId != null && reviewId.trim().isNotEmpty)
+        ? reviewId
+        : null;
+
     // Insert o update según si ya existe la reseña
-    if (reviewId != null) {
+    if (normalizedReviewId != null) {
       try {
         final oldReview = await _client
             .from('reviews')
             .select('status, image_urls')
-            .eq('id', reviewId)
+            .eq('id', normalizedReviewId)
             .maybeSingle();
         if (oldReview != null) {
           final oldStatus = oldReview['status'] as String?;
@@ -571,7 +658,7 @@ class ReviewRepository {
               reviewDate: effectiveReviewDate,
             ),
           )
-          .eq('id', reviewId);
+          .eq('id', normalizedReviewId);
     } else {
       if ((status == 'beaten' || status == 'completed') &&
           effectiveReviewDate == null) {
@@ -1124,7 +1211,9 @@ class ReviewRepository {
 
     final rawActivities = await _client
         .from('activity_feed')
-        .select('*, users!activity_feed_user_id_fkey(*), games(*)')
+        .select(
+          '*, users!activity_feed_user_id_fkey($kPublicUserBasicColumns), games(*)',
+        )
         .eq('user_id', userId)
         .eq('game_id', parsedGameId)
         .order('created_at', ascending: false)
@@ -1473,17 +1562,19 @@ class ReviewRepository {
         .not('comment', 'is', null)
         .neq('comment', '');
 
-    if (searchQuery.isNotEmpty) {
-      query = query.ilike('games.title', '%$searchQuery%');
+    final trimmedSearch = searchQuery.trim();
+    if (trimmedSearch.isNotEmpty) {
+      query = query.ilike(
+        'games.title',
+        '%${escapeLikePattern(trimmedSearch)}%',
+      );
     }
 
     final res = await query
         .order('created_at', ascending: false)
         .range(from, to);
 
-    final list = List<Map<String, dynamic>>.from(
-      res,
-    ).where((r) => r['games'] != null).toList();
+    final list = List<Map<String, dynamic>>.from(res);
     await _injectReviewPostStats(list);
     return list;
   }
@@ -1497,29 +1588,35 @@ class ReviewRepository {
     String searchQuery = '',
     int? year,
   }) async {
+    final safeOrderColumn = requireAllowedColumn(
+      orderColumn,
+      kAllowedJournalOrderColumns,
+    );
     var query = _client
         .from('reviews')
         .select('*, games!inner(*)')
         .eq('user_id', userId)
         .inFilter('status', ['playing', 'beaten', 'completed']);
 
-    if (searchQuery.isNotEmpty) {
-      query = query.ilike('games.title', '%$searchQuery%');
+    final trimmedSearch = searchQuery.trim();
+    if (trimmedSearch.isNotEmpty) {
+      query = query.ilike(
+        'games.title',
+        '%${escapeLikePattern(trimmedSearch)}%',
+      );
     }
 
     if (year != null) {
       query = query
-          .gte(orderColumn, '$year-01-01T00:00:00.000Z')
-          .lte(orderColumn, '$year-12-31T23:59:59.999Z');
+          .gte(safeOrderColumn, '$year-01-01T00:00:00.000Z')
+          .lte(safeOrderColumn, '$year-12-31T23:59:59.999Z');
     }
 
     final res = await query
-        .order(orderColumn, ascending: false, nullsFirst: false)
+        .order(safeOrderColumn, ascending: false, nullsFirst: false)
         .range(from, to);
 
-    return List<Map<String, dynamic>>.from(
-      res,
-    ).where((r) => r['games'] != null).toList();
+    return List<Map<String, dynamic>>.from(res);
   }
 
   /// Fetches available years from journal entries for the year filter.
@@ -1527,21 +1624,23 @@ class ReviewRepository {
     required String userId,
     required String orderColumn,
   }) async {
+    final safeOrderColumn = requireAllowedColumn(
+      orderColumn,
+      kAllowedJournalOrderColumns,
+    );
     final res = await _client
         .from('reviews')
-        .select(orderColumn)
+        .select(safeOrderColumn)
         .eq('user_id', userId)
         .inFilter('status', ['playing', 'beaten', 'completed'])
-        .not(orderColumn, 'is', null);
+        .not(safeOrderColumn, 'is', null);
 
     final Set<int> years = {};
     for (final r in res) {
-      final dateStr = r[orderColumn];
+      final dateStr = r[safeOrderColumn];
       if (dateStr != null) {
-        try {
-          final date = DateTime.parse(dateStr.toString());
-          years.add(date.year);
-        } catch (_) {}
+        final date = DateTime.tryParse(dateStr.toString());
+        if (date != null) years.add(date.year);
       }
     }
 

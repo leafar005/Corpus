@@ -382,7 +382,7 @@ class _MainScreenState extends State<MainScreen>
   }
 
   Widget _buildTopNavigationBar(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     if (ext.navBarStyle == NavBarStyle.persona5Royal) {
       return _buildPersona5RoyalTopNav(context);
     }
@@ -530,7 +530,7 @@ class _MainScreenState extends State<MainScreen>
   }
 
   Widget _buildTopNavItem(int index, String label) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final isSelected = _currentIndex == index;
     final color = isSelected
         ? Theme.of(context).colorScheme.primary

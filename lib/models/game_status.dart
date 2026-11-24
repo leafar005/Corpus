@@ -70,6 +70,7 @@ enum GameStatus {
       case 'archived':
         return GameStatus.abandoned;
       case 'on_hold':
+      case 'onhold':
       case 'on hold':
       case 'paused':
       case 'pausado':
@@ -77,7 +78,7 @@ enum GameStatus {
         return GameStatus.onHold;
       default:
         return GameStatus.values.firstWhere(
-          (e) => e.dbValue == clean || e.name == clean,
+          (e) => e.dbValue == clean || e.name.toLowerCase() == clean,
           orElse: () => throw ArgumentError('GameStatus desconocido: "$value"'),
         );
     }
@@ -121,12 +122,6 @@ enum GameStatus {
     GameStatus.abandoned => 'abandoned',
     GameStatus.onHold => 'on_hold',
   };
-
-  /// Indica si el estado representa un cierre de la partida (terminado o
-  /// abandonado). Se usa en review_modal.dart para saber cuándo
-  /// autorellenar/restaurar la fecha de una reseña al cambiar de estado.
-  bool get isFinished =>
-      this == GameStatus.beaten || this == GameStatus.abandoned;
 
   /// Etiqueta legible para mostrar en UI.
   String get label => switch (this) {

@@ -7,6 +7,7 @@ import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/globals.dart';
 import '../../utils/igdb_constants.dart';
+import '../../utils/postgrest_utils.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../library/filter_screen.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -100,8 +101,12 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
         .select('*, games!inner(*)')
         .eq('user_id', widget.userId);
 
-    if (_searchQuery.isNotEmpty) {
-      query = query.ilike('games.title', '%$_searchQuery%');
+    final trimmedSearch = _searchQuery.trim();
+    if (trimmedSearch.isNotEmpty) {
+      query = query.ilike(
+        'games.title',
+        '%${escapeLikePattern(trimmedSearch)}%',
+      );
     }
 
     if (_filters.genres.isNotEmpty) {
@@ -342,21 +347,15 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
                     )
                   : null,
               border: OutlineInputBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                 borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                 borderSide: BorderSide.none,
               ),
               filled: true,
@@ -385,9 +384,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
               ).colorScheme.surfaceContainerHighest,
               foregroundColor: Theme.of(context).colorScheme.onSurface,
               shape: RoundedRectangleBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusMedium,
+                borderRadius: CorpusThemeExtension.of(context).radiusMedium,
               ),
               minimumSize: const Size(
                 0,

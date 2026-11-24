@@ -10,6 +10,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/postgrest_utils.dart';
 
 /// Resultado de cargar una página de notificaciones.
 class NotificationsPageResult {
@@ -128,7 +129,7 @@ class NotificationsRepository {
           .from('reviews')
           .select('''
               *,
-              users!reviews_user_id_users_fkey(*),
+              users!reviews_user_id_users_fkey($kPublicUserBasicColumns),
               games!reviews_game_id_fkey(*)
             ''')
           .eq('id', reviewId)

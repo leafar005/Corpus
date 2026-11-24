@@ -4,9 +4,13 @@
 // Sustituye Map<String, dynamic> en ReviewRepository, ReviewModal,
 // GameDetailsScreen y ReviewDetailsScreen.
 
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'game_status.dart';
 import 'user_profile.dart';
+
+const Object _sentinel = Object();
 
 /// Una reseña de un juego por parte de un usuario.
 @immutable
@@ -74,103 +78,137 @@ class Review {
   /// Rating global calculado como promedio de los ratings individuales,
   /// o el rating global si no hay individuales.
   double? get effectiveRating {
-    final individual = [
-      ratingGameplay,
-      ratingNarrative,
-      ratingSoundtrack,
-      ratingVisuals,
-    ].whereType<double>().toList();
-    if (individual.isNotEmpty) {
-      return individual.reduce((a, b) => a + b) / individual.length;
+    var sum = 0.0;
+    var count = 0;
+    if (ratingGameplay != null) {
+      sum += ratingGameplay!;
+      count++;
     }
+    if (ratingNarrative != null) {
+      sum += ratingNarrative!;
+      count++;
+    }
+    if (ratingSoundtrack != null) {
+      sum += ratingSoundtrack!;
+      count++;
+    }
+    if (ratingVisuals != null) {
+      sum += ratingVisuals!;
+      count++;
+    }
+    if (count > 0) return sum / count;
     return rating;
   }
 
   /// Construye un [Review] desde una fila de Supabase.
   factory Review.fromMap(Map<String, dynamic> map) {
-    List<UserProfile> partners = [];
+    List<UserProfile> partners = const [];
     final partnersRaw = map['partners'];
     if (partnersRaw is List) {
-      partners = partnersRaw
-          .whereType<Map<String, dynamic>>()
-          .map((p) => UserProfile.fromMap(p))
-          .toList();
+      final parsed = <UserProfile>[];
+      for (final p in partnersRaw) {
+        if (p is Map) {
+          parsed.add(UserProfile.fromMap(Map<String, dynamic>.from(p)));
+        }
+      }
+      if (parsed.isNotEmpty) {
+        partners = List<UserProfile>.unmodifiable(parsed);
+      }
     }
 
     UserProfile? user;
     // El join puede venir como 'users' o como el alias de FK
     final userRaw = map['users'] ?? map['user'];
-    if (userRaw is Map<String, dynamic>) {
-      user = UserProfile.fromMap(userRaw);
+    if (userRaw is Map) {
+      user = UserProfile.fromMap(Map<String, dynamic>.from(userRaw));
     }
 
-    List<String> imageUrls = [];
-    final rawImages = map['image_urls'];
-    if (rawImages is List) {
-      imageUrls = rawImages.whereType<String>().toList();
-    } else if (rawImages is String && rawImages.isNotEmpty) {
-      imageUrls = [rawImages];
-    }
+    final imageUrls = _parseImageUrls(map['image_urls']);
+    final partnerIds = _parsePartnerIds(map['partner_ids']);
 
     return Review(
-      id: map['id'] as String,
-      userId: map['user_id'] as String,
-      gameId: (map['game_id'] as num).toInt(),
-      status: GameStatus.fromStringOrDefault(map['status'] as String?),
-      rating: (map['rating'] as num?)?.toDouble(),
-      ratingGameplay: (map['rating_gameplay'] as num?)?.toDouble(),
-      ratingNarrative: (map['rating_narrative'] as num?)?.toDouble(),
-      ratingSoundtrack: (map['rating_soundtrack'] as num?)?.toDouble(),
-      ratingVisuals: (map['rating_visuals'] as num?)?.toDouble(),
-      comment: map['comment'] as String?,
-      completionType: map['completion_type'] as String?,
-      platform: map['platform'] as String?,
-      playTimeHours: (map['play_time_hours'] as num?)?.toDouble(),
-      playedFrom: map['played_from'] != null
-          ? DateTime.tryParse(map['played_from'] as String)
-          : null,
-      playedUntil: map['played_until'] != null
-          ? DateTime.tryParse(map['played_until'] as String)
-          : null,
-      progressPercent: (map['progress_percent'] as num?)?.toInt(),
-      replayNumber: (map['replay_number'] as num?)?.toInt(),
-      isReplay: map['is_replay'] as bool? ?? false,
+      id: map['id']?.toString() ?? '',
+      userId: map['user_id']?.toString() ?? '',
+      gameId: _parseInt(map['game_id']) ?? 0,
+      status: GameStatus.fromStringOrDefault(map['status']?.toString()),
+      rating: _parseDouble(map['rating']),
+      ratingGameplay: _parseDouble(map['rating_gameplay']),
+      ratingNarrative: _parseDouble(map['rating_narrative']),
+      ratingSoundtrack: _parseDouble(map['rating_soundtrack']),
+      ratingVisuals: _parseDouble(map['rating_visuals']),
+      comment: map['comment']?.toString(),
+      completionType: map['completion_type']?.toString(),
+      platform: map['platform']?.toString(),
+      playTimeHours: _parseDouble(map['play_time_hours']),
+      playedFrom: _parseDateTime(map['played_from']),
+      playedUntil: _parseDateTime(map['played_until']),
+      progressPercent: _parseInt(map['progress_percent']),
+      replayNumber: _parseInt(map['replay_number']),
+      isReplay: map['is_replay'] == true,
       imageUrls: imageUrls,
-      partnerIds: List<String>.from(map['partner_ids'] ?? []),
+      partnerIds: partnerIds,
       partners: partners,
       user: user,
-      createdAt: map['created_at'] != null
-          ? DateTime.tryParse(map['created_at'] as String)
-          : null,
-      updatedAt: map['updated_at'] != null
-          ? DateTime.tryParse(map['updated_at'] as String)
-          : null,
+      createdAt: _parseDateTime(map['created_at']),
+      updatedAt: _parseDateTime(map['updated_at']),
     );
   }
 
-  Map<String, dynamic> toInsertMap() => {
-    'user_id': userId,
-    'game_id': gameId,
-    'status': status.dbValue,
-    if (rating != null) 'rating': rating,
-    if (ratingGameplay != null) 'rating_gameplay': ratingGameplay,
-    if (ratingNarrative != null) 'rating_narrative': ratingNarrative,
-    if (ratingSoundtrack != null) 'rating_soundtrack': ratingSoundtrack,
-    if (ratingVisuals != null) 'rating_visuals': ratingVisuals,
-    if (comment != null) 'comment': comment,
-    if (completionType != null) 'completion_type': completionType,
-    if (platform != null) 'platform': platform,
-    if (playTimeHours != null) 'play_time_hours': playTimeHours,
-    if (playedFrom != null)
-      'played_from': playedFrom!.toIso8601String().split('T')[0],
-    if (playedUntil != null)
-      'played_until': playedUntil!.toIso8601String().split('T')[0],
-    if (progressPercent != null) 'progress_percent': progressPercent,
-    if (replayNumber != null) 'replay_number': replayNumber,
-    'is_replay': isReplay,
-    if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
-    if (partnerIds.isNotEmpty) 'partner_ids': partnerIds,
-  };
+  static int? _parseInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString().trim());
+  }
+
+  static double? _parseDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is double) return v;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString().trim());
+  }
+
+  static DateTime? _parseDateTime(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    return DateTime.tryParse(v.toString());
+  }
+
+  static List<String> _parseImageUrls(dynamic raw) {
+    if (raw == null) return const [];
+    if (raw is List) {
+      final out = <String>[];
+      for (final e in raw) {
+        if (e == null) continue;
+        final s = e.toString().trim();
+        if (s.isNotEmpty) out.add(s);
+      }
+      return out.isEmpty ? const [] : List<String>.unmodifiable(out);
+    }
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return const [];
+      if (trimmed.startsWith('[')) {
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is List) return _parseImageUrls(decoded);
+        } catch (_) {}
+      }
+      return List<String>.unmodifiable([trimmed]);
+    }
+    return const [];
+  }
+
+  static List<String> _parsePartnerIds(dynamic raw) {
+    if (raw is! List || raw.isEmpty) return const [];
+    final out = <String>[];
+    for (final e in raw) {
+      if (e == null) continue;
+      final s = e.toString().trim();
+      if (s.isNotEmpty) out.add(s);
+    }
+    return out.isEmpty ? const [] : List<String>.unmodifiable(out);
+  }
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -204,50 +242,84 @@ class Review {
 
   Review copyWith({
     GameStatus? status,
-    double? rating,
-    double? ratingGameplay,
-    double? ratingNarrative,
-    double? ratingSoundtrack,
-    double? ratingVisuals,
-    String? comment,
-    String? completionType,
-    String? platform,
-    double? playTimeHours,
-    DateTime? playedFrom,
-    DateTime? playedUntil,
-    int? progressPercent,
-    int? replayNumber,
+    Object? rating = _sentinel,
+    Object? ratingGameplay = _sentinel,
+    Object? ratingNarrative = _sentinel,
+    Object? ratingSoundtrack = _sentinel,
+    Object? ratingVisuals = _sentinel,
+    Object? comment = _sentinel,
+    Object? completionType = _sentinel,
+    Object? platform = _sentinel,
+    Object? playTimeHours = _sentinel,
+    Object? playedFrom = _sentinel,
+    Object? playedUntil = _sentinel,
+    Object? progressPercent = _sentinel,
+    Object? replayNumber = _sentinel,
     bool? isReplay,
     List<String>? imageUrls,
     List<String>? partnerIds,
     List<UserProfile>? partners,
-    UserProfile? user,
+    Object? user = _sentinel,
+    Object? createdAt = _sentinel,
+    Object? updatedAt = _sentinel,
   }) {
     return Review(
       id: id,
       userId: userId,
       gameId: gameId,
       status: status ?? this.status,
-      rating: rating ?? this.rating,
-      ratingGameplay: ratingGameplay ?? this.ratingGameplay,
-      ratingNarrative: ratingNarrative ?? this.ratingNarrative,
-      ratingSoundtrack: ratingSoundtrack ?? this.ratingSoundtrack,
-      ratingVisuals: ratingVisuals ?? this.ratingVisuals,
-      comment: comment ?? this.comment,
-      completionType: completionType ?? this.completionType,
-      platform: platform ?? this.platform,
-      playTimeHours: playTimeHours ?? this.playTimeHours,
-      playedFrom: playedFrom ?? this.playedFrom,
-      playedUntil: playedUntil ?? this.playedUntil,
-      progressPercent: progressPercent ?? this.progressPercent,
-      replayNumber: replayNumber ?? this.replayNumber,
+      rating: identical(rating, _sentinel) ? this.rating : rating as double?,
+      ratingGameplay: identical(ratingGameplay, _sentinel)
+          ? this.ratingGameplay
+          : ratingGameplay as double?,
+      ratingNarrative: identical(ratingNarrative, _sentinel)
+          ? this.ratingNarrative
+          : ratingNarrative as double?,
+      ratingSoundtrack: identical(ratingSoundtrack, _sentinel)
+          ? this.ratingSoundtrack
+          : ratingSoundtrack as double?,
+      ratingVisuals: identical(ratingVisuals, _sentinel)
+          ? this.ratingVisuals
+          : ratingVisuals as double?,
+      comment: identical(comment, _sentinel) ? this.comment : comment as String?,
+      completionType: identical(completionType, _sentinel)
+          ? this.completionType
+          : completionType as String?,
+      platform: identical(platform, _sentinel)
+          ? this.platform
+          : platform as String?,
+      playTimeHours: identical(playTimeHours, _sentinel)
+          ? this.playTimeHours
+          : playTimeHours as double?,
+      playedFrom: identical(playedFrom, _sentinel)
+          ? this.playedFrom
+          : playedFrom as DateTime?,
+      playedUntil: identical(playedUntil, _sentinel)
+          ? this.playedUntil
+          : playedUntil as DateTime?,
+      progressPercent: identical(progressPercent, _sentinel)
+          ? this.progressPercent
+          : progressPercent as int?,
+      replayNumber: identical(replayNumber, _sentinel)
+          ? this.replayNumber
+          : replayNumber as int?,
       isReplay: isReplay ?? this.isReplay,
-      imageUrls: imageUrls ?? this.imageUrls,
-      partnerIds: partnerIds ?? this.partnerIds,
-      partners: partners ?? this.partners,
-      user: user ?? this.user,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
+      imageUrls: imageUrls != null
+          ? List<String>.unmodifiable(imageUrls)
+          : this.imageUrls,
+      partnerIds: partnerIds != null
+          ? List<String>.unmodifiable(partnerIds)
+          : this.partnerIds,
+      partners: partners != null
+          ? List<UserProfile>.unmodifiable(partners)
+          : this.partners,
+      user: identical(user, _sentinel) ? this.user : user as UserProfile?,
+      createdAt: identical(createdAt, _sentinel)
+          ? this.createdAt
+          : createdAt as DateTime?,
+      updatedAt: identical(updatedAt, _sentinel)
+          ? this.updatedAt
+          : updatedAt as DateTime?,
     );
   }
 

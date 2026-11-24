@@ -38,10 +38,12 @@ void main() {
       expect(GameStatus.fromString('archived'), GameStatus.abandoned);
     });
 
-    test('es case-insensitive', () {
+    test('es case-insensitive y acepta onHold/onhold', () {
       expect(GameStatus.fromString('PLAYING'), GameStatus.playing);
       expect(GameStatus.fromString('Beaten'), GameStatus.beaten);
       expect(GameStatus.fromString('ON_HOLD'), GameStatus.onHold);
+      expect(GameStatus.fromString('onHold'), GameStatus.onHold);
+      expect(GameStatus.fromString('onhold'), GameStatus.onHold);
     });
 
     test('ignora espacios al inicio y al final', () {

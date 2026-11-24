@@ -1131,15 +1131,11 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
               elevation: 2,
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusLarge,
+                borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                 side: BorderSide(color: borderColor, width: 1.5),
               ),
               child: InkWell(
-                borderRadius: Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!.radiusLarge,
+                borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                 onTap: widget.isOwnProfile
                     ? () => _onAchievementTap(achievement)
                     : null,

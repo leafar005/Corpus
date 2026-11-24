@@ -219,7 +219,7 @@ class CollectionTabState extends State<CollectionTab> {
     final horizontalPadding =
         widget.horizontalPadding ?? (isDesktop ? 40.0 : 16.0);
     const gap = ShelfSpineLayout.gap;
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final colorScheme = Theme.of(context).colorScheme;
 
     final filtered = _filteredItems;
@@ -556,7 +556,7 @@ class _ShelfViewToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final colorScheme = Theme.of(context).colorScheme;
 
     Widget buildOption({
@@ -655,7 +655,7 @@ class CollectionShelfActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final buttonStyle = FilledButton.styleFrom(
       backgroundColor: colorScheme.surfaceContainerHighest,

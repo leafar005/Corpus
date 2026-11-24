@@ -28,7 +28,7 @@ class AchievementsData {
 
 /// Repositorio para [AchievementsScreen].
 ///
-/// Las 4 queries se disparan en paralelo con [Future.wait]; el tiempo total
+/// Las 5 queries se disparan en paralelo con [Future.wait]; el tiempo total
 /// de carga es el de la query más lenta en vez de la suma de todas.
 class AchievementsRepository {
   AchievementsRepository();

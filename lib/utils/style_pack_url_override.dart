@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../theme/style_pack_registry.dart';
 
 /// Debug helper: apply a style pack from the page URL without opening settings.
@@ -18,8 +20,14 @@ class StylePackUrlOverride {
     'p5r': 'persona_5_royal',
   };
 
-  /// Returns a registered pack id, or null if the URL has no style override.
-  static String? packIdFromUri(Uri uri) {
+  /// Returns a registered pack id, or null if the URL has no style override
+  /// or overrides are disabled outside debug builds.
+  static String? packIdFromUri(
+    Uri uri, {
+    bool allowOverride = kDebugMode,
+  }) {
+    if (!allowOverride) return null;
+
     final fromQuery = uri.queryParameters['style'];
     if (fromQuery != null && fromQuery.isNotEmpty) {
       return _resolvePackId(fromQuery);

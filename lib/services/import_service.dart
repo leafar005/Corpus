@@ -137,13 +137,14 @@ class ImportService {
     String? completionType;
     if (rawCompletionType != null) {
       final ct = rawCompletionType.trim().toLowerCase();
-      if (ct.isNotEmpty && ct != 'nan' && ct != 'null') completionType = ct;
+      if (ct.isNotEmpty && ct != 'nan' && ct != 'null') {
+        completionType = normalizeCompletionType(ct);
+      }
     }
 
     String? dateAdded;
     if (rawDateAdded != null) {
-      final d = rawDateAdded.trim();
-      if (d.isNotEmpty && d != 'nan' && d != 'null') dateAdded = d;
+      dateAdded = normalizeIsoDate(rawDateAdded);
     }
 
     return CsvGameRow(
@@ -320,13 +321,53 @@ class ImportService {
     }
   }
 
+  /// Normaliza una fecha a ISO-8601 UTC o devuelve `null` si es inválida.
+  @visibleForTesting
+  static String? normalizeIsoDate(String? raw) {
+    if (raw == null) return null;
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty ||
+        trimmed.toLowerCase() == 'nan' ||
+        trimmed.toLowerCase() == 'null') {
+      return null;
+    }
+    final parsed = DateTime.tryParse(trimmed);
+    return parsed?.toUtc().toIso8601String();
+  }
+
+  /// Normaliza `completion_type` al conjunto permitido en PostgreSQL.
+  @visibleForTesting
+  static String normalizeCompletionType(String? raw) {
+    final clean = raw?.trim().toLowerCase() ?? '';
+    switch (clean) {
+      case '100_percent':
+      case '100%':
+      case '100':
+      case 'platinum':
+      case 'platino':
+      case 'completed':
+        return '100_percent';
+      case 'story':
+      case 'main':
+      case 'historia':
+        return 'story';
+      default:
+        return 'none';
+    }
+  }
+
   static Future<void> saveImportedGames(
     List<CsvGameRow> matchedRows, {
     required Function(int current, int total) onProgress,
+    @visibleForTesting SupabaseClient? client,
   }) async {
-    final supabase = Supabase.instance.client;
+    final supabase = client ?? Supabase.instance.client;
     final userId = supabase.auth.currentUser?.id;
-    if (userId == null) return;
+    if (userId == null) {
+      throw StateError(
+        'No hay sesión activa para guardar los juegos importados.',
+      );
+    }
     final int total = matchedRows.length;
 
     const int batchSize = 25;
@@ -337,7 +378,8 @@ class ImportService {
 
       final List<Map<String, dynamic>> gamesPayload = [];
       final List<Map<String, dynamic>> userGamesPayload = [];
-      final List<Map<String, dynamic>> reviewsPayload = [];
+      final List<Map<String, dynamic>> pendingReviewRows = [];
+      final Set<int> seenBatchGameIds = {};
 
       for (final row in batch) {
         if (row.igdbData == null && row.igdbId == null) continue;
@@ -345,8 +387,12 @@ class ImportService {
         final gameData =
             row.igdbData ??
             <String, dynamic>{'id': row.igdbId, 'name': row.title};
-        final int igdbId =
-            (gameData['id'] ?? gameData['igdb_id'] ?? row.igdbId) as int;
+        final rawGameId = gameData['id'] ?? gameData['igdb_id'] ?? row.igdbId;
+        final int? igdbId = rawGameId is num
+            ? rawGameId.toInt()
+            : int.tryParse(rawGameId?.toString() ?? '');
+        if (igdbId == null || igdbId <= 0) continue;
+        if (!seenBatchGameIds.add(igdbId)) continue;
 
         // 1. TRADUCCIÓN ROBUSTA DE CARÁTULA A ALTA RESOLUCIÓN:
         String? coverUrl = gameData['cover_url'] as String?;
@@ -391,6 +437,7 @@ class ImportService {
           try {
             releaseDate = DateTime.fromMillisecondsSinceEpoch(
               rawReleaseDate.toInt() * 1000,
+              isUtc: true,
             ).toIso8601String().split('T')[0];
           } catch (e) {
             if (kDebugMode) {
@@ -403,8 +450,8 @@ class ImportService {
             ? row.rating
             : null;
         final String? effectiveLastPlayedAt =
-            row.steamLastPlayedAt ??
-            row.dateAdded ??
+            normalizeIsoDate(row.steamLastPlayedAt) ??
+            normalizeIsoDate(row.dateAdded) ??
             (row.steamOwned
                 ? null
                 : DateTime.now()
@@ -467,6 +514,9 @@ class ImportService {
             'metacritic_url': gameData['metacritic_url'],
         });
 
+        final normalizedSteamLastPlayed = normalizeIsoDate(
+          row.steamLastPlayedAt,
+        );
         userGamesPayload.add({
           'user_id': userId,
           'game_id': igdbId,
@@ -477,23 +527,25 @@ class ImportService {
           if (row.steamPlaytimeMinutes != null)
             'steam_playtime_minutes': row.steamPlaytimeMinutes,
           if (row.isSteamOnly) 'is_steam_only': true,
-          if (row.steamLastPlayedAt != null)
-            'steam_last_played_at': row.steamLastPlayedAt,
+          'steam_last_played_at': ?normalizedSteamLastPlayed,
         });
 
-        reviewsPayload.add({
+        pendingReviewRows.add({
           'user_id': userId,
           'game_id': igdbId,
           'rating': cleanRating,
           'comment': row.comment?.isNotEmpty == true ? row.comment : null,
-          'status': row.status,
-          'completion_type': row.completionType ?? 'none',
+          'status': GameStatus.fromStringOrDefault(
+            row.status,
+            fallback: GameStatus.wishlist,
+          ).dbValue,
+          'completion_type': normalizeCompletionType(row.completionType),
           'platform': row.platform,
           'play_time_hours': (row.playTimeHours ?? 0) > 0
               ? row.playTimeHours
               : null,
           'is_replay': false,
-          'created_at': effectiveLastPlayedAt,
+          'created_at': ?effectiveLastPlayedAt,
         });
       }
 
@@ -526,34 +578,59 @@ class ImportService {
                 .isFilter('cover_url', null); // solo si sigue siendo NULL
           }
         }
-        if (reviewsPayload.isNotEmpty) {
-          await supabase.from('reviews').insert(reviewsPayload);
+
+        // Evitar duplicar reseñas al reimportar o reintentar lotes (BUG-06)
+        List<Map<String, dynamic>> reviewsPayload = pendingReviewRows;
+        if (pendingReviewRows.isNotEmpty) {
+          final batchGameIds = pendingReviewRows
+              .map((r) => r['game_id'])
+              .toList();
+          final existingRows = await supabase
+              .from('reviews')
+              .select('game_id')
+              .eq('user_id', userId)
+              .inFilter('game_id', batchGameIds);
+          final existingGameIds = <int>{
+            for (final r in (existingRows as List))
+              if (r is Map && r['game_id'] != null)
+                (r['game_id'] as num).toInt(),
+          };
+          if (existingGameIds.isNotEmpty) {
+            reviewsPayload = pendingReviewRows
+                .where((r) => !existingGameIds.contains(r['game_id'] as int))
+                .toList();
+          }
         }
+
+        final insertedReviewIds = <String>[];
+        if (reviewsPayload.isNotEmpty) {
+          final inserted = await supabase
+              .from('reviews')
+              .insert(reviewsPayload)
+              .select('id');
+          for (final r in (inserted as List)) {
+            if (r is Map && r['id'] != null) {
+              insertedReviewIds.add(r['id'].toString());
+            }
+          }
+        }
+
         if (userGamesPayload.isNotEmpty) {
           await supabase
               .from('user_games')
               .upsert(userGamesPayload, onConflict: 'user_id, game_id');
         }
 
-        // Limpiar activity_feed DESPUÉS de insertar juegos Y reseñas:
-        // los triggers on_user_game_status_change y on_review_upsert insertan
-        // una entrada por cada fila, lo que floodea el feed en imports masivos.
-        // Las reseñas se preservan — solo se borran las entradas del feed.
-        final gameIds = userGamesPayload.map((e) => e['game_id']).toList();
-        if (gameIds.isNotEmpty) {
+        // Limpiar activity_feed generado específicamente por las reseñas recién
+        // importadas (por `review_id`) en lugar de borrar por ventana temporal,
+        // protegiendo actividad manual previa e importaciones con fecha antigua.
+        if (insertedReviewIds.isNotEmpty) {
           try {
-            final nowUtc = DateTime.now().toUtc();
-            // 3h de margen cubre los juegos sin fecha (el importador usa -2h como fallback)
-            final cleanupWindow = nowUtc
-                .subtract(const Duration(hours: 3))
-                .toIso8601String();
-
             await supabase
                 .from('activity_feed')
                 .delete()
                 .eq('user_id', userId)
-                .inFilter('game_id', gameIds)
-                .gte('created_at', cleanupWindow);
+                .inFilter('review_id', insertedReviewIds);
           } catch (e) {
             debugPrint(
               '[CORPUS IMPORT] Warning: no se pudieron limpiar activity_feed entries: $e',

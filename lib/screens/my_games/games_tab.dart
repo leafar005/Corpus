@@ -214,7 +214,7 @@ class GamesTabState extends State<GamesTab> {
 
     final isDesktop = MediaQuery.of(context).size.width > 800;
     final horizontalPadding = isDesktop ? 40.0 : 16.0;
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final colorScheme = Theme.of(context).colorScheme;
 
     final filteredPlaying = _filterGames(_playing);
@@ -311,7 +311,7 @@ class GamesTabState extends State<GamesTab> {
     required String emptyMessage,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
 
     return [
       SliverToBoxAdapter(

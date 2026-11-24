@@ -285,7 +285,7 @@ void main() {
       expect(map.containsKey('platforms'), isFalse);
     });
 
-    test('toMap incluye is_steam_only solo si es true', () {
+    test('toMap siempre incluye is_steam_only como booleano explícito', () {
       final steamGame = Game.fromMap(const {
         'igdb_id': 1,
         'title': 'X',
@@ -294,7 +294,57 @@ void main() {
       expect(steamGame.toMap()['is_steam_only'], isTrue);
 
       final normalGame = Game.fromMap(const {'igdb_id': 1, 'title': 'X'});
-      expect(normalGame.toMap().containsKey('is_steam_only'), isFalse);
+      expect(normalGame.toMap()['is_steam_only'], isFalse);
+    });
+  });
+
+  group('Game blindaje Fase 1.2 (BUG-03, BUG-116, ARQ-12)', () {
+    test('tolera payloads con nulos y convierte doubles de JSON Web a int', () {
+      final game = Game.fromMap(const {
+        'igdb_id': 1942.0,
+        'title': null,
+        'genres': ['RPG', null, '  Action  ', ''],
+        'collection': {'id': 77.0, 'name': 'Shin Megami Tensei'},
+        'franchises': [
+          {'id': 12.0, 'name': 'Persona'},
+        ],
+        'involved_companies':
+            '[{"company":{"id":5,"name":"Atlus"},"developer":true}]',
+        'first_release_date': 1704067200.0,
+        'metacritic_updated_at': '2025-05-01T10:30:00Z',
+      });
+
+      expect(game.igdbId, 1942);
+      expect(game.title, '');
+      expect(game.genres, ['RPG', 'Action']);
+      expect(game.collection, 'Shin Megami Tensei');
+      expect(game.collectionId, 77);
+      expect(game.franchiseIds, {'Persona': 12});
+      expect(game.developer, 'Atlus');
+      expect(game.developerId, 5);
+      expect(game.releaseDate, startsWith('2024-01-01'));
+      expect(game.metacriticUpdatedAt?.isUtc, isTrue);
+
+      final roundTrip = Game.fromMap(game.toMap());
+      expect(roundTrip.collectionId, 77);
+      expect(roundTrip.franchiseIds, {'Persona': 12});
+    });
+
+    test('las colecciones expuestas en Game son inmodificables', () {
+      final game = Game.fromMap(const {
+        'igdb_id': 1,
+        'title': 'X',
+        'genres': ['RPG'],
+        'platforms': ['PC'],
+        'franchises': [
+          {'id': 10, 'name': 'Saga'},
+        ],
+      });
+
+      expect(() => game.genres.add('Shooter'), throwsUnsupportedError);
+      expect(() => game.platforms.add('PS5'), throwsUnsupportedError);
+      expect(() => game.franchises.add('Otra'), throwsUnsupportedError);
+      expect(() => game.franchiseIds['Otra'] = 20, throwsUnsupportedError);
     });
   });
 

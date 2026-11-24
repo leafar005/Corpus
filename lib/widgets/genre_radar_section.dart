@@ -110,14 +110,21 @@ class _GenreRadarSectionState extends State<GenreRadarSection> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Mapa de géneros',
-              style: TextStyle(
-                fontSize: 18,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            Flexible(
+              child: Text(
+                'Mapa de géneros',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
-            if (_availableYears.isNotEmpty) _buildYearDropdown(),
+            if (_availableYears.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              _buildYearDropdown(),
+            ],
           ],
         ),
         const SizedBox(height: 20),

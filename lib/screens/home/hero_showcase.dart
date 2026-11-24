@@ -107,8 +107,61 @@ class _HeroShowcaseState extends State<HeroShowcase>
     );
 
     if (widget.playingGames.isNotEmpty) {
-      _pickNextGame();
+      _pickNextGame(fromInitState: true);
       _initialFadeController.forward();
+      if (!kDisableCarouselForTests) {
+        _timer = Timer.periodic(widget.switchDuration, (timer) {
+          _pickNextGame();
+        });
+      }
+    }
+  }
+
+  static Object? _gameIdentity(Map<String, dynamic> game) =>
+      game['id'] ?? game['igdb_id'] ?? game['game_id'] ?? game['title'];
+
+  @override
+  void didUpdateWidget(covariant HeroShowcase oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.playingGames.isEmpty) {
+      _timer?.cancel();
+      _timer = null;
+      _currentGameIndex = 0;
+      _currentGame = null;
+      _currentScreenshotUrl = null;
+      _previousGame = null;
+      _previousScreenshotUrl = null;
+      return;
+    }
+
+    _currentGameIndex = _currentGameIndex % widget.playingGames.length;
+
+    final durationChanged = oldWidget.switchDuration != widget.switchDuration;
+    if (durationChanged) {
+      _panController.duration = widget.switchDuration;
+    }
+
+    if (oldWidget.playingGames.isEmpty && widget.playingGames.isNotEmpty) {
+      _pickNextGame();
+      _initialFadeController.forward(from: 0.0);
+    } else if (oldWidget.playingGames != widget.playingGames &&
+        _currentGame != null) {
+      final currentId = _gameIdentity(_currentGame!);
+      final stillPresent = widget.playingGames.any(
+        (g) => _gameIdentity(g) == currentId,
+      );
+      if (!stillPresent) {
+        _previousGame = null;
+        _previousScreenshotUrl = null;
+        _currentGameIndex = 0;
+        _pickNextGame();
+      }
+    }
+
+    if (durationChanged || _timer == null) {
+      _timer?.cancel();
+      _timer = null;
       if (!kDisableCarouselForTests) {
         _timer = Timer.periodic(widget.switchDuration, (timer) {
           _pickNextGame();
@@ -123,8 +176,9 @@ class _HeroShowcaseState extends State<HeroShowcase>
     return screenshots[_random.nextInt(screenshots.length)];
   }
 
-  void _pickNextGame({bool manual = false}) {
-    if (widget.playingGames.isEmpty) return;
+  void _pickNextGame({bool manual = false, bool fromInitState = false}) {
+    final count = widget.playingGames.length;
+    if (count == 0) return;
 
     if (manual) {
       _timer?.cancel();
@@ -143,19 +197,29 @@ class _HeroShowcaseState extends State<HeroShowcase>
     // de "se ve la captura antigua antes de pasar a la nueva".
     _crossFadeController.value = 1.0;
 
-    final nextGame = widget.playingGames[_currentGameIndex];
+    final safeIndex = _currentGameIndex % count;
+    final nextGame = widget.playingGames[safeIndex];
     final nextScreenshotUrl = _getRandomScreenshot(nextGame);
 
-    setState(() {
+    if (fromInitState) {
       _previousGame = _currentGame;
       _previousScreenshotUrl = _currentScreenshotUrl;
       _previousPanValue = _panController.value;
 
       _currentGame = nextGame;
       _currentScreenshotUrl = nextScreenshotUrl;
-    });
+    } else {
+      setState(() {
+        _previousGame = _currentGame;
+        _previousScreenshotUrl = _currentScreenshotUrl;
+        _previousPanValue = _panController.value;
 
-    _currentGameIndex = (_currentGameIndex + 1) % widget.playingGames.length;
+        _currentGame = nextGame;
+        _currentScreenshotUrl = nextScreenshotUrl;
+      });
+    }
+
+    _currentGameIndex = (safeIndex + 1) % count;
     _panController.forward(from: 0.0);
 
     // Velocidad del crossfade: rápida si es automático, casi instantánea si
@@ -356,9 +420,12 @@ class _HeroShowcaseState extends State<HeroShowcase>
       return Container(color: Colors.black);
     }
 
-    final gameData = _currentGame!['games'] ?? {};
-    final coverUrl = gameData['cover_url'] as String? ?? '';
-    final title = gameData['title'] as String? ?? 'Desconocido';
+    final rawGames = _currentGame!['games'];
+    final Map<String, dynamic> gameData = rawGames is Map
+        ? Map<String, dynamic>.from(rawGames)
+        : const <String, dynamic>{};
+    final coverUrl = gameData['cover_url']?.toString() ?? '';
+    final title = gameData['title']?.toString() ?? 'Desconocido';
 
     // La UI de texto (carátula, título, botón...) y los controles se pasan como
     // `child` del AnimatedBuilder exterior para no reconstruirse a 60 fps.
@@ -649,9 +716,7 @@ class _HoverableHeroCoverState extends State<_HoverableHeroCover> {
               ],
             ),
             child: ClipRRect(
-              borderRadius: Theme.of(
-                context,
-              ).extension<CorpusThemeExtension>()!.radiusLarge,
+              borderRadius: CorpusThemeExtension.of(context).radiusLarge,
               child: widget.coverUrl.isNotEmpty
                   ? CorpusNetworkImage(
                       url: widget.coverUrl,
@@ -884,9 +949,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                         TypewriterText(
                           style: CorpusTypography.display(
                             context,
-                            Theme.of(
-                              context,
-                            ).extension<CorpusThemeExtension>()!,
+                            CorpusThemeExtension.of(context),
                             fontSize: isPortrait ? 42 : 48,
                             fontWeight: FontWeight.w500,
                             height: 1.2,
@@ -897,9 +960,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                               text: 'Comienza a registrar\ntus juegos ',
                               style: CorpusTypography.display(
                                 context,
-                                Theme.of(
-                                  context,
-                                ).extension<CorpusThemeExtension>()!,
+                                CorpusThemeExtension.of(context),
                                 fontSize: isPortrait ? 42 : 48,
                                 fontWeight: FontWeight.w500,
                                 height: 1.2,
@@ -910,9 +971,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                               text: 'ahora',
                               style: CorpusTypography.display(
                                 context,
-                                Theme.of(
-                                  context,
-                                ).extension<CorpusThemeExtension>()!,
+                                CorpusThemeExtension.of(context),
                                 fontSize: isPortrait ? 42 : 48,
                                 fontWeight: FontWeight.w600,
                                 height: 1.2,
@@ -923,9 +982,7 @@ class _GuestHeroShowcaseState extends State<GuestHeroShowcase>
                               text: '.',
                               style: CorpusTypography.display(
                                 context,
-                                Theme.of(
-                                  context,
-                                ).extension<CorpusThemeExtension>()!,
+                                CorpusThemeExtension.of(context),
                                 fontSize: isPortrait ? 42 : 48,
                                 fontWeight: FontWeight.w500,
                                 height: 1.2,

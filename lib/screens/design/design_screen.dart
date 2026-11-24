@@ -53,7 +53,7 @@ class _DesignScreenState extends State<DesignScreen> {
       listenable: themeNotifier,
       builder: (context, _) {
         final pack = themeNotifier.currentPack;
-        final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+        final ext = CorpusThemeExtension.of(context);
         final cs = Theme.of(context).colorScheme;
         final isDesktop = MediaQuery.sizeOf(context).width >= 800;
         final headerPadding = isDesktop ? 40.0 : 20.0;

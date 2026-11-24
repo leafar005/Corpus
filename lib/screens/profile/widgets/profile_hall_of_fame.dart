@@ -35,7 +35,9 @@ class ProfileHallOfFame extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(5, (index) {
-                  final game = hallOfFame[index];
+                  final game = index < hallOfFame.length
+                      ? hallOfFame[index]
+                      : null;
                   final isNumberOne = index == 2;
 
                   return Expanded(

@@ -28,10 +28,11 @@ import 'package:flutter/material.dart';
 /// ```
 mixin PaginatedScrollMixin<T extends StatefulWidget> on State<T> {
   ScrollController? _externalScrollController;
-  final ScrollController _internalScrollController = ScrollController();
+  ScrollController? _internalScrollController;
 
   ScrollController get scrollController =>
-      _externalScrollController ?? _internalScrollController;
+      _externalScrollController ??
+      (_internalScrollController ??= ScrollController());
 
   bool isLoadingMore = false;
   bool hasMore = true;
@@ -41,21 +42,27 @@ mixin PaginatedScrollMixin<T extends StatefulWidget> on State<T> {
   double get prefetchThreshold => 600;
 
   void initPagination({ScrollController? externalController}) {
+    _externalScrollController?.removeListener(_onScroll);
+    _internalScrollController?.removeListener(_onScroll);
     _externalScrollController = externalController;
     scrollController.addListener(_onScroll);
   }
 
   void disposePagination() {
-    scrollController.removeListener(_onScroll);
-    if (_externalScrollController == null) {
-      _internalScrollController.dispose();
+    _externalScrollController?.removeListener(_onScroll);
+    final internal = _internalScrollController;
+    _internalScrollController = null;
+    if (internal != null) {
+      internal.removeListener(_onScroll);
+      internal.dispose();
     }
   }
 
   void _onScroll() {
-    if (!hasMore || isLoadingMore) return;
-    if (!scrollController.hasClients) return;
-    final position = scrollController.position;
+    if (!mounted || !hasMore || isLoadingMore) return;
+    final controller = _externalScrollController ?? _internalScrollController;
+    if (controller == null || controller.positions.length != 1) return;
+    final position = controller.position;
     if (position.maxScrollExtent - position.pixels <= prefetchThreshold) {
       loadMore();
     }
@@ -64,7 +71,7 @@ mixin PaginatedScrollMixin<T extends StatefulWidget> on State<T> {
   /// Método para soportar infinite scroll en vistas como NestedScrollView
   /// donde se prefiere NotificationListener sin pasar scrollController.
   void onScrollMetrics(ScrollMetrics metrics) {
-    if (!hasMore || isLoadingMore) return;
+    if (!mounted || !hasMore || isLoadingMore) return;
     if (metrics.maxScrollExtent - metrics.pixels <= prefetchThreshold) {
       loadMore();
     }

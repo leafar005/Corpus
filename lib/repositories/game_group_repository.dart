@@ -101,11 +101,30 @@ class GameGroupRepository {
     String? description,
     bool isRanked = false,
   }) async {
-    final maxSort = await _nextGroupSortOrder(userId);
+    final trimmedUserId = userId.trim();
+    if (trimmedUserId.isEmpty) {
+      throw ArgumentError.value(userId, 'userId', 'Usuario no válido');
+    }
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError.value(
+        name,
+        'name',
+        'El nombre de la colección no puede estar vacío',
+      );
+    }
+    if (trimmedName.length > 100) {
+      throw ArgumentError.value(
+        name,
+        'name',
+        'El nombre de la colección no puede superar los 100 caracteres',
+      );
+    }
+    final maxSort = await _nextGroupSortOrder(trimmedUserId);
 
     final payload = <String, dynamic>{
-      'user_id': userId,
-      'name': name.trim(),
+      'user_id': trimmedUserId,
+      'name': trimmedName,
       if (description != null && description.trim().isNotEmpty)
         'description': description.trim(),
       'sort_order': maxSort,
@@ -164,8 +183,30 @@ class GameGroupRepository {
     int? coverGameId,
     bool? isRanked,
   }) async {
+    final trimmedGroupId = groupId.trim();
+    if (trimmedGroupId.isEmpty) {
+      throw ArgumentError.value(groupId, 'groupId', 'Colección no válida');
+    }
+
     final updates = <String, dynamic>{};
-    if (name != null) updates['name'] = name.trim();
+    if (name != null) {
+      final trimmedName = name.trim();
+      if (trimmedName.isEmpty) {
+        throw ArgumentError.value(
+          name,
+          'name',
+          'El nombre de la colección no puede estar vacío',
+        );
+      }
+      if (trimmedName.length > 100) {
+        throw ArgumentError.value(
+          name,
+          'name',
+          'El nombre de la colección no puede superar los 100 caracteres',
+        );
+      }
+      updates['name'] = trimmedName;
+    }
     if (description != null) {
       final trimmed = description.trim();
       updates['description'] = trimmed.isEmpty ? null : trimmed;
@@ -177,7 +218,7 @@ class GameGroupRepository {
       final res = await _client
           .from('game_groups')
           .update(updates)
-          .eq('id', groupId)
+          .eq('id', trimmedGroupId)
           .select()
           .single();
 
@@ -194,8 +235,8 @@ class GameGroupRepository {
                 .eq('id', groupId)
                 .maybeSingle();
             if (current != null) {
-              baseDescription = GameGroup.fromMap(
-                Map<String, dynamic>.from(current as Map),
+              baseDescription = GameGroup.decodeRankedDescription(
+                (current as Map)['description']?.toString(),
               ).description;
             }
           }
@@ -253,18 +294,28 @@ class GameGroupRepository {
     required Game game,
     String? note,
   }) async {
+    final trimmedGroupId = groupId.trim();
+    if (trimmedGroupId.isEmpty) {
+      throw ArgumentError.value(groupId, 'groupId', 'Colección no válida');
+    }
+    if (game.igdbId <= 0) {
+      throw ArgumentError.value(game.igdbId, 'game.igdbId', 'Juego no válido');
+    }
+    final trimmedNote = note?.trim();
+
     await ensureGameInCatalog(game);
 
-    final nextSort = await _nextItemSortOrder(groupId);
+    final nextSort = await _nextItemSortOrder(trimmedGroupId);
 
     try {
       final inserted = await _client
           .from('game_group_items')
           .insert({
-            'group_id': groupId,
+            'group_id': trimmedGroupId,
             'game_id': game.igdbId,
             'sort_order': nextSort,
-            if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+            if (trimmedNote != null && trimmedNote.isNotEmpty)
+              'note': trimmedNote,
           })
           .select('*, games(*)')
           .single();
@@ -308,9 +359,18 @@ class GameGroupRepository {
   }
 
   Future<void> updateItemNote(String itemId, String? note) async {
+    final trimmedId = itemId.trim();
+    if (trimmedId.isEmpty) {
+      throw ArgumentError.value(itemId, 'itemId', 'Elemento no válido');
+    }
+    final trimmedNote = note?.trim();
     await _client
         .from('game_group_items')
-        .update({'note': note?.trim().isEmpty == true ? null : note?.trim()})
-        .eq('id', itemId);
+        .update({
+          'note': (trimmedNote == null || trimmedNote.isEmpty)
+              ? null
+              : trimmedNote,
+        })
+        .eq('id', trimmedId);
   }
 }

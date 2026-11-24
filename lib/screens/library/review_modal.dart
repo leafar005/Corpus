@@ -204,9 +204,11 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
     reviewRatingVisuals = hasReview
         ? (r!.ratingVisuals ?? 0)
         : widget.currentRatingVisuals;
-    reviewStatus = hasReview ? r!.status.dbValue : widget.currentStatus;
-    reviewCompletionType = hasReview
-        ? (r!.completionType ?? 'story')
+    reviewStatus = r != null ? r.status.dbValue : widget.currentStatus;
+    final rawCompletion = r?.completionType;
+    reviewCompletionType =
+        (r != null && rawCompletion != null && rawCompletion.isNotEmpty)
+        ? rawCompletion
         : 'story';
     reviewIsReplay = hasReview && r!.isReplay;
     reviewReplayNumber = (hasReview ? r!.replayNumber : null) ?? 1;
@@ -221,7 +223,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
     reviewCommentController = TextEditingController(
       text: hasReview ? (r!.comment ?? '') : widget.initialComment,
     );
-    reviewId = hasReview ? r!.id : null;
+    reviewId = (r != null && r.id.isNotEmpty) ? r.id : null;
     partnerSearchController = TextEditingController();
     replayNumberController = TextEditingController(
       text: reviewReplayNumber.toString(),

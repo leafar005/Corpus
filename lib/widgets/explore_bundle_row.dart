@@ -7,10 +7,8 @@ import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import 'package:corpus/utils/url_utils.dart';
 import 'game_card.dart';
-import 'vertical_tier_label.dart';
 
 /// Una fila horizontal deslizable con los juegos de un bundle activo.
-/// Los tiers se marcan con [VerticalTierLabel] al inicio de cada grupo.
 class ExploreBundleRow extends StatefulWidget {
   final Map<String, dynamic> bundle;
 

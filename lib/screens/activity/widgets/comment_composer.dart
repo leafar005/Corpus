@@ -183,9 +183,9 @@ class CommentComposer extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: [
                     ClipRRect(
-                      borderRadius: theme
-                          .extension<CorpusThemeExtension>()!
-                          .radiusSmall,
+                      borderRadius: CorpusThemeExtension.of(
+                        context,
+                      ).radiusSmall,
                       child: kIsWeb
                           ? CorpusNetworkImage(
                               url: selectedImage!.path,
@@ -335,9 +335,7 @@ class _SelectedGameChipPreview extends StatelessWidget {
               width: 80,
               height: 110,
               decoration: BoxDecoration(
-                borderRadius: theme
-                    .extension<CorpusThemeExtension>()!
-                    .radiusSmall,
+                borderRadius: CorpusThemeExtension.of(context).radiusSmall,
                 color: theme.colorScheme.surfaceContainerHighest,
                 image: coverUrl != null
                     ? DecorationImage(

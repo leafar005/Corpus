@@ -141,7 +141,7 @@ class _CommentCard extends StatelessWidget {
     final cardContent = Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: theme.extension<CorpusThemeExtension>()!.radiusMedium,
+        borderRadius: CorpusThemeExtension.of(context).radiusMedium,
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
         ),
@@ -249,9 +249,9 @@ class _CommentCard extends StatelessWidget {
                           onTap: () =>
                               showFullScreenGallery(context, [imageUrl], 0),
                           child: ClipRRect(
-                            borderRadius: theme
-                                .extension<CorpusThemeExtension>()!
-                                .radiusSmall,
+                            borderRadius: CorpusThemeExtension.of(
+                              context,
+                            ).radiusSmall,
                             child: CorpusNetworkImage(
                               url: imageUrl,
                               height: isDesktop ? 260 : 150,
@@ -357,9 +357,7 @@ class _AttachedGamePreview extends StatelessWidget {
             width: isDesktop ? 140 : 110,
             height: isDesktop ? 196 : 154,
             decoration: BoxDecoration(
-              borderRadius: theme
-                  .extension<CorpusThemeExtension>()!
-                  .radiusSmall,
+              borderRadius: CorpusThemeExtension.of(context).radiusSmall,
               color: theme.colorScheme.surfaceContainerHighest,
             ),
             clipBehavior: Clip.antiAlias,

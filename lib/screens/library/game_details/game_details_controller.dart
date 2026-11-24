@@ -9,6 +9,7 @@
 
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,6 +26,9 @@ class GameDetailsController extends SafeChangeNotifier {
 
   static final Map<int, Map<String, dynamic>> _sessionEnrichedData =
       <int, Map<String, dynamic>>{};
+
+  @visibleForTesting
+  static void clearSessionCacheForTesting() => _sessionEnrichedData.clear();
 
   final Game game;
   final ReviewRepository _repo;
@@ -835,9 +839,15 @@ class GameDetailsController extends SafeChangeNotifier {
     reviews.removeWhere((r) => r.id == review.id);
     if (removedFromLibrary) {
       inLibrary = false;
+      status = 'wishlist';
+      rating = 0;
+      ratingGameplay = 0;
+      ratingNarrative = 0;
+      ratingSoundtrack = 0;
+      ratingVisuals = 0;
       partnersData.clear();
     } else {
-      fetchUserData(); // Refresh global partners
+      await fetchUserData(); // Refresh global partners & summary ratings
     }
     notify();
     return removedFromLibrary;

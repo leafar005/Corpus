@@ -40,8 +40,22 @@ class StylePackRegistry {
   static List<ImportedStylePackEntry> _imported = [];
 
   static const String _prefsKey = 'imported_style_packs';
+  static final RegExp _validPackIdPattern = RegExp(r'^[a-z0-9_-]{1,64}$');
 
   StylePackRegistry._();
+
+  /// Valida que [id] sea seguro como identificador y nombre de directorio
+  /// dentro de `style_packs/` (Auditoría ARQ-16).
+  static bool isValidPackId(String id) {
+    if (!_validPackIdPattern.hasMatch(id)) return false;
+    return !_windowsReservedNames.contains(id.toUpperCase());
+  }
+
+  static void _requireValidPackId(String id) {
+    if (!isValidPackId(id)) {
+      throw FormatException('ID de style pack no válido: "$id"');
+    }
+  }
 
   static Iterable<StylePack> get _debugIterable =>
       kDebugMode ? _debugBuiltIn : const <StylePack>[];
@@ -105,7 +119,11 @@ class StylePackRegistry {
       if (entry.pack.id != packId) continue;
       final musicFile = entry.pack.musicFile;
       final installDir = entry.installDir;
-      if (musicFile == null || installDir == null) return null;
+      if (musicFile == null ||
+          installDir == null ||
+          !isSafeArchivePath(musicFile)) {
+        return null;
+      }
       return p.normalize(p.join(installDir, musicFile));
     }
     return null;
@@ -131,6 +149,7 @@ class StylePackRegistry {
   /// Import a pack from a decoded JSON map (legacy `.json` import).
   static Future<StylePack> importFromJson(Map<String, dynamic> json) async {
     final pack = StylePack.fromJson(json);
+    _requireValidPackId(pack.id);
     _imported.removeWhere((e) => e.pack.id == pack.id);
     _imported.add(ImportedStylePackEntry(pack: pack));
     await _persist();
@@ -156,14 +175,14 @@ class StylePackRegistry {
         jsonDecode(utf8.decode(manifestFile.content as List<int>))
             as Map<String, dynamic>;
     final pack = StylePack.fromJson(manifestJson);
-    final installDir = await _installDirFor(pack.id);
+    _requireValidPackId(pack.id);
 
-    final dir = Directory(installDir);
-    if (dir.existsSync()) {
-      await dir.delete(recursive: true);
+    final musicFile = pack.musicFile;
+    if (musicFile != null && !isSafeArchivePath(musicFile)) {
+      throw const FormatException('Ruta de música no segura en manifest.json');
     }
-    await dir.create(recursive: true);
 
+    // Validar todo el contenido del ZIP antes de crear o eliminar carpetas.
     for (final file in archive.files) {
       // Rechazar symlinks: podrían apuntar fuera del installDir (Auditoría I-02)
       if (_isSymlink(file)) {
@@ -175,6 +194,14 @@ class StylePackRegistry {
         throw const FormatException('Ruta no segura en el paquete');
       }
     }
+
+    final installDir = await _installDirFor(pack.id);
+
+    final dir = Directory(installDir);
+    if (dir.existsSync()) {
+      await dir.delete(recursive: true);
+    }
+    await dir.create(recursive: true);
 
     for (final file in archive.files) {
       if (!file.isFile || !isSafeArchivePath(file.name)) continue;
@@ -234,6 +261,7 @@ class StylePackRegistry {
   }
 
   static Future<String> _installDirFor(String packId) async {
+    _requireValidPackId(packId);
     final base = await getApplicationDocumentsDirectory();
     return p.join(base.path, 'style_packs', packId);
   }

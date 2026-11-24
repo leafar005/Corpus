@@ -7,11 +7,12 @@
 //   - ReviewDetailsScreen (_fetchInteractions, _toggleLike,
 //     _submitComment, _deleteComment, _deleteReview, _fetchUpdatedReview, _fetchPartner)
 
-import 'dart:math';
+import 'dart:math' as math;
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/post_stats.dart';
+import '../models/models.dart';
+import '../utils/postgrest_utils.dart';
 import '../utils/storage_utils.dart';
 import '../utils/image_compressor.dart';
 import 'review_repository.dart';
@@ -491,7 +492,7 @@ class ActivityRepository {
       _client.from('review_likes').select('user_id').eq('post_id', postId),
       _client
           .from('review_comments')
-          .select('*, users(*)')
+          .select('*, users($kPublicUserBasicColumns)')
           .eq('post_id', postId)
           .order('created_at', ascending: true),
     ]);
@@ -535,6 +536,22 @@ class ActivityRepository {
     required Map<String, dynamic>? attachedGame,
     String? parentCommentId,
   }) async {
+    final trimmedPostId = postId.trim();
+    final trimmedUserId = userId.trim();
+    if (trimmedPostId.isEmpty) {
+      throw ArgumentError.value(postId, 'postId', 'Publicación no válida');
+    }
+    if (trimmedUserId.isEmpty) {
+      throw ArgumentError.value(userId, 'userId', 'Usuario no válido');
+    }
+    final trimmedContent = content?.trim();
+    final hasText = trimmedContent != null && trimmedContent.isNotEmpty;
+    if (!hasText && commentImage == null && attachedGame == null) {
+      throw ArgumentError(
+        'El comentario debe incluir texto, imagen o un juego adjunto',
+      );
+    }
+
     String? imageUrl;
 
     if (commentImage != null) {
@@ -542,17 +559,17 @@ class ActivityRepository {
       if (bytes == null) throw Exception('Image compression failed');
       final ext = commentImage.name.split('.').last;
       final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}.$ext';
-      final path = '$userId/$fileName';
+          '${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(1000)}.$ext';
+      final path = '$trimmedUserId/$fileName';
 
       await _client.storage.from('user_uploads').uploadBinary(path, bytes);
       imageUrl = _client.storage.from('user_uploads').getPublicUrl(path);
     }
 
     await _client.from('review_comments').insert({
-      'user_id': userId,
-      'post_id': postId,
-      'content': content?.isNotEmpty == true ? content : null,
+      'user_id': trimmedUserId,
+      'post_id': trimmedPostId,
+      'content': hasText ? trimmedContent : null,
       'image_url': imageUrl,
       'attached_game': attachedGame,
       'parent_comment_id': ?parentCommentId,
@@ -597,7 +614,7 @@ class ActivityRepository {
   }) async {
     final updated = await _client
         .from('reviews')
-        .select('*, users!reviews_user_id_users_fkey(*)')
+        .select('*, users!reviews_user_id_users_fkey($kPublicUserBasicColumns)')
         .eq('id', reviewId)
         .maybeSingle();
 
@@ -804,12 +821,20 @@ class ActivityRepository {
 
       bool wasMerged = false;
       if (userId != null && gameId != null && dateStr != null) {
-        final date = DateTime.parse(dateStr as String);
-        for (int i = merged.length - 1; i >= 0 && i >= merged.length - 4; i--) {
-          final prev = merged[i];
-          if (prev['user_id'] == userId && prev['game_id'] == gameId) {
-            final prevDate = DateTime.parse(prev['created_at'] as String);
-            if (date.difference(prevDate).abs().inHours < 24) {
+        final date = dateStr is DateTime
+            ? dateStr
+            : DateTime.tryParse(dateStr.toString());
+        if (date != null) {
+          for (int i = merged.length - 1; i >= 0 && i >= merged.length - 4; i--) {
+            final prev = merged[i];
+            if (prev['user_id'] == userId && prev['game_id'] == gameId) {
+              final prevRawDate = prev['created_at'];
+              if (prevRawDate == null) continue;
+              final prevDate = prevRawDate is DateTime
+                  ? prevRawDate
+                  : DateTime.tryParse(prevRawDate.toString());
+              if (prevDate == null) continue;
+              if (date.difference(prevDate).abs().inHours < 24) {
               if (type == 'status_change' &&
                   prev['action_type'] == 'reviewed') {
                 // Solo adoptar el status_change si comparten post_id (o si prev no tenía post_id)
@@ -869,6 +894,7 @@ class ActivityRepository {
             }
           }
         }
+      }
       }
 
       if (!wasMerged) merged.add(item);
@@ -1150,11 +1176,10 @@ class ActivityRepository {
         partnersByUserGame: partnersByUserGame,
       );
       final mergedForUser = _groupActivityItems(mergedByGame);
-      grouped[entry.key] = mergedForUser
-          .take(maxPerUser)
-          .toList()
-          .reversed
-          .toList();
+      final count = math.min(maxPerUser, mergedForUser.length);
+      grouped[entry.key] = [
+        for (var i = count - 1; i >= 0; i--) mergedForUser[i],
+      ];
     }
     return grouped;
   }

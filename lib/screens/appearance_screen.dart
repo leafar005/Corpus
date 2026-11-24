@@ -163,9 +163,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
-              borderRadius: Theme.of(
-                context,
-              ).extension<CorpusThemeExtension>()!.radiusLarge,
+              borderRadius: CorpusThemeExtension.of(context).radiusLarge,
             ),
             child: Column(
               children: [
@@ -220,9 +218,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     return Material(
       color: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusLarge,
+        borderRadius: CorpusThemeExtension.of(context).radiusLarge,
         side: BorderSide(
           color: isActive
               ? Theme.of(context).colorScheme.primary
@@ -232,9 +228,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       ),
       child: ListTile(
         shape: RoundedRectangleBorder(
-          borderRadius: Theme.of(
-            context,
-          ).extension<CorpusThemeExtension>()!.radiusLarge,
+          borderRadius: CorpusThemeExtension.of(context).radiusLarge,
         ),
         leading: Container(
           width: 40,
@@ -359,9 +353,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   Widget _buildHomeTabTile() {
     return Material(
       color: Theme.of(context).colorScheme.surface,
-      borderRadius: Theme.of(
-        context,
-      ).extension<CorpusThemeExtension>()!.radiusLarge,
+      borderRadius: CorpusThemeExtension.of(context).radiusLarge,
       child: ListTile(
         leading: CorpusTablerIcon(CorpusIconKind.DashboardCustomizeOutlined,
           color: Theme.of(context).colorScheme.primary,
@@ -373,9 +365,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         subtitle: const Text('Orden y visibilidad de las secciones'),
         trailing: const CorpusTablerIcon(CorpusIconKind.ChevronRight),
         shape: RoundedRectangleBorder(
-          borderRadius: Theme.of(
-            context,
-          ).extension<CorpusThemeExtension>()!.radiusLarge,
+          borderRadius: CorpusThemeExtension.of(context).radiusLarge,
         ),
         onTap: () {
           context.pushHomeAppearance().then((_) {
@@ -389,9 +379,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   Widget _buildInfoTabTile() {
     return Material(
       color: Theme.of(context).colorScheme.surface,
-      borderRadius: Theme.of(
-        context,
-      ).extension<CorpusThemeExtension>()!.radiusLarge,
+      borderRadius: CorpusThemeExtension.of(context).radiusLarge,
       child: ListTile(
         leading: CorpusTablerIcon(CorpusIconKind.ViewListOutlined,
           color: Theme.of(context).colorScheme.primary,
@@ -403,9 +391,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         subtitle: const Text('Orden y visibilidad de los campos'),
         trailing: const CorpusTablerIcon(CorpusIconKind.ChevronRight),
         shape: RoundedRectangleBorder(
-          borderRadius: Theme.of(
-            context,
-          ).extension<CorpusThemeExtension>()!.radiusLarge,
+          borderRadius: CorpusThemeExtension.of(context).radiusLarge,
         ),
         onTap: () {
           context.pushInfoTabAppearance().then((_) {
@@ -419,9 +405,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   Widget _buildThemeOptions() {
     return Material(
       color: Theme.of(context).colorScheme.surface,
-      borderRadius: Theme.of(
-        context,
-      ).extension<CorpusThemeExtension>()!.radiusLarge,
+      borderRadius: CorpusThemeExtension.of(context).radiusLarge,
       child: Column(
         children: [
           _buildThemeTile(
@@ -470,9 +454,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             )
           : null,
       shape: RoundedRectangleBorder(
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusLarge,
+        borderRadius: CorpusThemeExtension.of(context).radiusLarge,
       ),
       onTap: () {
         themeNotifier.setTheme(mode);
@@ -544,7 +526,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [2, 3, 4].map((columns) {
             final isSelected = currentColumns == columns;
-            final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+            final ext = CorpusThemeExtension.of(context);
 
             return GestureDetector(
               onTap: () async {

@@ -68,4 +68,30 @@ void main() {
       },
     );
   });
+
+  group('resetAllGlobalState (BUG-98)', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('resetea tabScrollToTopNotifiers y contadores globales', () async {
+      unreadActivityCount.value = 4;
+      unreadFriendRequestsCount.value = 2;
+      unreadNotificationsCount.value = 7;
+      currentTabIndexNotifier.value = 3;
+      for (var i = 0; i < tabScrollToTopNotifiers.length; i++) {
+        tabScrollToTopNotifiers[i].value = i + 5;
+      }
+
+      await resetAllGlobalState();
+
+      expect(unreadActivityCount.value, 0);
+      expect(unreadFriendRequestsCount.value, 0);
+      expect(unreadNotificationsCount.value, 0);
+      expect(currentTabIndexNotifier.value, 0);
+      for (final notifier in tabScrollToTopNotifiers) {
+        expect(notifier.value, 0);
+      }
+    });
+  });
 }

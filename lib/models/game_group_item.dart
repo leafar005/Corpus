@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'game.dart';
 import 'game_status.dart';
 
+const Object _sentinel = Object();
+
 @immutable
 class GameGroupItem {
   const GameGroupItem({
@@ -35,20 +37,24 @@ class GameGroupItem {
     String? groupId,
     int? gameId,
     int? sortOrder,
-    String? note,
-    DateTime? createdAt,
-    Game? game,
-    GameStatus? libraryStatus,
+    Object? note = _sentinel,
+    Object? createdAt = _sentinel,
+    Object? game = _sentinel,
+    Object? libraryStatus = _sentinel,
   }) {
     return GameGroupItem(
       id: id ?? this.id,
       groupId: groupId ?? this.groupId,
       gameId: gameId ?? this.gameId,
       sortOrder: sortOrder ?? this.sortOrder,
-      note: note ?? this.note,
-      createdAt: createdAt ?? this.createdAt,
-      game: game ?? this.game,
-      libraryStatus: libraryStatus ?? this.libraryStatus,
+      note: identical(note, _sentinel) ? this.note : note as String?,
+      createdAt: identical(createdAt, _sentinel)
+          ? this.createdAt
+          : createdAt as DateTime?,
+      game: identical(game, _sentinel) ? this.game : game as Game?,
+      libraryStatus: identical(libraryStatus, _sentinel)
+          ? this.libraryStatus
+          : libraryStatus as GameStatus?,
     );
   }
 
@@ -57,37 +63,65 @@ class GameGroupItem {
     GameStatus? libraryStatus,
   }) {
     Game? game;
-    if (map['games'] != null) {
-      game = Game.fromMap(Map<String, dynamic>.from(map['games'] as Map));
+    final rawGame = map['games'];
+    if (rawGame is Map) {
+      game = Game.fromMap(Map<String, dynamic>.from(rawGame));
     }
 
     GameStatus? status = libraryStatus;
     if (status == null && map['library_status'] != null) {
       status = GameStatus.fromStringOrDefault(
-        map['library_status'] as String?,
+        map['library_status']?.toString(),
       );
     }
 
+    final rawCreatedAt = map['created_at'];
+
     return GameGroupItem(
-      id: map['id'].toString(),
-      groupId: map['group_id'].toString(),
-      gameId: (map['game_id'] as num).toInt(),
-      sortOrder: (map['sort_order'] as num?)?.toInt() ?? 0,
-      note: map['note'] as String?,
-      createdAt: map['created_at'] != null
-          ? DateTime.tryParse(map['created_at'] as String)
-          : null,
+      id: map['id']?.toString() ?? '',
+      groupId: map['group_id']?.toString() ?? '',
+      gameId:
+          (map['game_id'] as num?)?.toInt() ??
+          int.tryParse(map['game_id']?.toString() ?? '') ??
+          0,
+      sortOrder:
+          (map['sort_order'] as num?)?.toInt() ??
+          int.tryParse(map['sort_order']?.toString() ?? '') ??
+          0,
+      note: map['note']?.toString(),
+      createdAt: rawCreatedAt is DateTime
+          ? rawCreatedAt
+          : (rawCreatedAt != null
+                ? DateTime.tryParse(rawCreatedAt.toString())
+                : null),
       game: game,
       libraryStatus: status,
     );
   }
 
-  Map<String, dynamic> toInsertMap() {
-    return {
-      'group_id': groupId,
-      'game_id': gameId,
-      'sort_order': sortOrder,
-      if (note != null && note!.isNotEmpty) 'note': note,
-    };
-  }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GameGroupItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          groupId == other.groupId &&
+          gameId == other.gameId &&
+          sortOrder == other.sortOrder &&
+          note == other.note &&
+          createdAt == other.createdAt &&
+          game == other.game &&
+          libraryStatus == other.libraryStatus;
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    groupId,
+    gameId,
+    sortOrder,
+    note,
+    createdAt,
+    game,
+    libraryStatus,
+  );
 }

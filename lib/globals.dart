@@ -113,6 +113,9 @@ Future<void> resetAllGlobalState() async {
   unreadFriendRequestsCount.value = 0;
   unreadNotificationsCount.value = 0;
   currentTabIndexNotifier.value = 0;
+  for (final notifier in tabScrollToTopNotifiers) {
+    notifier.value = 0;
+  }
   // AHORA: mobileGridColumnsNotifier, floatingMobileNavNotifier y el resto de
   // ajustes sincronizados vía UserSettingsService SÍ se resetean al cerrar sesión.
   // Si no se hiciera, los ajustes de una cuenta se filtrarían a la sesión de otra

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 
@@ -393,12 +394,18 @@ abstract final class CorpusRouter {
         );
 
       case AppRoutes.design:
+        if (!kDebugMode) {
+          throw FlutterError('Ruta solo disponible en modo debug: ${settings.name}');
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => const DesignScreen(),
         );
 
       case AppRoutes.privateCollection:
+        if (!kDebugMode) {
+          throw FlutterError('Ruta solo disponible en modo debug: ${settings.name}');
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => const CollectionShelfScreen(),
@@ -644,8 +651,13 @@ extension CorpusNavigation on BuildContext {
     );
   }
 
-  Future<T?> pushDesign<T>() => pushRoute<T>(AppRoutes.design);
+  Future<T?> pushDesign<T>() {
+    if (!kDebugMode) return Future.value(null);
+    return pushRoute<T>(AppRoutes.design);
+  }
 
-  Future<T?> pushPrivateCollection<T>() =>
-      pushRoute<T>(AppRoutes.privateCollection);
+  Future<T?> pushPrivateCollection<T>() {
+    if (!kDebugMode) return Future.value(null);
+    return pushRoute<T>(AppRoutes.privateCollection);
+  }
 }

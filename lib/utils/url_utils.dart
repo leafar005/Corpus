@@ -18,18 +18,40 @@ import 'package:url_launcher/url_launcher.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'url_utils_stub.dart' if (dart.library.html) 'dart:html' as html;
 
+/// Esquemas permitidos para enlaces externos (previene `javascript:` / `data:`).
+const Set<String> _kAllowedExternalSchemes = <String>{'http', 'https', 'mailto'};
+
+/// Valida y parsea [url] permitiendo únicamente esquemas externos seguros
+/// (`http`, `https`, `mailto`). Devuelve `null` si es inválida o peligrosa.
+@visibleForTesting
+Uri? parseSafeExternalUri(String url) {
+  final trimmed = url.trim();
+  if (trimmed.isEmpty) return null;
+  final uri = Uri.tryParse(trimmed);
+  if (uri == null) return null;
+  final scheme = uri.scheme.toLowerCase();
+  if (!_kAllowedExternalSchemes.contains(scheme)) return null;
+  if ((scheme == 'http' || scheme == 'https') && uri.host.isEmpty) {
+    return null;
+  }
+  return uri;
+}
+
 /// Abre [url] en el navegador del sistema de forma compatible con todos los
 /// navegadores web (Chrome, Firefox, Safari) y plataformas nativas.
 ///
-/// Devuelve `true` si el enlace se pudo abrir, `false` en caso de error.
+/// Devuelve `true` si el enlace se pudo abrir, `false` en caso de error o
+/// esquema no permitido.
 Future<bool> openUrl(String url) async {
-  if (url.isEmpty) return false;
+  final uri = parseSafeExternalUri(url);
+  if (uri == null) return false;
+  final safeUrl = uri.toString();
 
   if (kIsWeb) {
     try {
       // Crear un <a> y clickarlo — no activa popup blocker en ningún navegador
       final anchor = html.document.createElement('a') as html.AnchorElement
-        ..href = url
+        ..href = safeUrl
         ..target = '_blank'
         ..rel = 'noopener noreferrer';
       html.document.body?.append(anchor);
@@ -39,10 +61,7 @@ Future<bool> openUrl(String url) async {
     } catch (e) {
       // Fallback a launchUrl si el DOM no está disponible por algún motivo
       try {
-        return await launchUrl(
-          Uri.parse(url),
-          mode: LaunchMode.platformDefault,
-        );
+        return await launchUrl(uri, mode: LaunchMode.platformDefault);
       } catch (_) {
         return false;
       }
@@ -51,7 +70,6 @@ Future<bool> openUrl(String url) async {
 
   // Nativo (Android, iOS, Windows, macOS, Linux)
   try {
-    final uri = Uri.parse(url);
     return await launchUrl(uri, mode: LaunchMode.externalApplication);
   } catch (_) {
     return false;

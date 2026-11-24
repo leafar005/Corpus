@@ -96,7 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     return Scaffold(
       appBar: AppBar(title: const CorpusScreenTitle('Crear cuenta')),
       body: Center(

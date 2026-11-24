@@ -132,7 +132,7 @@ class _GameSearchPickerSheetState extends State<GameSearchPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final searchBorder = OutlineInputBorder(
       borderRadius: ext.radiusMedium,
       borderSide: BorderSide.none,

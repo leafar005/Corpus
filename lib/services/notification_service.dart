@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'deep_link_service.dart';
@@ -33,7 +34,12 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+  StreamSubscription<RemoteMessage>? _foregroundWebSub;
+  StreamSubscription<RemoteMessage>? _foregroundMobileSub;
+  StreamSubscription<RemoteMessage>? _openedAppSub;
   StreamSubscription<String>? _tokenRefreshSub;
+
+  bool get _hasFirebaseApp => Firebase.apps.isNotEmpty;
 
   // Activo en Android, Windows y Web
   bool get _isSupported =>
@@ -56,17 +62,25 @@ class NotificationService {
     if (_initialized || !_isSupported) return;
 
     if (kIsWeb) {
+      if (!_hasFirebaseApp) {
+        debugPrint(
+          '[NotificationService] Web: Firebase no inicializado; FCM pospuesto.',
+        );
+        return;
+      }
       // En web: solo FCM. No usamos flutter_local_notifications.
       // El service worker (firebase-messaging-sw.js) gestiona los mensajes en background.
       // Aquí escuchamos los mensajes cuando la app está en primer plano.
-      FirebaseMessaging.onMessage.listen(_onForegroundMessageWeb);
+      _foregroundWebSub ??= FirebaseMessaging.onMessage.listen(
+        _onForegroundMessageWeb,
+      );
       _initialized = true;
       debugPrint('[NotificationService] Web: inicializado con FCM.');
       return;
     }
 
     // Registrar el handler de mensajes en background (solo Android)
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid && _hasFirebaseApp) {
       FirebaseMessaging.onBackgroundMessage(
         _firebaseMessagingBackgroundHandler,
       );
@@ -100,11 +114,17 @@ class NotificationService {
           >()
           ?.createNotificationChannel(_androidChannel);
 
-      // Escuchar mensajes FCM cuando la app está en primer plano
-      FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+      if (_hasFirebaseApp) {
+        // Escuchar mensajes FCM cuando la app está en primer plano
+        _foregroundMobileSub ??= FirebaseMessaging.onMessage.listen(
+          _onForegroundMessage,
+        );
 
-      // Escuchar tap en notificación cuando la app está en background (no terminada)
-      FirebaseMessaging.onMessageOpenedApp.listen(_onNotificationOpenedApp);
+        // Escuchar tap en notificación cuando la app está en background (no terminada)
+        _openedAppSub ??= FirebaseMessaging.onMessageOpenedApp.listen(
+          _onNotificationOpenedApp,
+        );
+      }
     }
 
     final launchDetails = await _localNotifications
@@ -127,6 +147,19 @@ class NotificationService {
     debugPrint('[NotificationService] Inicializado correctamente.');
   }
 
+  /// Cancela todas las suscripciones de FCM y permite reinicializar.
+  Future<void> dispose() async {
+    await _foregroundWebSub?.cancel();
+    _foregroundWebSub = null;
+    await _foregroundMobileSub?.cancel();
+    _foregroundMobileSub = null;
+    await _openedAppSub?.cancel();
+    _openedAppSub = null;
+    await _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = null;
+    _initialized = false;
+  }
+
   // ─── Permisos ──────────────────────────────────────────────────────────────
 
   Future<void> requestPermissions() async {
@@ -134,6 +167,7 @@ class NotificationService {
 
     try {
       if (kIsWeb) {
+        if (!_hasFirebaseApp) return;
         // En web: pedir permiso a través de la API de Firebase Messaging
         final settings = await FirebaseMessaging.instance.requestPermission(
           alert: true,
@@ -147,19 +181,21 @@ class NotificationService {
       }
 
       if (Platform.isAndroid) {
-        final messaging = FirebaseMessaging.instance;
-        final settings = await messaging.requestPermission(
-          alert: true,
-          badge: true,
-          sound: true,
-          announcement: false,
-          carPlay: false,
-          criticalAlert: false,
-          provisional: false,
-        );
-        debugPrint(
-          '[NotificationService] Permiso Android: ${settings.authorizationStatus}',
-        );
+        if (_hasFirebaseApp) {
+          final messaging = FirebaseMessaging.instance;
+          final settings = await messaging.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            announcement: false,
+            carPlay: false,
+            criticalAlert: false,
+            provisional: false,
+          );
+          debugPrint(
+            '[NotificationService] Permiso Android: ${settings.authorizationStatus}',
+          );
+        }
 
         // Solicitar también el permiso nativo POST_NOTIFICATIONS (Android 13+)
         await _localNotifications
@@ -186,7 +222,7 @@ class NotificationService {
   /// Guarda el token FCM del dispositivo en Supabase (push_tokens).
   /// Solo se ejecuta una vez por sesión, reutilizando el mismo token si ya existe.
   Future<void> saveFcmToken() async {
-    if (!_isSupported) return;
+    if (!_isSupported || !_hasFirebaseApp) return;
 
     // Web: necesita VAPID key; Android: usa google-services.json
     final bool isAndroid = !kIsWeb && Platform.isAndroid;
@@ -201,6 +237,27 @@ class NotificationService {
           return;
         }
       }
+
+      const platform = kIsWeb ? 'web' : 'android';
+
+      // Escuchar refresh de token incluso si getToken() falla/retorna null ahora.
+      _tokenRefreshSub ??= messaging.onTokenRefresh.listen((newToken) async {
+        final uid = Supabase.instance.client.auth.currentUser?.id;
+        if (uid == null) return;
+        try {
+          await Supabase.instance.client.from('push_tokens').upsert({
+            'user_id': uid,
+            'token': newToken,
+            'platform': platform,
+          }, onConflict: 'token');
+          debugPrint('[NotificationService] Token FCM actualizado.');
+        } catch (e) {
+          debugPrint(
+            '[NotificationService] Error actualizando token FCM: $e',
+          );
+        }
+      });
+
       final token = kIsWeb
           ? await messaging.getToken(vapidKey: Env.firebaseVapidKey)
           : await messaging.getToken();
@@ -210,8 +267,6 @@ class NotificationService {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
 
-      const platform = kIsWeb ? 'web' : 'android';
-
       await Supabase.instance.client
           .from('push_tokens')
           .upsert(
@@ -220,21 +275,10 @@ class NotificationService {
             ignoreDuplicates: false,
           );
 
+      final previewLen = token.length.clamp(0, 20);
       debugPrint(
-        '[NotificationService] Token FCM ($platform) guardado: ${token.substring(0, 20)}...',
+        '[NotificationService] Token FCM ($platform) guardado: ${token.substring(0, previewLen)}...',
       );
-
-      // Escuchar refresh de token una sola vez para mantenerlo actualizado
-      _tokenRefreshSub ??= messaging.onTokenRefresh.listen((newToken) async {
-        final uid = Supabase.instance.client.auth.currentUser?.id;
-        if (uid == null) return;
-        await Supabase.instance.client.from('push_tokens').upsert({
-          'user_id': uid,
-          'token': newToken,
-          'platform': platform,
-        }, onConflict: 'token');
-        debugPrint('[NotificationService] Token FCM actualizado.');
-      });
     } catch (e) {
       debugPrint('[NotificationService] Error guardando token FCM: $e');
       try {
@@ -255,7 +299,7 @@ class NotificationService {
   Future<void> deleteFcmToken() async {
     await _tokenRefreshSub?.cancel();
     _tokenRefreshSub = null;
-    if (!_isSupported) return;
+    if (!_isSupported || !_hasFirebaseApp) return;
     final bool isAndroid = !kIsWeb && Platform.isAndroid;
     if (!kIsWeb && !isAndroid) return;
 
@@ -265,15 +309,26 @@ class NotificationService {
               vapidKey: Env.firebaseVapidKey,
             )
           : await FirebaseMessaging.instance.getToken();
-      if (token == null) return;
-      await Supabase.instance.client
-          .from('push_tokens')
-          .delete()
-          .eq('token', token);
-      await FirebaseMessaging.instance.deleteToken();
-      debugPrint('[NotificationService] Token FCM eliminado.');
+      if (token != null) {
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        var query = Supabase.instance.client
+            .from('push_tokens')
+            .delete()
+            .eq('token', token);
+        if (userId != null) {
+          query = query.eq('user_id', userId);
+        }
+        await query;
+        debugPrint('[NotificationService] Token FCM eliminado de Supabase.');
+      }
     } catch (e) {
       debugPrint('[NotificationService] Error eliminando token FCM: $e');
+    } finally {
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+      } catch (e) {
+        debugPrint('[NotificationService] Error borrando token local FCM: $e');
+      }
     }
   }
 
@@ -312,44 +367,60 @@ class NotificationService {
       windows: Platform.isWindows ? windowsDetails : null,
     );
 
-    await _localNotifications.show(
-      id,
-      title,
-      body,
-      details,
-      payload: data != null ? jsonEncode(data) : null,
-    );
+    try {
+      await _localNotifications.show(
+        id,
+        title,
+        body,
+        details,
+        payload: data != null ? jsonEncode(data) : null,
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] Error mostrando notificación local: $e');
+    }
   }
 
   // ─── Notificación de prueba ────────────────────────────────────────────────
 
   Future<void> sendTestNotification() async {
-    final token = kIsWeb
-        ? await FirebaseMessaging.instance.getToken(
-            vapidKey: Env.firebaseVapidKey,
-          )
-        : (Platform.isAndroid
-              ? await FirebaseMessaging.instance.getToken()
-              : null);
+    try {
+      final hasUser = Supabase.instance.client.auth.currentUser != null;
+      if (hasUser && _hasFirebaseApp) {
+        final token = kIsWeb
+            ? await FirebaseMessaging.instance.getToken(
+                vapidKey: Env.firebaseVapidKey,
+              )
+            : (Platform.isAndroid
+                  ? await FirebaseMessaging.instance.getToken()
+                  : null);
 
-    if (token != null) {
-      try {
-        await Supabase.instance.client.functions.invoke(
-          'send-push-notification',
-          body: {
-            'tokens': [token],
-            'title': 'Corpus — Notificación de prueba',
-            'body': 'Las notificaciones funcionan correctamente.',
-            'data': {'type': 'test'},
-          },
-        );
-        debugPrint(
-          '[NotificationService] Test notification enviada al token: ${token.substring(0, token.length.clamp(0, 12))}...',
-        );
-        return; // FCM se encargará de mostrarla
-      } catch (e) {
-        debugPrint('[NotificationService] Error enviando push de prueba: $e');
+        if (token != null) {
+          try {
+            await Supabase.instance.client.functions.invoke(
+              'send-test-notification',
+              body: {'token': token},
+            );
+            debugPrint(
+              '[NotificationService] Test notification enviada al token: ${token.substring(0, token.length.clamp(0, 12))}...',
+            );
+            return;
+          } on FunctionException catch (e) {
+            if (e.status == 404) {
+              await Supabase.instance.client.functions.invoke(
+                'send-push-notification',
+                body: {
+                  'tokens': [token],
+                  'data': {'type': 'test'},
+                },
+              );
+              return;
+            }
+            debugPrint('[NotificationService] Error enviando push de prueba: $e');
+          }
+        }
       }
+    } catch (e) {
+      debugPrint('[NotificationService] Error enviando push de prueba: $e');
     }
 
     // Fallback: mostrar en local (útil para Windows donde no hay FCM)
@@ -365,28 +436,48 @@ class NotificationService {
   /// Mensaje FCM recibido con la app en primer plano (Android) → mostrar notificación local.
   void _onForegroundMessage(RemoteMessage message) {
     final notification = message.notification;
-    if (notification == null) return;
-
-    final title = notification.title ?? 'Corpus';
-    final body = notification.body ?? '';
     final data = message.data;
+    final title = notification?.title ?? data['title']?.toString() ?? 'Corpus';
+    final body = notification?.body ?? data['body']?.toString() ?? '';
+    if (notification == null && title == 'Corpus' && body.isEmpty) {
+      return;
+    }
 
     showNotification(
       title: title,
       body: body,
       data: data,
-      id: message.hashCode,
+      id: message.hashCode & 0x7fffffff,
     );
   }
 
   /// Mensaje FCM recibido con la app en primer plano (Web).
   /// El navegador no muestra notificaciones automáticamente en foreground,
-  /// así que simplemente lo logeamos. El service worker gestiona el background.
+  /// así que mostramos un banner in-app cuando haya un ScaffoldMessenger activo.
   void _onForegroundMessageWeb(RemoteMessage message) {
-    debugPrint(
-      '[NotificationService] Web foreground message: ${message.notification?.title}',
+    final notification = message.notification;
+    final data = message.data;
+    final title = notification?.title ?? data['title']?.toString() ?? 'Corpus';
+    final body = notification?.body ?? data['body']?.toString() ?? '';
+    debugPrint('[NotificationService] Web foreground message: $title');
+
+    final navContext = DeepLinkService.navigatorKey.currentContext;
+    if (navContext == null || !navContext.mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(navContext);
+    if (messenger == null) return;
+    final messageText = body.isNotEmpty ? '$title: $body' : title;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(messageText),
+        duration: const Duration(seconds: 4),
+        action: data.isNotEmpty
+            ? SnackBarAction(
+                label: 'Ver',
+                onPressed: () => DeepLinkService.handle(data),
+              )
+            : null,
+      ),
     );
-    // Aquí se podría mostrar un SnackBar o banner in-app si se desea.
   }
 
   void _onNotificationOpenedApp(RemoteMessage message) {

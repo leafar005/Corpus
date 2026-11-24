@@ -82,7 +82,7 @@ void main() {
       expect(ach.unlockedAt, isNull);
     });
 
-    test('unlockedAt es null si no viene la clave', () {
+    test('unlockedAt es null si no viene la clave o la fecha es inválida', () {
       final ach = Achievement.fromMap(const {
         'id': 'ach-004',
         'name': 'X',
@@ -94,6 +94,15 @@ void main() {
       });
 
       expect(ach.unlockedAt, isNull);
+
+      final invalidDate = Achievement.fromMap(const {
+        'id': 'ach-005',
+        'achievements': <dynamic, dynamic>{'name': 'Dyn', 'xp_reward': 25},
+        'unlocked_at': 'not-a-date',
+      });
+      expect(invalidDate.name, 'Dyn');
+      expect(invalidDate.xpReward, 25);
+      expect(invalidDate.unlockedAt, isNull);
     });
   });
 

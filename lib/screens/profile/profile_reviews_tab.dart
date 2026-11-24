@@ -190,21 +190,15 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
               )
             : null,
         border: OutlineInputBorder(
-          borderRadius: Theme.of(
-            context,
-          ).extension<CorpusThemeExtension>()!.radiusMedium,
+          borderRadius: CorpusThemeExtension.of(context).radiusMedium,
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: Theme.of(
-            context,
-          ).extension<CorpusThemeExtension>()!.radiusMedium,
+          borderRadius: CorpusThemeExtension.of(context).radiusMedium,
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: Theme.of(
-            context,
-          ).extension<CorpusThemeExtension>()!.radiusMedium,
+          borderRadius: CorpusThemeExtension.of(context).radiusMedium,
           borderSide: BorderSide.none,
         ),
         filled: true,
@@ -275,18 +269,14 @@ class _ProfileReviewsTabState extends State<ProfileReviewsTab>
       padding: const EdgeInsets.only(bottom: 16),
       child: InkWell(
         onTap: () => _openReview(review),
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusMedium,
+        borderRadius: CorpusThemeExtension.of(context).radiusMedium,
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Theme.of(
               context,
             ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-            borderRadius: Theme.of(
-              context,
-            ).extension<CorpusThemeExtension>()!.radiusMedium,
+            borderRadius: CorpusThemeExtension.of(context).radiusMedium,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,

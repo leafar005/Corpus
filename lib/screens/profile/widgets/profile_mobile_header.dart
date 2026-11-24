@@ -122,16 +122,22 @@ class ProfileMobileHeader extends StatelessWidget {
                         height: 1.1,
                       ),
                     ),
-                    if (showPlaying && userProfile != null) ...[
-                      const SizedBox(width: 8),
+                    if (userProfile != null &&
+                        (userProfile!['id']?.toString() ?? '').isNotEmpty)
                       Flexible(
-                        child: CurrentlyPlayingBadge(
-                          userId: userProfile!['id'],
-                          initialProfile: userProfile!,
-                          compact: true,
+                        child: Visibility(
+                          visible: showPlaying,
+                          maintainState: true,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: CurrentlyPlayingBadge(
+                              userId: userProfile!['id'].toString(),
+                              initialProfile: userProfile!,
+                              compact: true,
+                            ),
+                          ),
                         ),
                       ),
-                    ],
                   ],
                 ),
                 if (showLevel) ...[

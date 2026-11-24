@@ -27,11 +27,13 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
   String? _steamId;
   String? _steamName;
   bool _isLoading = true;
+  bool _isGuest = false;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserData();
+    _fetchUserData(fromInitState: true);
   }
 
   @override
@@ -40,9 +42,36 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchUserData() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
+  Future<void> _fetchUserData({bool fromInitState = false}) async {
+    String? userId;
+    try {
+      userId = Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      userId = null;
+    }
+    if (userId == null) {
+      if (fromInitState) {
+        _isGuest = true;
+        _loadError = null;
+        _isLoading = false;
+      } else if (mounted) {
+        setState(() {
+          _isGuest = true;
+          _loadError = null;
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+    if (fromInitState) {
+      _isGuest = false;
+      _loadError = null;
+    } else if (mounted) {
+      setState(() {
+        _isGuest = false;
+        _loadError = null;
+      });
+    }
 
     try {
       final res = await Supabase.instance.client
@@ -58,8 +87,12 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
         });
       }
     } catch (e) {
+      debugPrint('[IntegrationsScreen] Error cargando integraciones: $e');
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _loadError = 'No se pudieron cargar tus integraciones.';
+          _isLoading = false;
+        });
       }
     }
   }
@@ -75,15 +108,22 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
       );
       if (!mounted) return;
       final data = res.data;
-      if (data != null && data['success'] == true) {
+      if (data is Map && data['success'] == true) {
         setState(() {
-          _steamId = data['steamId'];
-          _steamName = data['steamName'];
+          _steamId = data['steamId']?.toString();
+          _steamName = data['steamName']?.toString();
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Cuenta de Steam vinculada con éxito.'),
           ),
+        );
+      } else {
+        final msg = (data is Map && data['error'] != null)
+            ? data['error'].toString()
+            : 'No se pudo vincular la cuenta de Steam.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
         );
       }
     } on FunctionException catch (e) {
@@ -318,11 +358,44 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     return Scaffold(
       appBar: AppBar(title: const CorpusScreenTitle('Integraciones')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _isGuest
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Inicia sesión para vincular e integrar servicios externos.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : _loadError != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_loadError!, textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _isLoading = true;
+                          _loadError = null;
+                        });
+                        _fetchUserData();
+                      },
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : SingleChildScrollView(
               padding: EdgeInsets.only(
                 top: 16.0,
@@ -615,9 +688,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: Theme.of(
-                              context,
-                            ).extension<CorpusThemeExtension>()!.radiusMedium,
+                            borderRadius: CorpusThemeExtension.of(context).radiusMedium,
                           ),
                         ),
                         child: const Text(

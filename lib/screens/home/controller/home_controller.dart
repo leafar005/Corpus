@@ -63,9 +63,12 @@ class HomeController extends SafeChangeNotifier {
 
   /// Future que resuelve cuando la Fase 1 completa. Se reemplaza en [reload].
   late Future<HomePhaseOneData> phaseOneFuture;
+  HomePhaseOneData? cachedPhaseOne;
+  Object? phaseOneError;
 
   HomePhaseTwoData? phaseTwoData;
   bool phaseTwoLoaded = false;
+  int _reloadGen = 0;
 
   bool get isGuest => _client.auth.currentUser == null;
 
@@ -73,20 +76,46 @@ class HomeController extends SafeChangeNotifier {
   // ── Ciclo de carga ─────────────────────────────────────────────────────────
 
   /// Inicia (o reinicia) la carga de ambas fases.
-  void reload() {
+  Future<void> reload({bool clearCache = false}) async {
+    final gen = ++_reloadGen;
+    if (clearCache) {
+      cachedPhaseOne = null;
+      phaseOneError = null;
+    }
     phaseTwoData = null;
     phaseTwoLoaded = false;
-    phaseOneFuture = _fetchPhaseOne();
+    final future = _fetchPhaseOne();
+    phaseOneFuture = future;
+
+    final phaseOneTask = future.then(
+      (data) {
+        if (isDisposed || gen != _reloadGen) return;
+        cachedPhaseOne = data;
+        phaseOneError = null;
+        notify();
+      },
+      onError: (Object error, StackTrace stack) {
+        if (isDisposed || gen != _reloadGen) return;
+        phaseOneError = error;
+        notify();
+      },
+    );
 
     // La Fase 2 se lanza en paralelo; cuando termina, notifica a la UI.
-    _fetchPhaseTwo().then((data) {
-      if (isDisposed) return;
-      phaseTwoData = data;
-      phaseTwoLoaded = true;
-      notify();
-    });
+    final phaseTwoTask = _fetchPhaseTwo().then(
+      (data) {
+        if (isDisposed || gen != _reloadGen) return;
+        phaseTwoData = data;
+        phaseTwoLoaded = true;
+        notify();
+      },
+      onError: (Object error, StackTrace stack) {
+        debugPrint('[HomeController] Error en Fase 2: $error');
+      },
+    );
 
     notify();
+    await Future.wait<void>([phaseOneTask, phaseTwoTask]);
   }
 
   // ── FASE 1 ─────────────────────────────────────────────────────────────────

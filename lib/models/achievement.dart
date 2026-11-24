@@ -30,19 +30,26 @@ class Achievement {
   factory Achievement.fromMap(Map<String, dynamic> map) {
     // Cuando se consulta 'user_achievements', los datos del logro suelen venir
     // anidados en un mapa 'achievements' debido al foreign key.
-    final achMap = (map['achievements'] as Map<String, dynamic>?) ?? map;
+    final rawNested = map['achievements'];
+    final achMap = rawNested is Map ? Map<String, dynamic>.from(rawNested) : map;
+    final rawUnlocked = map['unlocked_at'];
 
     return Achievement(
-      id: achMap['id'] as String? ?? '',
-      name: achMap['name'] as String? ?? '',
-      description: achMap['description'] as String? ?? '',
-      category: achMap['category'] as String? ?? '',
-      xpReward: (achMap['xp_reward'] as num?)?.toInt() ?? 0,
-      rarity: achMap['rarity'] as String? ?? 'common',
-      iconName: achMap['icon_name'] as String? ?? 'star',
-      unlockedAt: map['unlocked_at'] != null
-          ? DateTime.tryParse(map['unlocked_at'] as String)
-          : null,
+      id: achMap['id']?.toString() ?? '',
+      name: achMap['name']?.toString() ?? '',
+      description: achMap['description']?.toString() ?? '',
+      category: achMap['category']?.toString() ?? '',
+      xpReward:
+          (achMap['xp_reward'] as num?)?.toInt() ??
+          int.tryParse(achMap['xp_reward']?.toString() ?? '') ??
+          0,
+      rarity: achMap['rarity']?.toString() ?? 'common',
+      iconName: achMap['icon_name']?.toString() ?? 'star',
+      unlockedAt: rawUnlocked is DateTime
+          ? rawUnlocked
+          : (rawUnlocked != null
+                ? DateTime.tryParse(rawUnlocked.toString())
+                : null),
     );
   }
 
@@ -55,7 +62,7 @@ class Achievement {
       'xp_reward': xpReward,
       'rarity': rarity,
       'icon_name': iconName,
-      if (unlockedAt != null) 'unlocked_at': unlockedAt?.toIso8601String(),
+      if (unlockedAt != null) 'unlocked_at': unlockedAt!.toIso8601String(),
     };
   }
 

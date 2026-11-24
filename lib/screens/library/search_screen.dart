@@ -370,7 +370,7 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
   }
 
   Widget _buildSearchField() {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final searchBorder = OutlineInputBorder(
       borderRadius: ext.radiusMedium,
       borderSide: BorderSide.none,

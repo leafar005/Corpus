@@ -78,10 +78,26 @@ class CollectionRepository {
     required int gameId,
     required String platformName,
   }) async {
+    final trimmedUserId = userId.trim();
+    final trimmedPlatform = platformName.trim();
+    if (trimmedUserId.isEmpty) {
+      throw ArgumentError.value(userId, 'userId', 'Usuario no válido');
+    }
+    if (gameId <= 0) {
+      throw ArgumentError.value(gameId, 'gameId', 'Juego no válido');
+    }
+    if (trimmedPlatform.isEmpty) {
+      throw ArgumentError.value(
+        platformName,
+        'platformName',
+        'La plataforma no puede estar vacía',
+      );
+    }
+
     await _client.from('user_game_platforms').upsert({
-      'user_id': userId,
+      'user_id': trimmedUserId,
       'game_id': gameId,
-      'platform_name': platformName,
+      'platform_name': trimmedPlatform,
     });
   }
 
@@ -90,12 +106,28 @@ class CollectionRepository {
     required int gameId,
     required String platformName,
   }) async {
+    final trimmedUserId = userId.trim();
+    final trimmedPlatform = platformName.trim();
+    if (trimmedUserId.isEmpty) {
+      throw ArgumentError.value(userId, 'userId', 'Usuario no válido');
+    }
+    if (gameId <= 0) {
+      throw ArgumentError.value(gameId, 'gameId', 'Juego no válido');
+    }
+    if (trimmedPlatform.isEmpty) {
+      throw ArgumentError.value(
+        platformName,
+        'platformName',
+        'La plataforma no puede estar vacía',
+      );
+    }
+
     await _client
         .from('user_game_platforms')
         .delete()
-        .eq('user_id', userId)
+        .eq('user_id', trimmedUserId)
         .eq('game_id', gameId)
-        .eq('platform_name', platformName);
+        .eq('platform_name', trimmedPlatform);
   }
 
   /// Sincroniza las plataformas seleccionadas: añade las nuevas y elimina las desmarcadas.
@@ -104,12 +136,31 @@ class CollectionRepository {
     required int gameId,
     required List<String> selectedPlatforms,
   }) async {
-    final current = await fetchOwnedPlatforms(userId, gameId);
-    final selected = selectedPlatforms.toSet();
+    final trimmedUserId = userId.trim();
+    if (trimmedUserId.isEmpty) {
+      throw ArgumentError.value(userId, 'userId', 'Usuario no válido');
+    }
+    if (gameId <= 0) {
+      throw ArgumentError.value(gameId, 'gameId', 'Juego no válido');
+    }
+    final normalizedSelected = <String>{};
+    for (final raw in selectedPlatforms) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) {
+        throw ArgumentError.value(
+          selectedPlatforms,
+          'selectedPlatforms',
+          'Las plataformas no pueden estar vacías',
+        );
+      }
+      normalizedSelected.add(trimmed);
+    }
+
+    final current = await fetchOwnedPlatforms(trimmedUserId, gameId);
     final currentSet = current.toSet();
 
-    final toAdd = selected.difference(currentSet);
-    final toRemove = currentSet.difference(selected);
+    final toAdd = normalizedSelected.difference(currentSet);
+    final toRemove = currentSet.difference(normalizedSelected);
     if (toAdd.isEmpty && toRemove.isEmpty) return;
 
     await Future.wait([
@@ -117,14 +168,14 @@ class CollectionRepository {
         _client.from('user_game_platforms').upsert([
           for (final platform in toAdd)
             {
-              'user_id': userId,
+              'user_id': trimmedUserId,
               'game_id': gameId,
               'platform_name': platform,
             },
         ]),
       for (final platform in toRemove)
         removePlatform(
-          userId: userId,
+          userId: trimmedUserId,
           gameId: gameId,
           platformName: platform,
         ),
@@ -137,15 +188,34 @@ class CollectionRepository {
     required String platformName,
     required Iterable<int> gameIds,
   }) async {
+    final trimmedUserId = userId.trim();
+    final trimmedPlatform = platformName.trim();
+    if (trimmedUserId.isEmpty) {
+      throw ArgumentError.value(userId, 'userId', 'Usuario no válido');
+    }
+    if (trimmedPlatform.isEmpty) {
+      throw ArgumentError.value(
+        platformName,
+        'platformName',
+        'La plataforma no puede estar vacía',
+      );
+    }
     final ids = gameIds.toSet().toList();
+    if (ids.any((id) => id <= 0)) {
+      throw ArgumentError.value(
+        gameIds,
+        'gameIds',
+        'Todos los IDs de juego deben ser válidos',
+      );
+    }
     if (ids.isEmpty) return 0;
 
     final rows = ids
         .map(
           (gameId) => {
-            'user_id': userId,
+            'user_id': trimmedUserId,
             'game_id': gameId,
-            'platform_name': platformName,
+            'platform_name': trimmedPlatform,
           },
         )
         .toList();

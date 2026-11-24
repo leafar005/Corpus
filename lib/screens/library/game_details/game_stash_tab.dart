@@ -81,9 +81,7 @@ class _GameStashTabState extends State<GameStashTab> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainer,
-              borderRadius: Theme.of(
-                context,
-              ).extension<CorpusThemeExtension>()!.radiusMedium,
+              borderRadius: CorpusThemeExtension.of(context).radiusMedium,
               border: Border.all(
                 color: Theme.of(context).colorScheme.outlineVariant,
               ),

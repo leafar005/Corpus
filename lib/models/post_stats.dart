@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+
+@immutable
 class PostStats {
   final String postId;
   final int likesCount;
@@ -24,10 +27,16 @@ class PostStats {
   );
 
   factory PostStats.fromMap(Map<String, dynamic> m) => PostStats(
-    postId: m['post_id'] as String? ?? '',
-    likesCount: (m['likes_count'] as num?)?.toInt() ?? 0,
-    commentsCount: (m['comments_count'] as num?)?.toInt() ?? 0,
-    likedByMe: m['liked_by_me'] as bool? ?? false,
+    postId: m['post_id']?.toString() ?? '',
+    likesCount:
+        (m['likes_count'] as num?)?.toInt() ??
+        int.tryParse(m['likes_count']?.toString() ?? '') ??
+        0,
+    commentsCount:
+        (m['comments_count'] as num?)?.toInt() ??
+        int.tryParse(m['comments_count']?.toString() ?? '') ??
+        0,
+    likedByMe: m['liked_by_me'] == true,
   );
 
   static PostStats? fromDynamic(dynamic raw, {String? fallbackPostId}) {
@@ -48,4 +57,17 @@ class PostStats {
     'comments_count': commentsCount,
     'liked_by_me': likedByMe,
   };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PostStats &&
+          runtimeType == other.runtimeType &&
+          postId == other.postId &&
+          likesCount == other.likesCount &&
+          commentsCount == other.commentsCount &&
+          likedByMe == other.likedByMe;
+
+  @override
+  int get hashCode => Object.hash(postId, likesCount, commentsCount, likedByMe);
 }

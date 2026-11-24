@@ -720,9 +720,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                     width: 100,
                     height: 140,
                     decoration: BoxDecoration(
-                      borderRadius: Theme.of(
-                        context,
-                      ).extension<CorpusThemeExtension>()!.radiusSmall,
+                      borderRadius: CorpusThemeExtension.of(context).radiusSmall,
                       color: Theme.of(
                         context,
                       ).colorScheme.surfaceContainerHighest,
@@ -891,9 +889,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                             showFullScreenGallery(context, strUrls, idx);
                           },
                           child: ClipRRect(
-                            borderRadius: Theme.of(
-                              context,
-                            ).extension<CorpusThemeExtension>()!.radiusSmall,
+                            borderRadius: CorpusThemeExtension.of(context).radiusSmall,
                             child: CorpusNetworkImage(
                               url: imageUrls[idx] as String,
                               height: 120,
@@ -925,9 +921,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                         showFullScreenGallery(context, strUrls, idx);
                       },
                       child: ClipRRect(
-                        borderRadius: Theme.of(
-                          context,
-                        ).extension<CorpusThemeExtension>()!.radiusSmall,
+                        borderRadius: CorpusThemeExtension.of(context).radiusSmall,
                         child: CorpusNetworkImage(
                           url: imageUrls[idx] as String,
                           fit: BoxFit.cover,

@@ -33,7 +33,7 @@ class _CorpusIconButtonState extends State<CorpusIconButton> {
 
   @override
   Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final cs = Theme.of(context).colorScheme;
     final enabled = widget.onPressed != null;
 

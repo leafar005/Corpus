@@ -302,43 +302,6 @@ void main() {
     });
   });
 
-  group('Review.toInsertMap', () {
-    test('incluye solo los campos necesarios para INSERT', () {
-      final review = Review.fromMap({
-        ...minimalMap(status: 'playing'),
-        'rating': 8.0,
-        'comment': 'Muy bueno',
-        'platform': 'PC',
-        'played_from': '2024-01-01',
-        'played_until': '2024-01-20',
-        'is_replay': true,
-        'image_urls': const ['https://example.com/img.jpg'],
-      });
-
-      final insertMap = review.toInsertMap();
-
-      expect(insertMap['user_id'], 'user-uuid-1');
-      expect(insertMap['game_id'], 1942);
-      expect(insertMap['status'], 'playing');
-      expect(insertMap['rating'], 8.0);
-      expect(insertMap['comment'], 'Muy bueno');
-      expect(insertMap['is_replay'], isTrue);
-      // toInsertMap NO debe incluir 'id' (lo genera la BD)
-      expect(insertMap.containsKey('id'), isFalse);
-    });
-
-    test('played_from se serializa como fecha (sin hora) en toInsertMap', () {
-      final review = Review.fromMap({
-        ...minimalMap(),
-        'played_from': '2024-06-15',
-      });
-
-      final insertMap = review.toInsertMap();
-      // Debe ser solo la parte de fecha, sin timestamp
-      expect(insertMap['played_from'], matches(r'^\d{4}-\d{2}-\d{2}$'));
-    });
-  });
-
   group('Review.copyWith', () {
     test('crea una copia con status modificado', () {
       final original = Review.fromMap(minimalMap(status: 'playing'));
@@ -371,6 +334,92 @@ void main() {
       final copy = original.copyWith(comment: 'Nuevo comentario');
 
       expect(copy.createdAt, original.createdAt);
+    });
+
+    test('permite limpiar campos nullable explícitamente con null', () {
+      final original = Review.fromMap({
+        ...minimalMap(),
+        'rating': 8.5,
+        'comment': 'Texto',
+        'completion_type': 'story',
+        'platform': 'PC',
+      });
+
+      final cleared = original.copyWith(
+        rating: null,
+        comment: null,
+        completionType: null,
+        platform: null,
+      );
+
+      expect(cleared.rating, isNull);
+      expect(cleared.comment, isNull);
+      expect(cleared.completionType, isNull);
+      expect(cleared.platform, isNull);
+    });
+  });
+
+  group('Review blindaje Fase 1.2 (BUG-27, ARQ-12)', () {
+    test('acepta user y partners como Map<dynamic, dynamic> genérico', () {
+      final dynamic rawUser = <dynamic, dynamic>{
+        'id': 'uid-1',
+        'username': 'dyn_user',
+      };
+      final dynamic rawPartner = <dynamic, dynamic>{
+        'id': 'uid-2',
+        'username': 'dyn_partner',
+      };
+      final review = Review.fromMap({
+        ...minimalMap(),
+        'users': rawUser,
+        'partners': <dynamic>[rawPartner],
+      });
+
+      expect(review.user?.username, 'dyn_user');
+      expect(review.partners.single.username, 'dyn_partner');
+    });
+
+    test('decodifica image_urls si llega como string JSON', () {
+      final review = Review.fromMap({
+        ...minimalMap(),
+        'image_urls': '["https://example.com/1.jpg","https://example.com/2.jpg"]',
+      });
+      expect(review.imageUrls, [
+        'https://example.com/1.jpg',
+        'https://example.com/2.jpg',
+      ]);
+    });
+
+    test('tolera id/user_id nulos, game_id como double y created_at no-String', () {
+      final review = Review.fromMap(const {
+        'id': null,
+        'user_id': null,
+        'game_id': 1942.0,
+        'status': 'playing',
+        'created_at': 12345,
+      });
+      expect(review.id, '');
+      expect(review.userId, '');
+      expect(review.gameId, 1942);
+      expect(review.createdAt, isNull);
+    });
+
+    test('las listas de Review son inmodificables', () {
+      final review = Review.fromMap({
+        ...minimalMap(),
+        'image_urls': const ['https://example.com/a.jpg'],
+        'partner_ids': const ['uid-2'],
+        'partners': const [
+          {'id': 'uid-2', 'username': 'alice'},
+        ],
+      });
+
+      expect(() => review.imageUrls.add('b'), throwsUnsupportedError);
+      expect(() => review.partnerIds.add('uid-3'), throwsUnsupportedError);
+      expect(
+        () => review.partners.add(UserProfile.fromMap(const {'id': 'x'})),
+        throwsUnsupportedError,
+      );
     });
   });
 

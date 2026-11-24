@@ -368,9 +368,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusMedium,
+        borderRadius: CorpusThemeExtension.of(context).radiusMedium,
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
@@ -400,9 +398,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusMedium,
+        borderRadius: CorpusThemeExtension.of(context).radiusMedium,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -958,8 +954,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         .colorScheme
                                         .surfaceContainerHighest
                                         .withValues(alpha: 0.3),
-                                    borderRadius: Theme.of(context)
-                                        .extension<CorpusThemeExtension>()!
+                                    borderRadius: CorpusThemeExtension.of(context)
                                         .radiusMedium,
                                   ),
                                   child: Column(
@@ -1117,8 +1112,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                                 .withValues(alpha: 0.1)
                                           : null,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: Theme.of(context)
-                                            .extension<CorpusThemeExtension>()!
+                                        borderRadius: CorpusThemeExtension.of(context)
                                             .radiusLarge,
                                       ),
                                     ),
@@ -1142,8 +1136,7 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                                         ).colorScheme.surfaceContainerHighest,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: Theme.of(context)
-                                            .extension<CorpusThemeExtension>()!
+                                        borderRadius: CorpusThemeExtension.of(context)
                                             .radiusLarge,
                                       ),
                                     ),

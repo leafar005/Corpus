@@ -1,7 +1,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/services/import_service.dart';
+
+class _MockSupabaseClient extends Mock implements SupabaseClient {}
+
+class _MockGoTrueClient extends Mock implements GoTrueClient {}
 
 void main() {
   group('ImportService.fixEncoding (Reparación UTF-8 / Mojibake)', () {
@@ -110,6 +116,52 @@ Hollow Knight,beaten
 
       expect(rows.length, 1);
       expect(rows.first.title, 'Hollow Knight');
+    });
+  });
+
+  group('ImportService normalización y guardas (BUG-06)', () {
+    test('normalizeIsoDate convierte a UTC o devuelve null si es inválido', () {
+      expect(
+        ImportService.normalizeIsoDate('2025-03-10T12:00:00Z'),
+        '2025-03-10T12:00:00.000Z',
+      );
+      expect(ImportService.normalizeIsoDate(null), isNull);
+      expect(ImportService.normalizeIsoDate(''), isNull);
+      expect(ImportService.normalizeIsoDate('NaN'), isNull);
+      expect(ImportService.normalizeIsoDate('null'), isNull);
+      expect(ImportService.normalizeIsoDate('invalid-date'), isNull);
+    });
+
+    test('normalizeCompletionType mapea alias válidos y cae a none', () {
+      expect(ImportService.normalizeCompletionType('100%'), '100_percent');
+      expect(ImportService.normalizeCompletionType('Platino'), '100_percent');
+      expect(ImportService.normalizeCompletionType('story'), 'story');
+      expect(ImportService.normalizeCompletionType('Historia'), 'story');
+      expect(ImportService.normalizeCompletionType('desconocido'), 'none');
+      expect(ImportService.normalizeCompletionType(null), 'none');
+    });
+
+    test('saveImportedGames lanza StateError si no hay sesión activa', () async {
+      final client = _MockSupabaseClient();
+      final auth = _MockGoTrueClient();
+      when(() => client.auth).thenReturn(auth);
+      when(() => auth.currentUser).thenReturn(null);
+
+      await expectLater(
+        () => ImportService.saveImportedGames(
+          [
+            CsvGameRow(
+              title: 'Hades',
+              status: 'beaten',
+              matchStatus: 'matched',
+              igdbData: {'id': 1, 'name': 'Hades'},
+            ),
+          ],
+          onProgress: (_, _) {},
+          client: client,
+        ),
+        throwsA(isA<StateError>()),
+      );
     });
   });
 }

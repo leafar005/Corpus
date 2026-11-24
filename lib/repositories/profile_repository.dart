@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
+import '../utils/postgrest_utils.dart';
 
 class ProfileData {
   const ProfileData({
@@ -93,7 +94,7 @@ class ProfileRepository {
   }) async {
     var profile = await _client
         .from('users')
-        .select()
+        .select(kFullPublicProfileColumns)
         .eq('id', userId)
         .maybeSingle();
 
@@ -104,7 +105,7 @@ class ProfileRepository {
         profile = await _client
             .from('users')
             .insert({'id': userId, 'username': defaultUsername})
-            .select()
+            .select(kFullPublicProfileColumns)
             .single();
       } catch (e) {
         debugPrint('[ProfileRepository] No se pudo crear el perfil: $e');
@@ -132,8 +133,9 @@ class ProfileRepository {
     String userId, {
     bool isOwnProfile = false,
   }) async {
+    final safeUserId = requireValidUuid(userId, name: 'userId');
     final userProfile = await fetchUserProfile(
-      userId,
+      safeUserId,
       isOwnProfile: isOwnProfile,
     );
 
@@ -227,7 +229,7 @@ class ProfileRepository {
           .from('friendships')
           .select('requester_id')
           .eq('status', 'accepted')
-          .or('requester_id.eq.$userId,addressee_id.eq.$userId')
+          .or('requester_id.eq.$safeUserId,addressee_id.eq.$safeUserId')
           .count(CountOption.exact),
     ]);
 
@@ -326,11 +328,6 @@ class ProfileRepository {
         result.add(gameData);
       }
     }
-    // We also sort them internally just to be absolutely sure they are in order.
-    result.sort(
-      (a, b) =>
-          (b['_sort_date'] as String).compareTo(a['_sort_date'] as String),
-    );
     return result;
   }
 
@@ -343,13 +340,13 @@ class ProfileRepository {
     if (gameData == null) return null;
 
     final enriched = Map<String, dynamic>.from(gameData as Map);
-    final rating = (row['rating'] ?? 0).toDouble();
+    final rating = (row['rating'] as num? ?? 0).toDouble();
     enriched['user_rating'] = rating;
 
     // Propagar completion_type desde el mapa global de reviews
-    final gameId = row['game_id'];
+    final gameId = (row['game_id'] as num?)?.toInt();
     if (gameId != null) {
-      final ct = completionTypeMap[gameId as int];
+      final ct = completionTypeMap[gameId];
       if (ct != null) enriched['completion_type'] = ct;
     }
 
@@ -391,16 +388,13 @@ class ProfileRepository {
     final entries = <GenreRadarEntry>[];
 
     for (final row in rows) {
-      final status = row['status'] as String?;
-      if (status != 'beaten' && status != 'completed') continue;
-
       final gameData = row['games'] as Map<String, dynamic>?;
       if (gameData == null) continue;
 
       final game = Game.fromMap(gameData);
-      final genres = game.genres
-          .where((g) => g.toLowerCase() != 'indie')
-          .toList();
+      final genres = List<String>.unmodifiable(
+        game.genres.where((g) => g.toLowerCase() != 'indie'),
+      );
       if (genres.isEmpty) continue;
 
       final lastPlayed = row['last_played_at'] != null

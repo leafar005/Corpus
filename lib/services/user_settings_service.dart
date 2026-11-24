@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,10 +9,37 @@ class UserSettingsService {
   static final UserSettingsService _instance = UserSettingsService._internal();
   factory UserSettingsService() => _instance;
 
-  SupabaseClient get _supabase => Supabase.instance.client;
+  static const String _dirtyKey = 'user_settings_dirty';
+  static const String _pendingJsonKey = 'user_settings_pending_json';
+
+  SupabaseClient? _testClient;
+  SupabaseClient get _supabase => _testClient ?? Supabase.instance.client;
+
   final Map<String, dynamic> _pending = {};
   Timer? _debounce;
   Future<void>? _dirtyFlagWrite;
+  Future<void>? _activeFlush;
+  bool _flushAgain = false;
+
+  @visibleForTesting
+  void setClientForTesting(SupabaseClient? client) {
+    _testClient = client;
+  }
+
+  @visibleForTesting
+  void resetForTesting() {
+    _debounce?.cancel();
+    _debounce = null;
+    _pending.clear();
+    _dirtyFlagWrite = null;
+    _activeFlush = null;
+    _flushAgain = false;
+    _testClient = null;
+  }
+
+  @visibleForTesting
+  Map<String, dynamic> get pendingSnapshotForTesting =>
+      Map<String, dynamic>.from(_pending);
 
   static const List<String> syncKeys = [
     'theme_mode',
@@ -63,18 +91,45 @@ class UserSettingsService {
   };
 
   /// Descarga los ajustes remotos y los aplica a SharedPreferences.
+  /// Si hay cambios locales offline pendientes (`user_settings_dirty == true`),
+  /// los sube primero antes de conciliar con el estado remoto.
   Future<void> pullAndApplyToLocalCache() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
 
+    if (_dirtyFlagWrite != null) {
+      await _dirtyFlagWrite;
+    }
+
     final prefs = await SharedPreferences.getInstance();
 
-    if (prefs.getBool('user_settings_dirty') == true) {
-      final ok = await flushNow();
-      if (ok) {
-        await prefs.setBool('user_settings_dirty', false);
+    if (prefs.getBool(_dirtyKey) == true) {
+      if (_pending.isEmpty) {
+        final rawPending = prefs.getString(_pendingJsonKey);
+        if (rawPending != null && rawPending.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(rawPending);
+            if (decoded is Map) {
+              for (final entry in decoded.entries) {
+                final k = entry.key.toString();
+                if (syncKeys.contains(k)) {
+                  _pending[k] = entry.value;
+                }
+              }
+            }
+          } catch (_) {}
+        }
+        if (_pending.isEmpty) {
+          _pending.addAll(_snapshotLocals(prefs));
+        }
       }
-      return;
+
+      final ok = await flushNow();
+      if (!ok) {
+        return;
+      }
+      await prefs.setBool(_dirtyKey, false);
+      await prefs.remove(_pendingJsonKey);
     }
 
     try {
@@ -109,13 +164,25 @@ class UserSettingsService {
       return;
     }
 
-    _pending.addAll(changedKeys);
-    _dirtyFlagWrite = SharedPreferences.getInstance().then((p) async {
-      await p.setBool('user_settings_dirty', true);
-    });
+    for (final entry in changedKeys.entries) {
+      _pending[entry.key] = entry.value is List
+          ? List<dynamic>.from(entry.value as List)
+          : entry.value;
+    }
+
+    final pendingSnapshot = _cloneMap(_pending);
+    _dirtyFlagWrite = (_dirtyFlagWrite ?? Future<void>.value())
+        .catchError((_) {})
+        .then((_) async {
+          final p = await SharedPreferences.getInstance();
+          await p.setBool(_dirtyKey, true);
+          await p.setString(_pendingJsonKey, jsonEncode(pendingSnapshot));
+        });
 
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 600), _flush);
+    _debounce = Timer(const Duration(milliseconds: 600), () {
+      unawaited(_flush());
+    });
   }
 
   /// Fuerza el envío inmediato de lo pendiente.
@@ -128,42 +195,102 @@ class UserSettingsService {
   /// Resetea SharedPreferences a defaults locales (logout).
   Future<void> resetLocalCacheToDefaults() async {
     _debounce?.cancel();
+    if (_activeFlush != null) {
+      await _activeFlush!.catchError((_) {});
+    }
+    if (_dirtyFlagWrite != null) {
+      await _dirtyFlagWrite!.catchError((_) {});
+      _dirtyFlagWrite = null;
+    }
     _pending.clear();
-    final prefs = await SharedPreferences.getInstance();
+    _flushAgain = false;
 
+    final prefs = await SharedPreferences.getInstance();
     for (final key in syncKeys) {
       await prefs.remove(key);
     }
-    await prefs.setBool('user_settings_dirty', false);
+    await prefs.remove(_pendingJsonKey);
+    await prefs.setBool(_dirtyKey, false);
   }
 
   Future<void> _flush() async {
-    if (_pending.isEmpty) return;
-    if (_dirtyFlagWrite != null) {
-      await _dirtyFlagWrite;
-      _dirtyFlagWrite = null;
-    }
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) {
-      _pending.clear();
-      return;
+    if (_activeFlush != null) {
+      _flushAgain = true;
+      return _activeFlush!;
     }
 
-    final payload = Map<String, dynamic>.from(_pending);
+    final completer = Completer<void>();
+    _activeFlush = completer.future;
     try {
-      await _supabase
-          .from('user_settings')
-          .upsert({'user_id': userId, ...payload}, onConflict: 'user_id')
-          .timeout(const Duration(seconds: 6));
+      do {
+        _flushAgain = false;
+        if (_pending.isEmpty) break;
 
-      _pending.removeWhere((k, _) => payload.containsKey(k));
-      if (_pending.isEmpty) {
-        final p = await SharedPreferences.getInstance();
-        await p.setBool('user_settings_dirty', false);
-      }
-    } catch (e) {
-      debugPrint('[UserSettingsService] push falló, se reintentará: $e');
+        if (_dirtyFlagWrite != null) {
+          try {
+            await _dirtyFlagWrite;
+          } catch (_) {}
+          _dirtyFlagWrite = null;
+        }
+
+        final userId = _supabase.auth.currentUser?.id;
+        if (userId == null) {
+          // No descartar _pending si userId es null transitoriamente; solo
+          // resetLocalCacheToDefaults limpia cambios en logout explícito.
+          break;
+        }
+
+        final payload = _cloneMap(_pending);
+        try {
+          await _supabase
+              .from('user_settings')
+              .upsert({'user_id': userId, ...payload}, onConflict: 'user_id')
+              .timeout(const Duration(seconds: 6));
+
+          // Solo eliminar claves cuyo valor actual siga coincidiendo con el enviado.
+          _pending.removeWhere(
+            (k, v) => payload.containsKey(k) && _valuesEqual(v, payload[k]),
+          );
+
+          final p = await SharedPreferences.getInstance();
+          if (_pending.isEmpty) {
+            await p.setBool(_dirtyKey, false);
+            await p.remove(_pendingJsonKey);
+          } else {
+            await p.setBool(_dirtyKey, true);
+            await p.setString(_pendingJsonKey, jsonEncode(_cloneMap(_pending)));
+            _flushAgain = true;
+          }
+        } catch (e) {
+          debugPrint('[UserSettingsService] push falló, se reintentará: $e');
+          break;
+        }
+      } while (_flushAgain && _pending.isNotEmpty);
+    } finally {
+      _activeFlush = null;
+      completer.complete();
     }
+  }
+
+  static Map<String, dynamic> _cloneMap(Map<String, dynamic> source) {
+    final copy = <String, dynamic>{};
+    for (final entry in source.entries) {
+      copy[entry.key] = entry.value is List
+          ? List<dynamic>.from(entry.value as List)
+          : entry.value;
+    }
+    return copy;
+  }
+
+  static bool _valuesEqual(dynamic a, dynamic b) {
+    if (identical(a, b)) return true;
+    if (a is List && b is List) {
+      return listEquals(
+        a.map((e) => e?.toString()).toList(),
+        b.map((e) => e?.toString()).toList(),
+      );
+    }
+    return a == b;
   }
 
   Map<String, dynamic> _snapshotLocals(SharedPreferences prefs) {

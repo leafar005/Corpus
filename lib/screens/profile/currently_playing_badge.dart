@@ -29,18 +29,58 @@ class CurrentlyPlayingBadge extends StatefulWidget {
 }
 
 class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
+  static int _nextChannelId = 0;
+
   RealtimeChannel? _subscription;
   int? _appId;
   String? _appName;
 
-  @override
-  void initState() {
-    super.initState();
-    _appId = widget.initialProfile['currently_playing_appid'];
-    _appName = widget.initialProfile['currently_playing_name'];
+  SupabaseClient? _supabaseOrNull() {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
 
-    _subscription = Supabase.instance.client
-        .channel('public:users:${widget.userId}')
+  void _syncFromInitialProfile() {
+    _appId = (widget.initialProfile['currently_playing_appid'] as num?)?.toInt();
+    _appName = widget.initialProfile['currently_playing_name']?.toString();
+  }
+
+  void _unsubscribe() {
+    final channel = _subscription;
+    _subscription = null;
+    final client = _supabaseOrNull();
+    if (channel != null && client != null) {
+      try {
+        unawaited(
+          client
+              .removeChannel(channel)
+              .then<void>(
+                (_) {},
+                onError: (Object e) {
+                  debugPrint(
+                    '[CurrentlyPlayingBadge] Error removing channel: $e',
+                  );
+                },
+              ),
+        );
+      } catch (e) {
+        debugPrint('[CurrentlyPlayingBadge] Error removing channel: $e');
+      }
+    }
+  }
+
+  void _subscribe() {
+    _unsubscribe();
+    if (widget.userId.isEmpty) return;
+    final client = _supabaseOrNull();
+    if (client == null) return;
+
+    final channelName = 'public:users:${widget.userId}:${_nextChannelId++}';
+    _subscription = client
+        .channel(channelName)
         .onPostgresChanges(
           event: PostgresChangeEvent.update,
           schema: 'public',
@@ -53,8 +93,10 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
           callback: (payload) {
             if (mounted) {
               setState(() {
-                _appId = payload.newRecord['currently_playing_appid'];
-                _appName = payload.newRecord['currently_playing_name'];
+                _appId = (payload.newRecord['currently_playing_appid'] as num?)
+                    ?.toInt();
+                _appName = payload.newRecord['currently_playing_name']
+                    ?.toString();
               });
             }
           },
@@ -63,44 +105,52 @@ class _CurrentlyPlayingBadgeState extends State<CurrentlyPlayingBadge> {
   }
 
   @override
-  void dispose() {
-    final channel = _subscription;
-    _subscription = null;
-    if (channel != null) {
-      try {
-        unawaited(
-          Supabase.instance.client.removeChannel(channel).then<void>(
-            (_) {},
-            onError: (Object e) {
-              debugPrint(
-                '[CurrentlyPlayingBadge] Error removing channel: $e',
-              );
-            },
-          ),
-        );
-      } catch (e) {
-        debugPrint('[CurrentlyPlayingBadge] Error removing channel: $e');
-      }
+  void initState() {
+    super.initState();
+    _syncFromInitialProfile();
+    _subscribe();
+  }
+
+  @override
+  void didUpdateWidget(covariant CurrentlyPlayingBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialProfile != widget.initialProfile) {
+      _syncFromInitialProfile();
     }
+    if (oldWidget.userId != widget.userId) {
+      _subscribe();
+    }
+  }
+
+  @override
+  void dispose() {
+    _unsubscribe();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_appId == null) return const SizedBox.shrink();
+    final appId = _appId;
+    if (appId == null) return const SizedBox.shrink();
 
     // Pulse animation logic could go here, or we just keep it simple with colors
     return GestureDetector(
       onTap: () async {
-        // Find if we have the game in our db
-        final res = await Supabase.instance.client
-            .from('games')
-            .select('igdb_id, steam_app_id, title')
-            .eq('steam_app_id', _appId!)
-            .maybeSingle();
+        final client = _supabaseOrNull();
+        if (client == null) return;
+        try {
+          // Find if we have the game in our db
+          final res = await client
+              .from('games')
+              .select('igdb_id, steam_app_id, title')
+              .eq('steam_app_id', appId)
+              .maybeSingle();
 
-        if (res != null && context.mounted) {
-          context.pushGameDetails(Game.fromMap(res));
+          if (res != null && context.mounted) {
+            context.pushGameDetails(Game.fromMap(res));
+          }
+        } catch (e) {
+          debugPrint('[CurrentlyPlayingBadge] Error opening game details: $e');
         }
       },
       child: Container(

@@ -44,11 +44,12 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     with SingleTickerProviderStateMixin {
   static const _slideDuration = Duration(seconds: 10);
 
-  final _repo = ActivityRepository();
+  late final ActivityRepository _repo = ActivityRepository();
   final _commentController = TextEditingController();
   final _commentFocusNode = FocusNode();
   final _scrollController = ScrollController();
 
+  late final List<StoryGroup> _groups;
   late int _groupIndex;
   late int _activityIndex;
   final Set<String> _viewedThisSession = {};
@@ -56,29 +57,59 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
 
   late AnimationController _progressController;
   bool _isPaused = false;
+  bool _hasPopped = false;
+  int _interactionSeq = 0;
 
   int _likesCount = 0;
   bool _hasLiked = false;
 
   bool _isSubmittingComment = false;
 
+  String? get _currentUserId {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _groupIndex = widget.initialGroupIndex.clamp(0, widget.groups.length - 1);
-    _activityIndex = widget.initialActivityIndex.clamp(
-      0,
-      widget.groups[_groupIndex].activities.length - 1,
-    );
+    _groups = widget.groups.where((g) => g.activities.isNotEmpty).toList();
     _progressController = AnimationController(
       vsync: this,
       duration: _slideDuration,
     )..addStatusListener(_onProgressComplete);
-
     _commentFocusNode.addListener(_onCommentFocusChanged);
-    _loadReviewInteractions();
+
+    if (_groups.isEmpty) {
+      _groupIndex = 0;
+      _activityIndex = 0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _closeViewer();
+      });
+      return;
+    }
+
+    _groupIndex = widget.initialGroupIndex.clamp(0, _groups.length - 1);
+    _activityIndex = widget.initialActivityIndex.clamp(
+      0,
+      _groups[_groupIndex].activities.length - 1,
+    );
+
+    _loadReviewInteractions(fromInitState: true);
     _markCurrentActivityAsViewed();
     _startSlide();
+  }
+
+  void _closeViewer() {
+    if (_hasPopped || !mounted) return;
+    _hasPopped = true;
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+    }
   }
 
   @override
@@ -92,9 +123,8 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   }
 
   Map<String, dynamic> get _currentActivity =>
-      widget.groups[_groupIndex].activities[_activityIndex];
-  Map<String, dynamic> get _currentUserData =>
-      widget.groups[_groupIndex].userData;
+      _groups[_groupIndex].activities[_activityIndex];
+  Map<String, dynamic> get _currentUserData => _groups[_groupIndex].userData;
 
   Map<String, dynamic>? get _currentReview =>
       _currentActivity['_review'] as Map<String, dynamic>?;
@@ -122,20 +152,28 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   void _startSlide() {
     _progressController
       ..duration = _slideDuration
-      ..reset()
-      ..forward();
+      ..reset();
+    if (!_isPaused) {
+      _progressController.forward();
+    }
   }
 
-  Future<void> _loadReviewInteractions() async {
+  Future<void> _loadReviewInteractions({bool fromInitState = false}) async {
+    final seq = ++_interactionSeq;
     final review = _currentReview;
     final reviewId = review?['id'] as String?;
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final userId = _currentUserId;
 
     if (!_isReviewSlide || userId == null) {
-      setState(() {
+      if (fromInitState) {
         _likesCount = 0;
         _hasLiked = false;
-      });
+      } else if (mounted) {
+        setState(() {
+          _likesCount = 0;
+          _hasLiked = false;
+        });
+      }
       return;
     }
 
@@ -145,21 +183,25 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       fallbackPostId: _currentPostId,
     );
 
-    setState(() {
+    if (fromInitState) {
       _likesCount = cachedStats?.likesCount ?? 0;
       _hasLiked = cachedStats?.likedByMe ?? false;
-    });
+    } else if (mounted) {
+      setState(() {
+        _likesCount = cachedStats?.likesCount ?? 0;
+        _hasLiked = cachedStats?.likedByMe ?? false;
+      });
+    }
 
     try {
       String? postId = _currentPostId;
       if (postId == null && reviewId != null) {
         postId = await _repo.resolvePostIdForReview(reviewId, create: false);
       }
-      if (postId == null) return;
+      if (postId == null || !mounted || seq != _interactionSeq) return;
 
       final result = await _repo.fetchInteractions(postId, userId);
-      if (!mounted ||
-          (_currentPostId != postId && _currentReview?['id'] != reviewId)) {
+      if (!mounted || seq != _interactionSeq) {
         return;
       }
       setState(() {
@@ -173,7 +215,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
 
   void _markCurrentActivityAsViewed() {
     final ids = ActivityRepository.activityIdsOf(_currentActivity);
-    final myId = Supabase.instance.client.auth.currentUser?.id;
+    final myId = _currentUserId;
     if (ids.isEmpty || myId == null) return;
     final unseenIds = ids
         .where((id) => !_viewedThisSession.contains(id))
@@ -182,6 +224,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     _viewedThisSession.addAll(unseenIds);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       viewedStoryIdsNotifier.value = {
         ...viewedStoryIdsNotifier.value,
         ...unseenIds,
@@ -201,7 +244,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   }
 
   void _goNext() {
-    final activities = widget.groups[_groupIndex].activities;
+    final activities = _groups[_groupIndex].activities;
     if (_activityIndex < activities.length - 1) {
       setState(() => _activityIndex++);
       _afterSlideChange();
@@ -209,8 +252,8 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     }
 
     final nextGroupIndex = _groupIndex + 1;
-    if (nextGroupIndex >= widget.groups.length) {
-      Navigator.of(context).pop();
+    if (nextGroupIndex >= _groups.length) {
+      _closeViewer();
       return;
     }
 
@@ -220,7 +263,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       // Si ya la vio entera, firstUnseenIndex devuelve 0 → la re-reproduce
       // desde el principio, igual que si la tocara manualmente en la franja.
       _activityIndex = ActivityRepository.firstUnseenIndex(
-        widget.groups[nextGroupIndex].activities,
+        _groups[nextGroupIndex].activities,
         viewedStoryIdsNotifier.value,
       );
     });
@@ -237,27 +280,28 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       setState(() {
         _slideDirection = -1;
         _groupIndex--;
-        _activityIndex = widget.groups[_groupIndex].activities.length - 1;
+        _activityIndex = _groups[_groupIndex].activities.length - 1;
       });
       _afterSlideChange();
       return;
     }
-    _progressController
-      ..reset()
-      ..forward(); // ya en el primer slide del primer amigo
+    _progressController.reset();
+    if (!_isPaused) {
+      _progressController.forward(); // ya en el primer slide del primer amigo
+    }
   }
 
   void _goNextGroup() {
     final nextGroupIndex = _groupIndex + 1;
-    if (nextGroupIndex >= widget.groups.length) {
-      Navigator.of(context).pop();
+    if (nextGroupIndex >= _groups.length) {
+      _closeViewer();
       return;
     }
     setState(() {
       _slideDirection = 1;
       _groupIndex = nextGroupIndex;
       _activityIndex = ActivityRepository.firstUnseenIndex(
-        widget.groups[nextGroupIndex].activities,
+        _groups[nextGroupIndex].activities,
         viewedStoryIdsNotifier.value,
       );
     });
@@ -269,14 +313,15 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
       setState(() {
         _slideDirection = -1;
         _groupIndex--;
-        _activityIndex = widget.groups[_groupIndex].activities.length - 1;
+        _activityIndex = _groups[_groupIndex].activities.length - 1;
       });
       _afterSlideChange();
       return;
     }
-    _progressController
-      ..reset()
-      ..forward();
+    _progressController.reset();
+    if (!_isPaused) {
+      _progressController.forward();
+    }
   }
 
   void _togglePause(bool paused) {
@@ -413,6 +458,13 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
 
   @override
   Widget build(BuildContext context) {
+    if (_groups.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: SizedBox.shrink(),
+      );
+    }
+
     final activity = _currentActivity;
     final gameData = activity['games'] as Map<String, dynamic>? ?? {};
     final meta = activity['metadata'] as Map<String, dynamic>? ?? {};
@@ -453,7 +505,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
     final replayCount = review?['replay_count'] as int? ?? 0;
 
     final cs = Theme.of(context).colorScheme;
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
 
     final isMobile =
         Theme.of(context).platform == TargetPlatform.iOS ||
@@ -487,7 +539,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
               if (_isPaused) _togglePause(false);
             }
           },
-          onDismissed: (_) => Navigator.of(context).pop(),
+          onDismissed: (_) => _closeViewer(),
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             transitionBuilder: (child, animation) {
@@ -669,7 +721,7 @@ class _ActivityStoryViewerState extends State<ActivityStoryViewer>
   }
 
   Widget _buildProgressBars(ColorScheme cs) {
-    final activities = widget.groups[_groupIndex].activities;
+    final activities = _groups[_groupIndex].activities;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: Row(

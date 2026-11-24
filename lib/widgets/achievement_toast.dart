@@ -17,8 +17,10 @@ class AchievementToast {
     Color color = const Color(0xFFFFD700), // Dorado por defecto
     VoidCallback? onTap,
   }) {
-    final overlayState = Overlay.of(context);
-    late OverlayEntry overlayEntry;
+    final overlayState = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlayState == null) return;
+    late final OverlayEntry overlayEntry;
+    var removed = false;
 
     overlayEntry = OverlayEntry(
       builder: (context) => _AnimatedAchievementToast(
@@ -29,7 +31,11 @@ class AchievementToast {
         color: color,
         onTap: onTap,
         onDismissed: () {
-          overlayEntry.remove();
+          if (removed) return;
+          removed = true;
+          if (overlayEntry.mounted) {
+            overlayEntry.remove();
+          }
         },
       ),
     );
@@ -49,11 +55,10 @@ class AchievementToast {
   }) {
     int toastDelay = 300;
     for (final ach in achievements) {
-      final String aId = ach['id'] as String;
-      final String title = ach['name'] as String? ?? 'Logro desbloqueado';
-      final String rarity =
-          (ach['rarity'] as String?)?.toLowerCase() ?? 'comun';
-      final int xpReward = ach['xp_reward'] as int? ?? 0;
+      final String aId = ach['id']?.toString() ?? '';
+      final String title = ach['name']?.toString() ?? 'Logro desbloqueado';
+      final String rarity = ach['rarity']?.toString().toLowerCase() ?? 'comun';
+      final int xpReward = (ach['xp_reward'] as num?)?.toInt() ?? 0;
 
       String subtitle = 'Logro desbloqueado';
       Color color = const Color(0xFFFFD700);
@@ -97,20 +102,22 @@ class AchievementToast {
             xpReward: xpReward,
             icon: CorpusIconKind.WorkspacePremium,
             color: color,
-            onTap: () async {
-              final groupId = aId.split('_').first;
-              final route = await DeepRouteResolver.buildRoute(
-                AchievementGamesDeepRoute(achievementId: groupId),
-              );
-              if (!context.mounted) return;
-              if (route != null && isMounted()) {
-                Navigator.push(context, route);
-              }
-            },
+            onTap: aId.isEmpty
+                ? null
+                : () async {
+                    final groupId = aId.split('_').first;
+                    final route = await DeepRouteResolver.buildRoute(
+                      AchievementGamesDeepRoute(achievementId: groupId),
+                    );
+                    if (!context.mounted) return;
+                    if (route != null && isMounted()) {
+                      Navigator.push(context, route);
+                    }
+                  },
           );
         }
       });
-      toastDelay += 3700;
+      toastDelay += 4600;
     }
   }
 }
@@ -168,12 +175,19 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
     _controller.forward();
 
     // Mantener en pantalla 3.5 segundos y luego retirar suavemente
-    _timer = Timer(const Duration(milliseconds: 3500), () async {
-      if (mounted) {
-        await _controller.reverse();
-        widget.onDismissed();
-      }
-    });
+    _timer = Timer(const Duration(milliseconds: 3500), _dismiss);
+  }
+
+  bool _isDismissing = false;
+
+  Future<void> _dismiss() async {
+    if (_isDismissing || !mounted) return;
+    _isDismissing = true;
+    _timer?.cancel();
+    await _controller.reverse();
+    if (mounted) {
+      widget.onDismissed();
+    }
   }
 
   @override
@@ -199,12 +213,7 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
                 child: GestureDetector(
                   onTap: () {
                     widget.onTap?.call();
-                    if (mounted) {
-                      _timer?.cancel();
-                      _controller.reverse().then((_) {
-                        widget.onDismissed();
-                      });
-                    }
+                    unawaited(_dismiss());
                   },
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 450),
@@ -296,9 +305,7 @@ class _AnimatedAchievementToastState extends State<_AnimatedAchievementToast>
                             ),
                             decoration: BoxDecoration(
                               color: widget.color.withValues(alpha: 0.2),
-                              borderRadius: Theme.of(
-                                context,
-                              ).extension<CorpusThemeExtension>()!.radiusLarge,
+                              borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                             ),
                             child: Text(
                               '+${widget.xpReward} XP',

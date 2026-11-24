@@ -38,8 +38,15 @@ class StylePackImportService {
 
     final ext = (file.extension ?? '').toLowerCase();
     if (ext == 'json') {
-      final json = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-      final pack = await StylePackRegistry.importFromJson(json);
+      final decoded = jsonDecode(utf8.decode(bytes));
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('El JSON del paquete no es un objeto válido.');
+      }
+      final rawId = decoded['id']?.toString() ?? '';
+      if (!StylePackRegistry.isValidPackId(rawId)) {
+        throw FormatException('ID de style pack no válido: "$rawId"');
+      }
+      final pack = await StylePackRegistry.importFromJson(decoded);
       return StylePackImportResult(pack: pack, isBundle: false);
     }
 

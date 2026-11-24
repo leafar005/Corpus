@@ -12,7 +12,7 @@ void showCorpusSnackBar(
   Duration duration = const Duration(seconds: 3),
 }) {
   final cs = Theme.of(context).colorScheme;
-  final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+  final ext = CorpusThemeExtension.of(context);
 
   final (bg, fg) = switch (variant) {
     CorpusSnackBarVariant.success => (const Color(0xFF2E7D32), Colors.white),

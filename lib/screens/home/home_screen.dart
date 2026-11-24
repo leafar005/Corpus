@@ -81,8 +81,12 @@ class _HomeScreenState extends State<HomeScreen> {
       _updateScrollArrows();
       _updateBundlesScrollArrows();
     });
-    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-      if (mounted) _controller.reload();
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (!mounted) return;
+      if (data.event == AuthChangeEvent.signedIn ||
+          data.event == AuthChangeEvent.signedOut) {
+        _controller.reload(clearCache: true);
+      }
     });
   }
 
@@ -136,8 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _handleRefresh() async {
-    _controller.reload();
-    await _controller.phaseOneFuture;
+    await _controller.reload();
   }
 
   // ── BUILD ─────────────────────────────────────────────────────────────────
@@ -154,15 +157,21 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
       body: FutureBuilder<HomePhaseOneData>(
         future: _controller.phaseOneFuture,
+        initialData: _controller.cachedPhaseOne,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          final p1 = snapshot.data ?? _controller.cachedPhaseOne;
+          if (p1 == null) {
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+            if (_controller.phaseOneError != null &&
+                snapshot.connectionState != ConnectionState.waiting) {
+              return Center(
+                child: Text('Error: ${_controller.phaseOneError}'),
+              );
+            }
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          final p1 = snapshot.data!;
           final p2 = _controller.phaseTwoData;
 
           final latestReviews = p2?.latestReviews ?? [];
@@ -391,9 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }
 
-                    final isP5r = Theme.of(
-                      context,
-                    ).extension<CorpusThemeExtension>()!.useDynamicFrames;
+                    final isP5r = CorpusThemeExtension.of(context).useDynamicFrames;
 
                     final bundleInfo = MouseRegion(
                       cursor: SystemMouseCursors.click,
@@ -1155,9 +1162,7 @@ class _SectionShimmerState extends State<_SectionShimmer>
                     color: Theme.of(
                       context,
                     ).colorScheme.onSurface.withValues(alpha: _anim.value),
-                    borderRadius: Theme.of(
-                      context,
-                    ).extension<CorpusThemeExtension>()!.radiusLarge,
+                    borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                   ),
                 ),
               ),

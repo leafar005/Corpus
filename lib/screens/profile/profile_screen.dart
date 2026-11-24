@@ -703,10 +703,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: Colors.white,
                               ),
                             ),
-                            if (_userProfile != null) ...[
+                            if (_userProfile != null &&
+                                (_userProfile!['id']?.toString() ?? '')
+                                    .isNotEmpty) ...[
                               const SizedBox(width: 10),
                               CurrentlyPlayingBadge(
-                                userId: _userProfile!['id'],
+                                userId: _userProfile!['id'].toString(),
                                 initialProfile: _userProfile!,
                                 inline: true,
                               ),
@@ -788,10 +790,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: Colors.white,
                               ),
                             ),
-                            if (_userProfile != null) ...[
+                            if (_userProfile != null &&
+                                (_userProfile!['id']?.toString() ?? '')
+                                    .isNotEmpty) ...[
                               const SizedBox(width: 10),
                               CurrentlyPlayingBadge(
-                                userId: _userProfile!['id'],
+                                userId: _userProfile!['id'].toString(),
                                 initialProfile: _userProfile!,
                                 inline: true,
                               ),

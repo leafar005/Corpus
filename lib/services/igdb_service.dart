@@ -635,27 +635,40 @@ class IGDBService {
     return decoded;
   }
 
-  /// Búsqueda "permisiva" pensada para resolver títulos de bundles/DLCs
-  /// que no tienen cover propia ni rating en IGDB, pero sí existen.
-  static Future<List<dynamic>> searchGameLenient(String rawQuery) async {
+  /// Construye la query Apicalypse sanitizada para [searchGameLenient].
+  /// Devuelve `null` si no quedan términos válidos tras sanitizar.
+  @visibleForTesting
+  static String? buildLenientSearchQuery(String rawQuery) {
     final query = decodeHtmlEntities(rawQuery).trim();
-    if (query.isEmpty) return [];
+    if (query.isEmpty) return null;
 
     final words = query
         .toLowerCase()
-        .split(' ')
+        .split(RegExp(r'\s+'))
+        .map(sanitizeApicalypseTerm)
         .where((w) => w.isNotEmpty)
         .toList();
+    if (words.isEmpty) return null;
+
     final wordConditions = words
         .map((w) => '(name ~ *"$w"* | alternative_names.name ~ *"$w"*)')
         .join(' & ');
 
-    // Sin exigir cover != null ni total_rating_count != null.
-    // Ordenamos por total_rating_count desc pero sin filtrarlo.
-    final response = await _postQuery(
-      'games',
-      'fields name, cover.image_id, first_release_date, category, game_type, parent_game, genres.name, platforms.name, url; where $wordConditions; sort total_rating_count desc; limit 5;',
-    );
+    // Sin exigir cover != null; la disyunción mantiene juegos sin votos cuando
+    // ordenamos por total_rating_count desc.
+    return 'fields name, cover.image_id, first_release_date, category, '
+        'game_type, parent_game, genres.name, platforms.name, url; '
+        'where ($wordConditions) & (total_rating_count != null | total_rating_count = null); '
+        'sort total_rating_count desc; limit 5;';
+  }
+
+  /// Búsqueda "permisiva" pensada para resolver títulos de bundles/DLCs
+  /// que no tienen cover propia ni rating en IGDB, pero sí existen.
+  static Future<List<dynamic>> searchGameLenient(String rawQuery) async {
+    final body = buildLenientSearchQuery(rawQuery);
+    if (body == null) return [];
+
+    final response = await _postQuery('games', body);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as List;

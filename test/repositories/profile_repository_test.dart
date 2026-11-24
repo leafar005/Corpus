@@ -35,7 +35,7 @@ void main() {
       expect(result.length, 1);
     });
 
-    test('ordena por _sort_date descendente', () {
+    test('preserva el orden devuelto por BD sin reordenar en cliente', () {
       final rows = [
         makeRow(game: gameA, updatedAt: '2024-01-01T00:00:00'),
         makeRow(game: gameB, updatedAt: '2024-03-15T00:00:00'),
@@ -43,8 +43,8 @@ void main() {
 
       final result = ProfileRepository.enrichList(rows);
 
-      expect(result[0]['title'], 'Celeste'); // 2024-03-15
-      expect(result[1]['title'], 'Hades'); // 2024-01-01
+      expect(result[0]['title'], 'Hades');
+      expect(result[1]['title'], 'Celeste');
     });
 
     test('inyecta user_rating y _sort_date en el gameData', () {

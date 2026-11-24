@@ -10,13 +10,15 @@ import 'package:corpus/globals.dart';
 /// los contadores de badge correspondientes. La UI solo llama a los métodos
 /// públicos; nunca accede a Supabase directamente.
 class MainScreenController {
-  MainScreenController({required this.isOnActivityTab});
+  MainScreenController({required this.isOnActivityTab, SupabaseClient? client})
+    : _client = client ?? Supabase.instance.client;
 
   /// Devuelve true cuando el usuario está en la pestaña Actividad.
   /// Se usa para evitar incrementar el badge mientras ya la tiene abierta.
   final bool Function() isOnActivityTab;
 
-  final _client = Supabase.instance.client;
+  final SupabaseClient _client;
+  bool _disposed = false;
 
   RealtimeChannel? _friendshipsChannel;
   RealtimeChannel? _activityFeedChannel;
@@ -33,6 +35,7 @@ class MainScreenController {
 
   /// Inicia las tres suscripciones Realtime y carga los badges iniciales.
   void init() {
+    if (_disposed) return;
     _subscribeFriendRequests();
     _subscribeActivityFeed();
     _subscribeNotifications();
@@ -40,9 +43,24 @@ class MainScreenController {
 
   /// Cancela todos los canales abiertos. Llamar desde [State.dispose].
   void dispose() {
-    _friendshipsChannel?.unsubscribe();
-    _activityFeedChannel?.unsubscribe();
-    _notificationsChannel?.unsubscribe();
+    if (_disposed) return;
+    _disposed = true;
+    for (final ch in [
+      _friendshipsChannel,
+      _activityFeedChannel,
+      _notificationsChannel,
+    ]) {
+      if (ch != null) {
+        try {
+          unawaited(_client.removeChannel(ch));
+        } catch (e) {
+          debugPrint('[MainScreenController] Error removiendo canal: $e');
+        }
+      }
+    }
+    _friendshipsChannel = null;
+    _activityFeedChannel = null;
+    _notificationsChannel = null;
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -52,6 +70,7 @@ class MainScreenController {
   /// Recarga todos los contadores de badge desde el servidor.
   /// Llamar al volver de segundo plano (excepto si estamos en pestaña Actividad).
   Future<void> fetchInitialBadges() async {
+    if (_disposed) return;
     final myId = _myId;
     if (myId == null) return;
 
@@ -62,6 +81,7 @@ class MainScreenController {
           .select('requester_id')
           .eq('addressee_id', myId)
           .eq('status', 'pending');
+      if (_disposed) return;
       unreadFriendRequestsCount.value = res.length;
     } catch (e) {
       debugPrint(
@@ -69,9 +89,12 @@ class MainScreenController {
       );
     }
 
+    if (_disposed) return;
+
     // Actividad no leída (calculada en servidor).
     try {
       final res = await _client.rpc('get_unread_activity_summary').single();
+      if (_disposed) return;
       unreadActivityCount.value = (res['unread_count'] as num?)?.toInt() ?? 0;
     } catch (e) {
       debugPrint('[MainScreenController] Error fetch activity summary: $e');
@@ -81,6 +104,7 @@ class MainScreenController {
   /// Marca la actividad como leída: reset optimista en la UI + persistencia
   /// en servidor (para sincronizar otros dispositivos de la misma cuenta).
   Future<void> markActivityRead() async {
+    if (_disposed) return;
     final myId = _myId;
     if (myId == null) return;
 
@@ -98,10 +122,12 @@ class MainScreenController {
 
   /// Recarga el conteo de notificaciones no leídas.
   Future<void> fetchNotificationsCount() async {
+    if (_disposed) return;
     final myId = _myId;
     if (myId == null) return;
     try {
       final res = await _client.rpc('get_unread_notifications_count');
+      if (_disposed) return;
       unreadNotificationsCount.value = (res as num?)?.toInt() ?? 0;
     } catch (e) {
       debugPrint('[MainScreenController] Error fetch notifications count: $e');
@@ -123,6 +149,7 @@ class MainScreenController {
         .eq('addressee_id', myId)
         .eq('status', 'pending')
         .then((rows) {
+          if (_disposed) return;
           unreadFriendRequestsCount.value = rows.length;
         })
         .catchError((Object e) {
@@ -130,7 +157,7 @@ class MainScreenController {
         });
 
     _friendshipsChannel = _client
-        .channel('pending_friend_requests')
+        .channel('pending_friend_requests:$myId')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -141,6 +168,7 @@ class MainScreenController {
             value: myId,
           ),
           callback: (payload) {
+            if (_disposed) return;
             final status = payload.newRecord['status'];
             if (status == 'pending') {
               unreadFriendRequestsCount.value++;
@@ -157,12 +185,13 @@ class MainScreenController {
     fetchInitialBadges();
 
     _activityFeedChannel = _client
-        .channel('main_activity_feed_badge')
+        .channel('main_activity_feed_badge:$myId')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'activity_feed',
           callback: (payload) {
+            if (_disposed) return;
             final record = payload.newRecord;
             final userId = record['user_id'];
             if (userId == myId) return; // Ignorar posts propios.
@@ -195,6 +224,7 @@ class MainScreenController {
           },
         )
         .subscribe((status, error) {
+          if (_disposed) return;
           if (status == RealtimeSubscribeStatus.subscribed) {
             // Re-fetch también en reconexiones (cortes de red, suspensión).
             fetchInitialBadges();
@@ -215,7 +245,7 @@ class MainScreenController {
     fetchNotificationsCount();
 
     _notificationsChannel = _client
-        .channel('unread_notifications_badge')
+        .channel('unread_notifications_badge:$myId')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
@@ -225,9 +255,13 @@ class MainScreenController {
             column: 'recipient_id',
             value: myId,
           ),
-          callback: (_) => fetchNotificationsCount(),
+          callback: (_) {
+            if (_disposed) return;
+            fetchNotificationsCount();
+          },
         )
         .subscribe((status, error) {
+          if (_disposed) return;
           if (status == RealtimeSubscribeStatus.subscribed) {
             fetchNotificationsCount();
           }

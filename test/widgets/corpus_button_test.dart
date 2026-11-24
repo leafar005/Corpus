@@ -51,4 +51,23 @@ void main() {
     expect(find.byType(CorpusButton), findsOneWidget);
     expect(find.text('Take Heart'), findsOneWidget);
   });
+
+  testWidgets('CorpusButton soporta CorpusButtonVariant.destructive', (
+    tester,
+  ) async {
+    var pressed = false;
+    await tester.pumpWidget(
+      wrap(
+        CorpusButton(
+          label: 'Eliminar',
+          variant: CorpusButtonVariant.destructive,
+          onPressed: () => pressed = true,
+        ),
+      ),
+    );
+
+    expect(find.text('Eliminar'), findsOneWidget);
+    await tester.tap(find.text('Eliminar'));
+    expect(pressed, isTrue);
+  });
 }

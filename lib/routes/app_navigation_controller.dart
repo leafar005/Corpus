@@ -597,12 +597,24 @@ class AppNavigationController {
   }
 
   void recordTabSwitch(int toTab, {int retries = 0}) {
+    if (toTab != currentTabIndexNotifier.value) {
+      _pendingTabSwitches.remove(toTab);
+      return;
+    }
+    if (retries > 0 && !_pendingTabSwitches.contains(toTab)) {
+      return;
+    }
     final frames = _stacks[toTab] ?? const [];
     if (frames.isEmpty) {
       if (retries >= 5) {
         _pendingTabSwitches.remove(toTab);
         debugPrint(
-          '[Nav] recordTabSwitch: frames de tab $toTab siguen vacíos tras $retries reintentos',
+          '[Nav] recordTabSwitch: frames de tab $toTab siguen vacíos tras $retries reintentos; usando ruta raíz',
+        );
+        setWebPath(
+          publicPathForTabRoute(toTab, null),
+          replace: false,
+          state: {'tab': toTab, 'depth': 0, 'token': 0},
         );
         return;
       }

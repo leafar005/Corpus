@@ -22,9 +22,7 @@ class LevelProgressBar extends StatelessWidget {
     final spacing = compact ? 4.0 : 6.0;
 
     return InkWell(
-      borderRadius: Theme.of(
-        context,
-      ).extension<CorpusThemeExtension>()!.radiusSmall,
+      borderRadius: CorpusThemeExtension.of(context).radiusSmall,
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,9 +49,7 @@ class LevelProgressBar extends StatelessWidget {
           ),
           SizedBox(height: spacing),
           ClipRRect(
-            borderRadius: Theme.of(
-              context,
-            ).extension<CorpusThemeExtension>()!.radiusSmall,
+            borderRadius: CorpusThemeExtension.of(context).radiusSmall,
             child: LinearProgressIndicator(
               value: LevelCalculator.getProgressFraction(xp),
               minHeight: barHeight,

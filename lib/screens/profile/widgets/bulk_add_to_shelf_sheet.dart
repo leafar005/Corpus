@@ -230,9 +230,7 @@ class _BulkAddToShelfSheetState extends State<BulkAddToShelfSheet> {
                       const SizedBox(height: 12),
                       Builder(
                         builder: (context) {
-                          final ext = Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()!;
+                          final ext = CorpusThemeExtension.of(context);
                           final searchBorder = OutlineInputBorder(
                             borderRadius: ext.radiusMedium,
                             borderSide: BorderSide.none,

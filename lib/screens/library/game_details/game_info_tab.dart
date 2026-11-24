@@ -99,9 +99,7 @@ class GameInfoTab extends StatelessWidget {
               color: color,
               borderRadius: isCircle
                   ? null
-                  : Theme.of(
-                      context,
-                    ).extension<CorpusThemeExtension>()!.radiusSmall,
+                  : CorpusThemeExtension.of(context).radiusSmall,
               shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
             ),
             alignment: Alignment.center,
@@ -256,9 +254,7 @@ class GameInfoTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: Theme.of(
-            context,
-          ).extension<CorpusThemeExtension>()!.radiusMedium,
+          borderRadius: CorpusThemeExtension.of(context).radiusMedium,
           border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
@@ -357,9 +353,7 @@ class GameInfoTab extends StatelessWidget {
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           border: Border.all(color: color.withValues(alpha: 0.3)),
-          borderRadius: Theme.of(
-            context,
-          ).extension<CorpusThemeExtension>()!.radiusLarge,
+          borderRadius: CorpusThemeExtension.of(context).radiusLarge,
         ),
         child: Column(
           children: [
@@ -464,9 +458,7 @@ class GameInfoTab extends StatelessWidget {
                           ).colorScheme.primary.withValues(alpha: 0.5),
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()!.radiusLarge,
+                          borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                         ),
                         onPressed: () {
                           context.pushGroupGames(
@@ -489,9 +481,7 @@ class GameInfoTab extends StatelessWidget {
                           ).colorScheme.primary.withValues(alpha: 0.5),
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: Theme.of(
-                            context,
-                          ).extension<CorpusThemeExtension>()!.radiusLarge,
+                          borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                         ),
                       ),
               ...franchisesData
@@ -514,9 +504,7 @@ class GameInfoTab extends StatelessWidget {
                               ).colorScheme.tertiary.withValues(alpha: 0.5),
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: Theme.of(
-                                context,
-                              ).extension<CorpusThemeExtension>()!.radiusLarge,
+                              borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                             ),
                             onPressed: () {
                               context.pushGroupGames(
@@ -542,9 +530,7 @@ class GameInfoTab extends StatelessWidget {
                               ).colorScheme.tertiary.withValues(alpha: 0.5),
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: Theme.of(
-                                context,
-                              ).extension<CorpusThemeExtension>()!.radiusLarge,
+                              borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                             ),
                           ),
                   ),
@@ -590,9 +576,7 @@ class GameInfoTab extends StatelessWidget {
                     ).colorScheme.primary.withValues(alpha: 0.3),
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: Theme.of(
-                      context,
-                    ).extension<CorpusThemeExtension>()!.radiusLarge,
+                    borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                   ),
                 );
               }),
@@ -610,9 +594,7 @@ class GameInfoTab extends StatelessWidget {
                     ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: Theme.of(
-                      context,
-                    ).extension<CorpusThemeExtension>()!.radiusLarge,
+                    borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                   ),
                 );
               }),
@@ -661,9 +643,7 @@ class GameInfoTab extends StatelessWidget {
                 backgroundColor: style['color'],
                 side: BorderSide.none,
                 shape: RoundedRectangleBorder(
-                  borderRadius: Theme.of(
-                    context,
-                  ).extension<CorpusThemeExtension>()!.radiusLarge,
+                  borderRadius: CorpusThemeExtension.of(context).radiusLarge,
                 ),
               );
             }).toList(),

@@ -178,6 +178,34 @@ void main() {
       expect(leveled.level, 5);
       expect(leveled.id, original.id);
     });
+    test('tolera id nulo en fallbacks de Perfil', () {
+      final profile = UserProfile.fromMap(const {'username': 'invitado'});
+      expect(profile.id, '');
+      expect(profile.username, 'invitado');
+    });
+
+    test('permite limpiar campos nullable en copyWith con null explícito', () {
+      final original = UserProfile.fromMap(const {
+        'id': 'abc',
+        'username': 'user',
+        'display_name': 'Nombre',
+        'bio': 'Bio',
+        'xp': 100,
+        'level': 2,
+      });
+
+      final cleared = original.copyWith(
+        displayName: null,
+        bio: null,
+        xp: null,
+        level: null,
+      );
+
+      expect(cleared.displayName, isNull);
+      expect(cleared.bio, isNull);
+      expect(cleared.xp, isNull);
+      expect(cleared.level, isNull);
+    });
   });
 
   group('UserProfile equality y hashCode', () {

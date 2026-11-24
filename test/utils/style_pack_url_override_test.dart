@@ -45,4 +45,12 @@ void main() {
     final uri = Uri.parse('http://localhost:8080/');
     expect(StylePackUrlOverride.packIdFromUri(uri), isNull);
   });
+
+  test('allowOverride: false deshabilita overrides URL en release', () {
+    final uri = Uri.parse('http://localhost:8080/?style=persona5');
+    expect(
+      StylePackUrlOverride.packIdFromUri(uri, allowOverride: false),
+      isNull,
+    );
+  });
 }

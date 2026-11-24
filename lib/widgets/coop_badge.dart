@@ -35,9 +35,7 @@ class CoopBadge extends StatelessWidget {
           color: Theme.of(
             context,
           ).colorScheme.primaryContainer.withValues(alpha: 0.6),
-          borderRadius: Theme.of(
-            context,
-          ).extension<CorpusThemeExtension>()!.radiusLarge,
+          borderRadius: CorpusThemeExtension.of(context).radiusLarge,
           border: Border.all(
             color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
           ),

@@ -122,4 +122,21 @@ void main() {
       );
     });
   });
+
+  group('StylePackRegistry.isValidPackId', () {
+    test('acepta IDs snake_case válidos', () {
+      expect(StylePackRegistry.isValidPackId('persona_5_royal'), isTrue);
+      expect(StylePackRegistry.isValidPackId('pack-01_test'), isTrue);
+    });
+
+    test('rechaza traversal, separadores, mayúsculas y espacios', () {
+      expect(StylePackRegistry.isValidPackId('..'), isFalse);
+      expect(StylePackRegistry.isValidPackId('../etc'), isFalse);
+      expect(StylePackRegistry.isValidPackId('pack/sub'), isFalse);
+      expect(StylePackRegistry.isValidPackId('pack\\sub'), isFalse);
+      expect(StylePackRegistry.isValidPackId('InvalidPack'), isFalse);
+      expect(StylePackRegistry.isValidPackId('pack with space'), isFalse);
+      expect(StylePackRegistry.isValidPackId(''), isFalse);
+    });
+  });
 }

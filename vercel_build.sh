@@ -19,6 +19,18 @@ cat <<EOF > .env.json
 }
 EOF
 
+# Generamos la configuración web de Firebase para el Service Worker (no versionada)
+cat <<EOF > web/firebase-config.js
+self.__CORPUS_FIREBASE_CONFIG__ = {
+  apiKey: "$FIREBASE_API_KEY",
+  authDomain: "$FIREBASE_AUTH_DOMAIN",
+  projectId: "$FIREBASE_PROJECT_ID",
+  storageBucket: "$FIREBASE_STORAGE_BUCKET",
+  messagingSenderId: "$FIREBASE_MESSAGING_SENDER_ID",
+  appId: "$FIREBASE_APP_ID"
+};
+EOF
+
 # Descargamos Flutter y compilamos la versión Web
 git clone https://github.com/flutter/flutter.git -b stable --depth 1
 ./flutter/bin/flutter build web --release --pwa-strategy=none --dart-define-from-file=.env.json

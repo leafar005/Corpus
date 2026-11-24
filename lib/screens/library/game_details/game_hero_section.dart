@@ -19,7 +19,6 @@ import '../../../utils/igdb_constants.dart';
 import '../../../widgets/p5r_dynamic_frame.dart';
 import '../../../globals.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameHeroSection extends StatefulWidget {
   final Game gameData;
@@ -142,7 +141,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       if (forceInitialSwap) {
         _selectRandomScreenshot(screenshotsData);
       }
-      if (screenshotsData.length > 1) {
+      if (!kDisableCarouselForTests && screenshotsData.length > 1) {
         _carouselTimer?.cancel();
         _carouselTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
           _selectRandomScreenshot(screenshotsData);
@@ -378,44 +377,20 @@ class _GameHeroSectionState extends State<GameHeroSection> {
     );
   }
 
-  String _resolveCurrentUserId() =>
-      widget.userData?.id ??
-      Supabase.instance.client.auth.currentUser?.id ??
-      '';
-
-  Review _buildFallbackReview(String userId) => Review(
-    id: '',
-    userId: userId,
-    gameId: widget.gameData.igdbId,
-    rating: 0,
-    ratingGameplay: 0,
-    ratingNarrative: 0,
-    ratingSoundtrack: 0,
-    ratingVisuals: 0,
-    status: GameStatus.fromStringOrDefault(widget.status),
-    completionType: '',
-    isReplay: false,
-    createdAt: DateTime.now(),
-    updatedAt: DateTime.now(),
-  );
-
   void _openEditOrFallbackReview() {
-    if (widget.reviews.isNotEmpty) {
-      widget.onEditReview(widget.reviews.first);
-      return;
-    }
-    final userId = _resolveCurrentUserId();
-    if (userId.isEmpty) {
+    if (widget.controller.isLoadingUserData) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'No se pudo identificar tu sesión. Inicia sesión de nuevo.',
-          ),
+          content: Text('Cargando tus datos, inténtalo en un momento.'),
         ),
       );
       return;
     }
-    widget.onEditReview(_buildFallbackReview(userId));
+    if (widget.reviews.isNotEmpty) {
+      widget.onEditReview(widget.reviews.first);
+      return;
+    }
+    widget.onShowReviewModal();
   }
 
   Future<void> _confirmAndDeleteFromLibrary() async {
@@ -534,15 +509,11 @@ class _GameHeroSectionState extends State<GameHeroSection> {
             tooltip: 'Opciones',
             offset: const Offset(0, 50),
             shape: RoundedRectangleBorder(
-              borderRadius: Theme.of(
-                context,
-              ).extension<CorpusThemeExtension>()!.radiusMedium,
+              borderRadius: CorpusThemeExtension.of(context).radiusMedium,
             ),
             child: Builder(
               builder: (context) {
-                final ext = Theme.of(
-                  context,
-                ).extension<CorpusThemeExtension>()!;
+                final ext = CorpusThemeExtension.of(context);
                 final menuBgColor = Colors.grey.shade900;
                 const menuIconColor = Colors.white;
 
@@ -695,7 +666,7 @@ class _GameHeroSectionState extends State<GameHeroSection> {
       } catch (_) {}
     }
 
-    final ext = Theme.of(context).extension<CorpusThemeExtension>()!;
+    final ext = CorpusThemeExtension.of(context);
     final coverArtWidget = Container(
       decoration: BoxDecoration(
         borderRadius: ext.radiusMedium,
@@ -920,14 +891,18 @@ class _GameHeroSectionState extends State<GameHeroSection> {
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
             const SizedBox(width: 4),
-            Text(
-              releaseDate,
-              style: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                shadows: theme.brightness == Brightness.dark
-                    ? const [Shadow(color: Colors.black54, blurRadius: 4)]
-                    : null,
+            Flexible(
+              child: Text(
+                releaseDate,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  shadows: theme.brightness == Brightness.dark
+                      ? const [Shadow(color: Colors.black54, blurRadius: 4)]
+                      : null,
+                ),
               ),
             ),
           ],

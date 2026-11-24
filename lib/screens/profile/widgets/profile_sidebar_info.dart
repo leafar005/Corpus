@@ -135,9 +135,7 @@ class ProfileSidebarInfo extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.2),
-        borderRadius: Theme.of(
-          context,
-        ).extension<CorpusThemeExtension>()!.radiusSmall,
+        borderRadius: CorpusThemeExtension.of(context).radiusSmall,
       ),
       child: imagePath != null
           ? Image.asset(imagePath, width: 24, height: 24, color: color)

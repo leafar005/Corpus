@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'game.dart';
 import 'game_group_item.dart';
 
+const Object _sentinel = Object();
+
 @immutable
 class GameGroup {
   const GameGroup({
@@ -28,27 +30,39 @@ class GameGroup {
   final List<GameGroupItem> items;
   final int gameCount;
 
-  List<Game> get previewGames =>
-      items.map((i) => i.game).whereType<Game>().take(4).toList();
-
-  Game? get coverGame {
-    if (coverGameId != null) {
-      for (final item in items) {
-        if (item.gameId == coverGameId) return item.game;
+  List<Game> get previewGames {
+    if (items.isEmpty) return const [];
+    final out = <Game>[];
+    for (final item in items) {
+      final g = item.game;
+      if (g != null) {
+        out.add(g);
+        if (out.length == 4) break;
       }
     }
-    return previewGames.isNotEmpty ? previewGames.first : null;
+    return out;
+  }
+
+  Game? get coverGame {
+    Game? firstGame;
+    for (final item in items) {
+      final g = item.game;
+      if (g == null) continue;
+      if (coverGameId != null && item.gameId == coverGameId) return g;
+      firstGame ??= g;
+    }
+    return firstGame;
   }
 
   GameGroup copyWith({
     String? id,
     String? userId,
     String? name,
-    String? description,
-    int? coverGameId,
+    Object? description = _sentinel,
+    Object? coverGameId = _sentinel,
     int? sortOrder,
     bool? isRanked,
-    DateTime? createdAt,
+    Object? createdAt = _sentinel,
     List<GameGroupItem>? items,
     int? gameCount,
   }) {
@@ -56,12 +70,20 @@ class GameGroup {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       name: name ?? this.name,
-      description: description ?? this.description,
-      coverGameId: coverGameId ?? this.coverGameId,
+      description: identical(description, _sentinel)
+          ? this.description
+          : description as String?,
+      coverGameId: identical(coverGameId, _sentinel)
+          ? this.coverGameId
+          : coverGameId as int?,
       sortOrder: sortOrder ?? this.sortOrder,
       isRanked: isRanked ?? this.isRanked,
-      createdAt: createdAt ?? this.createdAt,
-      items: items ?? this.items,
+      createdAt: identical(createdAt, _sentinel)
+          ? this.createdAt
+          : createdAt as DateTime?,
+      items: items != null
+          ? List<GameGroupItem>.unmodifiable(items)
+          : this.items,
       gameCount: gameCount ?? this.gameCount,
     );
   }
@@ -96,68 +118,89 @@ class GameGroup {
         return (description: rest.isEmpty ? null : rest, isRanked: true);
       }
     }
+    final trimmed = rawDescription.trim();
     return (
-      description: rawDescription.trim().isEmpty ? null : rawDescription,
+      description: trimmed.isEmpty ? null : trimmed,
       isRanked: false,
     );
   }
 
   factory GameGroup.fromMap(Map<String, dynamic> map) {
     final rawItems = map['game_group_items'];
-    final items = rawItems is List
-        ? rawItems
-            .map(
-              (e) => GameGroupItem.fromMap(
-                Map<String, dynamic>.from(e as Map),
-              ),
-            )
-            .toList()
-        : <GameGroupItem>[];
+    final parsedItems = <GameGroupItem>[];
+    if (rawItems is List) {
+      for (final e in rawItems) {
+        if (e is Map) {
+          parsedItems.add(
+            GameGroupItem.fromMap(Map<String, dynamic>.from(e)),
+          );
+        }
+      }
+    }
+    final items = parsedItems.isEmpty
+        ? const <GameGroupItem>[]
+        : List<GameGroupItem>.unmodifiable(parsedItems);
 
     final countRaw = map['game_count'];
     final gameCount = countRaw is num
         ? countRaw.toInt()
-        : (items.isNotEmpty ? items.length : 0);
+        : (int.tryParse(countRaw?.toString() ?? '') ?? items.length);
 
-    final decoded = decodeRankedDescription(map['description'] as String?);
-    final isRankedCol = map['is_ranked'] as bool?;
-    final resolvedIsRanked = (isRankedCol == true) || decoded.isRanked;
+    final decoded = decodeRankedDescription(map['description']?.toString());
+    final isRankedCol = map['is_ranked'] == true;
+    final resolvedIsRanked = isRankedCol || decoded.isRanked;
+    final rawCreatedAt = map['created_at'];
 
     return GameGroup(
-      id: map['id'].toString(),
-      userId: map['user_id'].toString(),
-      name: map['name'] as String,
+      id: map['id']?.toString() ?? '',
+      userId: map['user_id']?.toString() ?? '',
+      name: map['name']?.toString() ?? '',
       description: decoded.description,
-      coverGameId: (map['cover_game_id'] as num?)?.toInt(),
-      sortOrder: (map['sort_order'] as num?)?.toInt() ?? 0,
+      coverGameId:
+          (map['cover_game_id'] as num?)?.toInt() ??
+          int.tryParse(map['cover_game_id']?.toString() ?? ''),
+      sortOrder:
+          (map['sort_order'] as num?)?.toInt() ??
+          int.tryParse(map['sort_order']?.toString() ?? '') ??
+          0,
       isRanked: resolvedIsRanked,
-      createdAt: map['created_at'] != null
-          ? DateTime.tryParse(map['created_at'] as String)
-          : null,
+      createdAt: rawCreatedAt is DateTime
+          ? rawCreatedAt
+          : (rawCreatedAt != null
+                ? DateTime.tryParse(rawCreatedAt.toString())
+                : null),
       items: items,
       gameCount: gameCount,
     );
   }
 
-  Map<String, dynamic> toInsertMap() {
-    return {
-      'user_id': userId,
-      'name': name,
-      if (description != null && description!.isNotEmpty)
-        'description': description,
-      if (coverGameId != null) 'cover_game_id': coverGameId,
-      'sort_order': sortOrder,
-      'is_ranked': isRanked,
-    };
-  }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GameGroup &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          userId == other.userId &&
+          name == other.name &&
+          description == other.description &&
+          coverGameId == other.coverGameId &&
+          sortOrder == other.sortOrder &&
+          isRanked == other.isRanked &&
+          createdAt == other.createdAt &&
+          gameCount == other.gameCount &&
+          listEquals(items, other.items);
 
-  Map<String, dynamic> toUpdateMap() {
-    return {
-      'name': name,
-      'description': description,
-      if (coverGameId != null) 'cover_game_id': coverGameId,
-      'sort_order': sortOrder,
-      'is_ranked': isRanked,
-    };
-  }
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    name,
+    description,
+    coverGameId,
+    sortOrder,
+    isRanked,
+    createdAt,
+    gameCount,
+    Object.hashAll(items),
+  );
 }

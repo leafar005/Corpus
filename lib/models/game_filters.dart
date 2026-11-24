@@ -44,14 +44,48 @@ class GameFilters {
     return GameFilters(
       sortBy: sortBy ?? this.sortBy,
       sortAscending: sortAscending ?? this.sortAscending,
-      genres: genres ?? this.genres,
-      themes: themes ?? this.themes,
-      gameModes: gameModes ?? this.gameModes,
-      playerPerspectives: playerPerspectives ?? this.playerPerspectives,
-      platforms: platforms ?? this.platforms,
-      categories: categories ?? this.categories,
+      genres: genres != null ? List<int>.unmodifiable(genres) : this.genres,
+      themes: themes != null ? List<int>.unmodifiable(themes) : this.themes,
+      gameModes: gameModes != null
+          ? List<int>.unmodifiable(gameModes)
+          : this.gameModes,
+      playerPerspectives: playerPerspectives != null
+          ? List<int>.unmodifiable(playerPerspectives)
+          : this.playerPerspectives,
+      platforms: platforms != null
+          ? List<int>.unmodifiable(platforms)
+          : this.platforms,
+      categories: categories != null
+          ? List<int>.unmodifiable(categories)
+          : this.categories,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GameFilters &&
+          runtimeType == other.runtimeType &&
+          sortBy == other.sortBy &&
+          sortAscending == other.sortAscending &&
+          listEquals(genres, other.genres) &&
+          listEquals(themes, other.themes) &&
+          listEquals(gameModes, other.gameModes) &&
+          listEquals(playerPerspectives, other.playerPerspectives) &&
+          listEquals(platforms, other.platforms) &&
+          listEquals(categories, other.categories);
+
+  @override
+  int get hashCode => Object.hash(
+    sortBy,
+    sortAscending,
+    Object.hashAll(genres),
+    Object.hashAll(themes),
+    Object.hashAll(gameModes),
+    Object.hashAll(playerPerspectives),
+    Object.hashAll(platforms),
+    Object.hashAll(categories),
+  );
 
   bool get hasFilters =>
       genres.isNotEmpty ||
