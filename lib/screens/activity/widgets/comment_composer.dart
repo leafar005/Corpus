@@ -57,10 +57,22 @@ class CommentComposer extends StatelessWidget {
   }
 
   Map<String, dynamic>? _normalizePickedGame(Object? picked) {
-    if (picked is Game) return picked.toMap();
-    if (picked is Map<String, dynamic>) return picked;
-    if (picked is Map) return Map<String, dynamic>.from(picked);
-    return null;
+    Map<String, dynamic>? map;
+    if (picked is Game) {
+      map = picked.toMap();
+    } else if (picked is Map<String, dynamic>) {
+      map = Map<String, dynamic>.from(picked);
+    } else if (picked is Map) {
+      map = Map<String, dynamic>.from(picked);
+    }
+    if (map != null) {
+      final resolvedTitle = map['name'] ?? map['title'];
+      if (resolvedTitle != null) {
+        map['name'] ??= resolvedTitle;
+        map['title'] ??= resolvedTitle;
+      }
+    }
+    return map;
   }
 
   Future<void> _pickGame(BuildContext context) async {
@@ -96,7 +108,9 @@ class CommentComposer extends StatelessWidget {
                       leading: const CorpusTablerIcon(
                         CorpusIconKind.VideogameAsset,
                       ),
-                      title: Text(game['name']?.toString() ?? 'Juego'),
+                      title: Text(
+                        (game['name'] ?? game['title'])?.toString() ?? 'Juego',
+                      ),
                       onTap: () => Navigator.pop(sheetContext, game),
                     ),
                   ),
@@ -349,7 +363,8 @@ class _SelectedGameChipPreview extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(6),
                         child: Text(
-                          gameData['name']?.toString() ?? '',
+                          (gameData['name'] ?? gameData['title'])?.toString() ??
+                              '',
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,

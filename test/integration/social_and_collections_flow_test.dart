@@ -1,6 +1,7 @@
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers/fake_supabase_backend.dart';
 import 'helpers/integration_test_harness.dart';
@@ -258,6 +259,9 @@ void main() {
             find.text('Traducir enlaces de tiendas'),
           );
           await harness.settleFrames(tester, count: 6);
+
+          final prefs = await SharedPreferences.getInstance();
+          expect(prefs.getBool('localize_links'), isFalse);
 
           expect(tester.takeException(), isNull);
         }, loggedIn: true);

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 
@@ -437,7 +437,16 @@ abstract final class CorpusRouter {
 DateTime? _lastPushTime;
 const Duration _pushDebounceWindow = Duration(milliseconds: 600);
 
+@visibleForTesting
+bool kDisablePushDebounceForTests = false;
+
+@visibleForTesting
+void resetPushDebounceForTesting() {
+  _lastPushTime = null;
+}
+
 bool _shouldThrottlePush() {
+  if (kDisablePushDebounceForTests) return false;
   final now = DateTime.now();
   if (_lastPushTime != null &&
       now.difference(_lastPushTime!) < _pushDebounceWindow) {

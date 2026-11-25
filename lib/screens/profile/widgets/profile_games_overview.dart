@@ -128,34 +128,42 @@ class ProfileGamesOverview extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () => onSeeAll(status),
-              child: Row(
-                children: [
-                  if (iconType != null) ...[
-                    ProfileStatIcon(type: iconType, size: 22),
+          Flexible(
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => onSeeAll(status),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (iconType != null) ...[
+                      ProfileStatIcon(type: iconType, size: 22),
+                      const SizedBox(width: 8),
+                    ],
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 8),
+                    Text(
+                      '$count',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$count',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
+          const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(

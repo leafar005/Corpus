@@ -79,7 +79,6 @@ class GameReviewsCard extends StatelessWidget {
     Widget? customIcon,
   }) {
     return Container(
-      margin: const EdgeInsets.only(left: 8),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.2),
@@ -91,12 +90,16 @@ class GameReviewsCard extends StatelessWidget {
         children: [
           customIcon ?? CorpusTablerIcon(icon, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: color,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
         ],

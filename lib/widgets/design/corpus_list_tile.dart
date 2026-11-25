@@ -30,32 +30,41 @@ class CorpusListTile extends StatelessWidget {
     final ext = CorpusThemeExtension.of(context);
     final cs = Theme.of(context).colorScheme;
 
-    final tile = ListTile(
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: ext.radiusMedium),
-      leading: CorpusTablerIcon(icon, color: cs.primary),
-      title: Text(
-        title,
-        style: CorpusTypography.display(
-          context,
-          ext,
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: cs.onSurface,
+    final tile = Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: ext.radiusMedium),
+        leading: CorpusTablerIcon(icon, color: cs.primary),
+        title: Text(
+          title,
+          style: CorpusTypography.display(
+            context,
+            ext,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: cs.onSurface,
+          ),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle!,
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+              )
+            : null,
+        trailing:
+            trailing ??
+            (showChevron && onTap != null
+                ? CorpusTablerIcon(
+                    CorpusIconKind.ChevronRight,
+                    color: cs.onSurfaceVariant,
+                  )
+                : null),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 2,
         ),
       ),
-      subtitle: subtitle != null
-          ? Text(
-              subtitle!,
-              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-            )
-          : null,
-      trailing:
-          trailing ??
-          (showChevron && onTap != null
-              ? CorpusTablerIcon(CorpusIconKind.ChevronRight, color: cs.onSurfaceVariant)
-              : null),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
     );
 
     if (onTap == null) return tile;

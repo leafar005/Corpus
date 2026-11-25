@@ -55,8 +55,11 @@ class _FriendsScreenState extends State<FriendsScreen>
       vsync: this,
       initialIndex: widget.initialIndex,
     );
-    // Resetear badge de solicitudes al abrir la pantalla
-    unreadFriendRequestsCount.value = 0;
+    // Resetear badge de solicitudes al abrir la pantalla (post-frame para no
+    // disparar rebuilds de ValueListenableBuilder durante el build actual).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unreadFriendRequestsCount.value = 0;
+    });
     _loadRequests();
     _loadFriends();
   }

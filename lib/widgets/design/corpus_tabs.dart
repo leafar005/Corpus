@@ -56,21 +56,24 @@ class CorpusTabs extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         tabRow,
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+        Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: activeBg,
             border: Border(
               left: BorderSide(color: borderColor),
               right: BorderSide(color: borderColor),
               bottom: BorderSide(color: borderColor),
             ),
           ),
-          padding: contentPadding,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: KeyedSubtree(key: ValueKey(selectedIndex), child: child!),
+          child: Material(
+            color: activeBg,
+            child: Padding(
+              padding: contentPadding,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: KeyedSubtree(key: ValueKey(selectedIndex), child: child!),
+              ),
+            ),
           ),
         ),
       ],
@@ -208,31 +211,26 @@ class _CorpusTabHeaderState extends State<_CorpusTabHeader> {
       ],
     );
 
-    final topRadius = BorderRadius.only(
-      topLeft: Radius.circular(widget.topCornerRadius),
-      topRight: Radius.circular(widget.topCornerRadius),
-    );
-
-    final tabBody = AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
+    final paddedContent = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: widget.selected
-            ? widget.activeBg
-            : (_hovered
-                  ? cs.onSurface.withValues(alpha: 0.06)
-                  : Colors.transparent),
-        borderRadius: widget.selected ? topRadius : null,
-        border: widget.selected
-            ? Border(
-                left: BorderSide(color: widget.borderColor),
-                right: BorderSide(color: widget.borderColor),
-                bottom: BorderSide(color: widget.activeBg, width: 1),
-              )
-            : null,
-      ),
       child: content,
     );
+
+    final Widget tabBody = widget.selected
+        ? CustomPaint(
+            painter: _SelectedTabPainter(
+              activeBg: widget.activeBg,
+              borderColor: widget.borderColor,
+              topCornerRadius: widget.topCornerRadius,
+            ),
+            child: paddedContent,
+          )
+        : Container(
+            color: _hovered
+                ? cs.onSurface.withValues(alpha: 0.06)
+                : Colors.transparent,
+            child: paddedContent,
+          );
 
     final tabShell = widget.selected && widget.connectToContent
         ? Transform.translate(offset: const Offset(0, 1), child: tabBody)
@@ -249,5 +247,71 @@ class _CorpusTabHeaderState extends State<_CorpusTabHeader> {
         ),
       ),
     );
+  }
+}
+
+class _SelectedTabPainter extends CustomPainter {
+  final Color activeBg;
+  final Color borderColor;
+  final double topCornerRadius;
+
+  const _SelectedTabPainter({
+    required this.activeBg,
+    required this.borderColor,
+    required this.topCornerRadius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+
+    final maxR = (size.width / 2) < size.height
+        ? (size.width / 2)
+        : size.height;
+    final r = topCornerRadius.clamp(0.0, maxR).toDouble();
+
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndCorners(
+      rect,
+      topLeft: Radius.circular(r),
+      topRight: Radius.circular(r),
+    );
+    canvas.drawRRect(rrect, Paint()..color = activeBg);
+
+    final strokePaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final path = Path()..moveTo(0.5, size.height);
+    if (r > 0.5) {
+      path
+        ..lineTo(0.5, r)
+        ..arcToPoint(
+          Offset(r, 0.5),
+          radius: Radius.circular(r),
+          clockwise: true,
+        )
+        ..lineTo(size.width - r, 0.5)
+        ..arcToPoint(
+          Offset(size.width - 0.5, r),
+          radius: Radius.circular(r),
+          clockwise: true,
+        )
+        ..lineTo(size.width - 0.5, size.height);
+    } else {
+      path
+        ..lineTo(0.5, 0.5)
+        ..lineTo(size.width - 0.5, 0.5)
+        ..lineTo(size.width - 0.5, size.height);
+    }
+    canvas.drawPath(path, strokePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SelectedTabPainter oldDelegate) {
+    return oldDelegate.activeBg != activeBg ||
+        oldDelegate.borderColor != borderColor ||
+        oldDelegate.topCornerRadius != topCornerRadius;
   }
 }

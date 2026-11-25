@@ -194,6 +194,7 @@ class FakeSupabaseBackend {
   static const String searchableUserId = '44444444-4444-4444-8444-444444444444';
 
   static const int eldenRingId = 119133;
+  static const int eldenRingDlcId = 290555;
   static const int hollowKnightId = 14593;
   static const int witcher3Id = 1942;
   static const int baldursGate3Id = 119171;
@@ -213,6 +214,19 @@ class FakeSupabaseBackend {
   String? _activeUserId;
   int igdbProxyCalls = 0;
   final List<String> requestedPaths = <String>[];
+  final List<String> passwordRecoveryEmails = <String>[];
+  bool failIgdbProxy = false;
+
+  /// Hook opcional para inyectar errores HTTP (`500`, `401`, etc.) por ruta/método.
+  int? Function(String method, Uri uri)? httpErrorOverride;
+
+  /// Hook opcional para simular timeouts de red por ruta/método.
+  bool Function(String method, Uri uri)? timeoutOverride;
+
+  int testNotificationsSent = 0;
+  int steamResolveCalls = 0;
+  int steamImportCalls = 0;
+  int? lastSteamImportMinPlaytimeMinutes;
 
   String _nextUuid() {
     _uuidCounter++;
@@ -383,6 +397,23 @@ class FakeSupabaseBackend {
           'url': '//images.igdb.com/igdb/image/upload/t_thumb/sc1001.jpg',
         },
       ],
+      'videos': <Map<String, dynamic>>[
+        <String, dynamic>{'video_id': 'E3Huy2cdih0'},
+      ],
+      'websites': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'url': 'https://store.steampowered.com/app/1245620/ELDEN_RING/',
+          'category': 13,
+        },
+        <String, dynamic>{
+          'url': 'https://store.playstation.com/en-us/product/UP0700-PPSA04610',
+          'category': 0,
+        },
+        <String, dynamic>{
+          'url': 'https://en.bandainamcoent.eu/elden-ring',
+          'category': 1,
+        },
+      ],
       'first_release_date': 1645747200,
       'genres': <Map<String, dynamic>>[
         <String, dynamic>{'id': 12, 'name': 'Role-playing (RPG)'},
@@ -401,6 +432,13 @@ class FakeSupabaseBackend {
       ],
       'summary':
           'Álzate, Sinluz, y deja que la gracia te guíe hacia el Círculo de Elden.',
+      'collection': <String, dynamic>{'id': 543, 'name': 'Soulsborne'},
+      'collections': <Map<String, dynamic>>[
+        <String, dynamic>{'id': 543, 'name': 'Soulsborne'},
+      ],
+      'franchises': <Map<String, dynamic>>[
+        <String, dynamic>{'id': 1124, 'name': 'Elden Ring'},
+      ],
       'total_rating': 95.4,
       'total_rating_count': 1200,
       'follows': 5400,
@@ -591,17 +629,60 @@ class FakeSupabaseBackend {
       'category': 0,
     };
 
+    final eldenRingDlcIgdb = <String, dynamic>{
+      'id': eldenRingDlcId,
+      'name': 'Elden Ring: Shadow of the Erdtree',
+      'cover': <String, dynamic>{
+        'id': 6,
+        'image_id': 'co7x99',
+        'url': '//images.igdb.com/igdb/image/upload/t_thumb/co7x99.jpg',
+      },
+      'artworks': <Map<String, dynamic>>[],
+      'screenshots': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'image_id': 'sc1006',
+          'url': '//images.igdb.com/igdb/image/upload/t_thumb/sc1006.jpg',
+        },
+      ],
+      'first_release_date': 1718928000,
+      'genres': <Map<String, dynamic>>[
+        <String, dynamic>{'id': 12, 'name': 'Role-playing (RPG)'},
+        <String, dynamic>{'id': 31, 'name': 'Adventure'},
+      ],
+      'platforms': <Map<String, dynamic>>[
+        <String, dynamic>{'id': 6, 'name': 'PC (Microsoft Windows)'},
+        <String, dynamic>{'id': 167, 'name': 'PlayStation 5'},
+      ],
+      'involved_companies': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'company': <String, dynamic>{'id': 1012, 'name': 'FromSoftware'},
+          'developer': true,
+          'publisher': false,
+        },
+      ],
+      'summary': 'Expansión oficial en la Tierra Sombría.',
+      'total_rating': 94.0,
+      'total_rating_count': 600,
+      'follows': 2000,
+      'hypes': 100,
+      'game_type': 2,
+      'category': 2,
+      'parent_game': eldenRingId,
+    };
+
     _igdbCatalog.addAll(<Map<String, dynamic>>[
       eldenRingIgdb,
       hollowKnightIgdb,
       witcher3Igdb,
       baldursGate3Igdb,
       silksongIgdb,
+      eldenRingDlcIgdb,
     ]);
 
     _tables['games']!.addAll(<Map<String, dynamic>>[
       <String, dynamic>{
         'igdb_id': eldenRingId,
+        'steam_app_id': 1245620,
         'title': 'Elden Ring',
         'cover_url':
             'https://images.igdb.com/igdb/image/upload/t_cover_big/co4jni.jpg',
@@ -611,6 +692,17 @@ class FakeSupabaseBackend {
         'developer': 'FromSoftware',
         'summary':
             'Álzate, Sinluz, y deja que la gracia te guíe hacia el Círculo de Elden.',
+      },
+      <String, dynamic>{
+        'igdb_id': eldenRingDlcId,
+        'title': 'Elden Ring: Shadow of the Erdtree',
+        'cover_url':
+            'https://images.igdb.com/igdb/image/upload/t_cover_big/co7x99.jpg',
+        'release_date': '2024-06-21',
+        'genres': <String>['Role-playing (RPG)', 'Adventure'],
+        'platforms': <String>['PC (Microsoft Windows)', 'PlayStation 5'],
+        'developer': 'FromSoftware',
+        'summary': 'Expansión oficial en la Tierra Sombría.',
       },
       <String, dynamic>{
         'igdb_id': hollowKnightId,
@@ -656,10 +748,360 @@ class FakeSupabaseBackend {
     double rating = 9.0,
     String comment = 'Gran juego.',
     String status = 'beaten',
+    String completionType = 'story',
+    String? platform = 'PC',
+    String? createdAt,
+    bool isReplay = false,
+    bool steamOwned = false,
   }) {
-    final now = _nextIsoTimestamp();
+    final now = createdAt ?? _nextIsoTimestamp();
     final reviewId = _nextUuid();
     final reviewRow = <String, dynamic>{
+      'id': reviewId,
+      'user_id': userId,
+      'game_id': gameId,
+      'rating': rating,
+      'rating_gameplay': rating,
+      'rating_narrative': rating,
+      'rating_soundtrack': rating,
+      'rating_visuals': rating,
+      'comment': comment,
+      'status': status,
+      'completion_type': completionType,
+      'is_replay': isReplay,
+      'replay_number': null,
+      'platform': platform,
+      'play_time_hours': 40.0,
+      'played_from': null,
+      'played_until': null,
+      'progress_percent': 100,
+      'created_at': now,
+      'image_urls': <String>[],
+    };
+    _tables['reviews']!.add(reviewRow);
+    _applyReviewSideEffects(reviewRow, isStatusChange: true);
+    if (steamOwned) {
+      for (final ug in _tables['user_games']!) {
+        if (ug['user_id'] == userId && ug['game_id'] == gameId) {
+          ug['steam_owned'] = true;
+        }
+      }
+    }
+  }
+
+  /// Añade un juego ya completado/jugado a la biblioteca y lista de reseñas
+  /// del usuario (útil para precondiciones de colecciones o perfil).
+  void seedBeatenGame({
+    String userId = primaryUserId,
+    int gameId = eldenRingId,
+    double rating = 9.0,
+    String comment = 'Obra maestra.',
+    String completionType = 'story',
+    String? platform = 'PC',
+    String? createdAt,
+    bool isReplay = false,
+    bool steamOwned = false,
+  }) {
+    seedFriendReview(
+      userId: userId,
+      gameId: gameId,
+      rating: rating,
+      comment: comment,
+      status: 'beaten',
+      completionType: completionType,
+      platform: platform,
+      createdAt: createdAt,
+      isReplay: isReplay,
+      steamOwned: steamOwned,
+    );
+  }
+
+  /// Inserta o actualiza directamente una fila en `user_games` con el estado indicado.
+  void seedUserGame({
+    String userId = primaryUserId,
+    required int gameId,
+    String status = 'playing',
+    double? rating,
+    bool isSteamOnly = false,
+    bool steamOwned = false,
+  }) {
+    final existing = _tables['user_games']!
+        .where((ug) => ug['user_id'] == userId && ug['game_id'] == gameId)
+        .firstOrNull;
+    final now = _nextIsoTimestamp();
+    if (existing != null) {
+      existing['status'] = status;
+      existing['rating'] = rating;
+      existing['updated_at'] = now;
+      existing['last_played_at'] = now;
+      existing['is_steam_only'] = isSteamOnly;
+      existing['steam_owned'] = steamOwned;
+    } else {
+      _tables['user_games']!.add(<String, dynamic>{
+        'user_id': userId,
+        'game_id': gameId,
+        'status': status,
+        'rating': rating,
+        'play_count': 1,
+        'play_time_hours': status == 'playing' ? 12.0 : 0.0,
+        'last_played_at': now,
+        'updated_at': now,
+        'is_steam_only': isSteamOnly,
+        'steam_owned': steamOwned,
+      });
+    }
+  }
+
+  /// Marca el juego que el usuario está jugando actualmente en Steam en su perfil.
+  void seedCurrentlyPlaying({
+    String userId = primaryUserId,
+    int steamAppId = 1245620,
+    String gameName = 'Elden Ring',
+  }) {
+    for (final u in _tables['users']!) {
+      if (u['id'] == userId) {
+        u['currently_playing_appid'] = steamAppId;
+        u['currently_playing_name'] = gameName;
+      }
+    }
+  }
+
+  /// Asigna las plataformas mostradas en `ProfileSidebarInfo`.
+  void seedUserPlatforms({
+    String userId = primaryUserId,
+    List<String> platforms = const <String>['pc', 'playstation'],
+  }) {
+    for (final u in _tables['users']!) {
+      if (u['id'] == userId) {
+        u['platforms'] = List<String>.from(platforms);
+      }
+    }
+  }
+
+  /// Siembra un juego fijado en `hall_of_fame` para `pinOrder` (1..5).
+  void seedHallOfFame({
+    String userId = primaryUserId,
+    required int pinOrder,
+    required int gameId,
+  }) {
+    _tables['hall_of_fame']!.removeWhere(
+      (row) => row['user_id'] == userId && row['pin_order'] == pinOrder,
+    );
+    _tables['hall_of_fame']!.add(<String, dynamic>{
+      'user_id': userId,
+      'pin_order': pinOrder,
+      'game_id': gameId,
+      'created_at': _nextIsoTimestamp(),
+    });
+  }
+
+  /// Añade juegos sintéticos al catálogo IGDB para probar paginación y scroll infinito.
+  void seedExtraIgdbGames(int count) {
+    for (var i = 1; i <= count; i++) {
+      final id = 900000 + i;
+      if (_igdbCatalog.any((g) => g['id'] == id)) continue;
+      final padded = i.toString().padLeft(2, '0');
+      _igdbCatalog.add(<String, dynamic>{
+        'id': id,
+        'name': 'Chronicle Quest $padded',
+        'cover': <String, dynamic>{
+          'id': 9000 + i,
+          'image_id': 'co4jni',
+          'url': '//images.igdb.com/igdb/image/upload/t_thumb/co4jni.jpg',
+        },
+        'first_release_date': 1700000000 - (i * 86400),
+        'genres': <Map<String, dynamic>>[
+          <String, dynamic>{'id': 12, 'name': 'Role-playing (RPG)'},
+        ],
+        'platforms': <Map<String, dynamic>>[
+          <String, dynamic>{'id': 6, 'name': 'PC (Microsoft Windows)'},
+        ],
+        'summary': 'Juego de catálogo paginado #$padded.',
+        'total_rating': 82.0,
+        'total_rating_count': 200 - i,
+        'follows': 500,
+        'hypes': 10,
+        'game_type': 0,
+        'category': 0,
+      });
+    }
+  }
+
+  /// Pobla el catálogo de logros en `achievements` para pruebas de perfil y progreso.
+  void seedAchievementsCatalog() {
+    if (_tables['achievements']!.isNotEmpty) return;
+    _tables['achievements']!.addAll(<Map<String, dynamic>>[
+      <String, dynamic>{
+        'id': 'fromsoftware_1',
+        'name': 'FromSoftware (1)',
+        'description': 'Completa 1 juego de FromSoftware',
+        'xp_reward': 50,
+        'rarity': 'Medio',
+        'icon_name': 'fireplace',
+        'saga_target': 1,
+      },
+      <String, dynamic>{
+        'id': 'fromsoftware_3',
+        'name': 'FromSoftware (3)',
+        'description': 'Completa 3 juegos de FromSoftware',
+        'xp_reward': 150,
+        'rarity': 'Difícil',
+        'icon_name': 'fireplace',
+        'saga_target': 3,
+      },
+      <String, dynamic>{
+        'id': 'cd_projekt_1',
+        'name': 'CD Projekt (1)',
+        'description': 'Completa 1 juego de CD Projekt',
+        'xp_reward': 50,
+        'rarity': 'Fácil',
+        'icon_name': 'swords',
+        'saga_target': 1,
+      },
+      <String, dynamic>{
+        'id': 'first_review',
+        'name': 'Primera Reseña',
+        'description': 'Publica tu primera reseña',
+        'xp_reward': 25,
+        'rarity': 'Común',
+        'icon_name': 'menu_book',
+        'saga_target': 1,
+      },
+    ]);
+  }
+
+  /// Desbloquea un logro para el usuario en `user_achievements`.
+  void seedUserAchievement({
+    String userId = primaryUserId,
+    required String achievementId,
+    String? unlockedAt,
+  }) {
+    _tables['user_achievements']!.add(<String, dynamic>{
+      'user_id': userId,
+      'achievement_id': achievementId,
+      'unlocked_at': unlockedAt ?? _nextIsoTimestamp(),
+    });
+  }
+
+  /// Añade un juego en estado `playing` para que aparezca en `HeroShowcase`.
+  void seedPlayingGame({
+    String userId = primaryUserId,
+    int gameId = eldenRingId,
+  }) {
+    final existing = _tables['user_games']!
+        .where((ug) => ug['user_id'] == userId && ug['game_id'] == gameId)
+        .firstOrNull;
+    final now = _nextIsoTimestamp();
+    if (existing != null) {
+      existing['status'] = 'playing';
+      existing['updated_at'] = now;
+    } else {
+      _tables['user_games']!.add(<String, dynamic>{
+        'user_id': userId,
+        'game_id': gameId,
+        'status': 'playing',
+        'rating': null,
+        'play_count': 1,
+        'play_time_hours': 12.0,
+        'last_played_at': now,
+        'updated_at': now,
+        'is_steam_only': false,
+      });
+    }
+  }
+
+  /// Inserta un bundle activo en `active_bundles` para Home y Explorar.
+  String seedActiveBundle({
+    String? id,
+    String title = 'Humble RPG Classics Bundle',
+    String storeName = 'Humble Bundle',
+    String url = 'https://www.humblebundle.com/games/rpg-classics',
+    int endsInDays = 2,
+    List<int> gameIds = const <int>[eldenRingId, witcher3Id],
+  }) {
+    final bundleId = id ?? _nextUuid();
+    final games = gameIds
+        .map(
+          (gid) => _tables['games']!
+              .where((g) => g['igdb_id'] == gid)
+              .firstOrNull,
+        )
+        .whereType<Map<String, dynamic>>()
+        .map((g) => Map<String, dynamic>.from(g))
+        .toList();
+
+    _tables['active_bundles']!.add(<String, dynamic>{
+      'id': bundleId,
+      'title': title,
+      'store_name': storeName,
+      'url': url,
+      'end_date': DateTime.now()
+          .toUtc()
+          .add(Duration(days: endsInDays))
+          .toIso8601String(),
+      'tiers': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'name': 'Tier 1',
+          'games': games,
+        },
+      ],
+      'created_at': _nextIsoTimestamp(),
+    });
+    return bundleId;
+  }
+
+  /// Siembra estadísticas y reseñas de comunidad Stash vigentes (sin necesidad de refresh).
+  void seedStashData({int gameId = eldenRingId}) {
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    _tables['stash_game_stats']!.add(<String, dynamic>{
+      'game_id': gameId,
+      'stash_rating': 4.7,
+      'want_count': 12500,
+      'playing_count': 8400,
+      'played_count': 54000,
+      'last_stats_checked_at': nowIso,
+    });
+    _tables['stash_sync_metadata']!.add(<String, dynamic>{
+      'game_id': gameId,
+      'last_checked_at': nowIso,
+    });
+    _tables['stash_community_reviews']!.add(<String, dynamic>{
+      'id': _nextUuid(),
+      'game_id': gameId,
+      'stash_user_display_name': 'SoulsVeteran',
+      'stash_user_avatar_url': null,
+      'rating': 9.5,
+      'comment': 'Diseño de mundo insuperable.',
+      'stash_created_at': nowIso,
+      'source_context': 'game_details',
+    });
+  }
+
+  /// Ajusta `last_activity_read_at` para probar el contador de actividad no leída.
+  void setLastActivityReadAt(String userId, DateTime timestamp) {
+    final iso = timestamp.toUtc().toIso8601String();
+    for (final u in _tables['users']!) {
+      if (u['id'] == userId) {
+        u['last_activity_read_at'] = iso;
+      }
+    }
+  }
+
+  /// Siembra actividad reciente (<24h) de un amigo con reseña asociada, visible como historia.
+  String seedRecentFriendActivity({
+    required String userId,
+    required int gameId,
+    double rating = 9.0,
+    String comment = 'Historia reciente.',
+    String status = 'beaten',
+    Duration age = const Duration(minutes: 30),
+  }) {
+    final ts = DateTime.now().toUtc().subtract(age).toIso8601String();
+    final reviewId = _nextUuid();
+    final postId = _nextUuid();
+    final activityId = _nextUuid();
+
+    _tables['reviews']!.add(<String, dynamic>{
       'id': reviewId,
       'user_id': userId,
       'game_id': gameId,
@@ -674,32 +1116,313 @@ class FakeSupabaseBackend {
       'is_replay': false,
       'replay_number': null,
       'platform': 'PC',
-      'play_time_hours': 40.0,
+      'play_time_hours': 30.0,
       'played_from': null,
       'played_until': null,
       'progress_percent': 100,
-      'created_at': now,
+      'created_at': ts,
       'image_urls': <String>[],
-    };
-    _tables['reviews']!.add(reviewRow);
-    _applyReviewSideEffects(reviewRow, isStatusChange: true);
+    });
+
+    final existingUg = _tables['user_games']!
+        .where((ug) => ug['user_id'] == userId && ug['game_id'] == gameId)
+        .firstOrNull;
+    if (existingUg != null) {
+      existingUg['status'] = status;
+      existingUg['rating'] = rating;
+      existingUg['comment'] = comment;
+      existingUg['updated_at'] = ts;
+    } else {
+      _tables['user_games']!.add(<String, dynamic>{
+        'user_id': userId,
+        'game_id': gameId,
+        'status': status,
+        'rating': rating,
+        'comment': comment,
+        'play_count': 1,
+        'play_time_hours': 30.0,
+        'last_played_at': ts,
+        'updated_at': ts,
+        'is_steam_only': false,
+      });
+    }
+
+    _tables['feed_posts']!.add(<String, dynamic>{
+      'id': postId,
+      'user_id': userId,
+      'status': status,
+      'groupable': false,
+      'starts_at': ts,
+      'ends_at': ts,
+      'review_id': reviewId,
+      'created_at': ts,
+    });
+
+    _tables['activity_feed']!.add(<String, dynamic>{
+      'id': activityId,
+      'user_id': userId,
+      'action_type': 'status_change',
+      'game_id': gameId,
+      'review_id': reviewId,
+      'post_id': postId,
+      'metadata': <String, dynamic>{
+        'status': status,
+        'rating': rating,
+        'comment': comment,
+      },
+      'created_at': ts,
+    });
+    return activityId;
   }
 
-  /// Añade un juego ya completado/jugado a la biblioteca y lista de reseñas
-  /// del usuario (útil para precondiciones de colecciones o perfil).
-  void seedBeatenGame({
-    String userId = primaryUserId,
-    int gameId = eldenRingId,
-    double rating = 9.0,
-    String comment = 'Obra maestra.',
+  /// Siembra un post agrupado (múltiples juegos compartiendo `post_id`) para `GroupedPostDetailsScreen`.
+  String seedGroupedFriendActivity({
+    required String userId,
+    required List<int> gameIds,
+    String status = 'wishlist',
+    Duration age = const Duration(minutes: 20),
   }) {
-    seedFriendReview(
-      userId: userId,
-      gameId: gameId,
-      rating: rating,
-      comment: comment,
-      status: 'beaten',
+    final ts = DateTime.now().toUtc().subtract(age).toIso8601String();
+    final postId = _nextUuid();
+
+    _tables['feed_posts']!.add(<String, dynamic>{
+      'id': postId,
+      'user_id': userId,
+      'status': status,
+      'groupable': true,
+      'starts_at': ts,
+      'ends_at': ts,
+      'review_id': null,
+      'created_at': ts,
+    });
+
+    for (final gid in gameIds) {
+      _tables['activity_feed']!.add(<String, dynamic>{
+        'id': _nextUuid(),
+        'user_id': userId,
+        'action_type': 'status_change',
+        'game_id': gid,
+        'review_id': null,
+        'post_id': postId,
+        'metadata': <String, dynamic>{'status': status},
+        'created_at': ts,
+      });
+
+      final existingUg = _tables['user_games']!
+          .where((ug) => ug['user_id'] == userId && ug['game_id'] == gid)
+          .firstOrNull;
+      if (existingUg == null) {
+        _tables['user_games']!.add(<String, dynamic>{
+          'user_id': userId,
+          'game_id': gid,
+          'status': status,
+          'play_count': 1,
+          'updated_at': ts,
+          'is_steam_only': false,
+        });
+      }
+    }
+    return postId;
+  }
+
+  /// Siembra un post agrupado con múltiples reseñas reales compartiendo `post_id`
+  /// para probar el aislamiento de hilos (`20261113000000_isolate_grouped_post_threads.sql`).
+  ({String postId, List<String> reviewIds}) seedGroupedFriendReviews({
+    required String userId,
+    required List<int> gameIds,
+    String status = 'beaten',
+    double rating = 9.0,
+    String commentPrefix = 'Reseña agrupada',
+    Duration age = const Duration(minutes: 20),
+  }) {
+    final ts = DateTime.now().toUtc().subtract(age).toIso8601String();
+    final postId = _nextUuid();
+    final reviewIds = <String>[];
+
+    _tables['feed_posts']!.add(<String, dynamic>{
+      'id': postId,
+      'user_id': userId,
+      'status': status,
+      'groupable': true,
+      'starts_at': ts,
+      'ends_at': ts,
+      'review_id': null,
+      'created_at': ts,
+    });
+
+    for (final gid in gameIds) {
+      final reviewId = _nextUuid();
+      reviewIds.add(reviewId);
+      final comment = '$commentPrefix #$gid';
+
+      _tables['reviews']!.add(<String, dynamic>{
+        'id': reviewId,
+        'user_id': userId,
+        'game_id': gid,
+        'rating': rating,
+        'rating_gameplay': rating,
+        'rating_narrative': rating,
+        'rating_soundtrack': rating,
+        'rating_visuals': rating,
+        'comment': comment,
+        'status': status,
+        'completion_type': 'story',
+        'is_replay': false,
+        'replay_number': null,
+        'platform': 'PC',
+        'play_time_hours': 25.0,
+        'played_from': null,
+        'played_until': null,
+        'progress_percent': 100,
+        'partner_ids': <String>[],
+        'created_at': ts,
+        'image_urls': <String>[],
+      });
+
+      final existingUg = _tables['user_games']!
+          .where((ug) => ug['user_id'] == userId && ug['game_id'] == gid)
+          .firstOrNull;
+      if (existingUg != null) {
+        existingUg['status'] = status;
+        existingUg['rating'] = rating;
+        existingUg['comment'] = comment;
+        existingUg['updated_at'] = ts;
+      } else {
+        _tables['user_games']!.add(<String, dynamic>{
+          'user_id': userId,
+          'game_id': gid,
+          'status': status,
+          'rating': rating,
+          'comment': comment,
+          'play_count': 1,
+          'play_time_hours': 25.0,
+          'last_played_at': ts,
+          'updated_at': ts,
+          'is_steam_only': false,
+        });
+      }
+
+      _tables['activity_feed']!.add(<String, dynamic>{
+        'id': _nextUuid(),
+        'user_id': userId,
+        'action_type': 'status_change',
+        'game_id': gid,
+        'review_id': reviewId,
+        'post_id': postId,
+        'metadata': <String, dynamic>{
+          'status': status,
+          'rating': rating,
+          'comment': comment,
+        },
+        'created_at': ts,
+      });
+    }
+
+    return (postId: postId, reviewIds: reviewIds);
+  }
+
+  /// Inserta un comentario en `review_comments` resolviendo sus referencias reales.
+  Map<String, dynamic> seedReviewComment({
+    String? id,
+    required String userId,
+    String? postId,
+    String? reviewId,
+    String? parentCommentId,
+    required String content,
+    Map<String, dynamic>? attachedGame,
+    String? imageUrl,
+    String? createdAt,
+  }) {
+    final row = <String, dynamic>{
+      'id': id ?? _nextUuid(),
+      'user_id': userId,
+      'post_id': postId,
+      'review_id': reviewId,
+      'parent_comment_id': parentCommentId,
+      'content': content,
+      'attached_game': attachedGame,
+      'image_url': imageUrl,
+      'created_at': createdAt ?? _nextIsoTimestamp(),
+    };
+    _prepareInteractionRow('review_comments', row);
+    _tables['review_comments']!.add(row);
+    return Map<String, dynamic>.from(row);
+  }
+
+  /// Inserta una notificación en `notifications`.
+  String seedNotification({
+    required String recipientId,
+    required String actorId,
+    required String type,
+    String? reviewId,
+    String? postId,
+    Map<String, dynamic>? metadata,
+    bool read = false,
+  }) {
+    final id = _nextUuid();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    _tables['notifications']!.add(<String, dynamic>{
+      'id': id,
+      'recipient_id': recipientId,
+      'actor_id': actorId,
+      'type': type,
+      'review_id': reviewId,
+      'post_id': postId,
+      'metadata': metadata ?? <String, dynamic>{},
+      'read_at': read ? nowIso : null,
+      'created_at': nowIso,
+    });
+    return id;
+  }
+
+  /// Inserta una relación de amistad si aún no existe.
+  void seedFriendship({
+    required String requesterId,
+    required String addresseeId,
+    String status = 'accepted',
+  }) {
+    final exists = _tables['friendships']!.any(
+      (f) =>
+          f['requester_id'] == requesterId && f['addressee_id'] == addresseeId,
     );
+    if (!exists) {
+      _tables['friendships']!.add(<String, dynamic>{
+        'requester_id': requesterId,
+        'addressee_id': addresseeId,
+        'status': status,
+        'created_at': _nextIsoTimestamp(),
+      });
+    }
+  }
+
+  /// Siembra una colección personalizada en `game_groups` + `game_group_items`.
+  String seedCollection({
+    required String userId,
+    required String name,
+    String? description,
+    List<int> gameIds = const <int>[],
+  }) {
+    final groupId = _nextUuid();
+    final ts = _nextIsoTimestamp();
+    _tables['game_groups']!.add(<String, dynamic>{
+      'id': groupId,
+      'user_id': userId,
+      'name': name,
+      'description': description,
+      'is_ranked': false,
+      'sort_order': 0,
+      'created_at': ts,
+    });
+    for (var i = 0; i < gameIds.length; i++) {
+      _tables['game_group_items']!.add(<String, dynamic>{
+        'id': _nextUuid(),
+        'group_id': groupId,
+        'game_id': gameIds[i],
+        'sort_order': i,
+        'created_at': ts,
+      });
+    }
+    return groupId;
   }
 
   List<Map<String, dynamic>> tableRows(String table) =>
@@ -814,6 +1537,22 @@ class FakeSupabaseBackend {
     final bodyText = utf8.decode(bodyBytes, allowMalformed: true);
     final headers = _lowercaseHeaders(request.headers);
 
+    if (timeoutOverride?.call(request.method, uri) == true) {
+      throw TimeoutException(
+        'Simulated network timeout for ${request.method} $path',
+        const Duration(seconds: 10),
+      );
+    }
+
+    final injectedStatus = httpErrorOverride?.call(request.method, uri);
+    if (injectedStatus != null) {
+      return _jsonResponse(injectedStatus, <String, dynamic>{
+        'message': 'Simulated HTTP $injectedStatus error',
+        'code': '$injectedStatus',
+        'error': 'Simulated HTTP $injectedStatus error',
+      });
+    }
+
     if (path.startsWith('/auth/v1')) {
       return _handleAuth(request.method, uri, bodyText, headers);
     }
@@ -921,6 +1660,19 @@ class FakeSupabaseBackend {
       final displayName =
           (data['display_name'] as String? ?? username).trim();
 
+      if (!email.contains('@') || !email.contains('.')) {
+        return _jsonResponse(422, <String, dynamic>{
+          'code': 'validation_failed',
+          'msg': 'Unable to validate email address: invalid format',
+        });
+      }
+      if (password.length < 6) {
+        return _jsonResponse(422, <String, dynamic>{
+          'code': 'weak_password',
+          'msg': 'Password should be at least 6 characters.',
+        });
+      }
+
       final duplicateEmail = _authAccountsById.values.any(
         (a) => a.email.toLowerCase() == email.toLowerCase(),
       );
@@ -928,6 +1680,16 @@ class FakeSupabaseBackend {
         return _jsonResponse(422, <String, dynamic>{
           'code': 'user_already_exists',
           'msg': 'User already registered',
+        });
+      }
+
+      final duplicateUsername = _authAccountsById.values.any(
+        (a) => a.username.toLowerCase() == username.toLowerCase(),
+      );
+      if (duplicateUsername) {
+        return _jsonResponse(422, <String, dynamic>{
+          'code': 'user_already_exists',
+          'msg': 'Username already taken',
         });
       }
 
@@ -987,6 +1749,18 @@ class FakeSupabaseBackend {
       return _jsonResponse(200, _authUserJson(account));
     }
 
+    if (method == 'POST' && path == '/auth/v1/recover') {
+      final email = (body['email'] as String? ?? '').trim();
+      if (email.isEmpty || !email.contains('@')) {
+        return _jsonResponse(422, <String, dynamic>{
+          'code': 'validation_failed',
+          'msg': 'Unable to validate email address: invalid format',
+        });
+      }
+      passwordRecoveryEmails.add(email);
+      return _jsonResponse(200, <String, dynamic>{});
+    }
+
     if (method == 'POST' && path == '/auth/v1/logout') {
       _activeUserId = null;
       return http.Response('', 204);
@@ -1015,11 +1789,19 @@ class FakeSupabaseBackend {
     switch (fnName) {
       case 'igdb-proxy':
         igdbProxyCalls++;
+        if (failIgdbProxy) {
+          return _jsonResponse(500, <String, dynamic>{
+            'error': 'Simulated IGDB proxy error',
+          });
+        }
         return _handleIgdbProxy(body);
       case 'get-metacritic-score':
         return _jsonResponse(200, <String, dynamic>{
-          'score': 94,
-          'url': 'https://www.metacritic.com',
+          'metascore': 94,
+          'user_score': 8.9,
+          'critic_review_count': 85,
+          'user_rating_count': 4200,
+          'url': 'https://www.metacritic.com/game/elden-ring/',
         });
       case 'fetch-stash-reviews':
         return _jsonResponse(200, <String, dynamic>{
@@ -1032,13 +1814,121 @@ class FakeSupabaseBackend {
         });
       case 'fetch-duracionde-time':
         return _jsonResponse(200, <String, dynamic>{
-          'main_story': 58,
+          'found': true,
+          'main': 58,
           'main_extra': 100,
           'completionist': 134,
         });
       case 'resolve-steam-id':
+        steamResolveCalls++;
+        final urlOrId = (body['urlOrId'] ?? '').toString().trim();
+        if (urlOrId.isEmpty || urlOrId.toLowerCase().contains('invalid')) {
+          return _jsonResponse(200, <String, dynamic>{
+            'success': false,
+            'error': 'No se pudo resolver el perfil de Steam',
+          });
+        }
+        final targetUserId = _extractRequestUserId(headers) ?? primaryUserId;
+        for (final u in _tables['users']!) {
+          if (u['id'] == targetUserId) {
+            u['steam_id'] = '76561198000000001';
+            u['steam_name'] = 'SteamPlayer';
+          }
+        }
+        return _jsonResponse(200, <String, dynamic>{
+          'success': true,
+          'steamId': '76561198000000001',
+          'steamName': 'SteamPlayer',
+        });
       case 'steam-library-import':
+        steamImportCalls++;
+        final minPlaytime = (body['minPlaytimeMinutes'] as num?)?.toInt() ?? 0;
+        lastSteamImportMinPlaytimeMinutes = minPlaytime;
+        final candidates = <Map<String, dynamic>>[
+          <String, dynamic>{
+            'catalog': <String, dynamic>{
+              'igdb_id': eldenRingId,
+              'id': eldenRingId,
+              'title': 'Elden Ring',
+              'name': 'Elden Ring',
+              'cover': <String, dynamic>{'image_id': 'co4jni'},
+              'cover_url':
+                  'https://images.igdb.com/igdb/image/upload/t_cover_big/co4jni.jpg',
+              'release_year': 2022,
+              'genres': <String>['Role-playing (RPG)', 'Adventure'],
+              'platforms': <String>['PC (Microsoft Windows)'],
+              'developers': <String>['FromSoftware'],
+              'summary':
+                  'Álzate, Sinluz, y deja que la gracia te guíe hacia el Círculo de Elden.',
+            },
+            'userGame': <String, dynamic>{
+              'game_id': eldenRingId,
+              'steam_playtime_minutes': 600,
+              'steam_last_played_at': '2026-05-01T18:00:00.000Z',
+            },
+          },
+          <String, dynamic>{
+            'catalog': <String, dynamic>{
+              'igdb_id': witcher3Id,
+              'id': witcher3Id,
+              'title': 'The Witcher 3: Wild Hunt',
+              'name': 'The Witcher 3: Wild Hunt',
+              'cover': <String, dynamic>{'image_id': 'co1wyy'},
+              'cover_url':
+                  'https://images.igdb.com/igdb/image/upload/t_cover_big/co1wyy.jpg',
+              'release_year': 2015,
+              'genres': <String>['Role-playing (RPG)'],
+              'platforms': <String>['PC (Microsoft Windows)'],
+              'developers': <String>['CD Projekt RED'],
+              'summary':
+                  'Eres Geralt de Rivia, cazador de monstruos a sueldo.',
+            },
+            'userGame': <String, dynamic>{
+              'game_id': witcher3Id,
+              'steam_playtime_minutes': 180,
+              'steam_last_played_at': '2026-04-20T18:00:00.000Z',
+            },
+          },
+          <String, dynamic>{
+            'catalog': <String, dynamic>{
+              'igdb_id': hollowKnightId,
+              'id': hollowKnightId,
+              'title': 'Hollow Knight',
+              'name': 'Hollow Knight',
+              'cover': <String, dynamic>{'image_id': 'co1rgi'},
+              'cover_url':
+                  'https://images.igdb.com/igdb/image/upload/t_cover_big/co1rgi.jpg',
+              'release_year': 2017,
+              'genres': <String>['Platform', 'Adventure'],
+              'platforms': <String>['PC (Microsoft Windows)'],
+              'developers': <String>['Team Cherry'],
+              'summary':
+                  'Forja tu propio camino en Hallownest, un reino en ruinas.',
+            },
+            'userGame': <String, dynamic>{
+              'game_id': hollowKnightId,
+              'steam_playtime_minutes': 45,
+              'steam_last_played_at': '2026-04-15T18:00:00.000Z',
+            },
+          },
+        ];
+        final matched = candidates
+            .where(
+              (c) =>
+                  ((c['userGame']
+                              as Map<String, dynamic>)['steam_playtime_minutes']
+                          as int) >=
+                  minPlaytime,
+            )
+            .toList();
+        return _jsonResponse(200, <String, dynamic>{
+          'done': true,
+          'catalogGames': matched.map((c) => c['catalog']).toList(),
+          'userGames': matched.map((c) => c['userGame']).toList(),
+        });
       case 'send-test-notification':
+        testNotificationsSent++;
+        return _jsonResponse(200, <String, dynamic>{'ok': true, 'sent': 1});
       case 'send-push-notification':
         return _jsonResponse(200, <String, dynamic>{'ok': true});
       default:
@@ -1066,56 +1956,237 @@ class FakeSupabaseBackend {
     }
 
     var results = List<Map<String, dynamic>>.from(_igdbCatalog);
+    var hasExplicitFilter = false;
+    final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    // 1. Filtro de búsqueda: search "...";
+    // 1. Filtro por ID único o lista: where id = 123 o where id = (1, 2)
+    final idListMatch = RegExp(r'\bid\s*=\s*\(([^)]+)\)').firstMatch(query);
+    final singleIdMatch = RegExp(r'\bid\s*=\s*(\d+)\b').firstMatch(query);
+
+    if (idListMatch != null) {
+      final ids = idListMatch
+          .group(1)!
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .toSet();
+      results = results.where((g) => ids.contains(g['id'])).toList();
+      hasExplicitFilter = true;
+    } else if (singleIdMatch != null) {
+      final targetId = int.tryParse(singleIdMatch.group(1)!);
+      results = results.where((g) => g['id'] == targetId).toList();
+      hasExplicitFilter = true;
+    }
+
+    // 2. Filtro legacy: search "...";
     final searchMatch = RegExp(r'search\s+"([^"]+)"\s*;').firstMatch(query);
     if (searchMatch != null) {
       final term = searchMatch.group(1)!.trim().toLowerCase();
       results = results
           .where((g) => (g['name'] as String).toLowerCase().contains(term))
           .toList();
-    } else {
-      // 2. Filtro por ID único o lista: where id = 123 o where id = (1, 2)
-      final idListMatch =
-          RegExp(r'\bwhere\s+id\s*=\s*\(([^)]+)\)').firstMatch(query);
-      final singleIdMatch =
-          RegExp(r'\bwhere\s+id\s*=\s*(\d+)\b').firstMatch(query);
+      hasExplicitFilter = true;
+    }
 
-      if (idListMatch != null) {
-        final ids = idListMatch
-            .group(1)!
-            .split(',')
-            .map((s) => int.tryParse(s.trim()))
-            .whereType<int>()
-            .toSet();
-        results = results.where((g) => ids.contains(g['id'])).toList();
-      } else if (singleIdMatch != null) {
-        final targetId = int.tryParse(singleIdMatch.group(1)!);
-        results = results.where((g) => g['id'] == targetId).toList();
-      } else if (query.contains('first_release_date >')) {
-        final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    // 3. Grupos de búsqueda Apicalypse generados por IGDBService.searchGames.
+    final wordGroups =
+        RegExp(r'\([^()]*name\s*~\s*\*[^()]+\)').allMatches(query);
+    for (final group in wordGroups) {
+      final terms = RegExp(r'name\s*~\s*\*"([^"]+)"\*')
+          .allMatches(group.group(0)!)
+          .map((m) => m.group(1)!.trim().toLowerCase())
+          .where((t) => t.isNotEmpty)
+          .toSet();
+      if (terms.isNotEmpty) {
+        results = results.where((g) {
+          final name = (g['name'] as String).toLowerCase();
+          return terms.any((term) => name.contains(term));
+        }).toList();
+        hasExplicitFilter = true;
+      }
+    }
+
+    // 4. Filtro por géneros: genres = (12, 31)
+    final genresMatch = RegExp(r'\bgenres\s*=\s*\(([^)]+)\)').firstMatch(query);
+    if (genresMatch != null) {
+      final genreIds = genresMatch
+          .group(1)!
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .toSet();
+      results = results.where((g) {
+        final gameGenres = g['genres'] as List<dynamic>? ?? const <dynamic>[];
+        return gameGenres
+            .any((item) => item is Map && genreIds.contains(item['id']));
+      }).toList();
+      hasExplicitFilter = true;
+    }
+
+    // 5. Filtro por plataformas: platforms = (6, 130)
+    final platformsMatch =
+        RegExp(r'\bplatforms\s*=\s*\(([^)]+)\)').firstMatch(query);
+    if (platformsMatch != null) {
+      final platformIds = platformsMatch
+          .group(1)!
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .toSet();
+      results = results.where((g) {
+        final gamePlatforms =
+            g['platforms'] as List<dynamic>? ?? const <dynamic>[];
+        return gamePlatforms
+            .any((item) => item is Map && platformIds.contains(item['id']));
+      }).toList();
+      hasExplicitFilter = true;
+    }
+
+    // 6. Filtro por tipo de juego: game_type = (0, 8)
+    final gameTypeMatch =
+        RegExp(r'\bgame_type\s*=\s*\(([^)]+)\)').firstMatch(query);
+    if (gameTypeMatch != null) {
+      final typeIds = gameTypeMatch
+          .group(1)!
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .toSet();
+      results = results.where((g) => typeIds.contains(g['game_type'])).toList();
+      hasExplicitFilter = true;
+    }
+
+    // 6b. Relacionados por parent_game (DLCs/expansiones/ediciones):
+    final parentMatch = RegExp(r'\bparent_game\s*=\s*(\d+)\b').firstMatch(query);
+    if (parentMatch != null) {
+      final parentId = int.tryParse(parentMatch.group(1)!);
+      results = results.where((g) => g['parent_game'] == parentId).toList();
+      hasExplicitFilter = true;
+    }
+
+    // 6c. Filtro por compañía implicada: involved_companies.company = (1012)
+    final companyMatch = RegExp(
+      r'involved_companies\.company\s*=\s*\(([^)]+)\)',
+    ).firstMatch(query);
+    if (companyMatch != null) {
+      final companyIds = companyMatch
+          .group(1)!
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .toSet();
+      final requireDeveloper = query.contains('involved_companies.developer = true');
+      final requirePublisher = query.contains('involved_companies.publisher = true');
+      results = results.where((g) {
+        final companies =
+            g['involved_companies'] as List<dynamic>? ?? const <dynamic>[];
+        return companies.any((item) {
+          if (item is! Map) return false;
+          final comp = item['company'];
+          final compId = comp is Map ? comp['id'] : comp;
+          if (!companyIds.contains(compId)) return false;
+          if (requireDeveloper && item['developer'] != true) return false;
+          if (requirePublisher && item['publisher'] != true) return false;
+          return true;
+        });
+      }).toList();
+      hasExplicitFilter = true;
+    }
+
+    // 6d. Filtro por colección / saga: (collection = (543)) | (collections = (543))
+    final collectionsMatch = RegExp(
+      r'\bcollections?\s*=\s*\(?(\d+(?:\s*,\s*\d+)*)\)?',
+    ).firstMatch(query);
+    if (collectionsMatch != null) {
+      final collectionIds = collectionsMatch
+          .group(1)!
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .toSet();
+      results = results.where((g) {
+        final single = g['collection'];
+        if (single is Map && collectionIds.contains(single['id'])) {
+          return true;
+        }
+        final list = g['collections'] as List<dynamic>? ?? const <dynamic>[];
+        return list.any((c) => c is Map && collectionIds.contains(c['id']));
+      }).toList();
+      hasExplicitFilter = true;
+    }
+
+    // 6e. Filtro por franquicia: (franchise = 1124 | franchises = (1124))
+    final franchisesMatch = RegExp(
+      r'\bfranchises?\s*=\s*\(?(\d+(?:\s*,\s*\d+)*)\)?',
+    ).firstMatch(query);
+    if (franchisesMatch != null) {
+      final franchiseIds = franchisesMatch
+          .group(1)!
+          .split(',')
+          .map((s) => int.tryParse(s.trim()))
+          .whereType<int>()
+          .toSet();
+      results = results.where((g) {
+        final single = g['franchise'];
+        if (single is Map && franchiseIds.contains(single['id'])) {
+          return true;
+        }
+        final list = g['franchises'] as List<dynamic>? ?? const <dynamic>[];
+        return list.any((f) => f is Map && franchiseIds.contains(f['id']));
+      }).toList();
+      hasExplicitFilter = true;
+    }
+
+    // 7. Filtro por fecha de lanzamiento.
+    if (query.contains('first_release_date >')) {
+      results = results
+          .where((g) => ((g['first_release_date'] as int?) ?? 0) > nowSec)
+          .toList();
+      hasExplicitFilter = true;
+    } else if (query.contains('first_release_date <=')) {
+      results = results
+          .where((g) => ((g['first_release_date'] as int?) ?? 0) <= nowSec)
+          .toList();
+      hasExplicitFilter = true;
+    } else if (!hasExplicitFilter) {
+      if (query.contains('sort hypes desc')) {
         results = results
             .where((g) => ((g['first_release_date'] as int?) ?? 0) > nowSec)
             .toList();
-      } else if (query.contains('hypes >') || query.contains('follows >')) {
-        // Más esperados o populares sin query de texto.
-        final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-        if (query.contains('sort hypes desc')) {
-          results = results
-              .where((g) => ((g['first_release_date'] as int?) ?? 0) > nowSec)
-              .toList();
-        } else {
-          results = results
-              .where((g) => ((g['first_release_date'] as int?) ?? 0) <= nowSec)
-              .toList();
-        }
       } else {
-        // Tendencias por defecto: juegos ya lanzados.
-        final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
         results = results
-            .where((g) => ((g['first_release_date'] as int?) ?? 0) <= nowSec)
+            .where(
+              (g) =>
+                  ((g['first_release_date'] as int?) ?? 0) <= nowSec &&
+                  ((g['game_type'] as int?) ?? 0) == 0,
+            )
             .toList();
       }
+    }
+
+    // 8. Ordenación: sort <field> asc|desc;
+    final sortMatch =
+        RegExp(r'\bsort\s+(\w+)\s+(asc|desc)\s*;').firstMatch(query);
+    if (sortMatch != null) {
+      final field = sortMatch.group(1)!;
+      final asc = sortMatch.group(2) == 'asc';
+      results.sort((a, b) {
+        final va = a[field];
+        final vb = b[field];
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        int cmp;
+        if (va is num && vb is num) {
+          cmp = va.compareTo(vb);
+        } else {
+          cmp = va
+              .toString()
+              .toLowerCase()
+              .compareTo(vb.toString().toLowerCase());
+        }
+        return asc ? cmp : -cmp;
+      });
     }
 
     final offsetMatch = RegExp(r'\boffset\s+(\d+)\s*;').firstMatch(query);
@@ -1185,27 +2256,41 @@ class FakeSupabaseBackend {
         return _jsonResponse(200, null);
 
       case 'get_unread_notifications_count':
-        final count = uid == null
-            ? 0
-            : _tables['notifications']!
-                .where((n) => n['recipient_id'] == uid && n['read_at'] == null)
-                .length;
+        if (uid == null) {
+          return _jsonResponse(401, <String, dynamic>{
+            'code': '42501',
+            'message': 'Authentication required',
+          });
+        }
+        final count = _tables['notifications']!
+            .where((n) => n['recipient_id'] == uid && n['read_at'] == null)
+            .length;
         return _jsonResponse(200, count);
 
       case 'mark_all_notifications_read':
-        if (uid != null) {
-          final now = _nextIsoTimestamp();
-          for (final n in _tables['notifications']!) {
-            if (n['recipient_id'] == uid && n['read_at'] == null) {
-              n['read_at'] = now;
-            }
+        if (uid == null) {
+          return _jsonResponse(401, <String, dynamic>{
+            'code': '42501',
+            'message': 'Authentication required',
+          });
+        }
+        final now = _nextIsoTimestamp();
+        for (final n in _tables['notifications']!) {
+          if (n['recipient_id'] == uid && n['read_at'] == null) {
+            n['read_at'] = now;
           }
         }
         return _jsonResponse(200, null);
 
       case 'mark_notification_read':
+        if (uid == null) {
+          return _jsonResponse(401, <String, dynamic>{
+            'code': '42501',
+            'message': 'Authentication required',
+          });
+        }
         final nid = args['p_notification_id'] as String?;
-        if (uid != null && nid != null) {
+        if (nid != null) {
           final now = _nextIsoTimestamp();
           for (final n in _tables['notifications']!) {
             if (n['id'] == nid && n['recipient_id'] == uid) {
@@ -1222,6 +2307,12 @@ class FakeSupabaseBackend {
         return _jsonResponse(200, postId);
 
       case 'ensure_review_post':
+        if (uid == null) {
+          return _jsonResponse(401, <String, dynamic>{
+            'code': '42501',
+            'message': 'Authentication required',
+          });
+        }
         final reviewId = args['p_review_id'] as String?;
         if (reviewId == null) {
           return _jsonResponse(200, null);
@@ -1236,7 +2327,7 @@ class FakeSupabaseBackend {
         if (review == null) {
           return _jsonResponse(200, null);
         }
-        final ts = (review['created_at'] as String?) ?? _nextIsoTimestamp();
+        final ts = _nextIsoTimestamp();
         final newPostId = _nextUuid();
         _tables['feed_posts']!.add(<String, dynamic>{
           'id': newPostId,
@@ -1278,16 +2369,16 @@ class FakeSupabaseBackend {
             .toList();
         final stats = rawIds.map((rid) {
           final pid = _findPostIdForReview(rid);
-          final likes = _tables['review_likes']!.where(
-            (l) =>
-                (pid != null && l['post_id'] == pid) ||
-                l['review_id'] == rid,
-          );
-          final comments = _tables['review_comments']!.where(
-            (c) =>
-                (pid != null && c['post_id'] == pid) ||
-                c['review_id'] == rid,
-          );
+          final likes = pid == null
+              ? const <Map<String, dynamic>>[]
+              : _tables['review_likes']!
+                    .where((l) => l['post_id'] == pid)
+                    .toList();
+          final comments = pid == null
+              ? const <Map<String, dynamic>>[]
+              : _tables['review_comments']!
+                    .where((c) => c['post_id'] == pid)
+                    .toList();
           final likedByMe =
               uid != null && likes.any((l) => l['user_id'] == uid);
           return <String, dynamic>{
@@ -1314,11 +2405,44 @@ class FakeSupabaseBackend {
         (a, b) => ((b['created_at'] as String?) ?? '')
             .compareTo((a['created_at'] as String?) ?? ''),
       );
-      return fromActivity.first['post_id'] as String?;
+      final latestAf = fromActivity.first;
+      final afPostId = latestAf['post_id'] as String;
+      final latestAfTs = latestAf['created_at'] as String?;
+      final isGrouped = _tables['activity_feed']!.any(
+        (af) =>
+            af['post_id'] == afPostId &&
+            (af['user_id'] != latestAf['user_id'] ||
+                af['game_id'] != latestAf['game_id'] ||
+                (af['review_id'] != null && af['review_id'] != reviewId)),
+      );
+      if (!isGrouped) {
+        return afPostId;
+      }
+      final isolatedPosts = _tables['feed_posts']!
+          .where(
+            (p) =>
+                p['review_id'] == reviewId &&
+                (latestAfTs == null ||
+                    ((p['created_at'] as String?) ?? '')
+                            .compareTo(latestAfTs) >=
+                        0),
+          )
+          .toList()
+        ..sort(
+          (a, b) => ((b['created_at'] as String?) ?? '')
+              .compareTo((a['created_at'] as String?) ?? ''),
+        );
+      return isolatedPosts.isNotEmpty
+          ? isolatedPosts.first['id'] as String?
+          : null;
     }
     final fromPosts = _tables['feed_posts']!
         .where((p) => p['review_id'] == reviewId)
-        .toList();
+        .toList()
+      ..sort(
+        (a, b) => ((b['created_at'] as String?) ?? '')
+            .compareTo((a['created_at'] as String?) ?? ''),
+      );
     if (fromPosts.isNotEmpty) {
       return fromPosts.first['id'] as String?;
     }
@@ -1609,6 +2733,10 @@ class FakeSupabaseBackend {
       case 'stash_game_stats':
       case 'stash_sync_metadata':
         return <String>['game_id'];
+      case 'story_views':
+        return <String>['user_id', 'activity_id'];
+      case 'user_game_platforms':
+        return <String>['user_id', 'game_id', 'platform_name'];
       default:
         return <String>['id'];
     }
@@ -1677,6 +2805,7 @@ class FakeSupabaseBackend {
       item['completion_type'] ??= 'story';
       item['is_replay'] ??= false;
       item['image_urls'] ??= <String>[];
+      item['partner_ids'] ??= <String>[];
     } else if (table == 'activity_feed') {
       item['created_at'] ??= now;
       item['metadata'] ??= <String, dynamic>{};
@@ -1705,6 +2834,8 @@ class FakeSupabaseBackend {
       item['status'] ??= 'pending';
     } else if (table == 'user_settings') {
       item['updated_at'] ??= now;
+    } else if (table == 'user_game_platforms') {
+      item['created_at'] ??= now;
     }
   }
 
@@ -1715,13 +2846,25 @@ class FakeSupabaseBackend {
     var postId = item['post_id'] as String?;
     var reviewId = item['review_id'] as String?;
 
+    if (table == 'review_comments' && item['parent_comment_id'] != null) {
+      final parent = _tables['review_comments']!
+          .where((c) => c['id'] == item['parent_comment_id'])
+          .firstOrNull;
+      if (parent != null && postId == null) {
+        postId = parent['post_id'] as String?;
+        if (postId != null) {
+          item['post_id'] = postId;
+        }
+      }
+    }
+
     if (postId == null && reviewId != null) {
       postId = _findPostIdForReview(reviewId);
       if (postId == null) {
         final review = _tables['reviews']!
             .where((r) => r['id'] == reviewId)
             .firstOrNull;
-        final ts = (review?['created_at'] as String?) ?? _nextIsoTimestamp();
+        final ts = _nextIsoTimestamp();
         postId = _nextUuid();
         _tables['feed_posts']!.add(<String, dynamic>{
           'id': postId,
@@ -1736,11 +2879,12 @@ class FakeSupabaseBackend {
       }
       item['post_id'] = postId;
     } else if (postId != null && reviewId == null) {
-      final linkedActivity = _tables['activity_feed']!
+      final distinctReviewIds = _tables['activity_feed']!
           .where((af) => af['post_id'] == postId && af['review_id'] != null)
-          .firstOrNull;
-      if (linkedActivity != null) {
-        reviewId = linkedActivity['review_id'] as String?;
+          .map((af) => af['review_id'] as String)
+          .toSet();
+      if (distinctReviewIds.length == 1) {
+        reviewId = distinctReviewIds.first;
       } else {
         final post =
             _tables['feed_posts']!.where((p) => p['id'] == postId).firstOrNull;
@@ -1832,6 +2976,35 @@ class FakeSupabaseBackend {
         }
       }
     } else if (table == 'friendships' &&
+        previous == null &&
+        row['status'] == 'pending') {
+      final requesterId = row['requester_id'] as String?;
+      final addresseeId = row['addressee_id'] as String?;
+      if (requesterId != null &&
+          addresseeId != null &&
+          requesterId != addresseeId) {
+        final alreadyNotified = _tables['notifications']!.any(
+          (n) =>
+              n['type'] == 'friend_request' &&
+              n['recipient_id'] == addresseeId &&
+              n['actor_id'] == requesterId &&
+              n['read_at'] == null,
+        );
+        if (!alreadyNotified) {
+          _tables['notifications']!.add(<String, dynamic>{
+            'id': _nextUuid(),
+            'recipient_id': addresseeId,
+            'actor_id': requesterId,
+            'type': 'friend_request',
+            'review_id': null,
+            'post_id': null,
+            'metadata': <String, dynamic>{},
+            'read_at': null,
+            'created_at': _nextIsoTimestamp(),
+          });
+        }
+      }
+    } else if (table == 'friendships' &&
         previous != null &&
         previous['status'] == 'pending' &&
         row['status'] == 'accepted') {
@@ -1841,7 +3014,141 @@ class FakeSupabaseBackend {
             n['recipient_id'] == row['addressee_id'] &&
             n['actor_id'] == row['requester_id'],
       );
+    } else if (table == 'review_likes' && previous == null) {
+      final actorId = row['user_id'] as String?;
+      final postId = row['post_id'] as String?;
+      final reviewId = row['review_id'] as String?;
+      final ownerId = _resolvePostOwnerId(postId: postId, reviewId: reviewId);
+      if (actorId != null && ownerId != null && ownerId != actorId) {
+        _tables['notifications']!.add(<String, dynamic>{
+          'id': _nextUuid(),
+          'recipient_id': ownerId,
+          'actor_id': actorId,
+          'type': 'like',
+          'review_id': reviewId,
+          'post_id': postId,
+          'metadata': _buildInteractionNotificationMetadata(
+            postId: postId,
+            reviewId: reviewId,
+          ),
+          'read_at': null,
+          'created_at': _nextIsoTimestamp(),
+        });
+      }
+    } else if (table == 'review_comments' && previous == null) {
+      final actorId = row['user_id'] as String?;
+      final postId = row['post_id'] as String?;
+      final reviewId = row['review_id'] as String?;
+      final parentCommentId = row['parent_comment_id'] as String?;
+      final snippet = (row['content'] as String? ?? '').trim();
+      final meta = _buildInteractionNotificationMetadata(
+        postId: postId,
+        reviewId: reviewId,
+        commentSnippet: snippet.isNotEmpty ? snippet : null,
+      );
+
+      String? repliedUserId;
+      if (parentCommentId != null && actorId != null) {
+        final parent = _tables['review_comments']!
+            .where((c) => c['id'] == parentCommentId)
+            .firstOrNull;
+        final parentAuthor = parent?['user_id'] as String?;
+        if (parentAuthor != null && parentAuthor != actorId) {
+          repliedUserId = parentAuthor;
+          _tables['notifications']!.add(<String, dynamic>{
+            'id': _nextUuid(),
+            'recipient_id': parentAuthor,
+            'actor_id': actorId,
+            'type': 'reply',
+            'review_id': reviewId,
+            'post_id': postId,
+            'comment_id': row['id'],
+            'metadata': meta,
+            'read_at': null,
+            'created_at': _nextIsoTimestamp(),
+          });
+        }
+      }
+
+      final ownerId = _resolvePostOwnerId(postId: postId, reviewId: reviewId);
+      if (actorId != null &&
+          ownerId != null &&
+          ownerId != actorId &&
+          ownerId != repliedUserId) {
+        _tables['notifications']!.add(<String, dynamic>{
+          'id': _nextUuid(),
+          'recipient_id': ownerId,
+          'actor_id': actorId,
+          'type': 'comment',
+          'review_id': reviewId,
+          'post_id': postId,
+          'comment_id': row['id'],
+          'metadata': meta,
+          'read_at': null,
+          'created_at': _nextIsoTimestamp(),
+        });
+      }
     }
+  }
+
+  String? _resolvePostOwnerId({String? postId, String? reviewId}) {
+    if (reviewId != null) {
+      final review = _tables['reviews']!
+          .where((r) => r['id'] == reviewId)
+          .firstOrNull;
+      if (review != null && review['user_id'] != null) {
+        return review['user_id'] as String;
+      }
+    }
+    if (postId != null) {
+      final post =
+          _tables['feed_posts']!.where((p) => p['id'] == postId).firstOrNull;
+      if (post != null && post['user_id'] != null) {
+        return post['user_id'] as String;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _buildInteractionNotificationMetadata({
+    String? postId,
+    String? reviewId,
+    String? commentSnippet,
+  }) {
+    final meta = <String, dynamic>{};
+    if (commentSnippet != null) {
+      meta['comment_snippet'] = commentSnippet;
+    }
+    int? gameId;
+    if (reviewId != null) {
+      final review = _tables['reviews']!
+          .where((r) => r['id'] == reviewId)
+          .firstOrNull;
+      gameId = review?['game_id'] as int?;
+    } else if (postId != null) {
+      final afRows = _tables['activity_feed']!
+          .where((af) => af['post_id'] == postId)
+          .toList();
+      final distinctGames =
+          afRows.map((af) => af['game_id']).whereType<int>().toSet();
+      if (distinctGames.length > 1) {
+        meta['games_count'] = distinctGames.length;
+      } else if (distinctGames.length == 1) {
+        gameId = distinctGames.first;
+      }
+    }
+    if (gameId != null) {
+      final game = _tables['games']!
+          .where((g) => g['igdb_id'] == gameId)
+          .firstOrNull;
+      if (game != null) {
+        meta['game_title'] = game['title'];
+        if (game['cover_url'] != null) {
+          meta['game_cover_url'] = game['cover_url'];
+        }
+      }
+    }
+    return meta;
   }
 
   void _applyReviewSideEffects(
@@ -1867,7 +3174,13 @@ class FakeSupabaseBackend {
       existingUg['rating_soundtrack'] = review['rating_soundtrack'];
       existingUg['rating_visuals'] = review['rating_visuals'];
       existingUg['comment'] = review['comment'];
+      existingUg['completion_type'] = review['completion_type'] ?? 'none';
+      existingUg['platform'] = review['platform'];
       existingUg['play_time_hours'] = review['play_time_hours'];
+      existingUg['played_from'] = review['played_from'];
+      existingUg['played_until'] = review['played_until'];
+      existingUg['progress_percent'] = review['progress_percent'];
+      existingUg['partner_ids'] = review['partner_ids'] ?? const <String>[];
       existingUg['updated_at'] = ts;
       existingUg['last_played_at'] = review['played_until'] ?? review['created_at'];
     } else {
@@ -1881,8 +3194,14 @@ class FakeSupabaseBackend {
         'rating_soundtrack': review['rating_soundtrack'],
         'rating_visuals': review['rating_visuals'],
         'comment': review['comment'],
+        'completion_type': review['completion_type'] ?? 'none',
+        'platform': review['platform'],
         'play_count': 1,
         'play_time_hours': review['play_time_hours'],
+        'played_from': review['played_from'],
+        'played_until': review['played_until'],
+        'progress_percent': review['progress_percent'],
+        'partner_ids': review['partner_ids'] ?? const <String>[],
         'last_played_at': review['played_until'] ?? review['created_at'],
         'updated_at': ts,
         'is_steam_only': false,
@@ -1990,6 +3309,15 @@ class FakeSupabaseBackend {
     } else if (table == 'game_groups') {
       final groupId = row['id'];
       _tables['game_group_items']!.removeWhere((i) => i['group_id'] == groupId);
+    } else if (table == 'review_likes') {
+      _tables['notifications']!.removeWhere(
+        (n) =>
+            n['type'] == 'like' &&
+            n['actor_id'] == row['user_id'] &&
+            ((row['post_id'] != null && n['post_id'] == row['post_id']) ||
+                (row['review_id'] != null &&
+                    n['review_id'] == row['review_id'])),
+      );
     }
   }
 
@@ -2147,6 +3475,29 @@ class FakeSupabaseBackend {
                 .toList();
         matched = items.any((candidate) => _equals(val, candidate));
       case 'cs':
+        if (val is List) {
+          var expected = <dynamic>[];
+          final trimmed = rawTarget.trim();
+          if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+            try {
+              final decoded = jsonDecode(trimmed);
+              if (decoded is List) {
+                expected = decoded;
+              }
+            } catch (_) {}
+          } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+            final inner = trimmed.substring(1, trimmed.length - 1);
+            expected = inner.isEmpty
+                ? <dynamic>[]
+                : _splitTopLevel(inner, ',')
+                    .map((s) => s.trim().replaceAll('"', ''))
+                    .toList();
+          }
+          final valSet = val.map((e) => e.toString()).toSet();
+          matched = expected.every((e) => valSet.contains(e.toString()));
+        } else {
+          matched = false;
+        }
       case 'ov':
         matched = true;
       default:
@@ -2229,8 +3580,18 @@ class FakeSupabaseBackend {
         final col = parts.first;
         final desc = parts.length > 1 && parts[1] == 'desc';
         final nullsFirst = parts.contains('nullsfirst');
-        final va = a.projected[col] ?? a.raw[col];
-        final vb = b.projected[col] ?? b.raw[col];
+        final relMatch = RegExp(r'^(\w+)\((\w+)\)$').firstMatch(col);
+        dynamic readSortVal(({Map<String, dynamic> raw, Map<String, dynamic> projected}) p) {
+          if (relMatch != null) {
+            final rel = relMatch.group(1)!;
+            final field = relMatch.group(2)!;
+            final relMap = p.projected[rel];
+            return relMap is Map ? relMap[field] : null;
+          }
+          return p.projected[col] ?? p.raw[col];
+        }
+        final va = readSortVal(a);
+        final vb = readSortVal(b);
         if (va == null && vb == null) continue;
         if (va == null) return nullsFirst ? -1 : 1;
         if (vb == null) return nullsFirst ? 1 : -1;

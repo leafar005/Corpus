@@ -458,13 +458,11 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.all(16),
                   sliver: SliverGrid(
-                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                       maxCrossAxisExtent: 180,
                       mainAxisSpacing: 12,
                       crossAxisSpacing: 12,
-                      childAspectRatio: MediaQuery.of(context).size.width < 600
-                          ? 0.65
-                          : 0.78,
+                      mainAxisExtent: 235,
                     ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final achievement = filteredAchievements[index];

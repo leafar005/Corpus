@@ -261,7 +261,9 @@ class _BulkAddToShelfSheetState extends State<BulkAddToShelfSheet> {
                         },
                       ),
                       const SizedBox(height: 8),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           FilterChip(
                             label: const Text('Solo de esta plataforma'),
@@ -273,7 +275,6 @@ class _BulkAddToShelfSheetState extends State<BulkAddToShelfSheet> {
                               }
                             }),
                           ),
-                          const SizedBox(width: 8),
                           FilterChip(
                             label: const Text('Ocultar en estantería'),
                             selected: _hideAlreadyOnShelf,

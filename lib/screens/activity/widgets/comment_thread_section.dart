@@ -341,7 +341,7 @@ class _AttachedGamePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final title = gameData['name']?.toString() ?? 'Juego';
+    final title = (gameData['name'] ?? gameData['title'])?.toString() ?? 'Juego';
     final coverUrl =
         gameData['cover_url'] as String? ??
         (gameData['cover']?['image_id'] != null

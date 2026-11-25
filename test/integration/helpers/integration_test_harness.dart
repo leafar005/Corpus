@@ -6,6 +6,7 @@ import 'package:corpus/globals.dart';
 import 'package:corpus/main.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/routes/app_root.dart';
+import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/tab_url_sync.dart';
 import 'package:corpus/screens/library/game_details/game_details_controller.dart';
 import 'package:corpus/services/deep_link_service.dart';
@@ -15,6 +16,9 @@ import 'package:corpus/theme/app_theme.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/game_card.dart';
+import 'package:file_picker/file_picker.dart';
+// ignore: depend_on_referenced_packages, implementation_imports
+import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,9 +49,32 @@ class CorpusTestHarness {
 
   FakeSupabaseBackend? backend;
   HttpOverrides? _previousHttpOverrides;
+  FilePickerPlatform? _previousFilePickerPlatform;
   Directory? _tempDir;
   final Map<String, String> _secureStorage = <String, String>{};
   final List<String> _registeredChannels = <String>[];
+  final List<FilePickerResult?> _queuedPickedFiles = <FilePickerResult?>[];
+  int filePickerCallCount = 0;
+
+  void enqueuePickedFile({
+    required String name,
+    required Uint8List bytes,
+    int? sizeOverride,
+  }) {
+    _queuedPickedFiles.add(
+      FilePickerResult(<PlatformFile>[
+        PlatformFile(
+          name: name,
+          size: sizeOverride ?? bytes.length,
+          bytes: bytes,
+        ),
+      ]),
+    );
+  }
+
+  void enqueueCancelledFilePick() {
+    _queuedPickedFiles.add(null);
+  }
 
   Future<void> run(
     WidgetTester tester,
@@ -85,6 +112,8 @@ class CorpusTestHarness {
     String password = FakeSupabaseBackend.primaryPassword,
   }) async {
     kDisableCarouselForTests = true;
+    kDisablePushDebounceForTests = true;
+    resetPushDebounceForTesting();
     AppNavigationController.instance.resetForSessionChange();
     floatingMobileNavNotifier.value = floatingMobileNav;
 
@@ -102,6 +131,15 @@ class CorpusTestHarness {
     );
 
     _installPlatformChannelMocks();
+    _previousFilePickerPlatform = FilePickerPlatform.instance;
+    FilePickerPlatform.instance = _FakeFilePickerPlatform(
+      onPick: () {
+        filePickerCallCount++;
+        return _queuedPickedFiles.isNotEmpty
+            ? _queuedPickedFiles.removeAt(0)
+            : null;
+      },
+    );
 
     _previousHttpOverrides = HttpOverrides.current;
     HttpOverrides.global = _MockImageHttpOverrides();
@@ -110,7 +148,11 @@ class CorpusTestHarness {
       'floating_mobile_nav': floatingMobileNav,
     });
 
-    await tester.runAsync(() => resetAllGlobalState());
+    await tester.runAsync(() async {
+      await resetAllGlobalState();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('floating_mobile_nav', floatingMobileNav);
+    });
     floatingMobileNavNotifier.value = floatingMobileNav;
 
     await tester.runAsync(() => _resetAndInitSupabase(backend!));
@@ -125,6 +167,7 @@ class CorpusTestHarness {
     }
 
     await tester.pumpWidget(_buildTestRootApp());
+    // ignore: invalid_use_of_internal_member
     Supabase.instance.client.auth.notifyAllSubscribers(
       AuthChangeEvent.initialSession,
     );
@@ -316,6 +359,14 @@ class CorpusTestHarness {
     });
 
     kDisableCarouselForTests = false;
+    kDisablePushDebounceForTests = false;
+    resetPushDebounceForTesting();
+    _queuedPickedFiles.clear();
+    filePickerCallCount = 0;
+    if (_previousFilePickerPlatform != null) {
+      FilePickerPlatform.instance = _previousFilePickerPlatform!;
+      _previousFilePickerPlatform = null;
+    }
     AppNavigationController.instance.resetForSessionChange();
     await tester.runAsync(() => resetAllGlobalState());
     IGDBService.clearCache();
@@ -399,11 +450,14 @@ class CorpusTestHarness {
   }
 
   /// `CorpusNavigation._shouldThrottlePush()` usa `DateTime.now()` real (600 ms).
-  /// Avanza el reloj real en pruebas cuando hay dos navegaciones push seguidas.
+  /// Cuando [kDisablePushDebounceForTests] está activo basta con bombear un frame;
+  /// si el test lo desactiva explícitamente, espera la ventana real.
   Future<void> waitForPushDebounce(WidgetTester tester) async {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 650)),
-    );
+    if (!kDisablePushDebounceForTests) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 650)),
+      );
+    }
     await tester.pump(const Duration(milliseconds: 20));
   }
 
@@ -864,4 +918,28 @@ class _FakeHttpHeaders implements HttpHeaders {
 
   @override
   String? value(String name) => null;
+}
+
+class _FakeFilePickerPlatform extends FilePickerPlatform {
+  _FakeFilePickerPlatform({required this.onPick});
+
+  final FilePickerResult? Function() onPick;
+
+  @override
+  Future<FilePickerResult?> pickFiles({
+    String? dialogTitle,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    Function(FilePickerStatus)? onFileLoading,
+    int compressionQuality = 0,
+    bool allowMultiple = false,
+    bool withData = false,
+    bool withReadStream = false,
+    bool lockParentWindow = false,
+    bool readSequential = false,
+    bool cancelUploadOnWindowBlur = true,
+  }) async {
+    return onPick();
+  }
 }

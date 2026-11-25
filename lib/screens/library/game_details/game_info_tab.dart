@@ -138,87 +138,87 @@ class GameInfoTab extends StatelessWidget {
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  scoreBadge(
-                    value: metacriticScore.toString(),
-                    color: scoreColor(metacriticScore!),
-                    context: context,
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Metascore',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
+                      scoreBadge(
+                        value: metacriticScore.toString(),
+                        color: scoreColor(metacriticScore!),
+                        context: context,
                       ),
-                      if (metacriticCriticCount != null)
-                        Text(
-                          '$metacriticCriticCount críticas',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (metacriticUserScore != null) ...[
-                    const SizedBox(width: 16),
-                    Container(
-                      width: 1,
-                      height: 36,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.outline.withValues(alpha: 0.3),
-                    ),
-                    const SizedBox(width: 16),
-                    scoreBadge(
-                      value: metacriticUserScore!.toStringAsFixed(1),
-                      color: userColor(metacriticUserScore!),
-                      context: context,
-                      isCircle: true,
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'User Score',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        if (metacriticUserRatingCount != null)
-                          Text(
-                            '$metacriticUserRatingCount valoraciones',
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Metascore',
                             style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
+                          if (metacriticCriticCount != null)
+                            Text(
+                              '$metacriticCriticCount críticas',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (metacriticUserScore != null)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        scoreBadge(
+                          value: metacriticUserScore!.toStringAsFixed(1),
+                          color: userColor(metacriticUserScore!),
+                          context: context,
+                          isCircle: true,
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'User Score',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            if (metacriticUserRatingCount != null)
+                              Text(
+                                '$metacriticUserRatingCount valoraciones',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                  if (metacriticUrl != null) ...[
-                    const SizedBox(width: 10),
-                    CorpusTablerIcon(CorpusIconKind.OpenInNew,
+                  if (metacriticUrl != null)
+                    CorpusTablerIcon(
+                      CorpusIconKind.OpenInNew,
                       size: 14,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                  ],
                 ],
               ),
             ),

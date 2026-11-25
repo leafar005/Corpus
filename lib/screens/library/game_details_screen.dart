@@ -615,14 +615,17 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
         : fallbackCol;
 
     if (rawCol is Map) {
-      collectionId = (rawCol['id'] is num)
-          ? (rawCol['id'] as num).toInt()
-          : int.tryParse(rawCol['id']?.toString() ?? '');
+      collectionId =
+          (rawCol['id'] is num)
+              ? (rawCol['id'] as num).toInt()
+              : int.tryParse(rawCol['id']?.toString() ?? '');
+      collectionId ??= widget.gameData.collectionId;
       collectionName = rawCol['name']?.toString();
     } else if (rawCol != null &&
         rawCol.toString() != 'null' &&
         rawCol.toString().isNotEmpty) {
       collectionName = rawCol.toString();
+      collectionId = widget.gameData.collectionId;
     }
 
     final List<Map<String, dynamic>> franchisesData = [];
@@ -634,14 +637,22 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
 
     for (final f in rawFranchises) {
       if (f is Map && f['name'] != null) {
-        final int? fId = (f['id'] is num)
-            ? (f['id'] as num).toInt()
-            : int.tryParse(f['id']?.toString() ?? '');
+        final fName = f['name'].toString();
+        final int? fId =
+            (f['id'] is num
+                ? (f['id'] as num).toInt()
+                : int.tryParse(f['id']?.toString() ?? '')) ??
+            widget.gameData.franchiseIds[fName];
         franchisesData.add({'id': fId, 'name': f['name']});
       } else if (f != null &&
           f.toString() != 'null' &&
           f.toString().isNotEmpty) {
-        franchisesData.add({'name': f.toString()});
+        final fName = f.toString();
+        final int? fId = widget.gameData.franchiseIds[fName];
+        franchisesData.add({
+          'id': ?fId,
+          'name': fName,
+        });
       }
     }
 
@@ -651,9 +662,12 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
             ? widget.gameData.franchises.first
             : null);
     if (singularFranchise is Map && singularFranchise['name'] != null) {
-      final int? sfId = (singularFranchise['id'] is num)
-          ? (singularFranchise['id'] as num).toInt()
-          : int.tryParse(singularFranchise['id']?.toString() ?? '');
+      final sfName = singularFranchise['name'].toString();
+      final int? sfId =
+          (singularFranchise['id'] is num
+              ? (singularFranchise['id'] as num).toInt()
+              : int.tryParse(singularFranchise['id']?.toString() ?? '')) ??
+          widget.gameData.franchiseIds[sfName];
       final bool alreadyIn = franchisesData.any(
         (f) => f['id'] != null && f['id'] == sfId,
       );

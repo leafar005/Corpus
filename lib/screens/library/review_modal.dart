@@ -691,6 +691,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: platforms.contains(reviewPlatform)
                           ? reviewPlatform
                           : null,
@@ -710,6 +711,7 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                               value: p,
                               child: Text(
                                 p,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(fontSize: 14),
                               ),
                             ),
@@ -717,7 +719,10 @@ class _ReviewModalContentState extends State<_ReviewModalContent> {
                           .toList(),
                       onChanged: (val) =>
                           setState(() => reviewPlatform = val),
-                      hint: const Text('Seleccionar plataforma'),
+                      hint: const Text(
+                        'Seleccionar plataforma',
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     const SizedBox(height: 16),
                   ],
