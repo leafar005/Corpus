@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
-import '../profile/profile_screen.dart';
+import '../../routes/app_navigation_controller.dart';
+import '../../routes/corpus_router.dart';
 import '../../widgets/friendship_button.dart';
 import '../../repositories/social_repository.dart';
 
@@ -23,6 +24,7 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
   final _repo = SocialRepository();
 
   List<Map<String, dynamic>> _friends = [];
+  Map<String, FriendshipStatus> _friendshipStatuses = {};
 
   bool _isLoading = true;
 
@@ -36,10 +38,34 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
     setState(() => _isLoading = true);
     try {
       final userFriends = await _repo.fetchFriendsOf(widget.userId);
+      final friendIds = userFriends
+          .map((f) => (f['friend'] as Map?)?['id']?.toString())
+          .whereType<String>()
+          .toList();
+      final rawStatuses = await _repo.fetchFriendshipStatuses(friendIds);
+      final mappedStatuses = <String, FriendshipStatus>{};
+      final myId = _repo.currentUserId;
+      for (final id in friendIds) {
+        if (id == myId) {
+          mappedStatuses[id] = FriendshipStatus.me;
+          continue;
+        }
+        final entry = rawStatuses[id];
+        if (entry == null) {
+          mappedStatuses[id] = FriendshipStatus.none;
+        } else if (entry.status == 'accepted') {
+          mappedStatuses[id] = FriendshipStatus.friends;
+        } else if (entry.iSent) {
+          mappedStatuses[id] = FriendshipStatus.sent;
+        } else {
+          mappedStatuses[id] = FriendshipStatus.received;
+        }
+      }
 
       if (mounted) {
         setState(() {
           _friends = userFriends;
+          _friendshipStatuses = mappedStatuses;
           _isLoading = false;
         });
       }
@@ -61,7 +87,12 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Amigos de @${widget.username}')),
+      appBar: AppBar(
+        leading: BackButton(
+          onPressed: () => AppNavigationController.instance.requestBack(context),
+        ),
+        title: Text('Amigos de @${widget.username}'),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _friends.isEmpty
@@ -100,8 +131,17 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
                   );
                 } else if (friendId != null) {
                   trailing = FriendshipButton(
+                    key: ValueKey(friendId),
                     targetUserId: friendId,
                     isIconOnly: true,
+                    initialStatus:
+                        _friendshipStatuses[friendId] ?? FriendshipStatus.none,
+                    onStatusChanged: (newStatus) {
+                      if (!mounted) return;
+                      setState(() {
+                        _friendshipStatuses[friendId] = newStatus;
+                      });
+                    },
                   );
                 }
 
@@ -115,12 +155,7 @@ class _UserFriendsScreenState extends State<UserFriendsScreen> {
                   trailing: trailing,
                   onTap: () {
                     if (friendId == null) return;
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProfileScreen(userId: friendId),
-                      ),
-                    );
+                    context.pushProfile(userId: friendId);
                   },
                 );
               },

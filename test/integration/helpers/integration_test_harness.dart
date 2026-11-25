@@ -4,12 +4,14 @@ import 'dart:io';
 
 import 'package:corpus/globals.dart';
 import 'package:corpus/main.dart';
+import 'package:corpus/repositories/review_repository.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/routes/app_root.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/tab_url_sync.dart';
 import 'package:corpus/screens/library/game_details/game_details_controller.dart';
 import 'package:corpus/services/deep_link_service.dart';
+import 'package:corpus/services/duracionde_service.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/services/user_settings_service.dart';
 import 'package:corpus/theme/app_theme.dart';
@@ -113,11 +115,14 @@ class CorpusTestHarness {
   }) async {
     kDisableCarouselForTests = true;
     kDisablePushDebounceForTests = true;
+    kDisableIsolatesForTests = true;
     resetPushDebounceForTesting();
     AppNavigationController.instance.resetForSessionChange();
     floatingMobileNavNotifier.value = floatingMobileNav;
 
     IGDBService.clearCache();
+    DuracionDeService.clearCache();
+    ReviewRepository.clearBackfillCacheForTesting();
     UserSettingsService().resetForTesting();
     GameDetailsController.clearSessionCacheForTesting();
 
@@ -360,6 +365,7 @@ class CorpusTestHarness {
 
     kDisableCarouselForTests = false;
     kDisablePushDebounceForTests = false;
+    kDisableIsolatesForTests = false;
     resetPushDebounceForTesting();
     _queuedPickedFiles.clear();
     filePickerCallCount = 0;
@@ -370,6 +376,8 @@ class CorpusTestHarness {
     AppNavigationController.instance.resetForSessionChange();
     await tester.runAsync(() => resetAllGlobalState());
     IGDBService.clearCache();
+    DuracionDeService.clearCache();
+    ReviewRepository.clearBackfillCacheForTesting();
     UserSettingsService().resetForTesting();
     GameDetailsController.clearSessionCacheForTesting();
 

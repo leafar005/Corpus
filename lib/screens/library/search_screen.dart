@@ -4,6 +4,7 @@ import 'package:corpus/models/models.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import '../../utils/debouncer.dart';
+import '../../utils/postgrest_utils.dart';
 import '../../services/igdb_service.dart';
 import '../../widgets/game_card.dart';
 import '../../widgets/corpus_section_title.dart';
@@ -14,10 +15,9 @@ import 'filter_screen.dart';
 import '../../widgets/paginated_scroll_mixin.dart';
 import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_tabler_icon.dart';
+import '../../routes/explore_navigation.dart';
 
-class ExploreNavigation {
-  static final targetQuery = ValueNotifier<String?>(null);
-}
+export '../../routes/explore_navigation.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? initialQuery;
@@ -182,8 +182,9 @@ class _SearchScreenState extends State<SearchScreen> with PaginatedScrollMixin {
     try {
       final response = await Supabase.instance.client
           .from('active_bundles')
-          .select()
-          .order('end_date', ascending: true);
+          .select(kActiveBundleColumns)
+          .order('end_date', ascending: true)
+          .limit(50);
 
       final newBundles = List<Map<String, dynamic>>.from(response);
       final now = DateTime.now();

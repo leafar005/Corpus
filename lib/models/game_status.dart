@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 
@@ -92,7 +93,10 @@ enum GameStatus {
     if (value == null || value.trim().isEmpty) return fallback;
     try {
       return fromString(value);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[GameStatus] Valor desconocido "$value": $e');
+      }
       return fallback;
     }
   }

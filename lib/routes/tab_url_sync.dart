@@ -18,7 +18,13 @@ import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/models/models.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-String? _currentUserId() => Supabase.instance.client.auth.currentUser?.id;
+String? _currentUserId() {
+  try {
+    return Supabase.instance.client.auth.currentUser?.id;
+  } catch (_) {
+    return null;
+  }
+}
 
 int? _extractIgdbId(Game gameData) {
   return gameData.igdbId;
@@ -39,8 +45,8 @@ TabDeepRoute? deepRouteFromRouteSettings(RouteSettings settings) {
     case AppRoutes.profile:
       final args = settings.arguments;
       if (args is! ProfileArgs) return null;
-      final userId = args.userId;
-      if (userId == null) return null;
+      final userId = args.userId?.trim();
+      if (userId == null || userId.isEmpty) return null;
       // Si por lo que sea alguien empuja el propio perfil, no le hace falta
       // sub-ruta: es equivalente a la raíz de la pestaña Perfil.
       if (userId == _currentUserId()) return null;
@@ -49,34 +55,41 @@ TabDeepRoute? deepRouteFromRouteSettings(RouteSettings settings) {
     case AppRoutes.reviewDetails:
       final args = settings.arguments;
       if (args is! ReviewDetailsArgs) return null;
-      final id = args.reviewData['id'];
-      return id == null ? null : ReviewDeepRoute(id.toString());
+      final id = args.reviewData['id']?.toString().trim();
+      return (id == null || id.isEmpty) ? null : ReviewDeepRoute(id);
 
     case AppRoutes.groupedPostDetails:
       final args = settings.arguments;
       if (args is! GroupedPostDetailsArgs) return null;
-      return GroupedPostDeepRoute(args.postId);
+      final postId = args.postId.trim();
+      return postId.isEmpty ? null : GroupedPostDeepRoute(postId);
 
     case AppRoutes.bundleDetails:
       final args = settings.arguments;
       if (args is! BundleDetailsArgs) return null;
-      final bundleId = args.bundleData['id']?.toString();
-      if (bundleId == null) return null;
+      final bundleId = args.bundleData['id']?.toString().trim();
+      if (bundleId == null || bundleId.isEmpty) return null;
       return BundleDeepRoute(bundleId);
 
     case AppRoutes.achievements:
       final args = settings.arguments;
       if (args is! AchievementsArgs) return null;
-      final userId = args.userId == _currentUserId() ? null : args.userId;
+      final rawUid = args.userId.trim();
+      if (rawUid.isEmpty) return null;
+      final userId = rawUid == _currentUserId() ? null : rawUid;
       return AchievementsDeepRoute(userId: userId);
 
     case AppRoutes.achievementGames:
       final args = settings.arguments;
       if (args is! AchievementGamesArgs) return null;
-      final userId = args.userId == _currentUserId() ? null : args.userId;
+      final achievementId = args.achievementId.trim();
+      if (achievementId.isEmpty) return null;
+      final rawUid = args.userId?.trim();
+      final normalizedUid = (rawUid == null || rawUid.isEmpty) ? null : rawUid;
+      final userId = normalizedUid == _currentUserId() ? null : normalizedUid;
       return AchievementGamesDeepRoute(
         userId: userId,
-        achievementId: args.achievementId,
+        achievementId: achievementId,
       );
 
     case AppRoutes.friends:

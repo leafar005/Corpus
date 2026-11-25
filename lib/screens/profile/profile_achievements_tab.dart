@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/routes/corpus_router.dart';
+import '../../repositories/achievements_repository.dart';
 import '../../theme/corpus_theme_extension.dart';
 
 class ProfileAchievementsTab extends StatefulWidget {
@@ -86,33 +86,11 @@ class _ProfileAchievementsTabState extends State<ProfileAchievementsTab> {
 
   Future<void> _fetchAchievements() async {
     try {
-      final achievementsResp = await Supabase.instance.client
-          .from('achievements')
-          .select()
-          .order('xp_reward', ascending: true);
-
-      final unlockedResp = await Supabase.instance.client
-          .from('user_achievements')
-          .select('achievement_id, unlocked_at')
-          .eq('user_id', widget.userId);
-
-      final Map<String, DateTime> unlockedMap = {};
-      for (var row in unlockedResp) {
-        unlockedMap[row['achievement_id'] as String] = DateTime.parse(
-          row['unlocked_at'],
-        );
-      }
-
-      // Consultar tanto reviews como user_games para capturar todos los juegos completados
-      final reviewsResp = await Supabase.instance.client
-          .from('reviews')
-          .select('*, games(*)')
-          .eq('user_id', widget.userId);
-
-      final userGamesResp = await Supabase.instance.client
-          .from('user_games')
-          .select('*, games(*)')
-          .eq('user_id', widget.userId);
+      final data = await AchievementsRepository().fetchAll(widget.userId);
+      final achievementsResp = data.achievements;
+      final unlockedMap = data.unlocked;
+      final reviewsResp = data.reviews;
+      final userGamesResp = data.userGames;
 
       // Deduplicar juegos completados por su id de juego
       final Map<int, dynamic> uniqueBeatenGames = {};

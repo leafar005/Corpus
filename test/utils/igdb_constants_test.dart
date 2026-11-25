@@ -86,10 +86,37 @@ void main() {
         10,
       );
       expect(
-        IgdbConstants.resolveCategory(0, 'Cyberpunk 2077 Ultimate Edition'),
+        IgdbConstants.resolveCategory(
+          0,
+          'Cyberpunk 2077 Ultimate Edition',
+        ),
         10,
       );
+      expect(IgdbConstants.resolveCategory(0, 'Persona 4 Golden'), 10);
     });
+
+    test(
+      'evita falsos positivos con golden/royal y prioriza hasParentGame como DLC (BUG-101, OPT-54)',
+      () {
+        expect(IgdbConstants.resolveCategory(0, 'Golden Sun'), isNull);
+        expect(IgdbConstants.resolveCategory(0, 'GoldenEye 007'), isNull);
+        expect(IgdbConstants.resolveCategory(0, 'Royal Crown'), isNull);
+        expect(IgdbConstants.resolveCategory(0, 'Battle Royale'), isNull);
+
+        expect(
+          IgdbConstants.resolveCategory(
+            0,
+            'Expansión Secreta',
+            hasParentGame: true,
+          ),
+          1,
+        );
+        expect(
+          identical(IgdbConstants.categories, IgdbConstants.categories),
+          isTrue,
+        );
+      },
+    );
     test('Detecta DLCs por nombre', () {
       expect(
         IgdbConstants.resolveCategory(

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/models/models.dart';
+import 'package:corpus/utils/postgrest_utils.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -25,8 +26,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     // Hacemos una consulta cruzada (JOIN) entre user_games y games
     final response = await Supabase.instance.client
         .from('user_games')
-        .select('*, games(*)')
-        .eq('user_id', userId);
+        .select('$kUserGameColumns, games($kGameCardColumns)')
+        .eq('user_id', userId)
+        .limit(5000);
     return List<Map<String, dynamic>>.from(response);
   }
 

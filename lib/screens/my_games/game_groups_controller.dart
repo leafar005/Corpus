@@ -72,6 +72,8 @@ class GameGroupsController extends SafeChangeNotifier {
     required String groupId,
     String? name,
     String? description,
+    int? coverGameId,
+    bool clearCover = false,
     bool? isRanked,
   }) async {
     try {
@@ -79,9 +81,27 @@ class GameGroupsController extends SafeChangeNotifier {
         groupId: groupId,
         name: name,
         description: description,
+        coverGameId: coverGameId,
+        clearCover: clearCover,
         isRanked: isRanked,
       );
-      await load(silent: true);
+      final idx = groups.indexWhere((g) => g.id == groupId);
+      if (idx != -1) {
+        final current = groups[idx];
+        final merged = current.copyWith(
+          name: updated.name,
+          description: updated.description,
+          coverGameId: updated.coverGameId,
+          isRanked: updated.isRanked,
+        );
+        groups = [
+          for (var i = 0; i < groups.length; i++)
+            i == idx ? merged : groups[i],
+        ];
+        notify();
+      } else {
+        await load(silent: true);
+      }
       return updated;
     } catch (e) {
       debugPrint('[GameGroupsController] updateGroup: $e');
@@ -103,14 +123,24 @@ class GameGroupsController extends SafeChangeNotifier {
 
   Future<void> reorderGroups(int oldIndex, int newIndex) async {
     if (oldIndex < newIndex) newIndex -= 1;
+    if (oldIndex == newIndex ||
+        oldIndex < 0 ||
+        newIndex < 0 ||
+        oldIndex >= groups.length ||
+        newIndex >= groups.length) {
+      return;
+    }
     final updated = List<GameGroup>.from(groups);
     final item = updated.removeAt(oldIndex);
     updated.insert(newIndex, item);
-    groups = updated;
+    groups = [
+      for (var i = 0; i < updated.length; i++)
+        updated[i].copyWith(sortOrder: i),
+    ];
     notify();
 
     try {
-      await _repo.reorderGroups(updated.map((g) => g.id).toList());
+      await _repo.reorderGroups(groups.map((g) => g.id).toList());
     } catch (e) {
       debugPrint('[GameGroupsController] reorderGroups: $e');
       await load(silent: true);
@@ -137,7 +167,23 @@ class GameGroupsController extends SafeChangeNotifier {
         game: game,
         note: note,
       );
-      await load(silent: true);
+      final idx = groups.indexWhere((g) => g.id == groupId);
+      if (idx != -1) {
+        final current = groups[idx];
+        final newItems = current.items.length < 4
+            ? [...current.items, item]
+            : current.items;
+        groups = [
+          for (var i = 0; i < groups.length; i++)
+            i == idx
+                ? current.copyWith(
+                    items: newItems,
+                    gameCount: current.gameCount + 1,
+                  )
+                : groups[i],
+        ];
+        notify();
+      }
       return item;
     } catch (e) {
       debugPrint('[GameGroupsController] addGameToGroup: $e');
@@ -148,7 +194,26 @@ class GameGroupsController extends SafeChangeNotifier {
   Future<bool> removeGameFromGroup(String groupId, String itemId) async {
     try {
       await _repo.removeGameFromGroup(itemId);
-      await load(silent: true);
+      final idx = groups.indexWhere((g) => g.id == groupId);
+      if (idx != -1) {
+        final current = groups[idx];
+        final newCount = current.gameCount > 0 ? current.gameCount - 1 : 0;
+        final removedFromPreview = current.items.any((i) => i.id == itemId);
+        if (removedFromPreview && newCount >= 4) {
+          // Si había >4 juegos y se quitó uno de la vista previa, recargamos solo si hace falta rellenar el 4º slot.
+          await load(silent: true);
+        } else {
+          final remaining =
+              current.items.where((i) => i.id != itemId).toList();
+          groups = [
+            for (var i = 0; i < groups.length; i++)
+              i == idx
+                  ? current.copyWith(items: remaining, gameCount: newCount)
+                  : groups[i],
+          ];
+          notify();
+        }
+      }
       return true;
     } catch (e) {
       debugPrint('[GameGroupsController] removeGameFromGroup: $e');

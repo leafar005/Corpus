@@ -2,8 +2,11 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:csv/csv.dart';
+import 'package:corpus/globals.dart';
 import 'package:corpus/services/igdb_service.dart';
+import 'package:corpus/utils/corpus_logger.dart';
 import 'package:corpus/utils/stash_json_to_csv_converter.dart';
+import 'package:corpus/utils/isolate_runner.dart';
 import 'package:corpus/models/game_status.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 
@@ -50,18 +53,36 @@ class CsvGameRow {
 }
 
 class ImportService {
-  /// Repara caracteres UTF-8 rotos (mojibake) típicos de exportaciones de Excel/web
-  static String fixEncoding(String text) {
-    if (text.isEmpty) return text;
-    // Si contiene "Ã" o "Â" (las secuencias más comunes de UTF-8 roto leído como Latin-1)
-    if (!text.contains('Ã') && !text.contains('Â')) {
-      return text;
-    }
+  static final _log = CorpusLogger('ImportService');
+  static const List<String> _recognizedTitleHeaders = [
+    'title',
+    'name',
+    'game',
+    'juego',
+    'titulo',
+    'título',
+  ];
+
+  /// Repara caracteres UTF-8 rotos (mojibake) delegando en
+  /// [StashJsonToCsvConverter.fixEncoding] (compatible con Windows-1252 y emojis).
+  static String fixEncoding(String text) =>
+      StashJsonToCsvConverter.fixEncoding(text);
+
+  /// Decodifica bytes como UTF-8 estricto y recurre a Windows-1252 si el archivo
+  /// contiene secuencias ANSI/Excel heredadas.
+  @visibleForTesting
+  static String decodeFileBytes(Uint8List fileBytes) {
+    if (fileBytes.isEmpty) return '';
+    String decoded;
     try {
-      return utf8.decode(latin1.encode(text));
-    } catch (_) {
-      return text;
+      decoded = utf8.decode(fileBytes);
+    } on FormatException {
+      decoded = StashJsonToCsvConverter.decodeCp1252Bytes(fileBytes);
     }
+    if (decoded.startsWith('\uFEFF')) {
+      decoded = decoded.substring(1);
+    }
+    return decoded;
   }
 
   static List<dynamic> getNames(dynamic field) {
@@ -106,7 +127,7 @@ class ImportService {
 
     double? cleanRating;
     if (rawRating != null && rawRating.isNotEmpty) {
-      final parsed = double.tryParse(rawRating);
+      final parsed = double.tryParse(rawRating.trim().replaceAll(',', '.'));
       if (parsed != null && parsed > 0.0) {
         if (parsed > 10.0 && parsed <= 100.0) {
           cleanRating = parsed / 10.0;
@@ -130,7 +151,7 @@ class ImportService {
 
     double? playTimeHours;
     if (rawPlayTimeHours != null && rawPlayTimeHours.isNotEmpty) {
-      final t = double.tryParse(rawPlayTimeHours);
+      final t = double.tryParse(rawPlayTimeHours.trim().replaceAll(',', '.'));
       if (t != null && t > 0) playTimeHours = t;
     }
 
@@ -161,11 +182,14 @@ class ImportService {
     );
   }
 
-  static List<CsvGameRow> parseCsv(Uint8List fileBytes) {
-    final String content = utf8
-        .decode(fileBytes, allowMalformed: true)
-        .replaceAll('\r\n', '\n')
-        .replaceAll('\r', '\n');
+  static Future<List<CsvGameRow>> parseCsv(Uint8List fileBytes) {
+    return runInBackgroundIsolate(() => _parseCsvSync(fileBytes));
+  }
+
+  static List<CsvGameRow> _parseCsvSync(Uint8List fileBytes) {
+    final String content = decodeFileBytes(
+      fileBytes,
+    ).replaceAll('\r\n', '\n').replaceAll('\r', '\n');
     final List<List<dynamic>> rows = const CsvToListConverter(
       shouldParseNumbers: false,
       eol: '\n',
@@ -173,12 +197,23 @@ class ImportService {
     if (rows.isEmpty) return [];
 
     final List<String> headers = rows.first
-        .map((e) => e.toString().toLowerCase().trim())
+        .map((e) => fixEncoding(e.toString()).toLowerCase().trim())
         .toList();
 
-    int titleIdx = headers.indexOf('title');
-    if (titleIdx == -1) titleIdx = headers.indexOf('name');
-    if (titleIdx == -1) titleIdx = 0;
+    int titleIdx = -1;
+    for (final alias in _recognizedTitleHeaders) {
+      titleIdx = headers.indexOf(alias);
+      if (titleIdx != -1) break;
+    }
+    if (titleIdx == -1) {
+      if (headers.length == 1) {
+        titleIdx = 0;
+      } else {
+        throw const FormatException(
+          'El CSV no contiene una columna de título reconocida (title, name, game, juego, título).',
+        );
+      }
+    }
     int idIdx = headers.indexOf('igdb_id');
     if (idIdx == -1) idIdx = headers.indexOf('id');
     int yearIdx = headers.indexOf('release_year');
@@ -231,8 +266,12 @@ class ImportService {
     return parsedRows;
   }
 
-  static List<CsvGameRow> parseStashJson(Uint8List fileBytes) {
-    final String jsonString = utf8.decode(fileBytes, allowMalformed: true);
+  static Future<List<CsvGameRow>> parseStashJson(Uint8List fileBytes) {
+    return runInBackgroundIsolate(() => _parseStashJsonSync(fileBytes));
+  }
+
+  static List<CsvGameRow> _parseStashJsonSync(Uint8List fileBytes) {
+    final String jsonString = decodeFileBytes(fileBytes);
     final dynamic data = jsonDecode(jsonString);
     final extracted = StashJsonToCsvConverter.extractRows(data);
 
@@ -255,69 +294,137 @@ class ImportService {
     return parsedRows;
   }
 
+  static void _applySearchResultsToRow(CsvGameRow row, List<dynamic> results) {
+    if (results.isEmpty) {
+      row.matchStatus = 'notFound';
+    } else if (results.length == 1) {
+      row.igdbData = Map<String, dynamic>.from(results.first as Map);
+      row.matchStatus = 'matched';
+    } else {
+      final normalizedTitle = row.title.toLowerCase().trim();
+      final exact = results
+          .where(
+            (g) =>
+                (g['name'] ?? g['title'] ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .trim() ==
+                normalizedTitle,
+          )
+          .toList();
+
+      if (exact.length == 1) {
+        row.igdbData = Map<String, dynamic>.from(exact.first as Map);
+        row.matchStatus = 'matched';
+      } else {
+        row.candidates = results;
+        row.matchStatus = 'ambiguous';
+      }
+    }
+  }
+
   static Future<void> matchGamesWithIGDB(
     List<CsvGameRow> rows,
     Function(int processed, int total) onProgress, {
     bool Function()? isCancelled,
   }) async {
     final int total = rows.length;
+    if (total == 0) return;
+
     int processed = 0;
 
-    const int chunkSize = 5;
-    for (int i = 0; i < total; i += chunkSize) {
+    // 1. Resolver primero por lotes todos los IGDB IDs conocidos (OPT-05)
+    final uniqueIgdbIds = <int>{};
+    for (final row in rows) {
+      final id = row.igdbId;
+      if (id != null && id > 0) {
+        uniqueIgdbIds.add(id);
+      }
+    }
+
+    final Map<int, Map<String, dynamic>> gamesById = {};
+    if (uniqueIgdbIds.isNotEmpty) {
+      if (isCancelled != null && isCancelled()) return;
+      try {
+        final fetched = await IGDBService.getGamesByIdsFull(
+          uniqueIgdbIds.toList(),
+        );
+        for (final item in fetched) {
+          if (item is Map) {
+            final map = Map<String, dynamic>.from(item);
+            final rawId = map['id'] ?? map['igdb_id'];
+            final int? id = rawId is num
+                ? rawId.toInt()
+                : int.tryParse(rawId?.toString() ?? '');
+            if (id != null && id > 0) {
+              gamesById[id] = map;
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[ImportService] Error en lote getGamesByIdsFull: $e');
+        }
+      }
+    }
+
+    final List<CsvGameRow> rowsToSearch = [];
+    for (final row in rows) {
+      final id = row.igdbId;
+      final matched = id != null ? gamesById[id] : null;
+      if (matched != null) {
+        row.igdbData = matched;
+        row.matchStatus = 'matched';
+        processed++;
+      } else {
+        rowsToSearch.add(row);
+      }
+    }
+    if (processed > 0) {
+      onProgress(processed, total);
+    }
+
+    // 2. Deduplicar búsquedas por título normalizado y limitar a 4 req/onda
+    final Map<String, List<CsvGameRow>> rowsByQuery = {};
+    for (final row in rowsToSearch) {
+      final key = row.title.toLowerCase().trim();
+      rowsByQuery.putIfAbsent(key, () => <CsvGameRow>[]).add(row);
+    }
+
+    final uniqueQueries = rowsByQuery.keys.toList();
+    const int chunkSize = 4;
+    for (int i = 0; i < uniqueQueries.length; i += chunkSize) {
       if (isCancelled != null && isCancelled()) return;
 
-      final int end = (i + chunkSize < total) ? i + chunkSize : total;
-      final chunk = rows.sublist(i, end);
+      final int end = (i + chunkSize < uniqueQueries.length)
+          ? i + chunkSize
+          : uniqueQueries.length;
+      final queryChunk = uniqueQueries.sublist(i, end);
 
       await Future.wait(
-        chunk.map((row) async {
+        queryChunk.map((normalizedKey) async {
+          final matchingRows = rowsByQuery[normalizedKey]!;
+          final sampleTitle = matchingRows.first.title;
           try {
-            if (row.igdbId != null && row.igdbId! > 0) {
-              final game = await IGDBService.getGameById(row.igdbId!);
-              if (game != null) {
-                row.igdbData = game;
-                row.matchStatus = 'matched';
-                return;
-              }
-            }
-
-            final results = await IGDBService.searchGames(row.title);
-            if (results.isEmpty) {
-              row.matchStatus = 'notFound';
-            } else if (results.length == 1) {
-              row.igdbData = results.first as Map<String, dynamic>;
-              row.matchStatus = 'matched';
-            } else {
-              final exact = results
-                  .where(
-                    (g) =>
-                        (g['name'] ?? g['title'] ?? '')
-                            .toString()
-                            .toLowerCase()
-                            .trim() ==
-                        row.title.toLowerCase().trim(),
-                  )
-                  .toList();
-
-              if (exact.length == 1) {
-                row.igdbData = exact.first as Map<String, dynamic>;
-                row.matchStatus = 'matched';
-              } else {
-                row.candidates = results;
-                row.matchStatus = 'ambiguous';
-              }
+            final results = await IGDBService.searchGames(sampleTitle);
+            for (final row in matchingRows) {
+              _applySearchResultsToRow(row, results);
             }
           } catch (e) {
-            if (kDebugMode) print('Error matching game ${row.title}:$e');
-            row.matchStatus = 'notFound';
+            _log.warning('Error matching game $sampleTitle: $e');
+            for (final row in matchingRows) {
+              row.matchStatus = 'notFound';
+            }
+          } finally {
+            processed += matchingRows.length;
           }
         }),
       );
 
-      processed = end;
-      onProgress(processed, total);
-      await Future.delayed(const Duration(milliseconds: 200));
+      onProgress(processed > total ? total : processed, total);
+      if (end < uniqueQueries.length && !kDisableIsolatesForTests) {
+        await Future<void>.delayed(const Duration(milliseconds: 260));
+      }
     }
   }
 
@@ -560,9 +667,8 @@ class ImportService {
                 ignoreDuplicates: true,
               );
 
-          // Paso 2: para juegos que ya existían con cover_url = NULL,
-          // actualizamos solo ese campo con el valor que acabamos de obtener de IGDB.
-          // Así no sobreescribimos datos buenos, pero sí rellenamos huecos.
+          // Paso 2: consultar en una única query qué juegos del lote siguen con
+          // cover_url IS NULL y actualizar únicamente esos registros (OPT-05).
           final coversToFix = gamesPayload
               .where(
                 (g) =>
@@ -570,12 +676,34 @@ class ImportService {
                     (g['cover_url'] as String).isNotEmpty,
               )
               .toList();
-          for (final game in coversToFix) {
-            await supabase
+          if (coversToFix.isNotEmpty) {
+            final candidateIds = coversToFix
+                .map((g) => g['igdb_id'] as int)
+                .toList();
+            final missingCoverRows = await supabase
                 .from('games')
-                .update({'cover_url': game['cover_url']})
-                .eq('igdb_id', game['igdb_id'])
-                .isFilter('cover_url', null); // solo si sigue siendo NULL
+                .select('igdb_id')
+                .inFilter('igdb_id', candidateIds)
+                .isFilter('cover_url', null);
+            final missingIds = <int>{
+              for (final r in (missingCoverRows as List))
+                if (r is Map && r['igdb_id'] is num)
+                  (r['igdb_id'] as num).toInt(),
+            };
+            if (missingIds.isNotEmpty) {
+              final toUpdate = coversToFix
+                  .where((g) => missingIds.contains(g['igdb_id'] as int))
+                  .toList();
+              await Future.wait(
+                toUpdate.map(
+                  (game) => supabase
+                      .from('games')
+                      .update({'cover_url': game['cover_url']})
+                      .eq('igdb_id', game['igdb_id'])
+                      .isFilter('cover_url', null),
+                ),
+              );
+            }
           }
         }
 
@@ -632,15 +760,13 @@ class ImportService {
                 .eq('user_id', userId)
                 .inFilter('review_id', insertedReviewIds);
           } catch (e) {
-            debugPrint(
-              '[CORPUS IMPORT] Warning: no se pudieron limpiar activity_feed entries: $e',
-            );
+            _log.warning('no se pudieron limpiar activity_feed entries: $e');
           }
         }
 
         onProgress(end, total);
       } catch (e) {
-        debugPrint('[CORPUS IMPORT ERROR] Fallo en el lote $i a $end:$e');
+        _log.error('Fallo en el lote $i a $end', error: e);
         rethrow;
       }
     }

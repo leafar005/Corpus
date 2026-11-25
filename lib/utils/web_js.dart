@@ -4,131 +4,86 @@
 // ║                    ⚠️ CRITICAL NAVIGATION CODE                     ║
 // ║                                                                      ║
 // ║ This file participates directly in the browser history / Flutter     ║
-// ║ Web navigation integration.                                          ║
+// ║ Web navigation integration using package:web + dart:js_interop.      ║
 // ║                                                                      ║
-// ║ DO NOT refactor, modernize or change history.state representation    ║
-// ║ without understanding Flutter Web's internal history handling.       ║
-// ║                                                                      ║
-// ║ A seemingly harmless change to history.state previously caused       ║
-// ║ DOUBLE BACK NAVIGATION and Navigator history corruption.             ║
-// ║                                                                      ║
-// ║ Before changing this file, reproduce and verify Back navigation on   ║
-// ║ Edge + iPhone/Safari and compare against the known-good implementation║
-// ║ from commit 809aa8023ad57c186c7c513e62f467fd3ca460fc.                ║
+// ║ history.state MUST stay stored as a plain JSON String so Flutter     ║
+// ║ Web's internal router never double-pops a single Back action.        ║
 // ╚══════════════════════════════════════════════════════════════════════╝
-//
-// ============================================================================
-// FLUJO COMPLETO DE NAVEGACIÓN "ATRÁS" EN WEB
-// ============================================================================
-// Usuario pulsa Back en el navegador
-//        ↓
-// Browser genera popstate event
-//        ↓
-// webPopStateStream() lo captura
-//        ↓
-// AppNavigationController procesa el evento
-//        ↓
-// Actualiza la navegación interna (removeRoute o pop)
-//
-// No queremos que el router interno nativo de Flutter Web interprete
-// simultáneamente ese mismo historial como una navegación propia independiente,
-// lo cual provocaría dos acciones de navegación (doble pop) por una sola
-// pulsación del usuario.
-//
-// `goBackInBrowserHistory()` es el mecanismo utilizado para delegar el
-// retroceso al historial del navegador.
-// ============================================================================
-//
-// Helper para interactuar con el DOM / window desde Dart en Flutter Web.
-// En plataformas nativas estas funciones son no-ops.
-
-import 'dart:async';
-// ignore: avoid_web_libraries_in_flutter
-import 'js_util_stub.dart' if (dart.library.js_util) 'dart:js_util' as js_util;
 
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
-// ignore: avoid_web_libraries_in_flutter
-import 'url_utils_stub.dart' if (dart.library.html) 'dart:html' as html;
+import 'web_js_stub.dart' if (dart.library.js_interop) 'web_js_web.dart' as impl;
+
+const Set<String> _kPreservedQueryKeys = <String>{
+  'style',
+  'code',
+  'token',
+  'token_hash',
+  'type',
+  'access_token',
+  'refresh_token',
+  'state',
+  'error',
+  'error_code',
+  'error_description',
+  'provider_token',
+};
 
 void dispatchCorpusReady() {
   if (!kIsWeb) return;
-  try {
-    html.window.dispatchEvent(html.Event('corpus-ready'));
-  } catch (e) {
-    debugPrint('[WebJs] Error disparando corpus-ready: $e');
-  }
+  impl.dispatchCorpusReadyImpl();
 }
 
 /// Carga bajo demanda CropperJS en Web cuando el usuario abre el recorte.
-Future<void> ensureCropperJsLoaded() async {
-  if (!kIsWeb) return;
-  try {
-    if (js_util.hasProperty(html.window, 'Cropper')) return;
-    if (js_util.hasProperty(html.window, '__loadCropperJs')) {
-      final promise = js_util.callMethod<Object>(
-        html.window,
-        '__loadCropperJs',
-        const [],
-      );
-      await js_util
-          .promiseToFuture<Object?>(promise)
-          .timeout(const Duration(seconds: 8), onTimeout: () => null);
-    }
-  } catch (e) {
-    debugPrint('[WebJs] Error cargando CropperJS bajo demanda: $e');
-  }
+/// Devuelve `true` si `window.Cropper` quedó disponible, `false` si falló CDN/red.
+Future<bool> ensureCropperJsLoaded() {
+  if (!kIsWeb) return Future.value(true);
+  return impl.ensureCropperJsLoadedImpl();
 }
 
 String? getWebPathname() {
   if (!kIsWeb) return null;
-  try {
-    return html.window.location.pathname;
-  } catch (e) {
-    debugPrint('[WebJs] Error leyendo pathname: $e');
-    return null;
-  }
+  return impl.getWebPathnameImpl();
 }
 
-/// Modifica el historial del navegador insertando o reemplazando una entrada.
-/// `pushState` y `replaceState` forman parte de nuestro mecanismo de navegación
-/// personalizado.
-///
-/// ⚠️ WARNING / DO NOT MODIFY CASUALLY
-///
-/// This code intentionally stores history.state as a JSON String.
-///
-/// Do NOT change this to a JavaScript object / jsify(), and do NOT add
-/// Flutter navigation metadata such as serialCount without first
-/// understanding and testing the interaction with Flutter Web's internal
-/// Router/Navigator history handling.
-///
-/// A previous change doing this caused a severe navigation regression:
-/// one browser Back action was processed by both Flutter Web and
-/// AppNavigationController, resulting in two pops for a single user action.
-///
-/// This implementation is intentionally fragile and depends on the
-/// current interaction between browser history and Flutter Web routing.
-///
-/// If this code must be changed:
-/// 1. Compare against commit 809aa8023ad57c186c7c513e62f467fd3ca460fc.
-/// 2. Understand how Flutter Web handles history.state.
-/// 3. Verify that Flutter's internal router does not start processing
-///    our custom history entries.
-/// 4. Test browser Back on Edge and iPhone/Safari.
-/// 5. Verify that one Back action produces exactly one navigation.
-/// 6. Verify that the Navigator history never reaches an invalid state.
-///
-/// DO NOT refactor or "modernize" this code just for stylistic reasons.
-String? _getWebSearch() {
-  if (!kIsWeb) return null;
-  try {
-    return html.window.location.search;
-  } catch (e) {
-    debugPrint('[WebJs] Error leyendo search: $e');
-    return null;
+/// Preserva parámetros de estilo y de autenticación/deep-link (`code`, `token_hash`, etc.)
+/// al actualizar la URL con `history.pushState` / `history.replaceState`.
+@visibleForTesting
+String buildPreservedWebSearch(String? rawSearch) {
+  if (rawSearch == null || rawSearch.isEmpty) return '';
+  if (rawSearch.startsWith('?=')) return rawSearch;
+
+  final queryStr = rawSearch.startsWith('?') ? rawSearch.substring(1) : rawSearch;
+  if (queryStr.isEmpty) return '';
+
+  final uri = Uri(query: queryStr);
+  final preserved = <String>[];
+  uri.queryParametersAll.forEach((key, values) {
+    if (!_kPreservedQueryKeys.contains(key)) return;
+    for (final v in values) {
+      if (v.isEmpty) continue;
+      preserved.add(
+        '${Uri.encodeQueryComponent(key)}=${Uri.encodeQueryComponent(v)}',
+      );
+    }
+  });
+  return preserved.isEmpty ? '' : '?${preserved.join('&')}';
+}
+
+/// Preserva fragmentos `#access_token=...` / `#type=recovery` usados en flujos de auth implícitos.
+@visibleForTesting
+String buildPreservedWebHash(String? rawHash) {
+  if (rawHash == null || rawHash.isEmpty || rawHash == '#') return '';
+  final lower = rawHash.toLowerCase();
+  if (lower.contains('access_token=') ||
+      lower.contains('refresh_token=') ||
+      lower.contains('type=recovery') ||
+      lower.contains('error=')) {
+    return rawHash.startsWith('#') ? rawHash : '#$rawHash';
   }
+  return '';
 }
 
 void setWebPath(
@@ -137,53 +92,22 @@ void setWebPath(
   Map<String, Object?>? state,
 }) {
   if (!kIsWeb) return;
-  try {
-    final rawSearch = _getWebSearch();
-    var preservedSearch = '';
-    if (rawSearch != null && rawSearch.isNotEmpty) {
-      final uri = Uri(
-        query: rawSearch.startsWith('?') ? rawSearch.substring(1) : rawSearch,
-      );
-      final styleParam = uri.queryParameters['style'];
-      if (styleParam != null && styleParam.isNotEmpty) {
-        preservedSearch = '?style=${Uri.encodeQueryComponent(styleParam)}';
-      } else if (rawSearch.startsWith('?=')) {
-        preservedSearch = rawSearch;
-      }
-    }
-    final url = '$path$preservedSearch';
-    final jsState = state == null ? null : jsonEncode(state);
-    if (replace) {
-      html.window.history.replaceState(jsState, '', url);
-    } else {
-      html.window.history.pushState(jsState, '', url);
-    }
-  } catch (e) {
-    debugPrint('[WebJs] Error actualizando path: $e');
-  }
+  final preservedSearch = buildPreservedWebSearch(impl.getWebSearchImpl());
+  final preservedHash = buildPreservedWebHash(impl.getWebHashImpl());
+  final url = '$path$preservedSearch$preservedHash';
+  final jsState = state == null ? null : jsonEncode(state);
+  impl.setWebHistoryStateImpl(url, replace: replace, jsonState: jsState);
 }
 
-/// Lee el estado del historial del navegador.
-///
-/// Debe ser absolutamente compatible con el formato que escribimos en
-/// `setWebPath()`. Actualmente esperamos principalmente un String JSON.
-/// Existe el manejo adicional (dartify) por si el estado llegara como objeto
-/// (p. ej. modificado por extensiones del navegador o comportamientos legados).
-/// Cambiar el formato escrito por `setWebPath()` puede afectar directamente
-/// a la navegación.
+/// Lee el estado del historial del navegador preservando compatibilidad con JSON Strings.
 Map<String, Object?>? readWebHistoryState(Object? rawState) {
   if (rawState == null) return null;
   try {
     if (rawState is String) {
       final decoded = jsonDecode(rawState);
       if (decoded is Map) return Map<String, Object?>.from(decoded);
-    } else {
-      final dynamic decoded = js_util.dartify(rawState);
-      if (decoded is Map) return Map<String, Object?>.from(decoded);
-      if (decoded is String) {
-        final parsed = jsonDecode(decoded);
-        if (parsed is Map) return Map<String, Object?>.from(parsed);
-      }
+    } else if (rawState is Map) {
+      return Map<String, Object?>.from(rawState);
     }
   } catch (e) {
     debugPrint('[WebJs] Error leyendo history.state: $e');
@@ -191,27 +115,26 @@ Map<String, Object?>? readWebHistoryState(Object? rawState) {
   return null;
 }
 
-/// Escucha `window.onPopState`, que representa el evento back/forward del
-/// historial del navegador.
-///
-/// Este stream es una pieza crítica de la comunicación entre Browser History
-/// y `AppNavigationController`. Duplicar listeners aquí o añadir otro
-/// consumidor que también haga `pop()` sobre el Navigator de Flutter provocará
-/// una doble navegación errónea.
+/// Escucha `window.onPopState` como stream normalizado de mapas.
 Stream<Map<String, Object?>?> webPopStateStream() {
   if (!kIsWeb) return const Stream.empty();
-  return html.window.onPopState.map(
-    (event) => readWebHistoryState(event.state),
-  );
+  return impl.webPopStateRawStreamImpl().map(readWebHistoryState);
 }
 
 /// Llama directamente a `window.history.back()`.
-///
-/// Esto provoca de forma asíncrona que el navegador dispare un evento `popstate`.
-/// NO debe combinarse NUNCA con un `Navigator.pop()` adicional para la misma
-/// acción del usuario, ya que el evento asíncrono cerrará la pantalla de
-/// todas formas. Hacer ambos causaría un doble pop.
 void goBackInBrowserHistory() {
   if (!kIsWeb) return;
-  html.window.history.back();
+  impl.goBackInBrowserHistoryImpl();
+}
+
+/// Abre un enlace creando un `<a>` temporal en el DOM para evitar popup blockers.
+bool clickExternalAnchorInWebDom(String safeUrl) {
+  if (!kIsWeb) return false;
+  return impl.clickExternalAnchorImpl(safeUrl);
+}
+
+/// Stream de clics sobre notificaciones enviados por `firebase-messaging-sw.js`.
+Stream<Map<String, dynamic>> webNotificationClickStream() {
+  if (!kIsWeb) return const Stream.empty();
+  return impl.webNotificationClickStreamImpl();
 }

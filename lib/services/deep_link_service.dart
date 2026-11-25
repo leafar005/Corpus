@@ -1,21 +1,19 @@
-import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../models/models.dart';
+
 import '../repositories/activity_repository.dart';
-import '../routes/app_routes.dart';
-import '../routes/corpus_router.dart';
 import '../routes/deep_route_resolver.dart';
-import '../screens/library/search_screen.dart';
-import '../screens/activity/grouped_post_details_screen.dart';
-import '../screens/activity/review_details_screen.dart';
-import '../screens/library/game_details_screen.dart';
+import '../routes/explore_navigation.dart';
+import '../routes/tab_deep_route.dart';
+import '../utils/corpus_logger.dart';
 
 /// Navegación global para deep links (notificaciones push), independiente
-/// del árbol de widgets. Las pantallas de detalle se empujan por encima de
-/// toda la navegación de pestañas, así no importa en qué tab estaba el
-/// usuario cuando llegó el aviso.
+/// del árbol de widgets. Parsea payloads a [TabDeepRoute] y delega el
+/// ensamblaje de rutas en [DeepRouteResolver] / `CorpusRouter`.
 class DeepLinkService {
   DeepLinkService._();
+
+  static final _log = CorpusLogger('DeepLinkService');
 
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
@@ -23,144 +21,159 @@ class DeepLinkService {
   /// Pestaña pendiente de abrir en MainScreen (1 = Explorar para bundles).
   static final ValueNotifier<int?> pendingTab = ValueNotifier<int?>(null);
 
-  /// Punto de entrada único: recibe el `data` de un RemoteMessage FCM
-  /// (o el payload decodificado de una notificación local) y navega
-  /// según `data['type']`.
-  static Future<void> handle(Map<String, dynamic> data) async {
-    final type = data['type'] as String?;
-    if (type == null) return;
+  static TabDeepRoute? _pendingRoute;
 
-    try {
-      switch (type) {
-        case 'friend_activity':
-          await _openReviewByUserAndGame(data);
-          break;
-        case 'comment_on_review':
-        case 'reply_to_comment':
-          final reviewId = data['review_id'] as String?;
-          final postId = data['post_id'] as String?;
-          final focus = type == 'reply_to_comment';
-          if (reviewId != null && reviewId.isNotEmpty) {
-            await _openReviewById(
-              reviewId,
-              postId: postId,
-              focusComment: focus,
-            );
-          } else if (postId != null && postId.isNotEmpty) {
-            _openGroupedPostById(postId, focusComment: focus);
-          }
-          break;
-        case 'new_bundle':
-        case 'bundle_expiring':
-          _openBundles(data['bundle_title'] as String?);
-          break;
-      }
-    } catch (e) {
-      debugPrint('[DeepLinkService] Error navegando: $e');
-    }
+  @visibleForTesting
+  static TabDeepRoute? get pendingRouteForTesting => _pendingRoute;
+
+  @visibleForTesting
+  static void clearPendingForTesting() {
+    pendingTab.value = null;
+    _pendingRoute = null;
   }
 
-  static Future<void> _openReviewById(
-    String? reviewId, {
-    String? postId,
-    bool focusComment = false,
+  static String? _readString(Map<dynamic, dynamic> data, String key) {
+    final raw = data[key];
+    if (raw == null) return null;
+    final trimmed = raw.toString().trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  /// Convierte el payload de una notificación en una [TabDeepRoute] sin
+  /// acoplarse a widgets ni asumir tipos `String` estrictos en [data].
+  @visibleForTesting
+  static Future<TabDeepRoute?> resolveNotificationRoute(
+    Map<String, dynamic> data, {
+    ActivityRepository? activityRepo,
   }) async {
-    if (reviewId == null || reviewId.isEmpty) return;
+    final type = _readString(data, 'type');
 
-    if (postId != null && postId.isNotEmpty) {
-      final currentReviewPostId = await ActivityRepository()
-          .resolvePostIdForReview(reviewId, create: false);
-      if (currentReviewPostId != null && currentReviewPostId != postId) {
-        _openGroupedPostById(postId, focusComment: focusComment);
-        return;
-      }
-    }
-
-    // Misma query que usa la resolución de URLs profundas
-    // (/actividad/resena/{id}); ver routes/deep_route_resolver.dart.
-    final args = await DeepRouteResolver.fetchReviewById(
-      reviewId,
-      postId: postId,
-      focusComment: focusComment,
-    );
-    if (args == null) return;
-
-    final state = navigatorKey.currentState;
-    if (state == null) return;
-
-    state.push(
-      MaterialPageRoute(
-        settings: RouteSettings(name: AppRoutes.reviewDetails, arguments: args),
-        builder: (_) => ReviewDetailsScreen(
-          gameData: args.gameData,
-          userData: args.userData,
-          reviewData: args.reviewData,
-          postId: args.postId,
-          focusComment: args.focusComment,
-        ),
-      ),
-    );
-  }
-
-  static void _openGroupedPostById(String postId, {bool focusComment = false}) {
-    final state = navigatorKey.currentState;
-    if (state == null) return;
-    state.push(
-      MaterialPageRoute(
-        settings: RouteSettings(
-          name: AppRoutes.groupedPostDetails,
-          arguments: GroupedPostDetailsArgs(
-            postId: postId,
-            focusComment: focusComment,
-          ),
-        ),
-        builder: (_) => GroupedPostDetailsScreen(
+    Future<TabDeepRoute?> resolveReviewOrPost({
+      required String? reviewId,
+      required String? postId,
+      required bool focusComment,
+    }) async {
+      if (reviewId != null) {
+        if (postId != null) {
+          try {
+            final currentReviewPostId = await (activityRepo ??
+                    ActivityRepository())
+                .resolvePostIdForReview(reviewId, create: false)
+                .timeout(const Duration(seconds: 5));
+            if (currentReviewPostId != null && currentReviewPostId != postId) {
+              return GroupedPostDeepRoute(
+                postId,
+                focusComment: focusComment,
+              );
+            }
+          } catch (e) {
+            _log.warning(
+              'Error resolviendo postId para reseña $reviewId (usando reseña directa): $e',
+            );
+          }
+        }
+        return ReviewDeepRoute(
+          reviewId,
           postId: postId,
           focusComment: focusComment,
-        ),
-      ),
-    );
+        );
+      }
+
+      if (postId != null) {
+        return GroupedPostDeepRoute(postId, focusComment: focusComment);
+      }
+      return null;
+    }
+
+    switch (type) {
+      case 'comment_on_review':
+      case 'reply_to_comment':
+        return resolveReviewOrPost(
+          reviewId: _readString(data, 'review_id'),
+          postId: _readString(data, 'post_id'),
+          focusComment: type == 'reply_to_comment',
+        );
+
+      case 'friend_activity':
+      case null:
+        final reviewOrPost = await resolveReviewOrPost(
+          reviewId: _readString(data, 'review_id'),
+          postId: _readString(data, 'post_id'),
+          focusComment: false,
+        );
+        if (reviewOrPost != null) return reviewOrPost;
+
+        final gameId = int.tryParse(_readString(data, 'game_id') ?? '');
+        if (gameId != null && gameId > 0) {
+          return GameDeepRoute(gameId);
+        }
+        return null;
+
+      default:
+        return null;
+    }
   }
 
-  static Future<void> _openReviewByUserAndGame(
-    Map<String, dynamic> data,
-  ) async {
-    final postId = data['post_id'] as String?;
-    // Camino normal: activity_feed ya trae review_id enlazado.
-    final reviewId = data['review_id'] as String?;
-    if (reviewId != null && reviewId.isNotEmpty) {
-      await _openReviewById(reviewId, postId: postId);
-      return;
+  /// Punto de entrada único: recibe el `data` de un RemoteMessage FCM
+  /// (o el payload decodificado de una notificación local/Web) y navega
+  /// según `data['type']`.
+  static Future<void> handle(
+    Map<String, dynamic> data, {
+    ActivityRepository? activityRepo,
+  }) async {
+    final type = _readString(data, 'type');
+
+    try {
+      if (type == 'new_bundle' || type == 'bundle_expiring') {
+        _openBundles(_readString(data, 'bundle_title'));
+        return;
+      }
+
+      final deepRoute = await resolveNotificationRoute(
+        data,
+        activityRepo: activityRepo,
+      );
+      if (deepRoute == null) return;
+
+      await _pushDeepRoute(deepRoute);
+    } catch (e) {
+      _log.error('Error navegando deep link', error: e);
     }
+  }
 
-    if (postId != null && postId.isNotEmpty) {
-      _openGroupedPostById(postId);
-      return;
-    }
+  /// Ejecuta la navegación diferida si llegó un deep link en arranque en frío
+  /// antes de que `MainScreen` / `navigatorKey.currentState` estuviera listo.
+  static Future<void> flushPendingNavigation() async {
+    final route = _pendingRoute;
+    if (route == null) return;
+    if (navigatorKey.currentState == null) return;
+    _pendingRoute = null;
+    await _pushDeepRoute(route);
+  }
 
-    // Fallback (notificaciones antiguas o sin reseña asociada):
-    // abrimos la ficha del juego en vez de un post concreto. Misma query
-    // que usa /buscar/{igdb_id}; ver routes/deep_route_resolver.dart.
-    final gameId = int.tryParse(data['game_id'] ?? '');
-    if (gameId == null) return;
-    final game = await DeepRouteResolver.fetchGameByIgdbId(gameId);
-    if (game == null) return;
-
+  static Future<void> _pushDeepRoute(TabDeepRoute deepRoute) async {
     final state = navigatorKey.currentState;
-    if (state == null) return;
-    final gameModel = Game.fromMap(game);
-    state.push(
-      MaterialPageRoute(
-        settings: RouteSettings(
-          name: AppRoutes.gameDetails,
-          arguments: GameDetailsArgs(gameData: gameModel),
-        ),
-        builder: (_) => GameDetailsScreen(gameData: gameModel),
-      ),
-    );
+    if (state == null) {
+      _pendingRoute = deepRoute;
+      return;
+    }
+
+    final route = await DeepRouteResolver.buildRoute(deepRoute);
+    if (route == null) return;
+
+    final liveState = navigatorKey.currentState;
+    if (liveState == null) {
+      _pendingRoute = deepRoute;
+      return;
+    }
+    liveState.push(route);
   }
 
   static void _openBundles(String? bundleTitle) {
+    final state = navigatorKey.currentState;
+    if (state != null) {
+      state.popUntil((r) => r.isFirst);
+    }
     if (bundleTitle != null && bundleTitle.isNotEmpty) {
       ExploreNavigation.targetQuery.value = bundleTitle;
     }

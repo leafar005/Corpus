@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
@@ -19,7 +20,6 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
   Future<void> init({required double volume}) async {
     _volume = volume;
     _ensureAudioElement();
-    _registerUnlockListeners();
   }
 
   void _ensureAudioElement() {
@@ -43,9 +43,14 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
       final asset = _pendingAsset;
       if (asset != null) {
         _pendingAsset = null;
-        playAsset(asset);
-      } else if (_audio != null && _audio!.paused) {
-        resume();
+        unawaited(playAsset(asset).catchError((Object _) {}));
+      } else if (_audio != null &&
+          _audio!.paused &&
+          _currentSrc != null &&
+          _currentSrc!.isNotEmpty) {
+        unawaited(resume().catchError((Object _) {}));
+      } else {
+        _removeUnlockListeners();
       }
     }
 
@@ -70,7 +75,9 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
   Future<void> playAsset(String assetPath) async {
     _ensureAudioElement();
     final audio = _audio!;
-    final src = 'assets/$assetPath';
+    final src = assetPath.startsWith('assets/')
+        ? assetPath
+        : 'assets/$assetPath';
 
     if (_currentSrc != src) {
       audio.pause();
@@ -99,10 +106,13 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
 
   @override
   Future<void> stop() async {
+    _removeUnlockListeners();
     final audio = _audio;
     if (audio != null) {
       audio.pause();
       audio.currentTime = 0;
+      audio.removeAttribute('src');
+      audio.load();
     }
     _currentSrc = null;
     _pendingAsset = null;
@@ -116,13 +126,12 @@ class _WebStylePackMusicBackend implements StylePackMusicBackend {
   @override
   Future<void> resume() async {
     final audio = _audio;
-    if (audio != null) {
-      try {
-        await audio.play().toDart;
-        _removeUnlockListeners();
-      } catch (_) {
-        _registerUnlockListeners();
-      }
+    if (audio == null || _currentSrc == null || _currentSrc!.isEmpty) return;
+    try {
+      await audio.play().toDart;
+      _removeUnlockListeners();
+    } catch (_) {
+      _registerUnlockListeners();
     }
   }
 

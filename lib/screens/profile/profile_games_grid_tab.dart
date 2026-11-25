@@ -50,6 +50,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   String _searchQuery = '';
   String? _currentStatus;
   Map<int, String> _completionTypeMap = {};
+  List<int>? _cachedPlatinoGameIds;
   final TextEditingController _searchController = TextEditingController();
   final _debouncer = Debouncer();
   GameFilters _filters = const GameFilters(
@@ -68,7 +69,10 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   @override
   void didUpdateWidget(ProfileGamesGridTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.status != oldWidget.status) {
+    if (widget.userId != oldWidget.userId) {
+      _cachedPlatinoGameIds = null;
+    }
+    if (widget.status != oldWidget.status || widget.userId != oldWidget.userId) {
       _currentStatus = widget.status ?? 'beaten';
       _refresh();
     }
@@ -90,6 +94,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
       _isInitialLoading = true;
       _error = null;
       _completionTypeMap = {};
+      _cachedPlatinoGameIds = null;
     });
     await loadMore();
   }
@@ -98,7 +103,7 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
   _buildQuery() async {
     var query = Supabase.instance.client
         .from('user_games')
-        .select('*, games!inner(*)')
+        .select('$kUserGameColumns, games!inner($kGameDetailColumns)')
         .eq('user_id', widget.userId);
 
     final trimmedSearch = _searchQuery.trim();
@@ -162,19 +167,50 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
     }
 
     if (_currentStatus == 'completed') {
-      final platinoReviews = await Supabase.instance.client
-          .from('reviews')
-          .select('game_id')
-          .eq('user_id', widget.userId)
-          .eq('completion_type', '100_percent');
+      if (_cachedPlatinoGameIds == null) {
+        final platinoFutures = await Future.wait<dynamic>([
+          Supabase.instance.client
+              .from('user_games')
+              .select('game_id, status')
+              .eq('user_id', widget.userId)
+              .inFilter('status', ['beaten', 'completed'])
+              .limit(5000),
+          Supabase.instance.client
+              .from('reviews')
+              .select('game_id, completion_type, created_at')
+              .eq('user_id', widget.userId)
+              .order('created_at', ascending: true)
+              .limit(5000),
+        ]);
+        final ugRows = (platinoFutures[0] as List).whereType<Map>();
+        final revRows = (platinoFutures[1] as List).whereType<Map>();
 
-      final platinoGameIds = platinoReviews
-          .map((r) => r['game_id'] as int)
-          .toList();
-      if (platinoGameIds.isEmpty) {
+        final latestCtByGame = <int, String>{};
+        for (final r in revRows) {
+          final gid = (r['game_id'] as num?)?.toInt();
+          final ct = r['completion_type']?.toString();
+          if (gid != null && ct != null && ct.isNotEmpty) {
+            latestCtByGame[gid] = ct;
+          }
+        }
+
+        final ids = <int>{};
+        for (final ug in ugRows) {
+          final gid = (ug['game_id'] as num?)?.toInt();
+          final status = ug['status']?.toString();
+          if (gid == null) continue;
+          if (status == 'completed' ||
+              (status == 'beaten' && latestCtByGame[gid] == '100_percent')) {
+            ids.add(gid);
+          }
+        }
+        _cachedPlatinoGameIds = ids.toList();
+      }
+
+      if (_cachedPlatinoGameIds!.isEmpty) {
         query = query.inFilter('game_id', [-1]);
       } else {
-        query = query.inFilter('game_id', platinoGameIds);
+        query = query.inFilter('game_id', _cachedPlatinoGameIds!);
       }
     } else if (_currentStatus == 'beaten') {
       query = query.eq('status', 'beaten');
@@ -238,18 +274,22 @@ class _ProfileGamesGridTabState extends State<ProfileGamesGridTab>
         res,
       ).where((r) => r['games'] != null).toList();
 
-      // Si es la primera página, cargar el mapa de completion_type
-      if (_page == 0) {
+      // Si es la primera página y el filtro admite reseñas finalizadas, cargar completion_type
+      final skipCompletionMap =
+          _currentStatus == 'wishlist' || _currentStatus == 'to_play';
+      if (_page == 0 && !skipCompletionMap) {
         final reviewsRes = await Supabase.instance.client
             .from('reviews')
             .select('game_id, completion_type')
-            .eq('user_id', widget.userId);
+            .eq('user_id', widget.userId)
+            .order('created_at', ascending: true)
+            .limit(5000);
         final map = <int, String>{};
-        for (final row in reviewsRes) {
-          final gameId = row['game_id'];
-          final ct = row['completion_type'];
-          if (gameId != null && ct != null && ct.toString().isNotEmpty) {
-            map[gameId as int] = ct as String;
+        for (final row in (reviewsRes as List).whereType<Map>()) {
+          final gameId = (row['game_id'] as num?)?.toInt();
+          final ct = row['completion_type']?.toString();
+          if (gameId != null && ct != null && ct.isNotEmpty) {
+            map[gameId] = ct;
           }
         }
         if (mounted) setState(() => _completionTypeMap = map);

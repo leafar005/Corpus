@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/utils/igdb_constants.dart';
+import 'package:corpus/utils/postgrest_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import '../../models/models.dart';
@@ -12,6 +13,7 @@ import 'package:corpus/widgets/game_card.dart';
 import 'package:corpus/widgets/corpus_section_title.dart';
 
 class AchievementGamesScreen extends StatefulWidget {
+  final String? userId;
   final String achievementId;
   final String achievementName;
   final int? companyId;
@@ -25,6 +27,7 @@ class AchievementGamesScreen extends StatefulWidget {
 
   const AchievementGamesScreen({
     super.key,
+    this.userId,
     required this.achievementId,
     required this.achievementName,
     this.companyId,
@@ -86,20 +89,28 @@ class _AchievementGamesScreenState extends State<AchievementGamesScreen> {
       _isLoading = true;
     });
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final requestedUserId = widget.userId?.trim();
+      final userId = (requestedUserId != null && requestedUserId.isNotEmpty)
+          ? requestedUserId
+          : Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) {
         if (mounted) setState(() => _isLoading = false);
         return;
       }
-      final reviewsResp = await Supabase.instance.client
-          .from('reviews')
-          .select('*, games(*)')
-          .eq('user_id', userId);
-
-      final userGamesResp = await Supabase.instance.client
-          .from('user_games')
-          .select('*, games(*)')
-          .eq('user_id', userId);
+      final results = await Future.wait<dynamic>([
+        Supabase.instance.client
+            .from('reviews')
+            .select('status, games($kGameCardColumns)')
+            .eq('user_id', userId)
+            .limit(5000),
+        Supabase.instance.client
+            .from('user_games')
+            .select('status, games($kGameCardColumns)')
+            .eq('user_id', userId)
+            .limit(5000),
+      ]);
+      final reviewsResp = results[0] as List;
+      final userGamesResp = results[1] as List;
 
       final Map<int, dynamic> uniqueGames = {};
       for (var item in [...reviewsResp, ...userGamesResp]) {

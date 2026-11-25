@@ -1,28 +1,23 @@
 // firebase-messaging-sw.js
 // Service Worker para notificaciones push en background (PWA / iOS Safari / Firefox).
-// Se ejecuta cuando la app web NO está en primer plano.
+// Usa exclusivamente listeners nativos 'push' y 'notificationclick' sin SDK Firebase Compat (OPT-30).
 
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
-importScripts('/firebase-config.js');
-
-if (self.__CORPUS_FIREBASE_CONFIG__ && self.__CORPUS_FIREBASE_CONFIG__.apiKey) {
-  firebase.initializeApp(self.__CORPUS_FIREBASE_CONFIG__);
-} else {
-  console.warn('[Corpus SW] Falta /firebase-config.js; Firebase no inicializado.');
+function resolveNotificationTargetUrl(data) {
+  const payload = data || {};
+  if (payload.review_id) {
+    return '/actividad/resena/' + encodeURIComponent(payload.review_id);
+  }
+  if (payload.post_id) {
+    return '/actividad/post/' + encodeURIComponent(payload.post_id);
+  }
+  if (payload.game_id) {
+    return '/buscar/' + encodeURIComponent(payload.game_id);
+  }
+  if (payload.type === 'new_bundle' || payload.type === 'bundle_expiring') {
+    return '/buscar';
+  }
+  return '/';
 }
-
-// IMPORTANTE — por qué esto ya NO usa messaging.onBackgroundMessage():
-// ese hook del SDK de Firebase no se dispara de forma fiable en iOS Safari
-// (documentado en https://github.com/firebase/firebase-js-sdk/issues/8444
-// y https://github.com/firebase/firebase-js-sdk/issues/8002). Cuando no se
-// dispara, el push llega al dispositivo pero no genera notificación visible
-// — eso cuenta para Safari como "silent push", y tras varios seguidos
-// revoca el permiso de push del sitio sin avisar
-// (https://github.com/firebase/firebase-js-sdk/issues/8010). Usando el
-// evento nativo 'push' del Service Worker en su lugar, nos saltamos por
-// completo esa capa del SDK y el comportamiento es consistente en Chrome,
-// Firefox y Safari 16.4+.
 
 self.addEventListener('push', function (event) {
   let payload = {};
@@ -34,42 +29,52 @@ self.addEventListener('push', function (event) {
 
   const notification = payload.notification || {};
   const data = payload.data || {};
-  
+
   const title = notification.title || data.title || 'Corpus';
   const options = {
     body: notification.body || data.body || '',
     icon: notification.icon || '/icons/Icon-192.png',
     badge: '/icons/Icon-192.png',
-    data,
+    data: data,
   };
 
-  // event.waitUntil es imprescindible: si el navegador cierra el Service
-  // Worker antes de que showNotification termine, es exactamente el
-  // escenario de "silent push" que hace que Safari acabe revocando el
-  // permiso. Con waitUntil, el SW se mantiene vivo hasta que la promesa
-  // resuelve.
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Al hacer clic en la notificación, enfocar la ventana de la PWA (o abrirla en su ruta).
+// Al hacer clic en la notificación, enrutar dentro de la PWA abierta (vía postMessage / navigate)
+// o abrir una ventana nueva en targetUrl.
 self.addEventListener('notificationclick', function (event) {
   const data = (event.notification && event.notification.data) || {};
-  let targetUrl = '/';
-  if (data.review_id) {
-    targetUrl = '/actividad/resena/' + encodeURIComponent(data.review_id);
-  } else if (data.post_id) {
-    targetUrl = '/actividad';
-  } else if (data.type === 'new_bundle' || data.type === 'bundle_expiring') {
-    targetUrl = '/buscar';
-  }
+  const targetUrl = resolveNotificationTargetUrl(data);
 
   event.notification.close();
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
       for (const client of clientList) {
-        if ('focus' in client) return client.focus();
+        if ('focus' in client) {
+          if (typeof client.postMessage === 'function') {
+            try {
+              client.postMessage({
+                type: 'CORPUS_NOTIFICATION_CLICK',
+                data: data,
+                targetUrl: targetUrl,
+              });
+              return client.focus();
+            } catch (_) {}
+          }
+          if ('navigate' in client && targetUrl !== '/') {
+            return client.navigate(targetUrl).then(function (navigatedClient) {
+              return (navigatedClient || client).focus();
+            });
+          }
+          return client.focus();
+        }
       }
       if (clients.openWindow) return clients.openWindow(targetUrl);
     })
   );
 });
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { resolveNotificationTargetUrl };
+}

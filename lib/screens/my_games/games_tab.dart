@@ -5,6 +5,7 @@ import 'package:corpus/globals.dart';
 import 'package:corpus/models/models.dart';
 import 'package:corpus/services/igdb_service.dart';
 import 'package:corpus/theme/corpus_theme_extension.dart';
+import 'package:corpus/utils/postgrest_utils.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/design/corpus_empty_state.dart';
@@ -71,41 +72,57 @@ class GamesTabState extends State<GamesTab> {
     });
     try {
       final client = Supabase.instance.client;
-      final results = await Future.wait([
+      final listResults = await Future.wait([
         client
             .from('user_games')
-            .select('*, games!inner(*)')
+            .select('$kUserGameColumns, games!inner($kGameDetailColumns)')
             .eq('user_id', widget.userId)
             .eq('status', 'playing')
             .order('updated_at', ascending: false)
             .limit(100),
         client
             .from('user_games')
-            .select('*, games!inner(*)')
+            .select('$kUserGameColumns, games!inner($kGameDetailColumns)')
             .eq('user_id', widget.userId)
             .eq('status', 'to_play')
             .order('updated_at', ascending: false)
             .limit(100),
-        client
-            .from('reviews')
-            .select('game_id, completion_type')
-            .eq('user_id', widget.userId),
       ]);
 
       if (!mounted) return;
 
+      final playingList = (listResults[0] as List)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      final toPlayList = (listResults[1] as List)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+
+      final gameIds = <int>{
+        for (final item in [...playingList, ...toPlayList])
+          if (item['game_id'] is num) (item['game_id'] as num).toInt(),
+      }.toList();
+
       final completionMap = <int, String>{};
-      for (final row in (results[2] as List)) {
-        final m = row as Map;
-        final gameId = m['game_id'];
-        final ct = m['completion_type'];
-        if (gameId != null && ct != null && ct.toString().isNotEmpty) {
-          completionMap[(gameId as num).toInt()] = ct.toString();
+      if (gameIds.isNotEmpty) {
+        final reviewsRes = await client
+            .from('reviews')
+            .select('game_id, completion_type')
+            .eq('user_id', widget.userId)
+            .inFilter('game_id', gameIds)
+            .order('created_at', ascending: true)
+            .limit(500);
+        if (!mounted) return;
+        for (final row in (reviewsRes as List).whereType<Map>()) {
+          final gameId = (row['game_id'] as num?)?.toInt();
+          final ct = row['completion_type']?.toString();
+          if (gameId != null && ct != null && ct.isNotEmpty) {
+            completionMap[gameId] = ct;
+          }
         }
       }
-
-      final playingList = List<Map<String, dynamic>>.from(results[0] as List);
-      final toPlayList = List<Map<String, dynamic>>.from(results[1] as List);
 
       setState(() {
         _playing = playingList;
@@ -142,19 +159,28 @@ class GamesTabState extends State<GamesTab> {
 
     if (incompleteItems.isEmpty) return;
 
-    for (final entry in incompleteItems.entries) {
-      if (!mounted) return;
-      final igdbId = entry.key;
-      _healedGameIds.add(igdbId);
-      try {
-        final igdbGame = await IGDBService.getGameById(igdbId);
-        if (igdbGame == null || !mounted) continue;
+    final missingIds = incompleteItems.keys.toList();
+    _healedGameIds.addAll(missingIds);
+
+    try {
+      final igdbGames = await IGDBService.getGamesByIdsFull(missingIds);
+      if (!mounted || igdbGames.isEmpty) return;
+
+      var updatedAny = false;
+      for (final raw in igdbGames.whereType<Map>()) {
+        final igdbGame = Map<String, dynamic>.from(raw);
+        final igdbId = (igdbGame['id'] as num?)?.toInt();
+        if (igdbId == null) continue;
+        final targets = incompleteItems[igdbId];
+        if (targets == null) continue;
+
         final healedMap = Game.fromMap(igdbGame).toMap();
         if (healedMap['release_date'] is String) {
           healedMap['release_date'] =
               (healedMap['release_date'] as String).split('T').first;
         }
-        for (final item in entry.value) {
+
+        for (final item in targets) {
           final merged = Map<String, dynamic>.from(item['games'] as Map);
           healedMap.forEach((key, value) {
             if (value != null &&
@@ -164,13 +190,15 @@ class GamesTabState extends State<GamesTab> {
             }
           });
           item['games'] = merged;
+          updatedAny = true;
         }
-        if (mounted) {
-          setState(() {});
-        }
-      } catch (e) {
-        debugPrint('[GamesTab] Error reparando juego $igdbId: $e');
       }
+
+      if (updatedAny && mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('[GamesTab] Error reparando juegos en batch: $e');
     }
   }
 

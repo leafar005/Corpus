@@ -470,7 +470,8 @@ class _GroupedPostDetailsScreenState extends State<GroupedPostDetailsScreen> {
                               // Comments List
                               if (_threadController.comments.isNotEmpty) ...[
                                 CommentThreadSection(
-                                  comments: _threadController.comments,
+                                  comments: _threadController.threadedComments,
+                                  isPreThreaded: true,
                                   currentUserId: currentUserId,
                                   authorId: actor?['id'] as String?,
                                   onReply: _startReply,

@@ -10,6 +10,7 @@ import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/utils/igdb_constants.dart';
 import '../../utils/image_compressor.dart';
+import '../../utils/postgrest_utils.dart';
 import '../../utils/validation_utils.dart';
 import '../../utils/web_js.dart';
 import '../../theme/corpus_theme_extension.dart';
@@ -76,8 +77,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   // Local bytes if user selects a new image
   Uint8List? _newAvatarBytes;
   String? _newAvatarExt;
+  String? _newAvatarContentType;
   Uint8List? _newBannerBytes;
   String? _newBannerExt;
+  String? _newBannerContentType;
 
   @override
   void initState() {
@@ -131,9 +134,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final hallOfFameResp = await Supabase.instance.client
           .from('hall_of_fame')
-          .select('*, games(*)')
+          .select('pin_order, games($kGameCardColumns)')
           .eq('user_id', userId)
-          .order('pin_order', ascending: true);
+          .order('pin_order', ascending: true)
+          .limit(5);
 
       for (var row in hallOfFameResp) {
         final order = row['pin_order'] as int;
@@ -161,8 +165,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (image != null) {
       if (!mounted) return;
-      await ensureCropperJsLoaded();
+      final cropperLoaded = await ensureCropperJsLoaded();
       if (!mounted) return;
+      if (!cropperLoaded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo cargar el editor de recorte. Revisa tu conexión e inténtalo de nuevo.',
+            ),
+          ),
+        );
+        return;
+      }
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: image.path,
         aspectRatio: isAvatar
@@ -202,25 +216,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
 
       if (croppedFile != null) {
-        final bytes = await ImageCompressor.compressImage(
+        final compressed = await ImageCompressor.compressImageWithMeta(
           XFile(croppedFile.path),
         );
-        if (!mounted || bytes == null) return;
-
-        String ext = croppedFile.path.split('.').last.toLowerCase();
-        if (ext.contains('blob') ||
-            ext.length > 4 ||
-            !RegExp(r'^[a-z]+$').hasMatch(ext)) {
-          ext = 'jpeg';
-        }
+        if (!mounted) return;
 
         setState(() {
           if (isAvatar) {
-            _newAvatarBytes = bytes;
-            _newAvatarExt = ext;
+            _newAvatarBytes = compressed.bytes;
+            _newAvatarExt = compressed.extension;
+            _newAvatarContentType = compressed.contentType;
           } else {
-            _newBannerBytes = bytes;
-            _newBannerExt = ext;
+            _newBannerBytes = compressed.bytes;
+            _newBannerExt = compressed.extension;
+            _newBannerContentType = compressed.contentType;
           }
         });
       }
@@ -231,6 +240,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     String bucket,
     Uint8List bytes,
     String ext,
+    String? contentType,
   ) async {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -243,7 +253,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           .uploadBinary(
             filePath,
             bytes,
-            fileOptions: FileOptions(contentType: 'image/$ext', upsert: true),
+            fileOptions: FileOptions(
+              contentType: contentType ?? 'image/jpeg',
+              upsert: true,
+            ),
           );
 
       return Supabase.instance.client.storage
@@ -278,6 +291,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'avatars',
           _newAvatarBytes!,
           _newAvatarExt!,
+          _newAvatarContentType,
         );
         if (uploadedUrl != null) finalAvatarUrl = uploadedUrl;
       }
@@ -288,6 +302,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'banners',
           _newBannerBytes!,
           _newBannerExt!,
+          _newBannerContentType,
         );
         if (uploadedUrl != null) finalBannerUrl = uploadedUrl;
       }

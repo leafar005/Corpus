@@ -42,18 +42,24 @@ abstract final class AppRoutes {
     };
   }
 
+  static final RegExp _trimSlashesRegex = RegExp(r'^/+|/+$');
+
   /// Segmentos del path posteriores a la raíz de la pestaña, es decir, la
   /// sub-ruta dentro de esa pestaña (ficha de juego, perfil, reseña...).
   /// Para `/buscar/1942` devuelve `['1942']`; para `/buscar` o `/` devuelve
-  /// `[]`. Ver lib/routes/tab_deep_route.dart para cómo se interpretan.
+  /// `[]`. También normaliza URLs legacy `/bundles/{id}` a `['bundle', '{id}']`.
   static List<String> subSegmentsFromPublicPath(String pathname) {
     final segments = _pathSegments(pathname);
-    return segments.length > 1 ? segments.sublist(1) : const [];
+    if (segments.length <= 1) return const [];
+    if (segments.first == 'bundles') {
+      return ['bundle', ...segments.sublist(1)];
+    }
+    return segments.sublist(1);
   }
 
   static List<String> _pathSegments(String pathname) {
     return pathname
-        .replaceAll(RegExp(r'^/+|/+$'), '')
+        .replaceAll(_trimSlashesRegex, '')
         .split('/')
         .where((s) => s.isNotEmpty)
         .toList();

@@ -1,6 +1,85 @@
 // lib/utils/achievement_utils.dart
 
 class AchievementUtils {
+  static final RegExp _tierSuffixRegex = RegExp(r'_(\d+|all)$');
+  static final RegExp _numericSuffixRegex = RegExp(r'_(\d+)$');
+  static final RegExp _parenSuffixRegex = RegExp(r'\s*\(.*\)');
+  static final RegExp _trailingNumberRegex = RegExp(r'\s+\d+$');
+
+  /// Extrae el identificador de grupo/saga eliminando sufijos `_1`, `_3`, `_all`.
+  static String extractSagaGroupId(String achievementId) {
+    final trimmed = achievementId.trim();
+    final match = _tierSuffixRegex.firstMatch(trimmed);
+    if (match != null) {
+      return trimmed.substring(0, trimmed.length - match.group(0)!.length);
+    }
+    return trimmed;
+  }
+
+  /// Limpia sufijos entre paréntesis o niveles numéricos finales del nombre de saga.
+  static String cleanSagaBaseName(String rawName) {
+    return rawName
+        .replaceAll(_parenSuffixRegex, '')
+        .replaceAll(_trailingNumberRegex, '')
+        .trim();
+  }
+
+  /// Resuelve el `target` de un hito leyendo `saga_target` con fallback al sufijo del ID.
+  static int resolveMilestoneTarget(Map<String, dynamic> row) {
+    final rawSagaTarget = row['saga_target'];
+    final explicit = rawSagaTarget is num
+        ? rawSagaTarget.toInt()
+        : int.tryParse(rawSagaTarget?.toString() ?? '');
+    if (explicit != null && explicit > 0) {
+      return explicit;
+    }
+
+    final aId = row['id']?.toString() ?? '';
+    final matchSuffix = _numericSuffixRegex.firstMatch(aId);
+    if (matchSuffix != null) {
+      return int.tryParse(matchSuffix.group(1) ?? '') ?? 1;
+    }
+    if (aId.endsWith('_all')) {
+      if (aId.startsWith('fromsoftware') || aId.startsWith('zelda')) {
+        return 7;
+      }
+      if (aId.startsWith('mario')) {
+        return 15;
+      }
+      if (aId.startsWith('dark_souls')) {
+        return 3;
+      }
+    }
+    return 1;
+  }
+
+  /// Busca la configuración de compañía/colección/franquicia IGDB para un [groupId].
+  static Map<String, int?>? resolveIgdbIdsForGroup(String groupId) {
+    final exact = achievementIgdbIds[groupId];
+    if (exact != null) return exact;
+    for (final entry in achievementIgdbIds.entries) {
+      if (groupId.startsWith(entry.key)) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
+  /// IDs de compañías IGDB cuyos logros de catálogo exigen `developer = true`
+  /// para evitar atribuirles juegos donde solo actuaron como distribuidoras.
+  static const Set<int> developerOnlyCompanyIds = {
+    37,    // Capcom
+    129,   // Konami
+    1012,  // FromSoftware
+    26,    // Square Enix
+    56,    // Valve
+    305,   // Remedy
+    401,   // Naughty Dog
+    908,   // CD Projekt RED
+    170,   // Kojima Productions
+    769,   // Team Ninja
+  };
+
   static const Map<String, Map<String, int?>> achievementIgdbIds = {
     'kojima': {'companyId': 170},
     'fromsoftware': {'companyId': 1012},

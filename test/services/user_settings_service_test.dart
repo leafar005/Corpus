@@ -25,6 +25,7 @@ class _FakeSettingsSupabaseClient extends Fake implements SupabaseClient {
   final _FakeAuthClient _authClient;
   final Future<void> Function(Map<String, dynamic> payload) onUpsert;
   Map<String, dynamic>? remoteRow;
+  String? lastSelectColumns;
 
   @override
   GoTrueClient get auth => _authClient;
@@ -55,6 +56,7 @@ class _FakeSettingsQueryBuilder extends Fake implements SupabaseQueryBuilder {
 
   @override
   PostgrestFilterBuilder<PostgrestList> select([String columns = '*']) {
+    _client.lastSelectColumns = columns;
     return _FakeFilterBuilder<PostgrestList>(() async {
       final row = _client.remoteRow;
       return row == null ? <PostgrestMap>[] : <PostgrestMap>[row];
@@ -251,6 +253,38 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool('user_settings_dirty'), isFalse);
       expect(prefs.getString('user_settings_pending_json'), isNull);
+    });
+
+    test('filtra claves no permitidas en push() y usa proyección explícita en pull (ARQ-27, OPT-56)', () async {
+      final auth = _FakeAuthClient(_makeUser('u-1'));
+      final client = _FakeSettingsSupabaseClient(
+        authClient: auth,
+        remoteRow: {'theme_mode': 'light'},
+        onUpsert: (_) async {},
+      );
+      service.setClientForTesting(client);
+
+      await expectLater(
+        () => service.push({
+          'theme_mode': 'dark',
+          'malicious_field': 'drop_table',
+        }),
+        throwsA(isA<AssertionError>()),
+      );
+
+      expect(service.pendingSnapshotForTesting.containsKey('theme_mode'), isTrue);
+      expect(
+        service.pendingSnapshotForTesting.containsKey('malicious_field'),
+        isFalse,
+      );
+
+      await service.pullAndApplyToLocalCache();
+      expect(client.lastSelectColumns, isNotNull);
+      expect(client.lastSelectColumns, isNot('*'));
+      expect(
+        client.lastSelectColumns!.split(',').map((s) => s.trim()).toSet(),
+        UserSettingsService.syncKeySet,
+      );
     });
   });
 }

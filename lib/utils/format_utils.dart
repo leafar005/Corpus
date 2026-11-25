@@ -67,31 +67,35 @@ String formatDateShort(String? isoString) {
 
 /// Formato relativo: "hace 5 minutos", "hace 2 horas", etc.
 /// Si ha pasado un mes (30 días) o más, devuelve la fecha.
-String formatDateRelative(String? isoString) {
+String formatDateRelative(String? isoString, {DateTime? now}) {
   if (isoString == null) return '';
   try {
     final date = DateTime.parse(isoString).toLocal();
-    final now = DateTime.now();
-    final difference = now.difference(date);
+    final ref = now ?? DateTime.now();
+    final difference = ref.difference(date);
 
-    // En lugar de inDays (que trunca a bloques exactos de 24h),
-    // calculamos los días redondeando para evitar que un comentario de hace
-    // 14 días menos 1 hora se calcule como 13 días (y por tanto 1 semana).
-    final int days = (difference.inHours / 24).round();
+    if (difference.inHours < 24) {
+      if (difference.inHours >= 1) {
+        return difference.inHours == 1
+            ? 'hace 1 hora'
+            : 'hace ${difference.inHours} horas';
+      }
+      if (difference.inMinutes >= 1) {
+        return difference.inMinutes == 1
+            ? 'hace 1 minuto'
+            : 'hace ${difference.inMinutes} minutos';
+      }
+      return 'hace un momento';
+    }
 
+    final int days = difference.inDays;
     if (days >= 30) {
       return formatDateShort(isoString);
     } else if (days >= 7) {
       final int weeks = days ~/ 7;
       return weeks == 1 ? 'hace 1 semana' : 'hace $weeks semanas';
-    } else if (days >= 1) {
-      return days == 1 ? 'hace 1 día' : 'hace $days días';
-    } else if (difference.inHours >= 1) {
-      return difference.inHours == 1 ? 'hace 1 hora' : 'hace ${difference.inHours} horas';
-    } else if (difference.inMinutes >= 1) {
-      return difference.inMinutes == 1 ? 'hace 1 minuto' : 'hace ${difference.inMinutes} minutos';
     } else {
-      return 'hace un momento';
+      return days == 1 ? 'hace 1 día' : 'hace $days días';
     }
   } catch (_) {
     return '';
@@ -104,10 +108,10 @@ String formatDateRelative(String? isoString) {
 String formatDateRange(String? from, String? until) {
   if (from == null) return '';
   try {
-    final f = DateTime.parse(from);
+    final f = DateTime.parse(from).toLocal();
     final fs = '${f.day} ${_monthsShort[f.month - 1]}';
     if (until == null) return '$fs ${f.year}';
-    final u = DateTime.parse(until);
+    final u = DateTime.parse(until).toLocal();
     final us = '${u.day} ${_monthsShort[u.month - 1]} ${u.year}';
     return f.year == u.year ? '$fs - $us' : '$fs ${f.year} - $us';
   } catch (_) {

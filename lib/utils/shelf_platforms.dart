@@ -391,9 +391,9 @@ abstract final class ShelfPlatforms {
     for (final p in all) p.id: p,
   };
 
-  static List<String> get allIds => all.map((p) => p.id).toList();
+  static final List<String> allIds = List.unmodifiable(all.map((p) => p.id));
 
-  static List<String> get groupOrder => [
+  static const List<String> groupOrder = [
     'PlayStation',
     'Xbox',
     'Nintendo',

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/igdb_service.dart';
+import '../../../utils/postgrest_utils.dart';
 import '../../../utils/safe_change_notifier.dart';
 
 // ─── Modelos de datos por fase ──────────────────────────────────────────────
@@ -139,9 +140,10 @@ class HomeController extends SafeChangeNotifier {
                 .maybeSingle(),
             _client
                 .from('user_games')
-                .select('*, games(*)')
+                .select('$kUserGameColumns, games($kGameCardColumns)')
                 .eq('user_id', userId)
-                .eq('status', 'playing'),
+                .eq('status', 'playing')
+                .limit(100),
             _client
                 .from('reviews')
                 .select('game_id')
@@ -298,10 +300,11 @@ class HomeController extends SafeChangeNotifier {
         );
         final resp = await _client
             .from('active_bundles')
-            .select()
+            .select(kActiveBundleColumns)
             .gte('end_date', DateTime.now().toIso8601String())
             .lte('end_date', limitDate.toIso8601String())
-            .order('end_date', ascending: true);
+            .order('end_date', ascending: true)
+            .limit(50);
         return List<Map<String, dynamic>>.from(resp);
       } catch (e) {
         debugPrint('[HomeController] Error bundles por terminar: $e');

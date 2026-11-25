@@ -1114,13 +1114,14 @@ class _FriendsBadgeButtonState extends State<_FriendsBadgeButton> {
     try {
       final myId = Supabase.instance.client.auth.currentUser?.id;
       if (myId == null) return;
-      final data = await Supabase.instance.client
+      final res = await Supabase.instance.client
           .from('friendships')
           .select('requester_id')
           .eq('addressee_id', myId)
-          .eq('status', 'pending');
+          .eq('status', 'pending')
+          .count(CountOption.exact);
       if (mounted) {
-        setState(() => _pendingCount = (data as List).length);
+        setState(() => _pendingCount = res.count);
       }
     } catch (e) {
       debugPrint('[ProfileScreen] Error fetching pending friend requests: $e');

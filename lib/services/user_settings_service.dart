@@ -41,6 +41,34 @@ class UserSettingsService {
   Map<String, dynamic> get pendingSnapshotForTesting =>
       Map<String, dynamic>.from(_pending);
 
+  static const String defaultThemeMode = 'system';
+  static const String? defaultThemeColor = null;
+  static const String defaultStylePackId = 'default';
+  static const int defaultMobileGridColumns = 3;
+  static const bool defaultFloatingMobileNav = true;
+  static const bool defaultLocalizeLinks = true;
+  static const String defaultTimeSourcePref = 'igdb';
+  static const String defaultAnticipatedCountdownStyle = 'days_only';
+  static const String defaultWishlistCountdownStyle = 'days_only';
+  static const int defaultHomeBundlesEndingSoonDays = 3;
+  static const List<String> defaultHomeSectionsOrder = [
+    'hero',
+    'bundles_ending_soon',
+    'stash_activity',
+    'wishlist_anticipated',
+    'anticipated_games',
+  ];
+  static const List<String> defaultInfoTabOrder = [
+    'franchise',
+    'genres_themes',
+    'platforms',
+    'metacritic',
+    'stash_stats',
+    'summary',
+    'hltb',
+    'engine',
+  ];
+
   static const List<String> syncKeys = [
     'theme_mode',
     'theme_color',
@@ -58,35 +86,37 @@ class UserSettingsService {
     'info_tab_hidden',
   ];
 
+  static const Set<String> syncKeySet = {
+    'theme_mode',
+    'theme_color',
+    'style_pack_id',
+    'mobile_grid_columns',
+    'floating_mobile_nav',
+    'localize_links',
+    'time_source_pref',
+    'home_sections_order',
+    'home_sections_hidden',
+    'anticipated_countdown_style',
+    'wishlist_countdown_style',
+    'home_bundles_ending_soon_days',
+    'info_tab_order',
+    'info_tab_hidden',
+  };
+
   static const Map<String, dynamic> defaults = {
-    'theme_mode': 'system',
-    'theme_color': null,
-    'style_pack_id': 'default',
-    'mobile_grid_columns': 3,
-    'floating_mobile_nav': true,
-    'localize_links': true,
-    'time_source_pref': 'igdb',
-    'home_sections_order': [
-      'hero',
-      'bundles_ending_soon',
-      'stash_activity',
-      'wishlist_anticipated',
-      'anticipated_games',
-    ],
+    'theme_mode': defaultThemeMode,
+    'theme_color': defaultThemeColor,
+    'style_pack_id': defaultStylePackId,
+    'mobile_grid_columns': defaultMobileGridColumns,
+    'floating_mobile_nav': defaultFloatingMobileNav,
+    'localize_links': defaultLocalizeLinks,
+    'time_source_pref': defaultTimeSourcePref,
+    'home_sections_order': defaultHomeSectionsOrder,
     'home_sections_hidden': <String>[],
-    'anticipated_countdown_style': 'days_only',
-    'wishlist_countdown_style': 'days_only',
-    'home_bundles_ending_soon_days': 3,
-    'info_tab_order': [
-      'franchise',
-      'genres_themes',
-      'platforms',
-      'metacritic',
-      'stash_stats',
-      'summary',
-      'hltb',
-      'engine',
-    ],
+    'anticipated_countdown_style': defaultAnticipatedCountdownStyle,
+    'wishlist_countdown_style': defaultWishlistCountdownStyle,
+    'home_bundles_ending_soon_days': defaultHomeBundlesEndingSoonDays,
+    'info_tab_order': defaultInfoTabOrder,
     'info_tab_hidden': <String>[],
   };
 
@@ -135,7 +165,7 @@ class UserSettingsService {
     try {
       final remote = await _supabase
           .from('user_settings')
-          .select()
+          .select(syncKeys.join(', '))
           .eq('user_id', userId)
           .maybeSingle()
           .timeout(const Duration(seconds: 6));
@@ -164,11 +194,18 @@ class UserSettingsService {
       return;
     }
 
+    var addedValid = false;
     for (final entry in changedKeys.entries) {
+      if (!syncKeySet.contains(entry.key)) {
+        assert(false, 'Clave desconocida en UserSettingsService.push: ${entry.key}');
+        continue;
+      }
       _pending[entry.key] = entry.value is List
           ? List<dynamic>.from(entry.value as List)
           : entry.value;
+      addedValid = true;
     }
+    if (!addedValid) return;
 
     final pendingSnapshot = _cloneMap(_pending);
     _dirtyFlagWrite = (_dirtyFlagWrite ?? Future<void>.value())

@@ -5,7 +5,6 @@ import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/globals.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import '../services/style_pack_import_service.dart';
-import '../services/style_pack_music_service.dart';
 import '../theme/style_pack_registry.dart';
 import '../theme/corpus_theme_extension.dart';
 import '../theme/style_pack.dart';
@@ -271,7 +270,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                   : null),
         onTap: () async {
           await themeNotifier.setStylePack(pack.id);
-          StylePackMusicService.instance.syncWithCurrentPack(force: true);
           if (mounted) setState(() {});
         },
       ),
@@ -304,7 +302,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     await StylePackRegistry.removeImported(pack.id);
     if (wasActive) {
       await themeNotifier.setStylePack('default');
-      StylePackMusicService.instance.syncWithCurrentPack(force: true);
     }
     if (mounted) setState(() {});
   }
@@ -323,7 +320,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       if (result == null) return;
 
       await themeNotifier.setStylePack(result.pack.id);
-      StylePackMusicService.instance.syncWithCurrentPack(force: true);
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(

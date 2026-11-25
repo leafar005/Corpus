@@ -6,6 +6,7 @@ import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:corpus/widgets/corpus_network_image.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import '../../../utils/igdb_constants.dart';
+import '../../../utils/postgrest_utils.dart';
 
 /// Modal para elegir un juego de los juegos terminados del usuario.
 Future<Game?> showGameSearchPicker(
@@ -83,10 +84,11 @@ class _GameSearchPickerSheetState extends State<GameSearchPickerSheet> {
     try {
       final rows = await Supabase.instance.client
           .from('user_games')
-          .select('rating, status, games!inner(*)')
+          .select('rating, status, games!inner($kGameCardColumns)')
           .eq('user_id', userId)
           .eq('status', 'beaten')
-          .order('updated_at', ascending: false);
+          .order('updated_at', ascending: false)
+          .limit(2000);
 
       if (!mounted) return;
 

@@ -41,6 +41,8 @@ class ReviewDetailsController extends SafeChangeNotifier {
   int get likesCount => postThread.likesCount;
   bool get hasLiked => postThread.hasLiked;
   List<Map<String, dynamic>> get comments => postThread.comments;
+  List<Map<String, dynamic>> get threadedComments =>
+      postThread.threadedComments;
   bool get isSubmitting => _isSavingReview || postThread.isSubmitting;
 
   @override

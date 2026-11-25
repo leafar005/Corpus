@@ -54,6 +54,8 @@ class NotificationsRepository {
   Future<NotificationsPageResult> fetchNotificationsPage(
     int offset, {
     int limit = 30,
+    String? beforeCreatedAt,
+    String? beforeId,
   }) async {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) {
@@ -64,20 +66,40 @@ class NotificationsRepository {
       );
     }
 
-    final from = offset;
-    final to = offset + limit - 1;
-
-    final response = await _client
+    var query = _client
         .from('notifications')
-        .select('''
-            *,
-            users!notifications_actor_id_fkey(id, username, display_name, avatar_url)
-          ''')
-        .eq('recipient_id', myId)
-        .order('created_at', ascending: false)
-        .range(from, to);
+        .select(
+          '$kNotificationColumns, '
+          'users!notifications_actor_id_fkey($kPublicUserBasicColumns)',
+        )
+        .eq('recipient_id', myId);
 
-    final items = List<Map<String, dynamic>>.from(response);
+    dynamic response;
+    if (beforeCreatedAt != null &&
+        beforeCreatedAt.isNotEmpty &&
+        beforeId != null &&
+        isValidUuid(beforeId)) {
+      response = await query
+          .or(
+            'created_at.lt.$beforeCreatedAt,'
+            'and(created_at.eq.$beforeCreatedAt,id.lt.$beforeId)',
+          )
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .limit(limit);
+    } else {
+      final from = offset;
+      final to = offset + limit - 1;
+      response = await query
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .range(from, to);
+    }
+
+    final items = (response as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
 
     return NotificationsPageResult(
       notifications: items,
@@ -100,15 +122,18 @@ class NotificationsRepository {
 
   /// Marca todas las notificaciones del usuario actual como leídas.
   Future<void> markAllRead() async {
+    if (_client.auth.currentUser?.id == null) return;
     try {
       await _client.rpc('mark_all_notifications_read');
     } catch (e) {
       debugPrint('[NotificationsRepository] markAllRead error: $e');
+      rethrow;
     }
   }
 
   /// Marca una notificación concreta como leída.
   Future<void> markRead(String notificationId) async {
+    if (_client.auth.currentUser?.id == null) return;
     try {
       await _client.rpc(
         'mark_notification_read',
@@ -116,10 +141,11 @@ class NotificationsRepository {
       );
     } catch (e) {
       debugPrint('[NotificationsRepository] markRead error: $e');
+      rethrow;
     }
   }
 
-  /// Reseña + juego + autor, en una sola query, para navegar a
+  /// Reseña + juego + autor (+ compañeros + post) para navegar a
   /// ReviewDetailsScreen desde una notificación de like/comentario/respuesta.
   Future<ReviewNavigationData?> fetchReviewForNavigation(
     String reviewId,
@@ -127,21 +153,77 @@ class NotificationsRepository {
     try {
       final resp = await _client
           .from('reviews')
-          .select('''
-              *,
-              users!reviews_user_id_users_fkey($kPublicUserBasicColumns),
-              games!reviews_game_id_fkey(*)
-            ''')
+          .select(
+            '$kReviewColumns, '
+            'users!reviews_user_id_users_fkey($kPublicUserBasicColumns), '
+            'games!reviews_game_id_fkey($kGameDetailColumns)',
+          )
           .eq('id', reviewId)
           .maybeSingle();
 
       if (resp == null) return null;
 
       final reviewData = Map<String, dynamic>.from(resp);
-      final userData =
-          reviewData.remove('users') as Map<String, dynamic>? ?? {};
-      final gameData =
-          reviewData.remove('games') as Map<String, dynamic>? ?? {};
+      final rawUsers = reviewData.remove('users');
+      final userData = rawUsers is Map
+          ? Map<String, dynamic>.from(rawUsers)
+          : <String, dynamic>{};
+      final rawGames = reviewData.remove('games');
+      final gameData = rawGames is Map
+          ? Map<String, dynamic>.from(rawGames)
+          : <String, dynamic>{};
+
+      final rawPartnerIds = reviewData['partner_ids'];
+      final partnerIds = rawPartnerIds is List
+          ? rawPartnerIds.map((e) => e.toString()).where((e) => e.isNotEmpty).toList()
+          : const <String>[];
+
+      if (partnerIds.isNotEmpty) {
+        try {
+          final partnersRes = await _client
+              .from('users')
+              .select(kPublicUserBasicColumns)
+              .inFilter('id', partnerIds);
+          final partnersById = <String, Map<String, dynamic>>{};
+          for (final p in (partnersRes as List).whereType<Map>()) {
+            final map = Map<String, dynamic>.from(p);
+            final pid = map['id']?.toString();
+            if (pid != null) partnersById[pid] = map;
+          }
+          reviewData['partners'] = [
+            for (final pid in partnerIds)
+              if (partnersById.containsKey(pid)) partnersById[pid]!,
+          ];
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+              '[NotificationsRepository] Error cargando partners: $e',
+            );
+          }
+        }
+      }
+
+      try {
+        final postRes = await _client.rpc(
+          'current_post_for_review',
+          params: {'p_review_id': reviewId},
+        );
+        if (postRes is String && postRes.isNotEmpty) {
+          reviewData['post_id'] = postRes;
+        } else if (postRes is Map) {
+          final postMap = Map<String, dynamic>.from(postRes);
+          reviewData['_post'] = postMap;
+          if (postMap['id'] != null) {
+            reviewData['post_id'] = postMap['id'].toString();
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint(
+            '[NotificationsRepository] Error resolviendo post para review: $e',
+          );
+        }
+      }
 
       return ReviewNavigationData(
         gameData: gameData,

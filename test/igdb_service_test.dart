@@ -88,4 +88,28 @@ void main() {
       },
     );
   });
+
+  group('IGDBService Caché Cuantizada y Null Order Workaround (OPT-03, BUG-118)', () {
+    test('quantizeUnixTimestamp agrupa timestamps en ventanas de 5 minutos', () {
+      expect(IGDBService.quantizeUnixTimestamp(1700000100), 1700000100);
+      expect(IGDBService.quantizeUnixTimestamp(1700000399), 1700000100);
+      expect(IGDBService.quantizeUnixTimestamp(1700000400), 1700000400);
+    });
+
+    test('nullOrderWorkaroundForSort distingue aggregated_rating de rating con límites de palabra', () {
+      expect(
+        IGDBService.nullOrderWorkaroundForSort('sort aggregated_rating desc;'),
+        ' & (aggregated_rating != null | aggregated_rating = null)',
+      );
+      expect(
+        IGDBService.nullOrderWorkaroundForSort('sort rating desc;'),
+        ' & (rating != null | rating = null)',
+      );
+      expect(
+        IGDBService.nullOrderWorkaroundForSort('sort total_rating_count desc;'),
+        ' & (total_rating_count != null | total_rating_count = null)',
+      );
+      expect(IGDBService.nullOrderWorkaroundForSort('sort rating asc;'), '');
+    });
+  });
 }

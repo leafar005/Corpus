@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/isolate_runner.dart';
 import 'style_pack.dart';
 
 /// Persisted metadata for a user-imported style pack (JSON or `.corpuspack`).
@@ -156,6 +157,8 @@ class StylePackRegistry {
     return pack;
   }
 
+  static const int maxBundleUncompressedBytes = 150 * 1024 * 1024;
+
   /// Import a `.corpuspack` / `.zip` bundle with `manifest.json` at the root.
   static Future<StylePack> importFromBundle(Uint8List bytes) async {
     if (kIsWeb) {
@@ -164,36 +167,10 @@ class StylePackRegistry {
       );
     }
 
-    final archive = ZipDecoder().decodeBytes(bytes);
-    final manifestFile = archive.files.firstWhere(
-      (f) => p.basename(f.name).toLowerCase() == 'manifest.json',
-      orElse: () =>
-          throw const FormatException('Falta manifest.json en el paquete'),
+    final decoded = await runInBackgroundIsolate(
+      () => _decodeAndValidateBundleBytes(bytes),
     );
-
-    final manifestJson =
-        jsonDecode(utf8.decode(manifestFile.content as List<int>))
-            as Map<String, dynamic>;
-    final pack = StylePack.fromJson(manifestJson);
-    _requireValidPackId(pack.id);
-
-    final musicFile = pack.musicFile;
-    if (musicFile != null && !isSafeArchivePath(musicFile)) {
-      throw const FormatException('Ruta de música no segura en manifest.json');
-    }
-
-    // Validar todo el contenido del ZIP antes de crear o eliminar carpetas.
-    for (final file in archive.files) {
-      // Rechazar symlinks: podrían apuntar fuera del installDir (Auditoría I-02)
-      if (_isSymlink(file)) {
-        throw const FormatException(
-          'El paquete contiene enlaces simbólicos, que no están permitidos',
-        );
-      }
-      if (file.isFile && !isSafeArchivePath(file.name)) {
-        throw const FormatException('Ruta no segura en el paquete');
-      }
-    }
+    final pack = decoded.pack;
 
     final installDir = await _installDirFor(pack.id);
 
@@ -203,17 +180,67 @@ class StylePackRegistry {
     }
     await dir.create(recursive: true);
 
-    for (final file in archive.files) {
-      if (!file.isFile || !isSafeArchivePath(file.name)) continue;
-      final outPath = p.join(installDir, file.name);
+    for (final entry in decoded.files.entries) {
+      final outPath = p.join(installDir, entry.key);
       await File(outPath).create(recursive: true);
-      await File(outPath).writeAsBytes(file.content as List<int>);
+      await File(outPath).writeAsBytes(entry.value);
     }
 
     _imported.removeWhere((e) => e.pack.id == pack.id);
     _imported.add(ImportedStylePackEntry(pack: pack, installDir: installDir));
     await _persist();
     return pack;
+  }
+
+  static ({StylePack pack, Map<String, Uint8List> files})
+  _decodeAndValidateBundleBytes(Uint8List bytes) {
+    final archive = ZipDecoder().decodeBytes(bytes);
+    final manifestFile = archive.files.firstWhere(
+      (f) => p.basename(f.name).toLowerCase() == 'manifest.json',
+      orElse: () =>
+          throw const FormatException('Falta manifest.json en el paquete'),
+    );
+
+    final rawManifest = jsonDecode(
+      utf8.decode(manifestFile.content as List<int>),
+    );
+    if (rawManifest is! Map<String, dynamic>) {
+      throw const FormatException('manifest.json no es un objeto válido.');
+    }
+    final pack = StylePack.fromJson(rawManifest);
+    _requireValidPackId(pack.id);
+
+    final musicFile = pack.musicFile;
+    if (musicFile != null && !isSafeArchivePath(musicFile)) {
+      throw const FormatException('Ruta de música no segura en manifest.json');
+    }
+
+    var totalUncompressedBytes = 0;
+    final files = <String, Uint8List>{};
+
+    // Validar todo el contenido del ZIP antes de crear o eliminar carpetas.
+    for (final file in archive.files) {
+      // Rechazar symlinks: podrían apuntar fuera del installDir (Auditoría I-02)
+      if (_isSymlink(file)) {
+        throw const FormatException(
+          'El paquete contiene enlaces simbólicos, que no están permitidos',
+        );
+      }
+      if (!file.isFile) continue;
+      if (!isSafeArchivePath(file.name)) {
+        throw const FormatException('Ruta no segura en el paquete');
+      }
+      final fileBytes = file.content;
+      totalUncompressedBytes += fileBytes.length;
+      if (totalUncompressedBytes > maxBundleUncompressedBytes) {
+        throw const FormatException(
+          'El paquete descomprimido supera el límite permitido de 150 MB.',
+        );
+      }
+      files[file.name] = fileBytes;
+    }
+
+    return (pack: pack, files: files);
   }
 
   /// Remove an imported pack by [id]. Built-in packs cannot be removed.

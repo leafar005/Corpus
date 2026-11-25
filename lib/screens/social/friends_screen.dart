@@ -46,6 +46,7 @@ class _FriendsScreenState extends State<FriendsScreen>
 
   // IDs de usuarios a los que ya envié solicitud (o ya son amigos), para el botón
   Set<String> _sentOrAccepted = {};
+  Set<String> _friendIds = {};
 
   @override
   void initState() {
@@ -60,8 +61,7 @@ class _FriendsScreenState extends State<FriendsScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unreadFriendRequestsCount.value = 0;
     });
-    _loadRequests();
-    _loadFriends();
+    _loadAll();
   }
 
   @override
@@ -72,9 +72,88 @@ class _FriendsScreenState extends State<FriendsScreen>
     super.dispose();
   }
 
+  void _rebuildDerivedSets() {
+    final friendIds = <String>{};
+    for (final f in _friends) {
+      final friend = f['friend'];
+      final id = friend is Map ? friend['id']?.toString() : null;
+      if (id != null && id.isNotEmpty) {
+        friendIds.add(id);
+      }
+    }
+    final sentOrAccepted = <String>{...friendIds};
+    for (final req in _sentRequests) {
+      final addressee = req['addressee'];
+      final id =
+          (addressee is Map ? addressee['id']?.toString() : null) ??
+          req['addressee_id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        sentOrAccepted.add(id);
+      }
+    }
+    for (final req in _receivedRequests) {
+      final requester = req['requester'];
+      final id =
+          (requester is Map ? requester['id']?.toString() : null) ??
+          req['requester_id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        sentOrAccepted.add(id);
+      }
+    }
+    _friendIds = friendIds;
+    _sentOrAccepted = sentOrAccepted;
+  }
+
   // ──────────────────────────────────────────
   // CARGA DE DATOS
   // ──────────────────────────────────────────
+
+  Future<void> _loadAll() async {
+    if (_repo.currentUserId == null) {
+      if (mounted) {
+        setState(() {
+          _receivedRequests = [];
+          _sentRequests = [];
+          _friends = [];
+          _friendIds = {};
+          _sentOrAccepted = {};
+          _isLoadingRequests = false;
+          _isLoadingFriends = false;
+        });
+      }
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _isLoadingRequests = true;
+        _isLoadingFriends = true;
+      });
+    }
+    try {
+      final results = await Future.wait([
+        _repo.fetchReceivedRequests(),
+        _repo.fetchSentRequests(),
+        _repo.fetchMyFriends(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _receivedRequests = results[0];
+        _sentRequests = results[1];
+        _friends = results[2];
+        _rebuildDerivedSets();
+        _isLoadingRequests = false;
+        _isLoadingFriends = false;
+      });
+    } catch (e) {
+      debugPrint('[FriendsScreen] Error loading friends data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingRequests = false;
+          _isLoadingFriends = false;
+        });
+      }
+    }
+  }
 
   Future<void> _loadRequests() async {
     if (_repo.currentUserId == null) {
@@ -82,6 +161,7 @@ class _FriendsScreenState extends State<FriendsScreen>
         setState(() {
           _receivedRequests = [];
           _sentRequests = [];
+          _rebuildDerivedSets();
           _isLoadingRequests = false;
         });
       }
@@ -89,13 +169,16 @@ class _FriendsScreenState extends State<FriendsScreen>
     }
     if (mounted) setState(() => _isLoadingRequests = true);
     try {
-      final received = await _repo.fetchReceivedRequests();
-      final sent = await _repo.fetchSentRequests();
+      final results = await Future.wait([
+        _repo.fetchReceivedRequests(),
+        _repo.fetchSentRequests(),
+      ]);
 
       if (mounted) {
         setState(() {
-          _receivedRequests = received;
-          _sentRequests = sent;
+          _receivedRequests = results[0];
+          _sentRequests = results[1];
+          _rebuildDerivedSets();
           _isLoadingRequests = false;
         });
       }
@@ -110,7 +193,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       if (mounted) {
         setState(() {
           _friends = [];
-          _sentOrAccepted = {};
+          _rebuildDerivedSets();
           _isLoadingFriends = false;
         });
       }
@@ -119,12 +202,11 @@ class _FriendsScreenState extends State<FriendsScreen>
     if (mounted) setState(() => _isLoadingFriends = true);
     try {
       final friends = await _repo.fetchMyFriends();
-      final sentOrAcceptedIds = await _repo.fetchSentOrAcceptedIds();
 
       if (mounted) {
         setState(() {
           _friends = friends;
-          _sentOrAccepted = sentOrAcceptedIds;
+          _rebuildDerivedSets();
           _isLoadingFriends = false;
         });
       }
@@ -208,8 +290,7 @@ class _FriendsScreenState extends State<FriendsScreen>
     try {
       await _repo.acceptFriendRequest(requesterId);
       _showSnack('¡Ahora sois amigos!');
-      await _loadRequests();
-      await _loadFriends();
+      await _loadAll();
     } catch (e) {
       _showSnack('Error al aceptar solicitud');
     }
@@ -272,7 +353,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       if (mounted) {
         setState(() {
           _sentRequests.removeWhere((r) => r['addressee_id'] == addresseeId);
-          _sentOrAccepted.remove(addresseeId);
+          _rebuildDerivedSets();
         });
         ScaffoldMessenger.of(
           context,
@@ -367,9 +448,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                           user['display_name'] as String? ??
                           user['username'] as String? ??
                           'Usuario';
-                      final isFriend = _friends.any(
-                        (f) => f['friend']?['id'] == userId,
-                      );
+                      final isFriend = _friendIds.contains(userId);
                       final isPending = alreadySentOrFriend && !isFriend;
 
                       Widget? trailingWidget;

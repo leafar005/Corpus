@@ -1148,7 +1148,8 @@ class _ReviewDetailsScreenState extends State<ReviewDetailsScreen> {
                               // Comments List
                               if (_comments.isNotEmpty) ...[
                                 CommentThreadSection(
-                                  comments: _comments,
+                                  comments: _controller.threadedComments,
+                                  isPreThreaded: true,
                                   currentUserId: currentUserId,
                                   authorId: widget.userData?['id'] as String?,
                                   onReply: _startReply,

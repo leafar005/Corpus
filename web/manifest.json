@@ -6,7 +6,7 @@
     "background_color": "#000000",
     "theme_color": "#7E57C2",
     "description": "Personal & social video game tracker.",
-    "orientation": "portrait-primary",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

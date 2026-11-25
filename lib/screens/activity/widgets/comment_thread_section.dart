@@ -23,6 +23,7 @@ class CommentThreadSection extends StatelessWidget {
     required this.onDeleteComment,
     this.authorId,
     this.emptyState,
+    this.isPreThreaded = false,
   });
 
   final List<Map<String, dynamic>> comments;
@@ -32,6 +33,7 @@ class CommentThreadSection extends StatelessWidget {
   final Future<void> Function(String commentId, String? imageUrl)
   onDeleteComment;
   final Widget? emptyState;
+  final bool isPreThreaded;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +41,7 @@ class CommentThreadSection extends StatelessWidget {
       return emptyState ?? const SizedBox.shrink();
     }
 
-    final ordered = orderCommentsThreaded(comments);
+    final ordered = isPreThreaded ? comments : orderCommentsThreaded(comments);
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Column(

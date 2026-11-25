@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'utils/igdb_constants.dart';
+import 'services/duracionde_service.dart';
+import 'services/igdb_service.dart';
 import 'services/user_settings_service.dart';
 
 /// Punto de ruptura canónico para distinguir diseño de escritorio del móvil.
@@ -39,6 +41,10 @@ final ValueNotifier<int> unreadNotificationsCount = ValueNotifier<int>(0);
 // Flag para desactivar temporizadores infinitos de carrusel/fondo en tests E2E y evitar que pumpAndSettle se cuelgue
 bool kDisableCarouselForTests = false;
 
+/// Flag para desactivar Isolates en tests de widgets (`FakeAsync`) donde
+/// `Isolate.run` no resuelve con `tester.pump`.
+bool kDisableIsolatesForTests = false;
+
 /// Índice de la pestaña actualmente visible en MainScreen. La usa
 /// TabUrlSyncObserver (routes/tab_url_sync.dart) para saber si un push/pop
 /// ocurre en la pestaña visible o en una de fondo, y así no pisar la URL
@@ -72,10 +78,43 @@ double getFloatingNavModalInset(BuildContext context) {
 }
 
 /// Define la cantidad de columnas (2, 3 o 4) para las cuadrículas de juegos en móviles.
-final ValueNotifier<int> mobileGridColumnsNotifier = ValueNotifier<int>(3);
+final ValueNotifier<int> mobileGridColumnsNotifier = ValueNotifier<int>(
+  UserSettingsService.defaultMobileGridColumns,
+);
 
 /// Define si el menú de navegación en móviles es flotante o anclado.
-final ValueNotifier<bool> floatingMobileNavNotifier = ValueNotifier<bool>(true);
+final ValueNotifier<bool> floatingMobileNavNotifier = ValueNotifier<bool>(
+  UserSettingsService.defaultFloatingMobileNav,
+);
+
+const SliverGridDelegate _defaultDesktopGridDelegate =
+    SliverGridDelegateWithMaxCrossAxisExtent(
+      maxCrossAxisExtent: 140.0,
+      childAspectRatio: IgdbConstants.coverAspectRatio,
+      crossAxisSpacing: 10.0,
+      mainAxisSpacing: 10.0,
+    );
+const SliverGridDelegate _defaultMobile2GridDelegate =
+    SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      childAspectRatio: IgdbConstants.coverAspectRatio,
+      crossAxisSpacing: 10.0,
+      mainAxisSpacing: 10.0,
+    );
+const SliverGridDelegate _defaultMobile3GridDelegate =
+    SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 3,
+      childAspectRatio: IgdbConstants.coverAspectRatio,
+      crossAxisSpacing: 10.0,
+      mainAxisSpacing: 10.0,
+    );
+const SliverGridDelegate _defaultMobile4GridDelegate =
+    SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 4,
+      childAspectRatio: IgdbConstants.coverAspectRatio,
+      crossAxisSpacing: 10.0,
+      mainAxisSpacing: 10.0,
+    );
 
 /// Genera el SliverGridDelegate adaptado a la configuración actual (Móvil vs Escritorio)
 SliverGridDelegate getCorpusGridDelegate(
@@ -84,22 +123,37 @@ SliverGridDelegate getCorpusGridDelegate(
   double spacing = 10.0,
   double desktopMaxExtent = 140.0,
 }) {
-  final isDesktop = MediaQuery.sizeOf(context).width > 800;
+  final isDesktop = MediaQuery.sizeOf(context).width > kDesktopBreakpoint;
   if (isDesktop) {
+    if (spacing == 10.0 && desktopMaxExtent == 140.0) {
+      return _defaultDesktopGridDelegate;
+    }
     return SliverGridDelegateWithMaxCrossAxisExtent(
       maxCrossAxisExtent: desktopMaxExtent,
       childAspectRatio: IgdbConstants.coverAspectRatio,
       crossAxisSpacing: spacing,
       mainAxisSpacing: spacing,
     );
-  } else {
-    return SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: mobileColumns,
-      childAspectRatio: IgdbConstants.coverAspectRatio,
-      crossAxisSpacing: spacing,
-      mainAxisSpacing: spacing,
-    );
   }
+  if (spacing == 10.0) {
+    return switch (mobileColumns) {
+      2 => _defaultMobile2GridDelegate,
+      3 => _defaultMobile3GridDelegate,
+      4 => _defaultMobile4GridDelegate,
+      _ => SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: mobileColumns,
+        childAspectRatio: IgdbConstants.coverAspectRatio,
+        crossAxisSpacing: spacing,
+        mainAxisSpacing: spacing,
+      ),
+    };
+  }
+  return SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: mobileColumns,
+    childAspectRatio: IgdbConstants.coverAspectRatio,
+    crossAxisSpacing: spacing,
+    mainAxisSpacing: spacing,
+  );
 }
 
 /// Resetea todos los notificadores globales a sus valores por defecto.
@@ -120,8 +174,10 @@ Future<void> resetAllGlobalState() async {
   // ajustes sincronizados vía UserSettingsService SÍ se resetean al cerrar sesión.
   // Si no se hiciera, los ajustes de una cuenta se filtrarían a la sesión de otra
   // persona que inicie sesión después en el mismo dispositivo.
-  mobileGridColumnsNotifier.value = 3;
-  floatingMobileNavNotifier.value = true;
+  mobileGridColumnsNotifier.value = UserSettingsService.defaultMobileGridColumns;
+  floatingMobileNavNotifier.value = UserSettingsService.defaultFloatingMobileNav;
+  IGDBService.clearCache();
+  DuracionDeService.clearCache();
   await themeNotifier.resetToDefaults();
   await UserSettingsService().resetLocalCacheToDefaults();
 }

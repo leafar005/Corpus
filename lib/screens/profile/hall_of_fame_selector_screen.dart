@@ -6,6 +6,7 @@ import '../../theme/corpus_theme_extension.dart';
 import '../../widgets/corpus_section_title.dart';
 import 'package:corpus/routes/app_navigation_controller.dart';
 import 'package:corpus/utils/igdb_constants.dart';
+import '../../utils/postgrest_utils.dart';
 import '../../utils/validation_utils.dart';
 import '../../widgets/corpus_network_image.dart';
 
@@ -39,10 +40,11 @@ class _HallOfFameSelectorScreenState extends State<HallOfFameSelectorScreen> {
     try {
       final response = await Supabase.instance.client
           .from('user_games')
-          .select('*, games(*)')
+          .select('games($kGameCardColumns)')
           .eq('user_id', userId)
           .eq('status', 'beaten')
-          .order('updated_at', ascending: false);
+          .order('updated_at', ascending: false)
+          .limit(2000);
 
       final gamesList = <Map<String, dynamic>>[];
       for (var row in response) {

@@ -16,6 +16,7 @@ import '../library/review_modal.dart';
 import '../../widgets/achievement_toast.dart';
 import '../../models/models.dart';
 import '../../utils/format_utils.dart';
+import '../../utils/postgrest_utils.dart';
 import '../../utils/validation_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -238,7 +239,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
       try {
         final localDbGame = await Supabase.instance.client
             .from('games')
-            .select()
+            .select(kGameDetailColumns)
             .eq('igdb_id', id)
             .maybeSingle();
 

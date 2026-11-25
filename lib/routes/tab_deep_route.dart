@@ -68,7 +68,14 @@ final class ProfileDeepRoute extends TabDeepRoute {
 /// Detalle de una reseña.
 final class ReviewDeepRoute extends TabDeepRoute {
   final String reviewId;
-  const ReviewDeepRoute(this.reviewId);
+  final String? postId;
+  final bool focusComment;
+
+  const ReviewDeepRoute(
+    this.reviewId, {
+    this.postId,
+    this.focusComment = false,
+  });
 
   @override
   List<String> toSegments() => ['resena', reviewId];
@@ -85,7 +92,9 @@ final class ReviewDeepRoute extends TabDeepRoute {
 /// Detalle de una publicación agrupada (`feed_posts.id`).
 final class GroupedPostDeepRoute extends TabDeepRoute {
   final String postId;
-  const GroupedPostDeepRoute(this.postId);
+  final bool focusComment;
+
+  const GroupedPostDeepRoute(this.postId, {this.focusComment = false});
 
   @override
   List<String> toSegments() => ['post', postId];
@@ -150,7 +159,7 @@ final class FriendsDeepRoute extends TabDeepRoute {
   @override
   bool operator ==(Object other) => other is FriendsDeepRoute;
   @override
-  int get hashCode => 1;
+  int get hashCode => runtimeType.hashCode;
   @override
   String toString() => 'FriendsDeepRoute()';
 }
@@ -165,7 +174,7 @@ final class NotificationsFeedDeepRoute extends TabDeepRoute {
   @override
   bool operator ==(Object other) => other is NotificationsFeedDeepRoute;
   @override
-  int get hashCode => 1;
+  int get hashCode => runtimeType.hashCode;
   @override
   String toString() => 'NotificationsFeedDeepRoute()';
 }

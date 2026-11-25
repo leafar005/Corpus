@@ -26,16 +26,16 @@ class GenreRadarCalculator {
   }) {
     final filtered = year == null
         ? entries
-        : entries.where((e) => e.effectiveDate.year == year).toList();
+        : entries.where((e) => e.effectiveDate.year == year);
 
     final Map<String, List<GenreRadarEntry>> gamesByGenre = {};
+    final Map<String, Set<int>> seenIdsByGenre = {};
 
     for (final entry in filtered) {
       for (final genre in entry.genres) {
-        // avoid duplicates just in case, though one entry = one game
-        final list = gamesByGenre[genre] ??= [];
-        if (!list.any((e) => e.gameId == entry.gameId)) {
-          list.add(entry);
+        final seen = seenIdsByGenre.putIfAbsent(genre, () => <int>{});
+        if (seen.add(entry.gameId)) {
+          (gamesByGenre[genre] ??= []).add(entry);
         }
       }
     }
@@ -54,7 +54,13 @@ class GenreRadarCalculator {
               ),
             )
             .toList()
-          ..sort((a, b) => b.gameCount.compareTo(a.gameCount));
+          ..sort((a, b) {
+            final hoursCmp = b.totalHours.compareTo(a.totalHours);
+            if (hoursCmp != 0) return hoursCmp;
+            final countCmp = b.gameCount.compareTo(a.gameCount);
+            if (countCmp != 0) return countCmp;
+            return a.genre.compareTo(b.genre);
+          });
 
     return stats.take(topN).toList();
   }

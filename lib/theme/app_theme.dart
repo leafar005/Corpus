@@ -17,7 +17,7 @@ import '../widgets/system_chrome_wrapper.dart';
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _currentMode = ThemeMode.system;
   Color _seedColor = Colors.deepPurpleAccent;
-  String _stylePackId = 'default';
+  String _stylePackId = UserSettingsService.defaultStylePackId;
 
   ThemeMode get currentMode => _currentMode;
   Color get seedColor => _seedColor;
@@ -48,7 +48,8 @@ class ThemeNotifier extends ChangeNotifier {
   }
 
   Future<void> _applyFromPrefs(SharedPreferences prefs) async {
-    final modeStr = prefs.getString('theme_mode') ?? 'system';
+    final modeStr =
+        prefs.getString('theme_mode') ?? UserSettingsService.defaultThemeMode;
     _currentMode = ThemeMode.values.firstWhere(
       (e) => e.toString().split('.').last == modeStr,
       orElse: () => ThemeMode.system,
@@ -59,14 +60,19 @@ class ThemeNotifier extends ChangeNotifier {
       _seedColor = Color(colorVal);
     }
 
-    _stylePackId = prefs.getString('style_pack_id') ?? 'default';
+    _stylePackId =
+        prefs.getString('style_pack_id') ??
+        UserSettingsService.defaultStylePackId;
     if (!StylePackRegistry.exists(_stylePackId)) {
-      _stylePackId = 'default';
+      _stylePackId = UserSettingsService.defaultStylePackId;
     }
 
-    mobileGridColumnsNotifier.value = prefs.getInt('mobile_grid_columns') ?? 3;
+    mobileGridColumnsNotifier.value =
+        prefs.getInt('mobile_grid_columns') ??
+        UserSettingsService.defaultMobileGridColumns;
     floatingMobileNavNotifier.value =
-        prefs.getBool('floating_mobile_nav') ?? true;
+        prefs.getBool('floating_mobile_nav') ??
+        UserSettingsService.defaultFloatingMobileNav;
   }
 
   Future<void> reloadFromPrefs() async {
@@ -83,7 +89,7 @@ class ThemeNotifier extends ChangeNotifier {
 
   Future<void> resetToDefaults() async {
     _currentMode = ThemeMode.system;
-    _stylePackId = 'default';
+    _stylePackId = UserSettingsService.defaultStylePackId;
     _seedColor = currentPack.seedColor;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();

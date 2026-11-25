@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -7,7 +8,7 @@ import '../theme/app_theme.dart';
 import '../theme/style_pack_registry.dart';
 import 'style_pack_music_backend.dart';
 import 'style_pack_music_backend_io.dart'
-    if (dart.library.html) 'style_pack_music_backend_web.dart'
+    if (dart.library.js_interop) 'style_pack_music_backend_web.dart'
     as backend;
 
 /// Plays optional background music tied to the active [StylePack].
@@ -17,14 +18,22 @@ class StylePackMusicService with WidgetsBindingObserver {
 
   static const _volume = 0.35;
 
-  final StylePackMusicBackend _player = backend.createStylePackMusicBackend();
+  StylePackMusicBackend _player = backend.createStylePackMusicBackend();
   ThemeNotifier? _themeNotifier;
   String? _playingPackId;
   bool _pausedByLifecycle = false;
   bool _initialized = false;
+  bool _disposed = false;
+  Future<void>? _syncFuture;
+  bool _pendingSync = false;
+  bool _pendingForce = false;
 
   Future<void> init(ThemeNotifier themeNotifier) async {
     if (_initialized) return;
+    if (_disposed) {
+      _player = backend.createStylePackMusicBackend();
+      _disposed = false;
+    }
     _initialized = true;
 
     _themeNotifier = themeNotifier;
@@ -37,8 +46,13 @@ class StylePackMusicService with WidgetsBindingObserver {
   }
 
   void dispose() {
+    _disposed = true;
     _themeNotifier?.removeListener(_onThemeChanged);
     WidgetsBinding.instance.removeObserver(this);
+    _playingPackId = null;
+    _pausedByLifecycle = false;
+    _pendingSync = false;
+    _pendingForce = false;
     _player.dispose();
     _initialized = false;
   }
@@ -58,7 +72,34 @@ class StylePackMusicService with WidgetsBindingObserver {
   /// Call with [force] when the theme changes so playback restarts even if the
   /// pack id is unchanged. Invoked synchronously from tap handlers on web so
   /// the browser still counts it as a user gesture.
-  Future<void> syncWithCurrentPack({bool force = false}) async {
+  Future<void> syncWithCurrentPack({bool force = false}) {
+    if (_syncFuture != null) {
+      _pendingSync = true;
+      _pendingForce = _pendingForce || force;
+      return _syncFuture!;
+    }
+
+    final future = _runSerializedSync(initialForce: force);
+    _syncFuture = future;
+    return future;
+  }
+
+  Future<void> _runSerializedSync({required bool initialForce}) async {
+    var currentForce = initialForce;
+    try {
+      while (!_disposed) {
+        _pendingSync = false;
+        _pendingForce = false;
+        await _performSync(force: currentForce);
+        if (!_pendingSync || _disposed) break;
+        currentForce = _pendingForce;
+      }
+    } finally {
+      _syncFuture = null;
+    }
+  }
+
+  Future<void> _performSync({required bool force}) async {
     final packId = _themeNotifier?.stylePackId;
     if (packId == null) {
       await _stop();
@@ -89,7 +130,7 @@ class StylePackMusicService with WidgetsBindingObserver {
       _pausedByLifecycle = false;
     } catch (e, st) {
       debugPrint('[StylePackMusic] No se pudo reproducir $musicFile: $e\n$st');
-      _playingPackId = packId;
+      _playingPackId = null;
     }
   }
 
@@ -101,12 +142,12 @@ class StylePackMusicService with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_playingPackId == null) return;
+    if (_playingPackId == null || _disposed) return;
 
     switch (state) {
       case AppLifecycleState.resumed:
         if (_pausedByLifecycle) {
-          _player.resume();
+          unawaited(_player.resume().catchError((Object _) {}));
           _pausedByLifecycle = false;
         }
       case AppLifecycleState.inactive:
@@ -114,7 +155,7 @@ class StylePackMusicService with WidgetsBindingObserver {
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
         if (!_pausedByLifecycle) {
-          _player.pause();
+          unawaited(_player.pause().catchError((Object _) {}));
           _pausedByLifecycle = true;
         }
     }

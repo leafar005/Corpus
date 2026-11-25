@@ -131,12 +131,29 @@ class CorpusApp extends StatefulWidget {
 }
 
 class _CorpusAppState extends State<CorpusApp> {
+  Color? _cachedSeedColor;
+  StylePack? _cachedPack;
+  ThemeData? _cachedLightTheme;
+  ThemeData? _cachedDarkTheme;
+
+  void _ensureThemesCached(Color seedColor, StylePack pack) {
+    if (_cachedLightTheme != null &&
+        _cachedDarkTheme != null &&
+        _cachedSeedColor == seedColor &&
+        identical(_cachedPack, pack)) {
+      return;
+    }
+    _cachedSeedColor = seedColor;
+    _cachedPack = pack;
+    _cachedLightTheme = AppTheme.getLightTheme(seedColor, pack);
+    _cachedDarkTheme = AppTheme.getDarkTheme(seedColor, pack);
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await StylePackMusicService.instance.init(themeNotifier);
-      StylePackMusicService.instance.syncWithCurrentPack(force: true);
       await NotificationService().init();
 
       // Deep link en frío: la app estaba completamente cerrada y se abrió
@@ -158,6 +175,10 @@ class _CorpusAppState extends State<CorpusApp> {
     return ListenableBuilder(
       listenable: themeNotifier,
       builder: (context, child) {
+        _ensureThemesCached(
+          themeNotifier.seedColor,
+          themeNotifier.currentPack,
+        );
         return MaterialApp(
           navigatorKey: DeepLinkService.navigatorKey,
           navigatorObservers: [
@@ -165,14 +186,8 @@ class _CorpusAppState extends State<CorpusApp> {
           ],
           title: 'Corpus',
           // Aplicamos nuestros temas y el modo seleccionado
-          theme: AppTheme.getLightTheme(
-            themeNotifier.seedColor,
-            themeNotifier.currentPack,
-          ),
-          darkTheme: AppTheme.getDarkTheme(
-            themeNotifier.seedColor,
-            themeNotifier.currentPack,
-          ),
+          theme: _cachedLightTheme,
+          darkTheme: _cachedDarkTheme,
           themeMode: themeNotifier.currentMode,
           scrollBehavior: const AlwaysScrollbarBehavior(),
           builder: (context, child) {
@@ -329,7 +344,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (!kIsWeb) {
       try {
         await notifService.requestPermissions();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[AuthGate] Permisos de notificación no disponibles: $e');
+      }
     }
     if (!mounted || epoch != _authEpoch) return;
     final currentUid = _supabaseOrNull?.auth.currentUser?.id;
@@ -396,13 +413,17 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (channel != null) {
       try {
         channel.untrack();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[AuthGate] untrack presencia falló: $e');
+      }
       try {
         final client = _supabaseOrNull;
         if (client != null) {
           unawaited(client.removeChannel(channel));
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[AuthGate] removeChannel presencia falló: $e');
+      }
     }
   }
 
@@ -483,12 +504,8 @@ class AlwaysScrollbarBehavior extends MaterialScrollBehavior {
     }
 
     final controller = details.controller;
-    if (controller != null) {
-      try {
-        if (controller.positions.length > 1) {
-          return child;
-        }
-      } catch (_) {}
+    if (controller != null && controller.positions.length > 1) {
+      return child;
     }
 
     return Scrollbar(controller: controller, child: child);

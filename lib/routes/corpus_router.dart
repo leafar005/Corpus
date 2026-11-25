@@ -31,6 +31,7 @@ import '../screens/settings_screen.dart';
 import '../screens/social/friends_screen.dart';
 import '../screens/bundles/bundle_details_screen.dart';
 import '../services/import_service.dart';
+import '../utils/corpus_logger.dart';
 import 'package:corpus/routes/app_routes.dart';
 
 // ── Argumentos de rutas ──────────────────────────────────────────────────────
@@ -186,63 +187,101 @@ class ImportPreviewArgs {
 // ── Generador de rutas ─────────────────────────────────────────────────────────
 
 abstract final class CorpusRouter {
+  static final _log = CorpusLogger('CorpusRouter');
+
+  static Route<T> _invalidArgumentsRoute<T>(RouteSettings settings) {
+    _log.warning(
+      'Argumentos inválidos o ausentes para ${settings.name}: ${settings.arguments.runtimeType}',
+    );
+    return MaterialPageRoute<T>(
+      settings: settings,
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: const Text('Ruta no disponible')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'No se pudo abrir esta pantalla porque faltan datos de navegación.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   static Route<T> route<T>(RouteSettings settings) {
+    final rawArgs = settings.arguments;
     switch (settings.name) {
       case AppRoutes.gameDetails:
-        final args = settings.arguments! as GameDetailsArgs;
+        if (rawArgs is! GameDetailsArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => GameDetailsScreen(
-            gameData: args.gameData,
-            scrollController: args.scrollController,
-            autoOpenReview: args.autoOpenReview,
+            gameData: rawArgs.gameData,
+            scrollController: rawArgs.scrollController,
+            autoOpenReview: rawArgs.autoOpenReview,
           ),
         );
 
       case AppRoutes.reviewDetails:
-        final args = settings.arguments! as ReviewDetailsArgs;
+        if (rawArgs is! ReviewDetailsArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => ReviewDetailsScreen(
-            gameData: args.gameData,
-            userData: args.userData,
-            reviewData: args.reviewData,
-            postId: args.postId,
-            focusComment: args.focusComment,
+            gameData: rawArgs.gameData,
+            userData: rawArgs.userData,
+            reviewData: rawArgs.reviewData,
+            postId: rawArgs.postId,
+            focusComment: rawArgs.focusComment,
           ),
         );
 
       case AppRoutes.groupedPostDetails:
-        final args = settings.arguments! as GroupedPostDetailsArgs;
+        if (rawArgs is! GroupedPostDetailsArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => GroupedPostDetailsScreen(
-            postId: args.postId,
-            actorData: args.actorData,
-            status: args.status,
-            createdAt: args.createdAt,
-            initialGames: args.initialGames,
-            initialStats: args.initialStats,
-            focusComment: args.focusComment,
+            postId: rawArgs.postId,
+            actorData: rawArgs.actorData,
+            status: rawArgs.status,
+            createdAt: rawArgs.createdAt,
+            initialGames: rawArgs.initialGames,
+            initialStats: rawArgs.initialStats,
+            focusComment: rawArgs.focusComment,
           ),
         );
 
       case AppRoutes.bundleDetails:
-        final args = settings.arguments! as BundleDetailsArgs;
+        if (rawArgs is! BundleDetailsArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
-          builder: (_) => BundleDetailsScreen(bundleData: args.bundleData),
+          builder: (_) => BundleDetailsScreen(bundleData: rawArgs.bundleData),
         );
 
       case AppRoutes.profile:
-        final args = settings.arguments as ProfileArgs?;
+        if (rawArgs != null && rawArgs is! ProfileArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
+        final args = rawArgs as ProfileArgs?;
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => ProfileScreen(userId: args?.userId),
         );
 
       case AppRoutes.search:
-        final args = settings.arguments as SearchArgs?;
+        if (rawArgs != null && rawArgs is! SearchArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
+        final args = rawArgs as SearchArgs?;
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => SearchScreen(
@@ -258,22 +297,26 @@ abstract final class CorpusRouter {
         );
 
       case AppRoutes.settings:
-        final args = settings.arguments! as SettingsArgs;
+        if (rawArgs is! SettingsArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => SettingsScreen(
-            userProfile: args.userProfile,
-            hallOfFame: args.hallOfFame,
+            userProfile: rawArgs.userProfile,
+            hallOfFame: rawArgs.hallOfFame,
           ),
         );
 
       case AppRoutes.editProfile:
-        final args = settings.arguments! as EditProfileArgs;
+        if (rawArgs is! EditProfileArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => EditProfileScreen(
-            userProfile: args.userProfile,
-            hallOfFame: args.hallOfFame,
+            userProfile: rawArgs.userProfile,
+            hallOfFame: rawArgs.hallOfFame,
           ),
         );
 
@@ -319,50 +362,59 @@ abstract final class CorpusRouter {
         );
 
       case AppRoutes.achievements:
-        final args = settings.arguments! as AchievementsArgs;
+        if (rawArgs is! AchievementsArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => AchievementsScreen(
-            userId: args.userId,
-            initialXp: args.initialXp,
+            userId: rawArgs.userId,
+            initialXp: rawArgs.initialXp,
           ),
         );
 
       case AppRoutes.achievementGames:
-        final args = settings.arguments! as AchievementGamesArgs;
+        if (rawArgs is! AchievementGamesArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => AchievementGamesScreen(
-            achievementId: args.achievementId,
-            achievementName: args.achievementName,
-            companyId: args.companyId,
-            collectionId: args.collectionId,
-            franchiseId: args.franchiseId,
-            collectionId2: args.collectionId2,
-            franchiseId2: args.franchiseId2,
-            milestones: args.milestones,
-            achievementIcon: args.achievementIcon,
-            achievementColor: args.achievementColor,
+            userId: rawArgs.userId,
+            achievementId: rawArgs.achievementId,
+            achievementName: rawArgs.achievementName,
+            companyId: rawArgs.companyId,
+            collectionId: rawArgs.collectionId,
+            franchiseId: rawArgs.franchiseId,
+            collectionId2: rawArgs.collectionId2,
+            franchiseId2: rawArgs.franchiseId2,
+            milestones: rawArgs.milestones,
+            achievementIcon: rawArgs.achievementIcon,
+            achievementColor: rawArgs.achievementColor,
           ),
         );
 
       case AppRoutes.groupGames:
-        final args = settings.arguments! as GroupGamesArgs;
+        if (rawArgs is! GroupGamesArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => GroupGamesScreen(
-            title: args.title,
-            collectionId: args.collectionId,
-            isFranchise: args.isFranchise,
-            isCompany: args.isCompany,
+            title: rawArgs.title,
+            collectionId: rawArgs.collectionId,
+            isFranchise: rawArgs.isFranchise,
+            isCompany: rawArgs.isCompany,
           ),
         );
 
       case AppRoutes.hallOfFameSelector:
-        final args = settings.arguments! as HallOfFameSelectorArgs;
+        if (rawArgs is! HallOfFameSelectorArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
-          builder: (_) => HallOfFameSelectorScreen(pinOrder: args.pinOrder),
+          builder: (_) => HallOfFameSelectorScreen(pinOrder: rawArgs.pinOrder),
         );
 
       case AppRoutes.login:
@@ -378,19 +430,23 @@ abstract final class CorpusRouter {
         );
 
       case AppRoutes.steamImportProgress:
-        final args = settings.arguments! as SteamImportProgressArgs;
+        if (rawArgs is! SteamImportProgressArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
           builder: (_) => SteamImportProgressScreen(
-            minPlaytimeMinutes: args.minPlaytimeMinutes,
+            minPlaytimeMinutes: rawArgs.minPlaytimeMinutes,
           ),
         );
 
       case AppRoutes.importPreview:
-        final args = settings.arguments! as ImportPreviewArgs;
+        if (rawArgs is! ImportPreviewArgs) {
+          return _invalidArgumentsRoute<T>(settings);
+        }
         return MaterialPageRoute<T>(
           settings: settings,
-          builder: (_) => ImportPreviewScreen(rows: args.rows),
+          builder: (_) => ImportPreviewScreen(rows: rawArgs.rows),
         );
 
       case AppRoutes.design:
@@ -428,13 +484,12 @@ abstract final class CorpusRouter {
 
 // ── Debounce de navegación ───────────────────────────────────────────────────
 //
-// Previene que taps rápidos/repetidos encolen múltiples pantallas.
-// Si se produce un segundo push dentro de los 600 ms siguientes al anterior,
-// se descarta silenciosamente (devuelve Future(null)).
+// Previene que taps rápidos/repetidos encolen múltiples pantallas idénticas en
+// el mismo Navigator, sin bloquear navegaciones distintas ni entre pestañas.
 //
 // pushReplacementRoute queda exento: se usa en flujos de control (importación
 // de Steam, etc.) donde no hay riesgo de taps múltiples accidentales.
-DateTime? _lastPushTime;
+final Map<int, Map<String, DateTime>> _lastPushByNavigator = {};
 const Duration _pushDebounceWindow = Duration(milliseconds: 600);
 
 @visibleForTesting
@@ -442,23 +497,52 @@ bool kDisablePushDebounceForTests = false;
 
 @visibleForTesting
 void resetPushDebounceForTesting() {
-  _lastPushTime = null;
+  _lastPushByNavigator.clear();
 }
 
-bool _shouldThrottlePush() {
+String _buildPushSignature(String name, Object? args) {
+  return switch (args) {
+    GameDetailsArgs a => '$name:${a.gameData.igdbId}:${a.autoOpenReview}',
+    ReviewDetailsArgs a => '$name:${a.reviewData['id']}:${a.postId}',
+    GroupedPostDetailsArgs a => '$name:${a.postId}',
+    BundleDetailsArgs a => '$name:${a.bundleData['id']}',
+    ProfileArgs a => '$name:${a.userId}',
+    SearchArgs a => '$name:${a.initialQuery}:${a.isSelectionMode}',
+    AchievementsArgs a => '$name:${a.userId}',
+    AchievementGamesArgs a => '$name:${a.userId}:${a.achievementId}',
+    GroupGamesArgs a =>
+      '$name:${a.collectionId}:${a.isFranchise}:${a.isCompany}',
+    HallOfFameSelectorArgs a => '$name:${a.pinOrder}',
+    SteamImportProgressArgs a => '$name:${a.minPlaytimeMinutes}',
+    _ => name,
+  };
+}
+
+bool _shouldThrottlePush(
+  BuildContext context,
+  String name,
+  Object? arguments,
+) {
   if (kDisablePushDebounceForTests) return false;
+  final nav = Navigator.maybeOf(context);
+  final navId = nav != null ? identityHashCode(nav) : 0;
+  final sig = _buildPushSignature(name, arguments);
   final now = DateTime.now();
-  if (_lastPushTime != null &&
-      now.difference(_lastPushTime!) < _pushDebounceWindow) {
+
+  final navEntries = _lastPushByNavigator.putIfAbsent(navId, () => {});
+  navEntries.removeWhere((_, ts) => now.difference(ts) >= _pushDebounceWindow);
+
+  final last = navEntries[sig];
+  if (last != null && now.difference(last) < _pushDebounceWindow) {
     return true; // demasiado pronto — descartar
   }
-  _lastPushTime = now;
+  navEntries[sig] = now;
   return false;
 }
 
 extension CorpusNavigation on BuildContext {
   Future<T?> pushRoute<T>(String name, {Object? arguments}) {
-    if (_shouldThrottlePush()) return Future.value(null);
+    if (_shouldThrottlePush(this, name, arguments)) return Future.value(null);
     return Navigator.push<T>(
       this,
       CorpusRouter.route<T>(RouteSettings(name: name, arguments: arguments)),

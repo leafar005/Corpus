@@ -50,6 +50,11 @@ class ReviewRepository {
   final SupabaseClient _client;
   final ImageUrlsDeleter _deleteImagesFromUrls;
 
+  static final Set<int> _backfilledGameIds = <int>{};
+
+  @visibleForTesting
+  static void clearBackfillCacheForTesting() => _backfilledGameIds.clear();
+
   ReviewRepository({
     SupabaseClient? client,
     ImageUrlsDeleter? deleteImagesFromUrls,
@@ -72,7 +77,9 @@ class ReviewRepository {
   }) async {
     final result = await _client
         .from('user_games')
-        .select('*, users!user_games_user_id_fkey($kPublicUserProfileColumns)')
+        .select(
+          '$kUserGameColumns, users!user_games_user_id_fkey($kPublicUserProfileColumns)',
+        )
         .eq('user_id', userId)
         .eq('game_id', gameId)
         .maybeSingle();
@@ -89,18 +96,21 @@ class ReviewRepository {
     for (final item in items) {
       final ids = item['partner_ids'];
       if (ids is List) {
-        allIds.addAll(ids.map((e) => e.toString()));
+        allIds.addAll(
+          ids.map((e) => e.toString()).where((id) => id.isNotEmpty),
+        );
       }
     }
     if (allIds.isEmpty) return;
 
     final users = await _client
         .from('users')
-        .select('id, username, avatar_url, display_name')
+        .select(kPublicUserBasicColumns)
         .inFilter('id', allIds.toList());
 
     final Map<String, Map<String, dynamic>> userMap = {
-      for (final u in users) u['id'] as String: u,
+      for (final u in (users as List).whereType<Map>())
+        if (u['id'] != null) u['id'].toString(): Map<String, dynamic>.from(u),
     };
 
     for (final item in items) {
@@ -108,7 +118,7 @@ class ReviewRepository {
       if (ids is List) {
         item['partners'] = ids
             .map((id) => userMap[id.toString()])
-            .where((u) => u != null)
+            .whereType<Map<String, dynamic>>()
             .toList();
       }
     }
@@ -132,12 +142,16 @@ class ReviewRepository {
   }) async {
     final response = await _client
         .from('reviews')
-        .select('*')
+        .select(kReviewColumns)
         .eq('user_id', userId)
         .eq('game_id', gameId)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(200);
 
-    final items = List<Map<String, dynamic>>.from(response);
+    final items = (response as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
     await injectPartners(items);
 
     return items.map(Review.fromMap).toList();
@@ -158,7 +172,8 @@ class ReviewRepository {
   };
 
   /// Sanitiza y valida los datos de reseña, forzando a null notas y comentarios
-  /// cuando status == 'wishlist' o 'to_play'.
+  /// cuando `status == 'wishlist'` (y limpiando notas/rejugada en `'to_play'` sin
+  /// sobrescribir `created_at` ni destruir imágenes/notas existentes en updates).
   static Map<String, dynamic> sanitizeReviewData({
     required String userId,
     required dynamic igdbId,
@@ -180,6 +195,7 @@ class ReviewRepository {
     required List<String> imageUrls,
     required List<String> partnerIds,
     DateTime? reviewDate,
+    bool isUpdate = false,
   }) {
     final trimmedUserId = userId.trim();
     if (trimmedUserId.isEmpty) {
@@ -195,8 +211,10 @@ class ReviewRepository {
       throw ArgumentError.value(status, 'status', 'Estado de juego no válido');
     }
 
-    final isWishlist = status == 'wishlist' || status == 'to_play';
-    if (!isWishlist) {
+    final isWishlist = status == 'wishlist';
+    final isBacklogToPlay = status == 'to_play';
+    final skipRatings = isWishlist || isBacklogToPlay;
+    if (!skipRatings) {
       void checkRating(double value, String fieldName) {
         if (!value.isFinite || value < 0 || value > 10) {
           throw ArgumentError.value(
@@ -238,46 +256,48 @@ class ReviewRepository {
       }
     }
 
+    final clearNonRatingDetails = isWishlist || (isBacklogToPlay && !isUpdate);
+
     return <String, dynamic>{
       'user_id': trimmedUserId,
       'game_id': parsedGameId,
-      'rating': isWishlist ? null : (rating >= 1 ? rating : null),
-      'rating_gameplay': isWishlist
+      'rating': skipRatings ? null : (rating >= 1 ? rating : null),
+      'rating_gameplay': skipRatings
           ? null
           : (ratingGameplay >= 1 ? ratingGameplay : null),
-      'rating_narrative': isWishlist
+      'rating_narrative': skipRatings
           ? null
           : (ratingNarrative >= 1 ? ratingNarrative : null),
-      'rating_soundtrack': isWishlist
+      'rating_soundtrack': skipRatings
           ? null
           : (ratingSoundtrack >= 1 ? ratingSoundtrack : null),
-      'rating_visuals': isWishlist
+      'rating_visuals': skipRatings
           ? null
           : (ratingVisuals >= 1 ? ratingVisuals : null),
-      'comment': isWishlist
+      'comment': clearNonRatingDetails
           ? null
           : (comment.trim().isNotEmpty ? comment.trim() : null),
       'status': status,
-      'completion_type': isWishlist ? 'none' : completionType,
-      'is_replay': !isWishlist && isReplay,
-      'replay_number': isWishlist ? null : (isReplay ? replayNumber : null),
-      'platform': isWishlist ? null : platform,
-      'play_time_hours': isWishlist
+      'completion_type': skipRatings ? 'none' : completionType,
+      'is_replay': !skipRatings && isReplay,
+      'replay_number': skipRatings ? null : (isReplay ? replayNumber : null),
+      'platform': clearNonRatingDetails ? null : platform,
+      'play_time_hours': clearNonRatingDetails
           ? null
           : (playTimeHours != null && playTimeHours > 0 ? playTimeHours : null),
-      'played_from': isWishlist
+      'played_from': skipRatings
           ? null
           : playedFrom?.toIso8601String().split('T')[0],
-      'played_until': isWishlist
+      'played_until': skipRatings
           ? null
           : playedUntil?.toIso8601String().split('T')[0],
-      'progress_percent': isWishlist ? null : progressPercent,
-      'image_urls': isWishlist ? const <String>[] : imageUrls,
-      'partner_ids': isWishlist ? const <String>[] : partnerIds,
-      // Fecha de finalización: solo se incluye cuando el usuario la elige o al
-      // marcar como terminado (el trigger sincroniza last_played_at desde aquí).
+      'progress_percent': skipRatings ? null : progressPercent,
+      'image_urls': isWishlist
+          ? const <String>[]
+          : (clearNonRatingDetails ? const <String>[] : imageUrls),
+      'partner_ids': clearNonRatingDetails ? const <String>[] : partnerIds,
       if (reviewDate != null) ...{
-        'created_at': reviewDate.toUtc().toIso8601String(),
+        if (!isUpdate) 'created_at': reviewDate.toUtc().toIso8601String(),
         'updated_at': reviewDate.toUtc().toIso8601String(),
       },
     };
@@ -499,31 +519,60 @@ class ReviewRepository {
       }
     } catch (e) {
       debugPrint('[ReviewRepository] Game catalog upsert error: $e');
+      rethrow;
     }
   }
 
-  /// Sube las imágenes nuevas a Supabase Storage y devuelve sus URLs públicas.
+  /// Sube las imágenes nuevas a Supabase Storage con concurrencia acotada
+  /// y devuelve sus URLs públicas. Si falla cualquier imagen, hace rollback
+  /// de las subidas realizadas y relanza el error.
   Future<List<String>> uploadImages({
     required String userId,
     required List<XFile> files,
   }) async {
-    final List<String> urls = [];
-    for (final file in files) {
-      try {
-        final bytes = await ImageCompressor.compressImage(file);
-        if (bytes == null) continue;
-        final ext = file.name.split('.').last;
-        final fileName =
-            '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}.$ext';
-        final path = '$userId/$fileName';
+    requireAuthenticatedUserId(_client, expectedUserId: userId);
+    if (files.isEmpty) return [];
 
-        await _client.storage.from('user_uploads').uploadBinary(path, bytes);
-        urls.add(_client.storage.from('user_uploads').getPublicUrl(path));
-      } catch (e) {
-        debugPrint('[ReviewRepository] Error uploading image: $e');
+    final uploadedPaths = <String>[];
+    final urls = List<String?>.filled(files.length, null);
+    final random = Random();
+    final baseTimestamp = DateTime.now().millisecondsSinceEpoch;
+    const maxConcurrent = 3;
+
+    try {
+      for (var start = 0; start < files.length; start += maxConcurrent) {
+        final end = (start + maxConcurrent).clamp(0, files.length);
+        await Future.wait([
+          for (var i = start; i < end; i++)
+            () async {
+              final compressed = await ImageCompressor.compressImageWithMeta(
+                files[i],
+              );
+              final fileName =
+                  '${userId}_${baseTimestamp}_${i}_${random.nextInt(1 << 20)}.${compressed.extension}';
+              final path = '$userId/$fileName';
+              await _client.storage.from('user_uploads').uploadBinary(
+                    path,
+                    compressed.bytes,
+                    fileOptions: FileOptions(contentType: compressed.contentType),
+                  );
+              uploadedPaths.add(path);
+              urls[i] = _client.storage.from('user_uploads').getPublicUrl(path);
+            }(),
+        ]);
       }
+      return urls.whereType<String>().toList();
+    } catch (e) {
+      debugPrint('[ReviewRepository] Error uploading images, rolling back: $e');
+      if (uploadedPaths.isNotEmpty) {
+        try {
+          await _client.storage.from('user_uploads').remove(uploadedPaths);
+        } catch (rollbackErr) {
+          debugPrint('[ReviewRepository] Error rolling back images: $rollbackErr');
+        }
+      }
+      rethrow;
     }
-    return urls;
   }
 
   /// Guarda o actualiza una reseña y sincroniza `user_games`.
@@ -554,6 +603,8 @@ class ReviewRepository {
     required List<String> partnerIds,
     DateTime? reviewDate,
   }) async {
+    requireAuthenticatedUserId(_client, expectedUserId: userId);
+
     // Snapshot de logros antes de la operación
     Set<String> beforeAchievements = {};
     try {
@@ -577,25 +628,26 @@ class ReviewRepository {
       enrichedData: enrichedData,
     );
 
-    final isWishlist = status == 'wishlist' || status == 'to_play';
+    final isWishlist = status == 'wishlist';
+    final normalizedReviewId = (reviewId != null && reviewId.trim().isNotEmpty)
+        ? reviewId
+        : null;
 
     // Subir imágenes nuevas
     final List<String> finalImageUrls = isWishlist
         ? []
         : List<String>.from(existingImages);
+    List<String> newlyUploadedUrls = const [];
     if (!isWishlist && newImages.isNotEmpty) {
-      final uploaded = await uploadImages(userId: userId, files: newImages);
-      finalImageUrls.addAll(uploaded);
+      newlyUploadedUrls = await uploadImages(userId: userId, files: newImages);
+      finalImageUrls.addAll(newlyUploadedUrls);
     }
 
     DateTime? effectiveReviewDate = reviewDate;
 
-    final normalizedReviewId = (reviewId != null && reviewId.trim().isNotEmpty)
-        ? reviewId
-        : null;
-
     // Insert o update según si ya existe la reseña
     if (normalizedReviewId != null) {
+      List<String> removedUrls = const [];
       try {
         final oldReview = await _client
             .from('reviews')
@@ -615,81 +667,109 @@ class ReviewRepository {
             final List<String> oldUrls = (oldReview['image_urls'] as List)
                 .map((e) => e.toString())
                 .toList();
-            final List<String> removedUrls = oldUrls
+            removedUrls = oldUrls
                 .where((url) => !finalImageUrls.contains(url))
                 .toList();
-            if (removedUrls.isNotEmpty) {
-              await StorageUtils.deleteImagesFromUrls(removedUrls);
-              debugPrint(
-                '[ReviewRepository] Eliminadas ${removedUrls.length} imágenes quitadas en la edición de la reseña.',
-              );
-            }
           }
         }
       } catch (e) {
         debugPrint(
-          '[ReviewRepository] Error al limpiar imágenes en edición: $e',
+          '[ReviewRepository] Error leyendo estado previo de reseña en edición: $e',
         );
       }
 
-      await _client
-          .from('reviews')
-          .update(
-            sanitizeReviewData(
-              userId: userId,
-              igdbId: igdbId,
-              status: status,
-              rating: rating,
-              ratingGameplay: ratingGameplay,
-              ratingNarrative: ratingNarrative,
-              ratingSoundtrack: ratingSoundtrack,
-              ratingVisuals: ratingVisuals,
-              comment: comment,
-              completionType: completionType,
-              isReplay: isReplay,
-              replayNumber: replayNumber,
-              platform: platform,
-              playTimeHours: playTimeHours,
-              playedFrom: playedFrom,
-              playedUntil: playedUntil,
-              progressPercent: progressPercent,
-              imageUrls: finalImageUrls,
-              partnerIds: partnerIds,
-              reviewDate: effectiveReviewDate,
-            ),
-          )
-          .eq('id', normalizedReviewId);
+      try {
+        await _client
+            .from('reviews')
+            .update(
+              sanitizeReviewData(
+                userId: userId,
+                igdbId: igdbId,
+                status: status,
+                rating: rating,
+                ratingGameplay: ratingGameplay,
+                ratingNarrative: ratingNarrative,
+                ratingSoundtrack: ratingSoundtrack,
+                ratingVisuals: ratingVisuals,
+                comment: comment,
+                completionType: completionType,
+                isReplay: isReplay,
+                replayNumber: replayNumber,
+                platform: platform,
+                playTimeHours: playTimeHours,
+                playedFrom: playedFrom,
+                playedUntil: playedUntil,
+                progressPercent: progressPercent,
+                imageUrls: finalImageUrls,
+                partnerIds: partnerIds,
+                reviewDate: effectiveReviewDate,
+                isUpdate: true,
+              ),
+            )
+            .eq('id', normalizedReviewId);
+      } catch (_) {
+        if (newlyUploadedUrls.isNotEmpty) {
+          try {
+            await _deleteImagesFromUrls(newlyUploadedUrls);
+          } catch (_) {}
+        }
+        rethrow;
+      }
+
+      // Borrar imágenes retiradas en Storage SOLO después de confirmar la BD
+      if (removedUrls.isNotEmpty) {
+        try {
+          await _deleteImagesFromUrls(removedUrls);
+          debugPrint(
+            '[ReviewRepository] Eliminadas ${removedUrls.length} imágenes quitadas en la edición de la reseña.',
+          );
+        } catch (e) {
+          debugPrint(
+            '[ReviewRepository] Error limpiando imágenes quitadas tras guardar: $e',
+          );
+        }
+      }
     } else {
       if ((status == 'beaten' || status == 'completed') &&
           effectiveReviewDate == null) {
         effectiveReviewDate = DateTime.now();
       }
-      await _client
-          .from('reviews')
-          .insert(
-            sanitizeReviewData(
-              userId: userId,
-              igdbId: igdbId,
-              status: status,
-              rating: rating,
-              ratingGameplay: ratingGameplay,
-              ratingNarrative: ratingNarrative,
-              ratingSoundtrack: ratingSoundtrack,
-              ratingVisuals: ratingVisuals,
-              comment: comment,
-              completionType: completionType,
-              isReplay: isReplay,
-              replayNumber: replayNumber,
-              platform: platform,
-              playTimeHours: playTimeHours,
-              playedFrom: playedFrom,
-              playedUntil: playedUntil,
-              progressPercent: progressPercent,
-              imageUrls: finalImageUrls,
-              partnerIds: partnerIds,
-              reviewDate: effectiveReviewDate,
-            ),
-          );
+      try {
+        await _client
+            .from('reviews')
+            .insert(
+              sanitizeReviewData(
+                userId: userId,
+                igdbId: igdbId,
+                status: status,
+                rating: rating,
+                ratingGameplay: ratingGameplay,
+                ratingNarrative: ratingNarrative,
+                ratingSoundtrack: ratingSoundtrack,
+                ratingVisuals: ratingVisuals,
+                comment: comment,
+                completionType: completionType,
+                isReplay: isReplay,
+                replayNumber: replayNumber,
+                platform: platform,
+                playTimeHours: playTimeHours,
+                playedFrom: playedFrom,
+                playedUntil: playedUntil,
+                progressPercent: progressPercent,
+                imageUrls: finalImageUrls,
+                partnerIds: partnerIds,
+                reviewDate: effectiveReviewDate,
+                isUpdate: false,
+              ),
+            );
+      } catch (_) {
+        if (newlyUploadedUrls.isNotEmpty) {
+          try {
+            await _deleteImagesFromUrls(newlyUploadedUrls);
+          } catch (_) {}
+        }
+        rethrow;
+      }
     }
 
     // El trigger sync_user_games_rating_from_review se encarga automáticamente
@@ -714,7 +794,7 @@ class ReviewRepository {
       if (newlyUnlocked.isNotEmpty) {
         final detailsRes = await _client
             .from('achievements')
-            .select('*')
+            .select(kAchievementColumns)
             .inFilter('id', newlyUnlocked.toList());
         achievementDetails = List<Map<String, dynamic>>.from(detailsRes);
       }
@@ -951,6 +1031,8 @@ class ReviewRepository {
     required String userId,
     required dynamic gameId,
   }) async {
+    requireAuthenticatedUserId(_client, expectedUserId: userId);
+
     // 1. Recopilar reseñas y eventos del juego en paralelo ANTES de borrar
     // `user_games` o `reviews`, evitando que los triggers cascading eliminen
     // `feed_posts` / `review_comments` antes de leer sus `image_url`.
@@ -995,12 +1077,7 @@ class ReviewRepository {
     );
     urlsToDelete.addAll(commentUrls);
 
-    // 2. Borrar imágenes de Storage antes de eliminar registros en BD
-    if (urlsToDelete.isNotEmpty) {
-      await _deleteImagesFromUrls(urlsToDelete.toList());
-    }
-
-    // 3. Borrar reseñas y finalmente user_games
+    // 2. Borrar primero en BD (reseñas y finalmente user_games)
     await _client
         .from('reviews')
         .delete()
@@ -1012,6 +1089,17 @@ class ReviewRepository {
         .delete()
         .eq('user_id', userId)
         .eq('game_id', gameId);
+
+    // 3. Limpiar Storage en best-effort solo tras confirmar el borrado en BD
+    if (urlsToDelete.isNotEmpty) {
+      try {
+        await _deleteImagesFromUrls(urlsToDelete.toList());
+      } catch (e) {
+        debugPrint(
+          '[ReviewRepository] Error limpiando Storage tras deleteFromLibrary: $e',
+        );
+      }
+    }
   }
 
   /// Elimina una reseña y sus imágenes de Storage para un [userId] concreto.
@@ -1025,11 +1113,12 @@ class ReviewRepository {
     required String userId,
     List<String> currentImageUrls = const [],
   }) async {
+    requireAuthenticatedUserId(_client, expectedUserId: userId);
+
     final urlsToDelete = <String>{};
     _addNonEmptyUrls(urlsToDelete, currentImageUrls);
 
-    // Leer en paralelo las image_urls actuales y si esta reseña es la última
-    // del juego para determinar si también caerá `user_games`.
+    // Leer antes del DELETE en cascada las image_urls actuales y si quedan otras reseñas
     final metadataResults = await Future.wait<dynamic>([
       _safeQuery<Map<String, dynamic>?>(
         () async => await _client
@@ -1071,16 +1160,15 @@ class ReviewRepository {
     );
     urlsToDelete.addAll(commentUrls);
 
-    if (urlsToDelete.isNotEmpty) {
-      await _deleteImagesFromUrls(urlsToDelete.toList());
-      debugPrint(
-        '[ReviewRepository] Eliminadas ${urlsToDelete.length} imágenes al borrar la reseña.',
-      );
-    }
-
-    await _client.from('reviews').delete().eq('id', reviewId);
+    // Ejecutar primero el DELETE en BD (filtrado por propietario)
+    await _client
+        .from('reviews')
+        .delete()
+        .eq('id', reviewId)
+        .eq('user_id', userId);
 
     // ¿Quedan más reseñas para este juego?
+    var removedFromLibrary = false;
     if (gameId != null) {
       final remaining = await _client
           .from('reviews')
@@ -1094,22 +1182,34 @@ class ReviewRepository {
             .delete()
             .eq('game_id', gameId)
             .eq('user_id', userId);
-        return true; // ya no está en biblioteca
+        removedFromLibrary = true;
       }
     }
-    return false;
+
+    // Limpiar Storage en best-effort solo tras confirmar la BD
+    if (urlsToDelete.isNotEmpty) {
+      try {
+        await _deleteImagesFromUrls(urlsToDelete.toList());
+        debugPrint(
+          '[ReviewRepository] Eliminadas ${urlsToDelete.length} imágenes al borrar la reseña.',
+        );
+      } catch (e) {
+        debugPrint(
+          '[ReviewRepository] Error limpiando Storage tras deleteReviewForUser: $e',
+        );
+      }
+    }
+    return removedFromLibrary;
   }
 
   /// Elimina una reseña individual y sus imágenes.
-  /// Devuelve `true` si el usuario ya no tiene más reseñas para ese juego
-  /// (para que el screen pueda actualizar `_inLibrary`).
+  /// Devuelve `true` si el usuario ya no tiene más reseñas para ese juego.
   Future<bool> deleteReview({
     required String reviewId,
     required Review reviewData,
     required dynamic gameId,
   }) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return false;
+    final userId = requireAuthenticatedUserId(_client);
 
     return deleteReviewForUser(
       reviewId: reviewId,
@@ -1163,23 +1263,25 @@ class ReviewRepository {
       debugPrint(
         '[ReviewRepository] v_friend_pairs no disponible, usando fallback de friendships: $e',
       );
-      final sentFriends = await _client
-          .from('friendships')
-          .select('addressee_id')
-          .eq('requester_id', myId)
-          .eq('status', 'accepted');
-      final receivedFriends = await _client
-          .from('friendships')
-          .select('requester_id')
-          .eq('addressee_id', myId)
-          .eq('status', 'accepted');
+      final fallbackResults = await Future.wait([
+        _client
+            .from('friendships')
+            .select('addressee_id')
+            .eq('requester_id', myId)
+            .eq('status', 'accepted')
+            .limit(1000),
+        _client
+            .from('friendships')
+            .select('requester_id')
+            .eq('addressee_id', myId)
+            .eq('status', 'accepted')
+            .limit(1000),
+      ]);
       friendIds = <String>[
-        ...List<Map<String, dynamic>>.from(
-          sentFriends,
-        ).map((f) => f['addressee_id'] as String),
-        ...List<Map<String, dynamic>>.from(
-          receivedFriends,
-        ).map((f) => f['requester_id'] as String),
+        for (final f in (fallbackResults[0] as List).whereType<Map>())
+          if (f['addressee_id'] != null) f['addressee_id'].toString(),
+        for (final f in (fallbackResults[1] as List).whereType<Map>())
+          if (f['requester_id'] != null) f['requester_id'].toString(),
       ];
     }
 
@@ -1188,10 +1290,11 @@ class ReviewRepository {
     final result = await _client
         .from('user_games')
         .select(
-          'status, rating, users!user_games_user_id_fkey(id, username, display_name, avatar_url)',
+          'status, rating, users!user_games_user_id_fkey($kPublicUserBasicColumns)',
         )
         .eq('game_id', parsedGameId)
-        .inFilter('user_id', friendIds);
+        .inFilter('user_id', friendIds)
+        .limit(500);
 
     return List<Map<String, dynamic>>.from(result);
   }
@@ -1212,14 +1315,19 @@ class ReviewRepository {
     final rawActivities = await _client
         .from('activity_feed')
         .select(
-          '*, users!activity_feed_user_id_fkey($kPublicUserBasicColumns), games(*)',
+          '$kActivityFeedColumns, '
+          'users!activity_feed_user_id_fkey($kPublicUserBasicColumns), '
+          'games($kGameDetailColumns)',
         )
         .eq('user_id', userId)
         .eq('game_id', parsedGameId)
         .order('created_at', ascending: false)
         .limit(10);
 
-    final activities = List<Map<String, dynamic>>.from(rawActivities);
+    final activities = (rawActivities as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
 
     Map<String, dynamic>? bestActivity;
     if (activities.isNotEmpty) {
@@ -1234,33 +1342,29 @@ class ReviewRepository {
 
     Map<String, dynamic>? review;
     if (bestActivity != null) {
-      // IMPORTANTE: desde la migración
-      // 20260814000000_fix_activity_feed_review_sync.sql, `review_id` es una
-      // COLUMNA real de `activity_feed` (no solo un campo dentro de
-      // `metadata`). El trigger `on_user_game_status_change` rellena esa
-      // columna con la última reseña del usuario para ese juego, pero NO
-      // añade `review_id` dentro de `metadata` (el metadata de un
-      // 'status_change' solo contiene `{'status': ...}`). Por eso, leer
-      // únicamente `metadata['review_id']` da siempre `null` para las
-      // entradas 'status_change', que son justo las que se muestran en
-      // "¿Quién lo tiene?". Hay que leer primero la columna directa; se deja
-      // metadata como fallback solo por si hay filas antiguas donde solo
-      // exista ahí (p. ej. entradas 'reviewed' muy viejas).
-      final metadata = bestActivity['metadata'] as Map<String, dynamic>? ?? {};
+      final rawMeta = bestActivity['metadata'];
+      final metadata = rawMeta is Map
+          ? Map<String, dynamic>.from(rawMeta)
+          : <String, dynamic>{};
       final reviewId = bestActivity['review_id'] ?? metadata['review_id'];
       try {
-        final query = _client.from('reviews').select('*');
+        final query = _client.from('reviews').select(kReviewColumns);
 
         final reviewResponse = await (reviewId != null
             ? query.eq('id', reviewId).maybeSingle()
             : query
                   .eq('user_id', userId)
                   .eq('game_id', parsedGameId)
+                  .order('created_at', ascending: false)
+                  .limit(1)
                   .maybeSingle());
 
         if (reviewResponse != null) {
           final revMap = Map<String, dynamic>.from(reviewResponse);
-          await _injectReviewPostStats([revMap]);
+          await Future.wait([
+            injectPartners([revMap]),
+            _injectReviewPostStats([revMap]),
+          ]);
           review = revMap;
         }
       } catch (e) {
@@ -1282,26 +1386,39 @@ class ReviewRepository {
   /// Devuelve las reseñas locales de Stash y si se necesita refrescar.
   Future<({List<Map<String, dynamic>> reviews, bool needsFetch})>
   fetchStashReviewsLocal(dynamic gameId) async {
-    final localResp = await _client
-        .from('stash_community_reviews')
-        .select()
-        .eq('game_id', gameId)
-        .order('stash_created_at', ascending: false)
-        .limit(20);
+    final results = await Future.wait<dynamic>([
+      _client
+          .from('stash_community_reviews')
+          .select(
+            'id, game_id, stash_user_display_name, stash_user_avatar_url, '
+            'comment, rating, source_context, stash_created_at, imported_at',
+          )
+          .eq('game_id', gameId)
+          .order('stash_created_at', ascending: false)
+          .limit(20),
+      _client
+          .from('stash_sync_metadata')
+          .select('last_checked_at')
+          .eq('game_id', gameId)
+          .maybeSingle(),
+    ]);
 
-    final localReviews = List<Map<String, dynamic>>.from(localResp);
+    final localResp = results[0] as List;
+    final localReviews = localResp
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
 
-    final metaResponse = await _client
-        .from('stash_sync_metadata')
-        .select('last_checked_at')
-        .eq('game_id', gameId)
-        .maybeSingle();
-
+    final metaResponse = results[1] as Map?;
     bool needsFetch = true;
-    if (metaResponse != null && metaResponse['last_checked_at'] != null) {
-      final lastChecked = DateTime.parse(metaResponse['last_checked_at']);
-      if (DateTime.now().difference(lastChecked).inDays <= _stashTtlDays) {
-        needsFetch = false;
+    final rawCheckedAt = metaResponse?['last_checked_at']?.toString();
+    if (rawCheckedAt != null && rawCheckedAt.isNotEmpty) {
+      final lastChecked = DateTime.tryParse(rawCheckedAt)?.toUtc();
+      if (lastChecked != null) {
+        final diff = DateTime.now().toUtc().difference(lastChecked);
+        if (!diff.isNegative && diff <= const Duration(days: _stashTtlDays)) {
+          needsFetch = false;
+        }
       }
     }
 
@@ -1313,21 +1430,34 @@ class ReviewRepository {
   Future<List<Map<String, dynamic>>?> refreshStashReviews(
     dynamic gameId,
   ) async {
-    final functionResponse = await _client.functions.invoke(
-      'fetch-stash-reviews',
-      body: {'igdb_id': gameId},
-    );
+    try {
+      final functionResponse = await _client.functions.invoke(
+        'fetch-stash-reviews',
+        body: {'igdb_id': gameId},
+      );
 
-    if (functionResponse.status != 200) return null;
+      if (functionResponse.status != 200) {
+        debugPrint(
+          '[ReviewRepository] fetch-stash-reviews status ${functionResponse.status}',
+        );
+        return null;
+      }
 
-    final newResponse = await _client
-        .from('stash_community_reviews')
-        .select()
-        .eq('game_id', gameId)
-        .order('stash_created_at', ascending: false)
-        .limit(20);
+      final newResponse = await _client
+          .from('stash_community_reviews')
+          .select(
+            'id, game_id, stash_user_display_name, stash_user_avatar_url, '
+            'comment, rating, source_context, stash_created_at, imported_at',
+          )
+          .eq('game_id', gameId)
+          .order('stash_created_at', ascending: false)
+          .limit(20);
 
-    return List<Map<String, dynamic>>.from(newResponse);
+      return List<Map<String, dynamic>>.from(newResponse);
+    } catch (e) {
+      debugPrint('[ReviewRepository] Error invocando fetch-stash-reviews: $e');
+      return null;
+    }
   }
 
   static const Duration _statsMaxAge = Duration(hours: 6);
@@ -1335,7 +1465,10 @@ class ReviewRepository {
   Future<StashStatsResult> fetchStashStatsLocal(dynamic igdbId) async {
     final row = await _client
         .from('stash_game_stats')
-        .select()
+        .select(
+          'game_id, stash_rating, want_count, playing_count, played_count, '
+          'reviews_count, last_stats_checked_at, last_reviews_total_checked_at, updated_at',
+        )
         .eq('game_id', igdbId)
         .maybeSingle();
 
@@ -1356,10 +1489,16 @@ class ReviewRepository {
 
   Future<Map<String, dynamic>?> refreshStashStats(dynamic igdbId) async {
     try {
-      await _client.functions.invoke(
+      final res = await _client.functions.invoke(
         'fetch-stash-game-stats',
         body: {'igdb_id': igdbId},
       );
+      if (res.status >= 400) {
+        debugPrint(
+          '[CORPUS] fetch-stash-game-stats devolvió status ${res.status}',
+        );
+        return null;
+      }
     } catch (e) {
       debugPrint('[CORPUS] Error invocando fetch-stash-game-stats: $e');
       return null;
@@ -1367,7 +1506,10 @@ class ReviewRepository {
     // Releer de local tras la sincronización
     final row = await _client
         .from('stash_game_stats')
-        .select()
+        .select(
+          'game_id, stash_rating, want_count, playing_count, played_count, '
+          'reviews_count, last_stats_checked_at, last_reviews_total_checked_at, updated_at',
+        )
         .eq('game_id', igdbId)
         .maybeSingle();
     return row;
@@ -1377,13 +1519,7 @@ class ReviewRepository {
   // Social / Amigos
   // ──────────────────────────────────────────────────────────────────
 
-  /// Devuelve la lista de amigos del usuario actual (id, username, avatar_url)
-  /// para el selector de co-op en el modal de reseña.
-  ///
-  /// Usa [v_friend_pairs] como fuente principal. Si la vista no está disponible,
-  /// hace fallback leyendo directamente de [friendships].
-  ///
-  /// Devuelve [List&lt;UserProfile&gt;] tipado — ya no Map&lt;String, dynamic&gt;.
+  /// Devuelve la lista de amigos del usuario actual (`UserProfile`) para el picker de co-op.
   Future<List<UserProfile>> fetchFriendsForCoopPicker() async {
     try {
       final myId = _client.auth.currentUser?.id;
@@ -1392,37 +1528,38 @@ class ReviewRepository {
       List<String> friendIds = [];
 
       try {
-        // v_friend_pairs es una vista simétrica: devuelve ambos lados de la amistad.
         final pairs = await _client
             .from('v_friend_pairs')
             .select('friend_id')
-            .eq('user_id', myId);
+            .eq('user_id', myId)
+            .limit(1000);
         friendIds = List<Map<String, dynamic>>.from(
           pairs,
         ).map((r) => r['friend_id'] as String).toList();
       } catch (e) {
-        // Fallback: leer friendships directamente (bidireccional).
         debugPrint(
-          '[ReviewRepository] v_friend_pairs no disponible en fetchFriendActivity, usando fallback: $e',
+          '[ReviewRepository] v_friend_pairs no disponible en fetchFriendsForCoopPicker, usando fallback: $e',
         );
         try {
-          final sent = await _client
-              .from('friendships')
-              .select('addressee_id')
-              .eq('requester_id', myId)
-              .eq('status', 'accepted');
-          final received = await _client
-              .from('friendships')
-              .select('requester_id')
-              .eq('addressee_id', myId)
-              .eq('status', 'accepted');
+          final fallbackResults = await Future.wait([
+            _client
+                .from('friendships')
+                .select('addressee_id')
+                .eq('requester_id', myId)
+                .eq('status', 'accepted')
+                .limit(1000),
+            _client
+                .from('friendships')
+                .select('requester_id')
+                .eq('addressee_id', myId)
+                .eq('status', 'accepted')
+                .limit(1000),
+          ]);
           friendIds = [
-            ...List<Map<String, dynamic>>.from(
-              sent,
-            ).map((f) => f['addressee_id'] as String),
-            ...List<Map<String, dynamic>>.from(
-              received,
-            ).map((f) => f['requester_id'] as String),
+            for (final f in (fallbackResults[0] as List).whereType<Map>())
+              if (f['addressee_id'] != null) f['addressee_id'].toString(),
+            for (final f in (fallbackResults[1] as List).whereType<Map>())
+              if (f['requester_id'] != null) f['requester_id'].toString(),
           ];
         } catch (e) {
           debugPrint('[ReviewRepository] Error en fallback de friendships: $e');
@@ -1434,7 +1571,7 @@ class ReviewRepository {
 
       final users = await _client
           .from('users')
-          .select('id, username, avatar_url, display_name')
+          .select(kPublicUserBasicColumns)
           .inFilter('id', friendIds);
 
       return List<Map<String, dynamic>>.from(
@@ -1457,6 +1594,7 @@ class ReviewRepository {
     required String? currentCoverUrl,
   }) async {
     if (_client.auth.currentUser == null) return;
+    if (_backfilledGameIds.contains(igdbId)) return;
 
     final missingCover = currentCoverUrl == null || currentCoverUrl.isEmpty;
     final enrichedPlatforms = _nonEmptyList(enrichedData['platforms']);
@@ -1464,6 +1602,24 @@ class ReviewRepository {
     if ((!missingCover || _nonEmptyString(enrichedData['cover_url']) == null) &&
         !hasPlatforms) {
       return;
+    }
+
+    try {
+      final existing = await _client
+          .from('games')
+          .select('cover_url, platforms, genres, developer')
+          .eq('igdb_id', igdbId)
+          .maybeSingle();
+      if (existing != null &&
+          _nonEmptyString(existing['cover_url']) != null &&
+          _nonEmptyList(existing['platforms']) != null &&
+          _nonEmptyList(existing['genres']) != null &&
+          _isValidDeveloper(existing['developer'])) {
+        _backfilledGameIds.add(igdbId);
+        return;
+      }
+    } catch (_) {
+      // Si falla la comprobación previa, seguimos con el backfill normal.
     }
 
     final coverUrl =
@@ -1506,6 +1662,7 @@ class ReviewRepository {
         'igdb-proxy',
         body: {'endpoint': 'backfill_game', 'game': payload},
       );
+      _backfilledGameIds.add(igdbId);
     } catch (e) {
       debugPrint('[ReviewRepository] Error en backfill de cover_url: $e');
     }
@@ -1532,9 +1689,11 @@ class ReviewRepository {
               )
               as List;
       final statsByReviewId = {
-        for (final r in rows.cast<Map<String, dynamic>>())
+        for (final r in rows.whereType<Map>())
           if ((r['post_id'] as String?)?.isNotEmpty == true)
-            r['review_id'] as String: PostStats.fromMap(r),
+            r['review_id'].toString(): PostStats.fromMap(
+              Map<String, dynamic>.from(r),
+            ),
       };
       for (final r in reviews) {
         final id = r['id'] as String?;
@@ -1557,7 +1716,7 @@ class ReviewRepository {
   }) async {
     var query = _client
         .from('reviews')
-        .select('*, games!inner(*)')
+        .select('$kReviewColumns, games!inner($kGameDetailColumns)')
         .eq('user_id', userId)
         .not('comment', 'is', null)
         .neq('comment', '');
@@ -1574,7 +1733,10 @@ class ReviewRepository {
         .order('created_at', ascending: false)
         .range(from, to);
 
-    final list = List<Map<String, dynamic>>.from(res);
+    final list = (res as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
     await _injectReviewPostStats(list);
     return list;
   }
@@ -1594,7 +1756,7 @@ class ReviewRepository {
     );
     var query = _client
         .from('reviews')
-        .select('*, games!inner(*)')
+        .select('$kReviewColumns, games!inner($kGameDetailColumns)')
         .eq('user_id', userId)
         .inFilter('status', ['playing', 'beaten', 'completed']);
 
@@ -1616,7 +1778,15 @@ class ReviewRepository {
         .order(safeOrderColumn, ascending: false, nullsFirst: false)
         .range(from, to);
 
-    return List<Map<String, dynamic>>.from(res);
+    final list = (res as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    await Future.wait([
+      injectPartners(list),
+      _injectReviewPostStats(list),
+    ]);
+    return list;
   }
 
   /// Fetches available years from journal entries for the year filter.
@@ -1633,13 +1803,14 @@ class ReviewRepository {
         .select(safeOrderColumn)
         .eq('user_id', userId)
         .inFilter('status', ['playing', 'beaten', 'completed'])
-        .not(safeOrderColumn, 'is', null);
+        .not(safeOrderColumn, 'is', null)
+        .limit(5000);
 
     final Set<int> years = {};
-    for (final r in res) {
+    for (final r in (res as List).whereType<Map>()) {
       final dateStr = r[safeOrderColumn];
       if (dateStr != null) {
-        final date = DateTime.tryParse(dateStr.toString());
+        final date = DateTime.tryParse(dateStr.toString())?.toUtc();
         if (date != null) years.add(date.year);
       }
     }

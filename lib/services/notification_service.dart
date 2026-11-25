@@ -9,6 +9,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'deep_link_service.dart';
 import '../env.dart';
+import '../utils/web_js.dart';
 
 // ─── Background message handler (debe ser top-level) ────────────────────────
 // Se ejecuta cuando llega un mensaje FCM con la app en background/terminada.
@@ -35,6 +36,7 @@ class NotificationService {
 
   bool _initialized = false;
   StreamSubscription<RemoteMessage>? _foregroundWebSub;
+  StreamSubscription<Map<String, dynamic>>? _webSwClickSub;
   StreamSubscription<RemoteMessage>? _foregroundMobileSub;
   StreamSubscription<RemoteMessage>? _openedAppSub;
   StreamSubscription<String>? _tokenRefreshSub;
@@ -62,6 +64,9 @@ class NotificationService {
     if (_initialized || !_isSupported) return;
 
     if (kIsWeb) {
+      _webSwClickSub ??= webNotificationClickStream().listen(
+        DeepLinkService.handle,
+      );
       if (!_hasFirebaseApp) {
         debugPrint(
           '[NotificationService] Web: Firebase no inicializado; FCM pospuesto.',
@@ -151,6 +156,8 @@ class NotificationService {
   Future<void> dispose() async {
     await _foregroundWebSub?.cancel();
     _foregroundWebSub = null;
+    await _webSwClickSub?.cancel();
+    _webSwClickSub = null;
     await _foregroundMobileSub?.cancel();
     _foregroundMobileSub = null;
     await _openedAppSub?.cancel();
@@ -283,12 +290,26 @@ class NotificationService {
       debugPrint('[NotificationService] Error guardando token FCM: $e');
       try {
         final uid = Supabase.instance.client.auth.currentUser?.id;
-        await Supabase.instance.client.from('client_error_log').insert({
-          'user_id': uid,
-          'source': 'saveFcmToken',
-          'message': e.toString(),
-          'platform': kIsWeb ? 'web' : Platform.operatingSystem,
-        });
+        final errStr = e.toString();
+        final isOfflineError =
+            e is SocketException ||
+            errStr.contains('SocketException') ||
+            errStr.contains('Failed host lookup') ||
+            errStr.contains('ClientException');
+        if (uid != null && !isOfflineError) {
+          final redacted = errStr
+              .replaceAll(RegExp(r'https?://\S+'), '[url]')
+              .replaceAll(RegExp(r'[A-Za-z0-9_-]{32,}'), '[redacted]');
+          final truncated = redacted.length > 250
+              ? redacted.substring(0, 250)
+              : redacted;
+          await Supabase.instance.client.from('client_error_log').insert({
+            'user_id': uid,
+            'source': 'saveFcmToken',
+            'message': truncated,
+            'platform': kIsWeb ? 'web' : Platform.operatingSystem,
+          });
+        }
       } catch (logError) {
         debugPrint('[NotificationService] Error saving error log: $logError');
       }

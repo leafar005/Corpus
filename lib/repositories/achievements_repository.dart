@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/postgrest_utils.dart';
 
 /// Datos cargados en paralelo para la pantalla de logros.
 class AchievementsData {
@@ -28,50 +30,108 @@ class AchievementsData {
 
 /// Repositorio para [AchievementsScreen].
 ///
-/// Las 5 queries se disparan en paralelo con [Future.wait]; el tiempo total
+/// Las queries se disparan en paralelo con [Future.wait]; el tiempo total
 /// de carga es el de la query más lenta en vez de la suma de todas.
 class AchievementsRepository {
-  AchievementsRepository();
+  AchievementsRepository({SupabaseClient? client})
+      : _client = client ?? Supabase.instance.client;
 
-  final _client = Supabase.instance.client;
+  final SupabaseClient _client;
 
   /// Carga todos los datos necesarios para renderizar la pantalla de logros.
   Future<AchievementsData> fetchAll(String userId) async {
+    final trimmedUserId = userId.trim();
+    if (trimmedUserId.isEmpty) {
+      final achievementsRows = await _client
+          .from('achievements')
+          .select(kAchievementColumns)
+          .order('xp_reward', ascending: true)
+          .limit(500);
+      return AchievementsData(
+        xp: 0,
+        achievements: List<Map<String, dynamic>>.from(
+          (achievementsRows as List).whereType<Map>().map(
+            (e) => Map<String, dynamic>.from(e),
+          ),
+        ),
+        unlocked: const {},
+        reviews: const [],
+        userGames: const [],
+      );
+    }
+
     final results = await Future.wait([
       // 0: XP del usuario
-      _client.from('users').select('xp').eq('id', userId).maybeSingle(),
+      _client
+          .from('users')
+          .select('xp')
+          .eq('id', trimmedUserId)
+          .maybeSingle(),
 
       // 1: Logros definidos en la tabla achievements
-      _client.from('achievements').select().order('xp_reward', ascending: true),
+      _client
+          .from('achievements')
+          .select(kAchievementColumns)
+          .order('xp_reward', ascending: true)
+          .limit(500),
 
       // 2: Logros desbloqueados por el usuario
       _client
           .from('user_achievements')
           .select('achievement_id, unlocked_at')
-          .eq('user_id', userId),
+          .eq('user_id', trimmedUserId)
+          .limit(500),
 
       // 3: Reviews del usuario (para saga progress)
-      _client.from('reviews').select('*, games(*)').eq('user_id', userId),
+      _client
+          .from('reviews')
+          .select('id, game_id, status, completion_type, platform, created_at, games($kGameCardColumns)')
+          .eq('user_id', trimmedUserId)
+          .limit(5000),
 
       // 4: Estado biblioteca (para saga progress — puede solapar con reviews)
-      _client.from('user_games').select('*, games(*)').eq('user_id', userId),
+      _client
+          .from('user_games')
+          .select('game_id, status, games($kGameCardColumns)')
+          .eq('user_id', trimmedUserId)
+          .limit(5000),
     ]);
 
-    final userRow = results[0] as Map<String, dynamic>?;
-    final xp = (userRow?['xp'] as num?)?.toInt() ?? 0;
+    final rawUser = results[0];
+    final userRow = rawUser is Map ? Map<String, dynamic>.from(rawUser) : null;
+    final rawXp = userRow?['xp'];
+    final xp = rawXp is num
+        ? rawXp.toInt()
+        : int.tryParse(rawXp?.toString() ?? '') ?? 0;
 
-    final achievements = List<Map<String, dynamic>>.from(results[1] as List);
+    final achievements = (results[1] as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
 
-    final unlockedRaw = List<Map<String, dynamic>>.from(results[2] as List);
-    final Map<String, DateTime> unlocked = {
-      for (final row in unlockedRaw)
-        row['achievement_id'] as String: DateTime.parse(
-          row['unlocked_at'] as String,
-        ),
-    };
+    final unlockedRaw = (results[2] as List).whereType<Map>();
+    final Map<String, DateTime> unlocked = {};
+    for (final row in unlockedRaw) {
+      final id = row['achievement_id']?.toString();
+      final rawDate = row['unlocked_at']?.toString();
+      final parsedDate = rawDate != null ? DateTime.tryParse(rawDate) : null;
+      if (id != null && id.isNotEmpty && parsedDate != null) {
+        unlocked[id] = parsedDate;
+      } else if (id != null && kDebugMode) {
+        debugPrint(
+          '[AchievementsRepository] unlocked_at inválido para $id: $rawDate',
+        );
+      }
+    }
 
-    final reviews = List<Map<String, dynamic>>.from(results[3] as List);
-    final userGames = List<Map<String, dynamic>>.from(results[4] as List);
+    final reviews = (results[3] as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final userGames = (results[4] as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
 
     return AchievementsData(
       xp: xp,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 /// Una fila ya extraída y "aplanada" de un juego+review de Stash.
 /// Los campos se guardan como String (igual que acabarían en una celda CSV)
@@ -31,42 +32,98 @@ class StashExtractedGame {
 }
 
 class StashJsonToCsvConverter {
-  /// Fixes mojibake in strings coming from Stash HAR exports.
+  /// Tabla inversa Windows-1252 para bytes `0x80`–`0x9F` (mojibake típico de Excel/HAR).
+  static const Map<int, int> _cp1252ToByte = {
+    0x20AC: 0x80,
+    0x201A: 0x82,
+    0x0192: 0x83,
+    0x201E: 0x84,
+    0x2026: 0x85,
+    0x2020: 0x86,
+    0x2021: 0x87,
+    0x02C6: 0x88,
+    0x2030: 0x89,
+    0x0160: 0x8A,
+    0x2039: 0x8B,
+    0x0152: 0x8C,
+    0x017D: 0x8E,
+    0x2018: 0x91,
+    0x2019: 0x92,
+    0x201C: 0x93,
+    0x201D: 0x94,
+    0x2022: 0x95,
+    0x2013: 0x96,
+    0x2014: 0x97,
+    0x02DC: 0x98,
+    0x2122: 0x99,
+    0x0161: 0x9A,
+    0x203A: 0x9B,
+    0x0153: 0x9C,
+    0x017E: 0x9E,
+    0x0178: 0x9F,
+  };
+
+  /// Decodifica una cadena que puede provenir de bytes Windows-1252/Latin-1 rotos.
+  static String decodeCp1252Bytes(List<int> bytes) {
+    final buffer = StringBuffer();
+    // Si hay runes Unicode de CP1252 o bytes Latin-1, aquí convertimos bytes crudos [0..255]
+    const cp1252Upper = <int, String>{
+      0x80: '€', 0x81: '\u0081', 0x82: '‚', 0x83: 'ƒ', 0x84: '„', 0x85: '…',
+      0x86: '†', 0x87: '‡', 0x88: 'ˆ', 0x89: '‰', 0x8A: 'Š', 0x8B: '‹',
+      0x8C: 'Œ', 0x8D: '\u008D', 0x8E: 'Ž', 0x8F: '\u008F', 0x90: '\u0090',
+      0x91: '‘', 0x92: '’', 0x93: '“', 0x94: '”', 0x95: '•', 0x96: '–',
+      0x97: '—', 0x98: '˜', 0x99: '™', 0x9A: 'š', 0x9B: '›', 0x9C: 'œ',
+      0x9D: '\u009D', 0x9E: 'ž', 0x9F: 'Ÿ',
+    };
+    for (final b in bytes) {
+      if (b >= 0x80 && b <= 0x9F) {
+        buffer.write(cp1252Upper[b] ?? String.fromCharCode(b));
+      } else {
+        buffer.writeCharCode(b & 0xFF);
+      }
+    }
+    return fixEncoding(buffer.toString());
+  }
+
+  /// Fixes mojibake in strings coming from Stash HAR / Windows-1252 exports.
   static String fixEncoding(String text) {
-    if (text.isEmpty || !RegExp(r'[ÃÂ][\u0080-\u00BF]').hasMatch(text)) {
+    if (text.isEmpty ||
+        !RegExp(r'(Ã.|Â.|â[\u0080-\u00BF\u20AC\u2018-\u2026\u2122]|ðŸ)').hasMatch(text)) {
       return text;
     }
-    try {
-      return utf8.decode(latin1.encode(text));
-    } catch (_) {
-      // Si falla por caracteres > 255 (ej: emojis reales en la cadena),
-      // decodificamos a mano las secuencias UTF-8 de 2, 3 o 4 bytes.
-      return text
-          .replaceAllMapped(RegExp(r'[\xC2-\xDF][\x80-\xBF]'), (match) {
-            final str = match.group(0)!;
-            try {
-              return utf8.decode(latin1.encode(str));
-            } catch (_) {
-              return str;
-            }
-          })
-          .replaceAllMapped(RegExp(r'[\xE0-\xEF][\x80-\xBF]{2}'), (match) {
-            final str = match.group(0)!;
-            try {
-              return utf8.decode(latin1.encode(str));
-            } catch (_) {
-              return str;
-            }
-          })
-          .replaceAllMapped(RegExp(r'[\xF0-\xF7][\x80-\xBF]{3}'), (match) {
-            final str = match.group(0)!;
-            try {
-              return utf8.decode(latin1.encode(str));
-            } catch (_) {
-              return str;
-            }
-          });
+
+    int? toByte(int rune) {
+      if (rune <= 0xFF) return rune;
+      return _cp1252ToByte[rune];
     }
+
+    // Reconstruye segmentos contiguos representables como bytes CP1252 y preserva emojis u otros runes > 255.
+    final out = StringBuffer();
+    final runBytes = <int>[];
+
+    void flushRun() {
+      if (runBytes.isEmpty) return;
+      try {
+        out.write(utf8.decode(runBytes, allowMalformed: false));
+      } catch (_) {
+        for (final b in runBytes) {
+          out.writeCharCode(b);
+        }
+      }
+      runBytes.clear();
+    }
+
+    for (final rune in text.runes) {
+      final b = toByte(rune);
+      if (b != null) {
+        runBytes.add(b);
+      } else {
+        flushRun();
+        out.writeCharCode(rune);
+      }
+    }
+    flushRun();
+    return out.toString();
   }
 
   /// Escapes a string for CSV format.
@@ -142,7 +199,11 @@ class StashJsonToCsvConverter {
               }
               final parsed = jsonDecode(text);
               entriesToProcess.add(parsed);
-            } catch (_) {}
+            } catch (e) {
+              if (kDebugMode) {
+                debugPrint('[StashJsonToCsvConverter] Entrada HAR ignorada: $e');
+              }
+            }
           }
         }
       }
@@ -276,9 +337,9 @@ class StashJsonToCsvConverter {
           final ms = rawModDate > 9999999999
               ? rawModDate.toInt()
               : rawModDate.toInt() * 1000;
-          dateObj = DateTime.fromMillisecondsSinceEpoch(ms);
+          dateObj = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
         } else {
-          dateObj = DateTime.tryParse(rawModDate.toString());
+          dateObj = DateTime.tryParse(rawModDate.toString())?.toUtc();
         }
         if (dateObj != null) {
           dateAdded =

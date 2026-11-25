@@ -111,7 +111,9 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen>
       // estilo "nuevo" de esta pantalla sigue usando _unreadAtOpen (foto
       // fija tomada arriba), no el read_at ya actualizado.
       unreadNotificationsCount.value = 0;
-      _repo.markAllRead();
+      _repo.markAllRead().catchError((Object e) {
+        debugPrint('[NotificationsFeedScreen] markAllRead failed: $e');
+      });
     } catch (e) {
       debugPrint('[NotificationsFeedScreen] Error cargando notificaciones: $e');
       if (!mounted) return;

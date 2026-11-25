@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
@@ -180,7 +182,7 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
       result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv', 'json', 'har'],
-        withData: true,
+        withData: kIsWeb,
       );
     } catch (e) {
       if (mounted) {
@@ -194,7 +196,28 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
     if (!mounted || result == null || result.files.isEmpty) return;
 
     final pickedFile = result.files.single;
-    final fileBytes = pickedFile.bytes;
+    if (pickedFile.size > _maxStashImportBytes) {
+      final sizeMb = (pickedFile.size / (1024 * 1024)).toStringAsFixed(1);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'El archivo es demasiado grande ($sizeMb MB). El máximo permitido es 25 MB.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final Uint8List? fileBytes;
+    if (pickedFile.bytes != null) {
+      fileBytes = pickedFile.bytes;
+    } else if (!kIsWeb && pickedFile.path != null) {
+      fileBytes = await File(pickedFile.path!).readAsBytes();
+    } else {
+      fileBytes = null;
+    }
+
+    if (!mounted) return;
     if (fileBytes == null || fileBytes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('El archivo seleccionado está vacío.')),
@@ -305,10 +328,19 @@ class _IntegrationsScreenState extends State<IntegrationsScreen> {
 
       final fileName = pickedFile.name.toLowerCase();
       final rows = fileName.endsWith('.csv')
-          ? ImportService.parseCsv(fileBytes)
-          : ImportService.parseStashJson(fileBytes);
+          ? await ImportService.parseCsv(fileBytes)
+          : await ImportService.parseStashJson(fileBytes);
 
       if (isCancelled || !mounted) return;
+      if (rows.isEmpty) {
+        closeLoadingDialog();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se encontraron juegos válidos en el archivo.'),
+          ),
+        );
+        return;
+      }
       if (!notifiersClosed) {
         statusNotifier.value =
             'Buscando coincidencias (${rows.length} juegos)...';

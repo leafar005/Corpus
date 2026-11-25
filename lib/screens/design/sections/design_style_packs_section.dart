@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:corpus/globals.dart';
-import '../../../services/style_pack_music_service.dart';
 import '../../../theme/style_pack_registry.dart';
 import '../../../widgets/design/corpus_chip.dart';
 import '../../../widgets/design/corpus_section.dart';
@@ -12,7 +11,6 @@ class DesignStylePacksSection extends StatelessWidget {
 
   Future<void> _selectPack(String id) async {
     await themeNotifier.setStylePack(id);
-    StylePackMusicService.instance.syncWithCurrentPack(force: true);
   }
 
   @override

@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:corpus/widgets/corpus_tabler_icon.dart';
 import 'package:corpus/widgets/corpus_icon_kind.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/postgrest_utils.dart';
 
 class FriendshipButton extends StatefulWidget {
   final String targetUserId;
   final bool isIconOnly;
+  final FriendshipStatus? initialStatus;
+  final void Function(FriendshipStatus newStatus)? onStatusChanged;
 
   const FriendshipButton({
     super.key,
     required this.targetUserId,
     this.isIconOnly = false,
+    this.initialStatus,
+    this.onStatusChanged,
   });
 
   @override
@@ -29,7 +34,33 @@ class _FriendshipButtonState extends State<FriendshipButton> {
   @override
   void initState() {
     super.initState();
-    _checkStatus();
+    if (widget.initialStatus != null) {
+      _status = _myId == widget.targetUserId
+          ? FriendshipStatus.me
+          : widget.initialStatus!;
+    } else {
+      _checkStatus();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant FriendshipButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.targetUserId != widget.targetUserId) {
+      if (widget.initialStatus != null) {
+        _status = _myId == widget.targetUserId
+            ? FriendshipStatus.me
+            : widget.initialStatus!;
+      } else {
+        _status = FriendshipStatus.loading;
+        _checkStatus();
+      }
+    } else if (widget.initialStatus != null &&
+        widget.initialStatus != oldWidget.initialStatus) {
+      _status = _myId == widget.targetUserId
+          ? FriendshipStatus.me
+          : widget.initialStatus!;
+    }
   }
 
   Future<void> _checkStatus() async {
@@ -43,11 +74,17 @@ class _FriendshipButtonState extends State<FriendshipButton> {
     }
 
     try {
+      final safeMyId = requireValidUuid(_myId, name: 'myId');
+      final safeTargetId = requireValidUuid(
+        widget.targetUserId,
+        name: 'targetUserId',
+      );
       final res = await _supabase
           .from('friendships')
           .select('requester_id, addressee_id, status')
           .or(
-            'and(requester_id.eq.$_myId,addressee_id.eq.${widget.targetUserId}),and(requester_id.eq.${widget.targetUserId},addressee_id.eq.$_myId)',
+            'and(requester_id.eq.$safeMyId,addressee_id.eq.$safeTargetId),'
+            'and(requester_id.eq.$safeTargetId,addressee_id.eq.$safeMyId)',
           )
           .maybeSingle();
 
@@ -56,7 +93,7 @@ class _FriendshipButtonState extends State<FriendshipButton> {
       if (res == null) {
         setState(() => _status = FriendshipStatus.none);
       } else {
-        final status = res['status'] as String;
+        final status = res['status'] as String?;
         if (status == 'accepted') {
           setState(() => _status = FriendshipStatus.friends);
         } else {
@@ -75,6 +112,7 @@ class _FriendshipButtonState extends State<FriendshipButton> {
   }
 
   Future<void> _sendRequest() async {
+    if (_myId.isEmpty) return;
     setState(() => _isProcessing = true);
     try {
       await _supabase.from('friendships').insert({
@@ -82,7 +120,10 @@ class _FriendshipButtonState extends State<FriendshipButton> {
         'addressee_id': widget.targetUserId,
         'status': 'pending',
       });
-      if (mounted) setState(() => _status = FriendshipStatus.sent);
+      if (mounted) {
+        setState(() => _status = FriendshipStatus.sent);
+        widget.onStatusChanged?.call(FriendshipStatus.sent);
+      }
     } catch (e) {
       debugPrint('[FriendshipButton] Error enviando solicitud: $e');
       if (mounted) setState(() => _status = FriendshipStatus.none);
@@ -91,13 +132,17 @@ class _FriendshipButtonState extends State<FriendshipButton> {
   }
 
   Future<void> _cancelRequest() async {
+    if (_myId.isEmpty) return;
     setState(() => _isProcessing = true);
     try {
       await _supabase.from('friendships').delete().match({
         'requester_id': _myId,
         'addressee_id': widget.targetUserId,
       });
-      if (mounted) setState(() => _status = FriendshipStatus.none);
+      if (mounted) {
+        setState(() => _status = FriendshipStatus.none);
+        widget.onStatusChanged?.call(FriendshipStatus.none);
+      }
     } catch (e) {
       debugPrint('[FriendshipButton] Error cancelando solicitud: $e');
       if (mounted) setState(() => _status = FriendshipStatus.sent);
@@ -106,13 +151,17 @@ class _FriendshipButtonState extends State<FriendshipButton> {
   }
 
   Future<void> _acceptRequest() async {
+    if (_myId.isEmpty) return;
     setState(() => _isProcessing = true);
     try {
       await _supabase.from('friendships').update({'status': 'accepted'}).match({
         'requester_id': widget.targetUserId,
         'addressee_id': _myId,
       });
-      if (mounted) setState(() => _status = FriendshipStatus.friends);
+      if (mounted) {
+        setState(() => _status = FriendshipStatus.friends);
+        widget.onStatusChanged?.call(FriendshipStatus.friends);
+      }
     } catch (e) {
       debugPrint('[FriendshipButton] Error aceptando solicitud: $e');
       if (mounted) setState(() => _status = FriendshipStatus.received);
@@ -121,15 +170,25 @@ class _FriendshipButtonState extends State<FriendshipButton> {
   }
 
   Future<void> _removeFriend() async {
+    if (_myId.isEmpty) return;
     setState(() => _isProcessing = true);
     try {
+      final safeMyId = requireValidUuid(_myId, name: 'myId');
+      final safeTargetId = requireValidUuid(
+        widget.targetUserId,
+        name: 'targetUserId',
+      );
       await _supabase
           .from('friendships')
           .delete()
           .or(
-            'and(requester_id.eq.$_myId,addressee_id.eq.${widget.targetUserId}),and(requester_id.eq.${widget.targetUserId},addressee_id.eq.$_myId)',
+            'and(requester_id.eq.$safeMyId,addressee_id.eq.$safeTargetId),'
+            'and(requester_id.eq.$safeTargetId,addressee_id.eq.$safeMyId)',
           );
-      if (mounted) setState(() => _status = FriendshipStatus.none);
+      if (mounted) {
+        setState(() => _status = FriendshipStatus.none);
+        widget.onStatusChanged?.call(FriendshipStatus.none);
+      }
     } catch (e) {
       debugPrint('[FriendshipButton] Error eliminando amistad: $e');
       if (mounted) setState(() => _status = FriendshipStatus.friends);

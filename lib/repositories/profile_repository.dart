@@ -88,6 +88,22 @@ class ProfileRepository {
   /// recargar datos cuando el usuario inicia/cierra sesión.
   Stream<AuthState> get onAuthStateChange => _client.auth.onAuthStateChange;
 
+  String _buildSafeDefaultUsername(String userId) {
+    final email = _client.auth.currentUser?.email ?? '';
+    final rawPrefix = email.contains('@') ? email.split('@').first : 'jugador';
+    var cleaned = rawPrefix.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
+    cleaned = cleaned.replaceAll(RegExp(r'_+'), '_').replaceAll(RegExp(r'^_+|_+$'), '');
+    if (cleaned.length < 3) {
+      final suffix = userId.replaceAll('-', '');
+      final pad = suffix.length >= 4 ? suffix.substring(0, 4) : suffix;
+      cleaned = '${cleaned.isEmpty ? 'user' : cleaned}_$pad';
+    }
+    if (cleaned.length > 24) {
+      cleaned = cleaned.substring(0, 24);
+    }
+    return cleaned;
+  }
+
   Future<Map<String, dynamic>?> fetchUserProfile(
     String userId, {
     bool isOwnProfile = false,
@@ -99,8 +115,7 @@ class ProfileRepository {
         .maybeSingle();
 
     if (profile == null && isOwnProfile) {
-      final email = _client.auth.currentUser?.email ?? 'jugador';
-      final defaultUsername = email.split('@')[0];
+      final defaultUsername = _buildSafeDefaultUsername(userId);
       try {
         profile = await _client
             .from('users')
@@ -108,8 +123,37 @@ class ProfileRepository {
             .select(kFullPublicProfileColumns)
             .single();
       } catch (e) {
-        debugPrint('[ProfileRepository] No se pudo crear el perfil: $e');
-        profile = {'username': defaultUsername};
+        debugPrint('[ProfileRepository] Error creando perfil inicial: $e');
+        final suffix = userId.replaceAll('-', '');
+        final shortSuffix =
+            suffix.length >= 4 ? suffix.substring(0, 4) : suffix;
+        final maxBase = 24 - shortSuffix.length - 1;
+        final base = defaultUsername.length > maxBase
+            ? defaultUsername.substring(0, maxBase)
+            : defaultUsername;
+        final retryUsername = '${base}_$shortSuffix';
+        try {
+          profile = await _client
+              .from('users')
+              .insert({'id': userId, 'username': retryUsername})
+              .select(kFullPublicProfileColumns)
+              .single();
+        } catch (retryErr) {
+          debugPrint(
+            '[ProfileRepository] No se pudo crear el perfil en reintento: $retryErr',
+          );
+          profile = await _client
+              .from('users')
+              .select(kFullPublicProfileColumns)
+              .eq('id', userId)
+              .maybeSingle()
+              .catchError((Object _) => null);
+          profile ??= <String, dynamic>{
+            'id': userId,
+            'username': defaultUsername,
+            'xp': 0,
+          };
+        }
       }
     }
 
@@ -120,9 +164,10 @@ class ProfileRepository {
     try {
       return await _client
           .from('hall_of_fame')
-          .select('*, games(*)')
+          .select('user_id, game_id, pin_order, created_at, games($kGameCardColumns)')
           .eq('user_id', userId)
-          .order('pin_order', ascending: true);
+          .order('pin_order', ascending: true)
+          .limit(5);
     } catch (e) {
       debugPrint('[ProfileRepository] Hall of fame no disponible: $e');
       return [];
@@ -134,97 +179,56 @@ class ProfileRepository {
     bool isOwnProfile = false,
   }) async {
     final safeUserId = requireValidUuid(userId, name: 'userId');
-    final userProfile = await fetchUserProfile(
-      safeUserId,
-      isOwnProfile: isOwnProfile,
-    );
+
+    const userGameSelect = '$kUserGameColumns, games!inner($kGameCardColumns)';
 
     final results = await Future.wait<dynamic>([
+      fetchUserProfile(safeUserId, isOwnProfile: isOwnProfile),
       _client
           .from('user_games')
-          .select('*, games!inner(*)')
-          .eq('user_id', userId)
+          .select(userGameSelect)
+          .eq('user_id', safeUserId)
           .eq('status', 'wishlist')
           .neq('is_steam_only', true)
           .order('updated_at', ascending: false)
-          .limit(20),
-      _client
-          .from('user_games')
-          .select('game_id')
-          .eq('user_id', userId)
-          .eq('status', 'wishlist')
-          .neq('is_steam_only', true)
+          .limit(20)
           .count(CountOption.exact),
       _client
           .from('user_games')
-          .select('*, games!inner(*)')
-          .eq('user_id', userId)
+          .select(userGameSelect)
+          .eq('user_id', safeUserId)
           .eq('status', 'playing')
           .order('updated_at', ascending: false)
-          .limit(20),
-      _client
-          .from('user_games')
-          .select('game_id')
-          .eq('user_id', userId)
-          .eq('status', 'playing')
+          .limit(20)
           .count(CountOption.exact),
       _client
           .from('user_games')
-          .select('*, games!inner(*)')
-          .eq('user_id', userId)
+          .select(userGameSelect)
+          .eq('user_id', safeUserId)
           .eq('status', 'to_play')
           .order('updated_at', ascending: false)
-          .limit(20),
-      _client
-          .from('user_games')
-          .select('game_id')
-          .eq('user_id', userId)
-          .eq('status', 'to_play')
+          .limit(20)
           .count(CountOption.exact),
       _client
           .from('user_games')
-          .select('*, games!inner(*)')
-          .eq('user_id', userId)
+          .select(userGameSelect)
+          .eq('user_id', safeUserId)
           .eq('status', 'beaten')
           .order('last_played_at', ascending: false, nullsFirst: false)
-          .limit(20),
+          .limit(20)
+          .count(CountOption.exact),
       _client
           .from('user_games')
-          .select('game_id')
-          .eq('user_id', userId)
-          .eq('status', 'beaten')
-          .count(CountOption.exact),
-      (() async {
-        final reviewsRows = List<Map<String, dynamic>>.from(
-          await _client
-              .from('reviews')
-              .select('game_id, rating, completion_type, created_at')
-              .eq('user_id', userId)
-              .order('created_at', ascending: true),
-        );
-        final platinoGameIds = <int>{};
-        for (final row in reviewsRows) {
-          if (row['completion_type'] == '100_percent' &&
-              row['game_id'] != null) {
-            platinoGameIds.add((row['game_id'] as num).toInt());
-          }
-        }
-        final platinumGamesRows = platinoGameIds.isEmpty
-            ? <dynamic>[]
-            : await _client
-                  .from('user_games')
-                  .select('*, games!inner(*)')
-                  .eq('user_id', userId)
-                  .inFilter('game_id', platinoGameIds.toList())
-                  .order('last_played_at', ascending: false, nullsFirst: false)
-                  .limit(20);
-        return (
-          reviewsRows: reviewsRows,
-          platinumCount: platinoGameIds.length,
-          platinumGamesRows: platinumGamesRows,
-        );
-      })(),
-      fetchHallOfFame(userId),
+          .select('game_id, status')
+          .eq('user_id', safeUserId)
+          .limit(5000),
+      _client
+          .from('reviews')
+          .select('game_id, rating, completion_type, created_at')
+          .eq('user_id', safeUserId)
+          .order('created_at', ascending: true)
+          .limit(5000),
+      fetchHallOfFame(safeUserId),
       _client
           .from('friendships')
           .select('requester_id')
@@ -233,68 +237,102 @@ class ProfileRepository {
           .count(CountOption.exact),
     ]);
 
-    final wishlistRes = results[0] as List<dynamic>;
-    final wishlistCount = (results[1] as PostgrestResponse).count;
-    final playingRes = results[2] as List<dynamic>;
-    final playingCount = (results[3] as PostgrestResponse).count;
-    final toPlayRes = results[4] as List<dynamic>;
-    final toPlayCount = (results[5] as PostgrestResponse).count;
-    final beatenRes = results[6] as List<dynamic>;
-    final beatenCount = (results[7] as PostgrestResponse).count;
-    final reviewsBundle =
-        results[8]
-            as ({
-              List<Map<String, dynamic>> reviewsRows,
-              int platinumCount,
-              List<dynamic> platinumGamesRows,
-            });
-    final rawHallOfFame = results[9] as List<dynamic>;
-    final friendsCount = (results[10] as PostgrestResponse).count;
+    final userProfile = results[0] is Map
+        ? Map<String, dynamic>.from(results[0] as Map)
+        : null;
+    final wishlistResp = results[1] as PostgrestResponse;
+    final playingResp = results[2] as PostgrestResponse;
+    final toPlayResp = results[3] as PostgrestResponse;
+    final beatenResp = results[4] as PostgrestResponse;
+    final allUserGamesRaw = results[5] is List ? results[5] as List : const [];
+    final reviewsRows = (results[6] is List ? results[6] as List : const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final rawHallOfFame = results[7] is List ? results[7] as List : const [];
+    final friendsCount = (results[8] as PostgrestResponse).count;
 
-    // Mapa de game_id → completion_type (orden ascendente = prevalece el último)
-    // y ratings derivados de la misma lectura de `reviews`.
-    final completionTypeMap = <int, String>{};
-    final ratings = <double>[];
-    for (final row in reviewsBundle.reviewsRows) {
-      if (row['rating'] != null) {
-        ratings.add((row['rating'] as num).toDouble());
-      }
-      final gameId = row['game_id'];
-      final ct = row['completion_type'];
-      if (gameId != null && ct != null && ct.toString().isNotEmpty) {
-        completionTypeMap[(gameId as num).toInt()] = ct.toString();
+    final currentStatusByGame = <int, String>{};
+    for (final ug in allUserGamesRaw.whereType<Map>()) {
+      final gid = (ug['game_id'] as num?)?.toInt();
+      final status = ug['status']?.toString();
+      if (gid != null && status != null) {
+        currentStatusByGame[gid] = status;
       }
     }
+
+    // Mapa de game_id → completion_type (orden ascendente = prevalece el último)
+    // y ratings deduplicados (1 nota efectiva por juego para el histograma).
+    final completionTypeMap = <int, String>{};
+    final ratingByGame = <int, double>{};
+    for (final row in reviewsRows) {
+      final gameId = (row['game_id'] as num?)?.toInt();
+      if (gameId != null) {
+        final rawRating = row['rating'];
+        if (rawRating is num) {
+          ratingByGame[gameId] = rawRating.toDouble();
+        }
+        final ct = row['completion_type'];
+        if (ct != null && ct.toString().isNotEmpty) {
+          completionTypeMap[gameId] = ct.toString();
+        }
+      }
+    }
+    final ratings = ratingByGame.values.toList();
+
+    // Platinos: juegos actualmente en estado 'completed', o en estado 'beaten'
+    // cuya última reseña tiene completion_type == '100_percent'.
+    final platinoGameIds = <int>{};
+    for (final entry in currentStatusByGame.entries) {
+      if (entry.value == 'completed' ||
+          (entry.value == 'beaten' &&
+              completionTypeMap[entry.key] == '100_percent')) {
+        platinoGameIds.add(entry.key);
+      }
+    }
+
+    final platinumGamesRaw = platinoGameIds.isEmpty
+        ? const <dynamic>[]
+        : await _client
+              .from('user_games')
+              .select(userGameSelect)
+              .eq('user_id', safeUserId)
+              .inFilter('game_id', platinoGameIds.toList())
+              .order('last_played_at', ascending: false, nullsFirst: false)
+              .limit(20) as List<dynamic>;
+
+    List<dynamic> dataList(PostgrestResponse resp) =>
+        resp.data is List ? resp.data as List<dynamic> : const [];
 
     return ProfileData(
       userProfile: userProfile,
       wishlistGames: _enrichList(
-        wishlistRes,
+        dataList(wishlistResp),
         completionTypeMap: completionTypeMap,
       ),
-      wishlistCount: wishlistCount,
+      wishlistCount: wishlistResp.count,
       playingGames: _enrichList(
-        playingRes,
+        dataList(playingResp),
         completionTypeMap: completionTypeMap,
       ),
-      playingCount: playingCount,
+      playingCount: playingResp.count,
       toPlayGames: _enrichList(
-        toPlayRes,
+        dataList(toPlayResp),
         completionTypeMap: completionTypeMap,
       ),
-      toPlayCount: toPlayCount,
+      toPlayCount: toPlayResp.count,
       beatenGames: _enrichList(
-        beatenRes,
+        dataList(beatenResp),
         useLastPlayed: true,
         completionTypeMap: completionTypeMap,
       ),
-      beatenCount: beatenCount,
+      beatenCount: beatenResp.count,
       platinumGames: _enrichList(
-        reviewsBundle.platinumGamesRows,
+        platinumGamesRaw,
         useLastPlayed: true,
         completionTypeMap: completionTypeMap,
       ),
-      platinumCount: reviewsBundle.platinumCount,
+      platinumCount: platinoGameIds.length,
       ratings: ratings,
       hallOfFame: _parseHallOfFame(rawHallOfFame),
       friendsCount: friendsCount,
@@ -336,10 +374,11 @@ class ProfileRepository {
     bool useLastPlayed = false,
     Map<int, String> completionTypeMap = const {},
   }) {
+    if (row is! Map) return null;
     final gameData = row['games'];
-    if (gameData == null) return null;
+    if (gameData is! Map) return null;
 
-    final enriched = Map<String, dynamic>.from(gameData as Map);
+    final enriched = Map<String, dynamic>.from(gameData);
     final rating = (row['rating'] as num? ?? 0).toDouble();
     enriched['user_rating'] = rating;
 
@@ -363,11 +402,12 @@ class ProfileRepository {
     final result = List<Map<String, dynamic>?>.filled(5, null);
     try {
       for (final row in rawHallOfFame) {
-        final order = row['pin_order'] as int?;
+        if (row is! Map) continue;
+        final order = (row['pin_order'] as num?)?.toInt();
         if (order == null || order < 1 || order > 5) continue;
         final gameData = row['games'];
-        if (gameData == null) continue;
-        result[order - 1] = Map<String, dynamic>.from(gameData as Map);
+        if (gameData is! Map) continue;
+        result[order - 1] = Map<String, dynamic>.from(gameData);
       }
     } catch (e) {
       debugPrint('[ProfileRepository] Error parseando hall of fame: $e');
@@ -376,24 +416,28 @@ class ProfileRepository {
   }
 
   Future<List<GenreRadarEntry>> fetchGenreRadarEntries(String userId) async {
+    final trimmedUserId = userId.trim();
+    if (trimmedUserId.isEmpty) return [];
+
     final rows = await _client
         .from('user_games')
         .select(
           'game_id, status, play_time_hours, last_played_at, updated_at, '
           'games!inner(igdb_id, title, cover_url, genres)',
         )
-        .eq('user_id', userId)
-        .inFilter('status', const ['beaten', 'completed']);
+        .eq('user_id', trimmedUserId)
+        .inFilter('status', const ['beaten', 'completed'])
+        .limit(5000);
 
     final entries = <GenreRadarEntry>[];
 
-    for (final row in rows) {
-      final gameData = row['games'] as Map<String, dynamic>?;
-      if (gameData == null) continue;
+    for (final row in (rows as List).whereType<Map>()) {
+      final rawGame = row['games'];
+      if (rawGame is! Map) continue;
 
-      final game = Game.fromMap(gameData);
+      final parsedGenres = Game.parseGenres(rawGame['genres']);
       final genres = List<String>.unmodifiable(
-        game.genres.where((g) => g.toLowerCase() != 'indie'),
+        parsedGenres.where((g) => g.toLowerCase() != 'indie'),
       );
       if (genres.isEmpty) continue;
 
@@ -406,11 +450,14 @@ class ProfileRepository {
       final effectiveDate = lastPlayed ?? updated;
       if (effectiveDate == null) continue;
 
+      final gameId = (row['game_id'] as num?)?.toInt();
+      if (gameId == null) continue;
+
       entries.add(
         GenreRadarEntry(
-          gameId: (row['game_id'] as num).toInt(),
-          gameTitle: gameData['title'] as String? ?? '',
-          coverUrl: game.coverUrl,
+          gameId: gameId,
+          gameTitle: rawGame['title']?.toString() ?? '',
+          coverUrl: rawGame['cover_url']?.toString(),
           genres: genres,
           hours: (row['play_time_hours'] as num?)?.toDouble() ?? 0.0,
           effectiveDate: effectiveDate,

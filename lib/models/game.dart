@@ -299,6 +299,10 @@ class Game {
     return null;
   }
 
+  /// Extrae una lista de nombres de géneros a partir de JSON crudo sin construir
+  /// una instancia completa de [Game].
+  static List<String> parseGenres(dynamic raw) => _parseStringList(raw);
+
   static List<String> _parseStringList(
     dynamic raw, {
     bool isImage = false,
@@ -338,7 +342,11 @@ class Game {
               isVideo: isVideo,
             );
           }
-        } catch (_) {}
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[Game] Error decodificando lista JSON: $e');
+          }
+        }
       }
       return List<String>.unmodifiable([trimmed]);
     }
@@ -364,7 +372,11 @@ class Game {
           if (decoded is Map) {
             return _parseCollection(decoded, fallbackId: fallbackId);
           }
-        } catch (_) {}
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[Game] Error decodificando collection JSON: $e');
+          }
+        }
       }
       return (name: trimmed, id: fallbackId);
     }
@@ -384,7 +396,11 @@ class Game {
       if (trimmed.startsWith('[')) {
         try {
           listRaw = jsonDecode(trimmed);
-        } catch (_) {}
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[Game] Error decodificando franchises JSON: $e');
+          }
+        }
       }
     }
 
@@ -419,7 +435,11 @@ class Game {
       if (trimmed.startsWith('[')) {
         try {
           listRaw = jsonDecode(trimmed);
-        } catch (_) {}
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[Game] Error decodificando involved_companies JSON: $e');
+          }
+        }
       }
     }
     if (listRaw is! List || listRaw.isEmpty) {

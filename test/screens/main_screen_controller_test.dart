@@ -137,6 +137,17 @@ class _FakeMainFilterBuilder<T> extends Fake
   PostgrestFilterBuilder<T> eq(String column, Object value) => this;
 
   @override
+  ResponsePostgrestBuilder<PostgrestResponse<T>, T, T> count([
+    CountOption option = CountOption.exact,
+  ]) {
+    return _FakeMainResponseBuilder<T>(() async {
+      final data = await _execute();
+      final count = data is List ? data.length : 0;
+      return PostgrestResponse<T>(data: data, count: count);
+    });
+  }
+
+  @override
   PostgrestTransformBuilder<PostgrestMap> single() {
     return _FakeMainTransformBuilder<PostgrestMap>(
       singleOverride ?? () async => (await _execute()) as PostgrestMap,
@@ -187,6 +198,33 @@ class _FakeMainTransformBuilder<T> extends Fake
 
   @override
   Stream<T> asStream() => _execute().asStream();
+}
+
+class _FakeMainResponseBuilder<T> extends Fake
+    implements ResponsePostgrestBuilder<PostgrestResponse<T>, T, T> {
+  _FakeMainResponseBuilder(this._execute);
+
+  final Future<PostgrestResponse<T>> Function() _execute;
+
+  @override
+  Future<U> then<U>(
+    FutureOr<U> Function(PostgrestResponse<T> value) onValue, {
+    Function? onError,
+  }) => _execute().then(onValue, onError: onError);
+
+  @override
+  Future<PostgrestResponse<T>> catchError(
+    Function onError, {
+    bool Function(Object error)? test,
+  }) => _execute().catchError(onError, test: test);
+
+  @override
+  Future<PostgrestResponse<T>> whenComplete(
+    FutureOr<void> Function() action,
+  ) => _execute().whenComplete(action);
+
+  @override
+  Stream<PostgrestResponse<T>> asStream() => _execute().asStream();
 }
 
 User _makeUser(String id) => User(

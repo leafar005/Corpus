@@ -150,27 +150,20 @@ class CollectionTabState extends State<CollectionTab> {
 
     if (!mounted) return;
 
-    final library = await _repository.fetchLibraryForShelf(widget.userId);
+    final suggestions = await _repository.fetchPlatformSuggestionsForGame(
+      userId: widget.userId,
+      gameId: item.game.igdbId,
+      alreadyOwned: owned,
+      knownGamePlatforms: item.game.platforms,
+    );
     if (!mounted) return;
-
-    LibraryGameOption option;
-    try {
-      option = library.firstWhere((o) => o.game.igdbId == item.game.igdbId);
-    } catch (_) {
-      option = LibraryGameOption(
-        game: item.game,
-        ownedPlatforms: owned,
-      );
-    }
 
     final result = await showPlatformPickerSheet(
       context: context,
       gameTitle: item.game.title,
       initialSelected: owned,
-      suggestedPlatforms: option.suggestedPlatforms,
-      gamePlatforms: item.game.platforms.isNotEmpty
-          ? item.game.platforms
-          : option.game.platforms,
+      suggestedPlatforms: suggestions.suggestedPlatforms,
+      gamePlatforms: suggestions.igdbPlatforms,
       gameId: item.game.igdbId,
     );
 
@@ -180,8 +173,35 @@ class CollectionTabState extends State<CollectionTab> {
       userId: widget.userId,
       gameId: item.game.igdbId,
       selectedPlatforms: result,
+      currentOwnedPlatforms: owned,
     );
-    await _load();
+
+    if (!mounted) return;
+    final targetPlatforms = result.toSet();
+    final existingPlatformsForGame = _items
+        .where((i) => i.game.igdbId == item.game.igdbId)
+        .map((i) => i.platformName)
+        .toSet();
+
+    setState(() {
+      _items.removeWhere(
+        (i) =>
+            i.game.igdbId == item.game.igdbId &&
+            !targetPlatforms.contains(i.platformName),
+      );
+      final toInsert = [
+        for (final p in result)
+          if (!existingPlatformsForGame.contains(p))
+            ShelfItem(game: item.game, platformName: p),
+      ];
+      if (toInsert.isNotEmpty) {
+        _items.insertAll(0, toInsert);
+      }
+      if (_selectedPlatform != null &&
+          !_items.any((i) => i.platformName == _selectedPlatform)) {
+        _selectedPlatform = null;
+      }
+    });
   }
 
   @override

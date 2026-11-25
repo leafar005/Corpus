@@ -80,16 +80,28 @@ class IgdbConstants {
   /// Keywords que indican DLC/addon (category 1).
   static const List<String> _dlcKeywords = ['dlc', 'expansion pass'];
 
+  /// Regex precompilada para detectar "mod" como palabra suelta.
+  static final RegExp _modRegex = RegExp(r'\bmod\b');
+
   /// Keywords que indican Edición Expandida (category 10).
   static const List<String> _expandedKeywords = [
     'ultimate edition',
     'game of the year',
     'goty',
-    'royal',
-    'golden',
+    'royal edition',
+    'golden edition',
     'complete edition',
     'deluxe edition',
   ];
+
+  /// Detecta "Royal" / "Golden" solo cuando actúan como calificativo de edición
+  /// (p. ej. "Persona 5 Royal", "Persona 4 Golden", "Title: Royal") o en un version_parent.
+  static final RegExp _contextualRoyalGoldenRegex = RegExp(
+    r'(?:\d|:|-)\s+(?:the\s+)?(?:royal|golden)\s*$',
+  );
+  static final RegExp _royalOrGoldenWordRegex = RegExp(
+    r'\b(?:royal|golden)\b',
+  );
 
   // ============================================================
   // API PÚBLICA
@@ -129,7 +141,11 @@ class IgdbConstants {
         _hdRegex.hasMatch(lowerTitle)) {
       return 9;
     }
-    if (_expandedKeywords.any((k) => lowerTitle.contains(k))) return 10;
+    if (_expandedKeywords.any((k) => lowerTitle.contains(k)) ||
+        _contextualRoyalGoldenRegex.hasMatch(lowerTitle) ||
+        (hasVersionParent && _royalOrGoldenWordRegex.hasMatch(lowerTitle))) {
+      return 10;
+    }
 
     // Tiene version_parent pero ninguna keyword de remake/remaster/edición
     // coincidió con el título. Es una versión de otro juego (probablemente
@@ -141,10 +157,12 @@ class IgdbConstants {
     }
 
     // Si IGDB lo catalogó mal pero el título o resumen menciona que es un mod como palabra suelta
-    if (RegExp(r'\bmod\b').hasMatch(lowerTitle) ||
-        RegExp(r'\bmod\b').hasMatch(lowerSummary)) {
+    if (_modRegex.hasMatch(lowerTitle) || _modRegex.hasMatch(lowerSummary)) {
       return 5;
     }
+
+    // Tiene parent_game sin ser remake/remaster/edición/port/mod → DLC/expansión.
+    if (hasParentGame) return 1;
 
     // Es un juego base normal → devolver null (no mostrar badge).
     return null;
@@ -168,10 +186,15 @@ class IgdbConstants {
     return category == null || category == 0;
   }
 
-  /// Lista de categorías para filtros UI.
-  static List<Map<String, dynamic>> get categories => _categoryData.entries
-      .map((e) => {'id': e.key, 'name': e.value['name']})
-      .toList();
+  /// Lista cacheada e inmutable de categorías para filtros UI.
+  static final List<Map<String, dynamic>> categories = List.unmodifiable(
+    _categoryData.entries.map(
+      (e) => Map<String, dynamic>.unmodifiable({
+        'id': e.key,
+        'name': e.value['name'],
+      }),
+    ),
+  );
 
   // ============================================================
   // OTROS DATOS ESTÁTICOS DE IGDB (sin cambios)

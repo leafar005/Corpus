@@ -5,8 +5,10 @@ import '../screens/design/design_screen.dart';
 import '../screens/profile/collection_shelf_screen.dart';
 import '../utils/web_js.dart';
 
+final RegExp _trimSlashesRegex = RegExp(r'^/+|/+$');
+
 /// Root widget that resolves special top-level routes (e.g. `/design` on web).
-class AppRoot extends StatelessWidget {
+class AppRoot extends StatefulWidget {
   final Widget child;
 
   const AppRoot({super.key, required this.child});
@@ -26,23 +28,36 @@ class AppRoot extends StatelessWidget {
   }
 
   @override
+  State<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<AppRoot> {
+  bool _dispatchedReady = false;
+
+  void _scheduleCorpusReadyOnce() {
+    if (_dispatchedReady) return;
+    _dispatchedReady = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => dispatchCorpusReady());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (isDesignRoute()) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => dispatchCorpusReady());
+    if (AppRoot.isDesignRoute()) {
+      _scheduleCorpusReadyOnce();
       return const DesignScreen();
     }
-    if (isPrivateCollectionRoute()) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => dispatchCorpusReady());
+    if (AppRoot.isPrivateCollectionRoute()) {
+      _scheduleCorpusReadyOnce();
       return const CollectionShelfScreen();
     }
-    return child;
+    return widget.child;
   }
 }
 
 /// Whether [pathname] is the public design system route.
 bool isDesignPublicPath(String pathname) {
   final segment = pathname
-      .replaceAll(RegExp(r'^/+|/+$'), '')
+      .replaceAll(_trimSlashesRegex, '')
       .split('/')
       .firstWhere((s) => s.isNotEmpty, orElse: () => '');
   return segment == 'design';
@@ -51,7 +66,7 @@ bool isDesignPublicPath(String pathname) {
 /// Whether [pathname] is the debug shelf route (`/private/collection`).
 bool isPrivateCollectionPublicPath(String pathname) {
   final segments = pathname
-      .replaceAll(RegExp(r'^/+|/+$'), '')
+      .replaceAll(_trimSlashesRegex, '')
       .split('/')
       .where((s) => s.isNotEmpty)
       .toList();

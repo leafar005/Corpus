@@ -1,262 +1,232 @@
 // lib/routes/deep_route_resolver.dart
 //
-// Resuelve una TabDeepRoute (venida de la URL, ya sea al cargar la app
-// directamente en una URL profunda o al pulsar atrás/adelante en el
-// navegador) en la pantalla real, haciendo el fetch de datos necesario.
-//
-// Comparte las mismas queries que DeepLinkService usa para notificaciones
-// push, para no duplicar lógica de fetch (ver services/deep_link_service.dart).
+// Resuelve una TabDeepRoute (venida de la URL o de un deep link push)
+// haciendo el fetch necesario y delegando la creación de rutas a CorpusRouter.
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:corpus/screens/activity/grouped_post_details_screen.dart';
-import 'package:corpus/screens/activity/review_details_screen.dart';
-import 'package:corpus/screens/library/game_details_screen.dart';
-import 'package:corpus/screens/profile/achievements_screen.dart';
-import 'package:corpus/screens/profile/achievement_games_screen.dart';
-import 'package:corpus/screens/profile/profile_screen.dart';
-import 'package:corpus/screens/social/friends_screen.dart';
-import 'package:corpus/screens/social/notifications_feed_screen.dart';
-import 'package:corpus/screens/bundles/bundle_details_screen.dart';
+import 'package:corpus/models/models.dart';
+import 'package:corpus/repositories/review_repository.dart';
 import 'package:corpus/routes/app_routes.dart';
 import 'package:corpus/routes/corpus_router.dart';
 import 'package:corpus/routes/tab_deep_route.dart';
 import 'package:corpus/utils/achievement_utils.dart';
-import 'package:corpus/models/models.dart';
+import 'package:corpus/utils/corpus_logger.dart';
+import 'package:corpus/utils/postgrest_utils.dart';
 
 abstract final class DeepRouteResolver {
+  static final _log = CorpusLogger('DeepRouteResolver');
+
   /// Construye la ruta completa (pantalla + `RouteSettings`) correspondiente
-  /// a [route], o `null` si el recurso no existe o no se pudo cargar (p. ej.
-  /// un id inventado en la URL, o el juego/reseña se borró entre tanto).
-  ///
-  /// Lleva los mismos `RouteSettings` que usan `pushGameDetails`/
-  /// `pushProfile`/etc. (ver corpus_router.dart) a propósito: así, una vez
-  /// empujada, esta pantalla es indistinguible de una alcanzada navegando
-  /// normalmente, y TabUrlSyncObserver puede reconocerla si más tarde el
-  /// usuario cambia de pestaña y vuelve.
-  static Future<Route<dynamic>?> buildRoute(TabDeepRoute route) async {
+  /// a [route], o `null` si el recurso no existe o no se pudo cargar.
+  static Future<Route<dynamic>?> buildRoute(
+    TabDeepRoute route, {
+    SupabaseClient? client,
+  }) async {
+    final db = client ?? Supabase.instance.client;
     switch (route) {
       case GameDeepRoute(:final igdbId):
-        final game = await fetchGameByIgdbId(igdbId);
+        final game = await fetchGameByIgdbId(igdbId, client: db);
         if (game == null) return null;
-        return MaterialPageRoute(
-          settings: RouteSettings(
+        return CorpusRouter.route<dynamic>(
+          RouteSettings(
             name: AppRoutes.gameDetails,
             arguments: GameDetailsArgs(gameData: Game.fromMap(game)),
           ),
-          builder: (_) => GameDetailsScreen(gameData: Game.fromMap(game)),
         );
 
       case BundleDeepRoute(:final bundleId):
-        final bundle = await fetchBundleById(bundleId);
+        final bundle = await fetchBundleById(bundleId, client: db);
         if (bundle == null) return null;
-        return MaterialPageRoute(
-          settings: RouteSettings(
+        return CorpusRouter.route<dynamic>(
+          RouteSettings(
             name: AppRoutes.bundleDetails,
             arguments: BundleDetailsArgs(bundleData: bundle),
           ),
-          builder: (_) => BundleDetailsScreen(bundleData: bundle),
         );
 
       case ProfileDeepRoute(:final userId):
-        // ProfileScreen resuelve sus propios datos a partir del userId, así
-        // que aquí no hace falta ningún fetch previo.
-        return MaterialPageRoute(
-          settings: RouteSettings(
+        return CorpusRouter.route<dynamic>(
+          RouteSettings(
             name: AppRoutes.profile,
             arguments: ProfileArgs(userId: userId),
           ),
-          builder: (_) => ProfileScreen(userId: userId),
         );
 
       case FriendsDeepRoute():
-        return MaterialPageRoute(
-          settings: const RouteSettings(name: AppRoutes.friends),
-          builder: (_) => const FriendsScreen(),
+        return CorpusRouter.route<dynamic>(
+          const RouteSettings(name: AppRoutes.friends),
         );
 
       case NotificationsFeedDeepRoute():
-        return MaterialPageRoute(
-          settings: const RouteSettings(name: AppRoutes.notificationsFeed),
-          builder: (_) => const NotificationsFeedScreen(),
+        return CorpusRouter.route<dynamic>(
+          const RouteSettings(name: AppRoutes.notificationsFeed),
         );
 
-      case ReviewDeepRoute(:final reviewId):
-        final args = await fetchReviewById(reviewId);
+      case ReviewDeepRoute(:final reviewId, :final postId, :final focusComment):
+        final args = await fetchReviewById(
+          reviewId,
+          postId: postId,
+          focusComment: focusComment,
+          client: db,
+        );
         if (args == null) return null;
-        return MaterialPageRoute(
-          settings: RouteSettings(
-            name: AppRoutes.reviewDetails,
-            arguments: args,
-          ),
-          builder: (_) => ReviewDetailsScreen(
-            gameData: args.gameData,
-            userData: args.userData,
-            reviewData: args.reviewData,
-            postId: args.postId,
-          ),
+        return CorpusRouter.route<dynamic>(
+          RouteSettings(name: AppRoutes.reviewDetails, arguments: args),
         );
 
-      case GroupedPostDeepRoute(:final postId):
-        return MaterialPageRoute(
-          settings: RouteSettings(
+      case GroupedPostDeepRoute(:final postId, :final focusComment):
+        return CorpusRouter.route<dynamic>(
+          RouteSettings(
             name: AppRoutes.groupedPostDetails,
-            arguments: GroupedPostDetailsArgs(postId: postId),
+            arguments: GroupedPostDetailsArgs(
+              postId: postId,
+              focusComment: focusComment,
+            ),
           ),
-          builder: (_) => GroupedPostDetailsScreen(postId: postId),
         );
 
       case AchievementsDeepRoute(:final userId):
-        final resolvedId =
-            userId ?? Supabase.instance.client.auth.currentUser?.id;
+        final resolvedId = userId ?? db.auth.currentUser?.id;
         if (resolvedId == null) return null;
-        // initialXp en 0: es solo un valor optimista para el primer frame,
-        // AchievementsScreen recarga el xp real desde `users` nada más
-        // montarse (ver achievements_screen.dart línea ~97).
-        return MaterialPageRoute(
-          settings: RouteSettings(
+        return CorpusRouter.route<dynamic>(
+          RouteSettings(
             name: AppRoutes.achievements,
             arguments: AchievementsArgs(userId: resolvedId, initialXp: 0),
           ),
-          builder: (_) => AchievementsScreen(userId: resolvedId, initialXp: 0),
         );
 
       case AchievementGamesDeepRoute(:final achievementId, :final userId):
-        final args = await fetchAchievementGamesArgs(achievementId, userId);
+        final args = await fetchAchievementGamesArgs(
+          achievementId,
+          userId,
+          client: db,
+        );
         if (args == null) return null;
-        return MaterialPageRoute(
-          settings: RouteSettings(
-            name: AppRoutes.achievementGames,
-            arguments: args,
-          ),
-          builder: (_) => AchievementGamesScreen(
-            achievementId: args.achievementId,
-            achievementName: args.achievementName,
-            companyId: args.companyId,
-            collectionId: args.collectionId,
-            franchiseId: args.franchiseId,
-            collectionId2: args.collectionId2,
-            franchiseId2: args.franchiseId2,
-            milestones: args.milestones,
-            achievementIcon: args.achievementIcon,
-            achievementColor: args.achievementColor,
-          ),
+        return CorpusRouter.route<dynamic>(
+          RouteSettings(name: AppRoutes.achievementGames, arguments: args),
         );
     }
   }
 
-  /// Busca un juego local por su `igdb_id`. Misma query que usa
-  /// [DeepLinkService] para el fallback de notificaciones de actividad.
-  static Future<Map<String, dynamic>?> fetchGameByIgdbId(int igdbId) async {
+  /// Busca un juego local por su `igdb_id`.
+  static Future<Map<String, dynamic>?> fetchGameByIgdbId(
+    int igdbId, {
+    SupabaseClient? client,
+  }) async {
     try {
-      return await Supabase.instance.client
+      final db = client ?? Supabase.instance.client;
+      return await db
           .from('games')
-          .select()
+          .select(kGameDetailColumns)
           .eq('igdb_id', igdbId)
           .maybeSingle();
     } catch (e) {
-      debugPrint('[DeepRouteResolver] Error cargando juego $igdbId: $e');
+      _log.warning('Error cargando juego $igdbId: $e');
       return null;
     }
   }
 
-  static Future<Map<String, dynamic>?> fetchBundleById(String bundleId) async {
+  static Future<Map<String, dynamic>?> fetchBundleById(
+    String bundleId, {
+    SupabaseClient? client,
+  }) async {
     try {
-      return await Supabase.instance.client
+      final db = client ?? Supabase.instance.client;
+      return await db
           .from('active_bundles')
-          .select()
+          .select(kActiveBundleColumns)
           .eq('id', bundleId)
           .maybeSingle();
     } catch (e) {
-      debugPrint('[DeepRouteResolver] Error cargando bundle $bundleId: $e');
+      _log.warning('Error cargando bundle $bundleId: $e');
       return null;
     }
   }
 
-  /// Busca una reseña con su juego y autor ya unidos (join). Misma query que
-  /// usa [DeepLinkService] para notificaciones de comentarios/respuestas.
+  /// Busca una reseña con su juego y autor ya unidos (join).
   static Future<ReviewDetailsArgs?> fetchReviewById(
     String reviewId, {
     String? postId,
     bool focusComment = false,
+    SupabaseClient? client,
   }) async {
     try {
-      final res = await Supabase.instance.client
+      final db = client ?? Supabase.instance.client;
+      final res = await db
           .from('reviews')
-          .select('*, games!inner(*), users!reviews_user_id_users_fkey(*)')
+          .select(
+            '$kReviewColumns, games!inner($kGameDetailColumns), '
+            'users!reviews_user_id_users_fkey($kPublicUserBasicColumns)',
+          )
           .eq('id', reviewId)
           .maybeSingle();
       if (res == null) return null;
+      final reviewMap = Map<String, dynamic>.from(res);
+      await ReviewRepository(client: db).injectPartners([reviewMap]);
+      final rawGames = reviewMap['games'];
+      final rawUsers = reviewMap['users'];
       return ReviewDetailsArgs(
-        gameData: Game.fromMap(Map<String, dynamic>.from(res['games'])),
-        userData: res['users'] != null
-            ? Map<String, dynamic>.from(res['users'])
+        gameData: Game.fromMap(
+          rawGames is Map ? Map<String, dynamic>.from(rawGames) : const {},
+        ),
+        userData: rawUsers is Map
+            ? Map<String, dynamic>.from(rawUsers)
             : null,
-        reviewData: res,
+        reviewData: reviewMap,
         postId: postId,
         focusComment: focusComment,
       );
     } catch (e) {
-      debugPrint('[DeepRouteResolver] Error cargando reseña $reviewId: $e');
+      _log.warning('Error cargando reseña $reviewId: $e');
       return null;
     }
   }
 
   static Future<AchievementGamesArgs?> fetchAchievementGamesArgs(
     String achievementId,
-    String? userId,
-  ) async {
+    String? userId, {
+    SupabaseClient? client,
+  }) async {
+    final trimmedId = achievementId.trim();
+    if (trimmedId.isEmpty) return null;
+
     try {
-      final groupId = achievementId.split('_').first;
+      final db = client ?? Supabase.instance.client;
+      final groupId = AchievementUtils.extractSagaGroupId(trimmedId);
+      final likePrefix = escapeLikePattern(groupId);
 
-      final res = await Supabase.instance.client
+      final res = await db
           .from('achievements')
-          .select()
-          .like('id', '$groupId%')
-          .order('id', ascending: true);
+          .select(kAchievementColumns)
+          .like('id', '$likePrefix%')
+          .order('id', ascending: true)
+          .limit(50);
 
-      if (res.isEmpty) return null;
+      final matchingRows = (res as List).whereType<Map>().where((row) {
+        final rowId = row['id']?.toString() ?? '';
+        return rowId == trimmedId ||
+            AchievementUtils.extractSagaGroupId(rowId) == groupId;
+      }).toList();
 
-      int? companyId;
-      int? collectionId;
-      int? franchiseId;
-      int? collectionId2;
-      int? franchiseId2;
+      if (matchingRows.isEmpty) return null;
 
-      for (final entry in AchievementUtils.achievementIgdbIds.entries) {
-        if (groupId.startsWith(entry.key)) {
-          companyId = entry.value['companyId'];
-          collectionId = entry.value['collectionId'];
-          franchiseId = entry.value['franchiseId'];
-          collectionId2 = entry.value['collectionId2'];
-          franchiseId2 = entry.value['franchiseId2'];
-          break;
-        }
-      }
+      final igdbIds = AchievementUtils.resolveIgdbIdsForGroup(groupId);
+      final int? companyId = igdbIds?['companyId'];
+      final int? collectionId = igdbIds?['collectionId'];
+      final int? franchiseId = igdbIds?['franchiseId'];
+      final int? collectionId2 = igdbIds?['collectionId2'];
+      final int? franchiseId2 = igdbIds?['franchiseId2'];
 
-      final firstAchievement = res.first;
+      final firstAchievement = matchingRows.first;
       final titleStr = (firstAchievement['name'] as String?) ?? '';
-      final sagaStr = titleStr.split(' (').first;
+      final sagaStr = AchievementUtils.cleanSagaBaseName(titleStr);
 
-      final milestones = res.map((row) {
+      final milestones = matchingRows.map((row) {
         final Map<String, dynamic> m = Map<String, dynamic>.from(row);
-        final aId = m['id'] as String;
-        int target = 1;
-        final matchSuffix = RegExp(r'_(\d+)$').firstMatch(aId);
-        if (matchSuffix != null) {
-          target = int.parse(matchSuffix.group(1)!);
-        } else if (aId.endsWith('_all')) {
-          if (aId.startsWith('fromsoftware') || aId.startsWith('zelda')) {
-            target = 7;
-          } else if (aId.startsWith('mario')) {
-            target = 15;
-          } else if (aId.startsWith('dark_souls')) {
-            target = 3;
-          }
-        }
-        m['target'] = target;
-        m['xp'] = m['xp_reward'] ?? 10;
+        m['target'] = AchievementUtils.resolveMilestoneTarget(m);
+        m['xp'] = (m['xp_reward'] as num?)?.toInt() ?? 10;
         return m;
       }).toList();
 
@@ -264,8 +234,12 @@ abstract final class DeepRouteResolver {
         (a, b) => (a['target'] as int).compareTo(b['target'] as int),
       );
 
+      final trimmedUserId = userId?.trim();
+      final normalizedUserId =
+          (trimmedUserId == null || trimmedUserId.isEmpty) ? null : trimmedUserId;
+
       return AchievementGamesArgs(
-        userId: userId,
+        userId: normalizedUserId,
         achievementId: groupId,
         achievementName: sagaStr,
         companyId: companyId,
@@ -276,9 +250,7 @@ abstract final class DeepRouteResolver {
         milestones: milestones,
       );
     } catch (e) {
-      debugPrint(
-        '[DeepRouteResolver] Error cargando saga de logro $achievementId: $e',
-      );
+      _log.warning('Error cargando saga de logro $achievementId: $e');
       return null;
     }
   }

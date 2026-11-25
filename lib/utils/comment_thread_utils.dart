@@ -1,45 +1,100 @@
 /// Utilities for ordering and displaying threaded review comments.
 library;
 
-/// Orders comments depth-first so replies appear directly under their parent.
+final RegExp _mentionPrefixRegex = RegExp(r'^@(\w+)');
+final DateTime _epochUtc = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+
+DateTime _parseCreatedAtSafe(dynamic raw) {
+  if (raw == null) return _epochUtc;
+  final parsed = DateTime.tryParse(raw.toString());
+  return parsed?.toUtc() ?? _epochUtc;
+}
+
+String? _readAuthorUsername(Map<String, dynamic>? comment) {
+  if (comment == null) return null;
+  final users = comment['users'];
+  if (users is! Map) return null;
+  final name = users['username']?.toString().trim();
+  return (name == null || name.isEmpty) ? null : name;
+}
+
+/// Orders comments depth-first in `O(N log N)` so replies appear directly
+/// under their parent.
 ///
 /// Infers parent links for legacy rows that only use an `@username` prefix when
-/// [parent_comment_id] is null.
+/// `parent_comment_id` is null. Unknown mentions remain top-level roots.
 List<Map<String, dynamic>> orderCommentsThreaded(
   List<Map<String, dynamic>> comments,
 ) {
   if (comments.isEmpty) return const [];
 
-  final byId = <String, Map<String, dynamic>>{
-    for (final comment in comments)
-      if (comment['id'] != null) comment['id'] as String: comment,
-  };
+  final byId = <String, Map<String, dynamic>>{};
+  final indexed = <({Map<String, dynamic> comment, DateTime createdAt, int index})>[];
 
-  final sorted = List<Map<String, dynamic>>.from(comments)
-    ..sort(
-      (a, b) => DateTime.parse(
-        a['created_at'] as String,
-      ).compareTo(DateTime.parse(b['created_at'] as String)),
-    );
-
-  final inferredParent = <String, String?>{};
-  for (final comment in sorted) {
-    final id = comment['id'] as String?;
-    if (id == null) continue;
-
-    final storedParent = comment['parent_comment_id'] as String?;
-    if (storedParent != null && byId.containsKey(storedParent)) {
-      inferredParent[id] = storedParent;
-      continue;
+  for (var i = 0; i < comments.length; i++) {
+    final comment = comments[i];
+    final id = comment['id']?.toString();
+    if (id != null && id.isNotEmpty) {
+      byId[id] = comment;
     }
+    indexed.add((
+      comment: comment,
+      createdAt: _parseCreatedAtSafe(comment['created_at']),
+      index: i,
+    ));
+  }
 
-    inferredParent[id] = _inferParentId(comment, sorted, byId);
+  indexed.sort((a, b) {
+    final cmp = a.createdAt.compareTo(b.createdAt);
+    return cmp != 0 ? cmp : a.index.compareTo(b.index);
+  });
+
+  final sorted = <Map<String, dynamic>>[];
+  final inferredParent = <String, String?>{};
+  final priorByUsername =
+      <String, List<({String id, DateTime createdAt})>>{};
+
+  for (final entry in indexed) {
+    final comment = entry.comment;
+    sorted.add(comment);
+
+    final id = comment['id']?.toString();
+    if (id != null && id.isNotEmpty) {
+      final storedParent = comment['parent_comment_id']?.toString();
+      if (storedParent != null &&
+          storedParent != id &&
+          byId.containsKey(storedParent)) {
+        inferredParent[id] = storedParent;
+      } else {
+        final mentioned = _inferMentionedUsername(comment)?.toLowerCase();
+        String? matchedParent;
+        if (mentioned != null) {
+          final candidates = priorByUsername[mentioned];
+          if (candidates != null) {
+            for (var j = candidates.length - 1; j >= 0; j--) {
+              if (candidates[j].createdAt.isBefore(entry.createdAt)) {
+                matchedParent = candidates[j].id;
+                break;
+              }
+            }
+          }
+        }
+        inferredParent[id] = matchedParent;
+      }
+
+      final authorUsername = _readAuthorUsername(comment)?.toLowerCase();
+      if (authorUsername != null) {
+        priorByUsername
+            .putIfAbsent(authorUsername, () => [])
+            .add((id: id, createdAt: entry.createdAt));
+      }
+    }
   }
 
   final byParent = <String?, List<Map<String, dynamic>>>{};
   for (final comment in sorted) {
-    final id = comment['id'] as String?;
-    if (id == null) continue;
+    final id = comment['id']?.toString();
+    if (id == null || id.isEmpty) continue;
     final parentId = inferredParent[id];
     byParent.putIfAbsent(parentId, () => []).add(comment);
   }
@@ -52,16 +107,13 @@ List<Map<String, dynamic>> orderCommentsThreaded(
     if (children == null) return;
 
     for (final comment in children) {
-      final id = comment['id'] as String?;
-      if (id == null || visited.contains(id)) continue;
+      final id = comment['id']?.toString();
+      if (id == null || id.isEmpty || visited.contains(id)) continue;
       visited.add(id);
 
       String? replyToUsername;
       if (parentId != null) {
-        final parentComment = byId[parentId];
-        replyToUsername =
-            (parentComment?['users'] as Map<String, dynamic>?)?['username']
-                ?.toString();
+        replyToUsername = _readAuthorUsername(byId[parentId]);
       }
       replyToUsername ??= _inferMentionedUsername(comment);
 
@@ -78,15 +130,12 @@ List<Map<String, dynamic>> orderCommentsThreaded(
   visit(null, 0);
 
   for (final comment in sorted) {
-    final id = comment['id'] as String?;
-    if (id == null || visited.contains(id)) continue;
+    final id = comment['id']?.toString();
+    if (id == null || id.isEmpty || visited.contains(id)) continue;
     final parentId = inferredParent[id];
     String? replyToUsername;
     if (parentId != null) {
-      final parentComment = byId[parentId];
-      replyToUsername =
-          (parentComment?['users'] as Map<String, dynamic>?)?['username']
-              ?.toString();
+      replyToUsername = _readAuthorUsername(byId[parentId]);
     }
     replyToUsername ??= _inferMentionedUsername(comment);
 
@@ -102,54 +151,6 @@ List<Map<String, dynamic>> orderCommentsThreaded(
 
 String? _inferMentionedUsername(Map<String, dynamic> comment) {
   final content = comment['content']?.toString().trim() ?? '';
-  final mentionMatch = RegExp(r'^@(\w+)').firstMatch(content);
+  final mentionMatch = _mentionPrefixRegex.firstMatch(content);
   return mentionMatch?.group(1);
-}
-
-String? _inferParentId(
-  Map<String, dynamic> comment,
-  List<Map<String, dynamic>> sortedComments,
-  Map<String, Map<String, dynamic>> byId,
-) {
-  final content = comment['content']?.toString().trim() ?? '';
-  final mentionMatch = RegExp(r'^@(\w+)').firstMatch(content);
-  if (mentionMatch == null) return null;
-
-  final mentionedUsername = mentionMatch.group(1)!.toLowerCase();
-  final createdAt = DateTime.parse(comment['created_at'] as String);
-
-  Map<String, dynamic>? bestMatch;
-  DateTime? bestMatchTime;
-
-  for (final candidate in sortedComments) {
-    if (identical(candidate, comment)) continue;
-
-    final candidateId = candidate['id'] as String?;
-    if (candidateId == null) continue;
-
-    final candidateTime = DateTime.parse(candidate['created_at'] as String);
-    if (!candidateTime.isBefore(createdAt)) continue;
-
-    final username = (candidate['users'] as Map<String, dynamic>?)?['username']
-        ?.toString()
-        .toLowerCase();
-    if (username != mentionedUsername) continue;
-
-    if (bestMatch == null || candidateTime.isAfter(bestMatchTime!)) {
-      bestMatch = candidate;
-      bestMatchTime = candidateTime;
-    }
-  }
-
-  if (bestMatch != null) {
-    return bestMatch['id'] as String;
-  }
-
-  final firstRoot = sortedComments.firstWhere((candidate) {
-    if (identical(candidate, comment)) return false;
-    final parentId = candidate['parent_comment_id'] as String?;
-    return parentId == null || !byId.containsKey(parentId);
-  }, orElse: () => <String, dynamic>{});
-
-  return firstRoot['id'] as String?;
 }

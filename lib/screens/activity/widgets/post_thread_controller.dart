@@ -1,5 +1,6 @@
 import 'package:corpus/models/models.dart';
 import 'package:corpus/repositories/activity_repository.dart';
+import 'package:corpus/utils/comment_thread_utils.dart';
 import 'package:corpus/utils/safe_change_notifier.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -33,6 +34,7 @@ class PostThreadController extends SafeChangeNotifier {
   int _commentsCount;
   bool _hasLiked;
   List<Map<String, dynamic>> _comments = [];
+  List<Map<String, dynamic>> _threadedComments = const [];
   bool _isLoading = true;
   bool _isSubmitting = false;
 
@@ -42,8 +44,14 @@ class PostThreadController extends SafeChangeNotifier {
       _comments.isNotEmpty ? _comments.length : _commentsCount;
   bool get hasLiked => _hasLiked;
   List<Map<String, dynamic>> get comments => _comments;
+  List<Map<String, dynamic>> get threadedComments => _threadedComments;
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
+
+  void _setComments(List<Map<String, dynamic>> nextComments) {
+    _comments = nextComments;
+    _threadedComments = orderCommentsThreaded(nextComments);
+  }
 
   PostStats? get currentStats => _postId == null
       ? null
@@ -100,7 +108,7 @@ class PostThreadController extends SafeChangeNotifier {
       if (pid == null) {
         _likesCount = 0;
         _hasLiked = false;
-        _comments = [];
+        _setComments(const []);
         _commentsCount = 0;
         _isLoading = false;
         notifyListeners();
@@ -110,7 +118,7 @@ class PostThreadController extends SafeChangeNotifier {
       final result = await _repo.fetchInteractions(pid, userId);
       _likesCount = result.likesCount;
       _hasLiked = result.hasLiked;
-      _comments = result.comments;
+      _setComments(result.comments);
       _commentsCount = result.comments.length;
       _isLoading = false;
       notifyListeners();

@@ -131,9 +131,11 @@ class _MainScreenState extends State<MainScreen>
       });
     }
     // Señalar al splash HTML que ya tenemos la UI lista para mostrar.
-    // addPostFrameCallback garantiza que el primer frame ya ha sido pintado.
+    // Consumir además cualquier deep link pendiente capturado en cold start.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       dispatchCorpusReady();
+      _onPendingTab();
+      unawaited(DeepLinkService.flushPendingNavigation());
     });
     DeepLinkService.pendingTab.addListener(_onPendingTab);
     _badgeController.init();
@@ -207,10 +209,19 @@ class _MainScreenState extends State<MainScreen>
       }
     }
 
+    if (DeepLinkService.pendingTab.value != null) {
+      _onPendingTab();
+      return;
+    }
+
     if (!MainScreenController.shouldPersistTab) return;
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      final savedIndex = prefs.getInt('main_tab_index') ?? 0;
+    if (!mounted) return;
+    if (DeepLinkService.pendingTab.value != null) {
+      _onPendingTab();
+      return;
+    }
+    final savedIndex = prefs.getInt('main_tab_index') ?? 0;
       setState(() {
         _currentIndex = savedIndex;
         _initializedTabs.add(savedIndex);
@@ -230,7 +241,6 @@ class _MainScreenState extends State<MainScreen>
           state: {'tab': savedIndex, 'depth': 0, 'token': rootToken},
         );
       }
-    }
   }
 
   /// Resuelve [subRoute] (con su fetch de datos) y la empuja en la pestaña

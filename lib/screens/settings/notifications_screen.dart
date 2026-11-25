@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:corpus/globals.dart';
 import '../../services/notification_service.dart';
 import '../../theme/corpus_theme_extension.dart';
+import '../../utils/postgrest_utils.dart';
 import '../../widgets/corpus_section_title.dart';
 
 /// Pantalla de ajustes de notificaciones.
@@ -48,7 +49,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     try {
       final data = await _supabase
           .from('notification_preferences')
-          .select()
+          .select(kNotificationPrefsColumns)
           .eq('user_id', userId)
           .maybeSingle();
 

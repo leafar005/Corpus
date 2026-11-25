@@ -23,6 +23,8 @@ class MainScreenController {
   RealtimeChannel? _friendshipsChannel;
   RealtimeChannel? _activityFeedChannel;
   RealtimeChannel? _notificationsChannel;
+  bool _activitySubscribedOnce = false;
+  bool _notificationsSubscribedOnce = false;
 
   final Set<String> _recentActivityGames = <String>{};
   final Set<String> _countedPostIds = <String>{};
@@ -61,44 +63,50 @@ class MainScreenController {
     _friendshipsChannel = null;
     _activityFeedChannel = null;
     _notificationsChannel = null;
+    _activitySubscribedOnce = false;
+    _notificationsSubscribedOnce = false;
   }
 
   // ──────────────────────────────────────────────────────────────────────────
   // Badges
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// Recarga todos los contadores de badge desde el servidor.
+  /// Recarga todos los contadores de badge desde el servidor en paralelo.
   /// Llamar al volver de segundo plano (excepto si estamos en pestaña Actividad).
   Future<void> fetchInitialBadges() async {
     if (_disposed) return;
     final myId = _myId;
     if (myId == null) return;
 
-    // Solicitudes de amistad pendientes.
-    try {
-      final res = await _client
-          .from('friendships')
-          .select('requester_id')
-          .eq('addressee_id', myId)
-          .eq('status', 'pending');
-      if (_disposed) return;
-      unreadFriendRequestsCount.value = res.length;
-    } catch (e) {
-      debugPrint(
-        '[MainScreenController] Error cargando solicitudes de amistad: $e',
-      );
-    }
-
-    if (_disposed) return;
-
-    // Actividad no leída (calculada en servidor).
-    try {
-      final res = await _client.rpc('get_unread_activity_summary').single();
-      if (_disposed) return;
-      unreadActivityCount.value = (res['unread_count'] as num?)?.toInt() ?? 0;
-    } catch (e) {
-      debugPrint('[MainScreenController] Error fetch activity summary: $e');
-    }
+    await Future.wait([
+      () async {
+        try {
+          final res = await _client
+              .from('friendships')
+              .select('requester_id')
+              .eq('addressee_id', myId)
+              .eq('status', 'pending')
+              .count(CountOption.exact);
+          if (_disposed) return;
+          unreadFriendRequestsCount.value = res.count;
+        } catch (e) {
+          debugPrint(
+            '[MainScreenController] Error cargando solicitudes de amistad: $e',
+          );
+        }
+      }(),
+      () async {
+        try {
+          final res = await _client.rpc('get_unread_activity_summary').single();
+          if (_disposed) return;
+          unreadActivityCount.value =
+              (res['unread_count'] as num?)?.toInt() ?? 0;
+        } catch (e) {
+          debugPrint('[MainScreenController] Error fetch activity summary: $e');
+        }
+      }(),
+      fetchNotificationsCount(),
+    ]);
   }
 
   /// Marca la actividad como leída: reset optimista en la UI + persistencia
@@ -142,20 +150,6 @@ class MainScreenController {
     final myId = _myId;
     if (myId == null) return;
 
-    // Carga inicial.
-    _client
-        .from('friendships')
-        .select('requester_id')
-        .eq('addressee_id', myId)
-        .eq('status', 'pending')
-        .then((rows) {
-          if (_disposed) return;
-          unreadFriendRequestsCount.value = rows.length;
-        })
-        .catchError((Object e) {
-          debugPrint('[MainScreenController] Error inicial solicitudes: $e');
-        });
-
     _friendshipsChannel = _client
         .channel('pending_friend_requests:$myId')
         .onPostgresChanges(
@@ -182,6 +176,7 @@ class MainScreenController {
     final myId = _myId;
     if (myId == null) return;
 
+    _activitySubscribedOnce = false;
     fetchInitialBadges();
 
     _activityFeedChannel = _client
@@ -226,8 +221,12 @@ class MainScreenController {
         .subscribe((status, error) {
           if (_disposed) return;
           if (status == RealtimeSubscribeStatus.subscribed) {
-            // Re-fetch también en reconexiones (cortes de red, suspensión).
-            fetchInitialBadges();
+            // Re-fetch solo en reconexiones posteriores (no duplicar la carga inicial).
+            if (_activitySubscribedOnce) {
+              fetchInitialBadges();
+            } else {
+              _activitySubscribedOnce = true;
+            }
           }
           if (status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.timedOut) {
@@ -242,7 +241,7 @@ class MainScreenController {
     final myId = _myId;
     if (myId == null) return;
 
-    fetchNotificationsCount();
+    _notificationsSubscribedOnce = false;
 
     _notificationsChannel = _client
         .channel('unread_notifications_badge:$myId')
@@ -263,7 +262,11 @@ class MainScreenController {
         .subscribe((status, error) {
           if (_disposed) return;
           if (status == RealtimeSubscribeStatus.subscribed) {
-            fetchNotificationsCount();
+            if (_notificationsSubscribedOnce) {
+              fetchNotificationsCount();
+            } else {
+              _notificationsSubscribedOnce = true;
+            }
           }
         });
   }
